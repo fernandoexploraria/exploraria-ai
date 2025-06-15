@@ -1,4 +1,5 @@
 
+```tsx
 import React, { useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -16,11 +17,6 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<{ [key: string]: mapboxgl.Marker }>({});
-  const popup = useRef(new mapboxgl.Popup({
-    closeButton: false,
-    closeOnClick: false,
-    offset: 20
-  }));
 
   // Initialize map (runs once)
   useEffect(() => {
@@ -74,16 +70,22 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
           onSelectLandmark(landmark);
         });
 
+        const popup = new mapboxgl.Popup({
+          closeButton: false,
+          closeOnClick: false,
+          offset: 20
+        });
+
         marker.getElement().addEventListener('mouseenter', () => {
           if (!map.current) return;
-          popup.current
+          popup
             .setLngLat(landmark.coordinates)
             .setText(landmark.name)
             .addTo(map.current);
         });
         
         marker.getElement().addEventListener('mouseleave', () => {
-          popup.current.remove();
+          popup.remove();
         });
 
         markers.current[landmark.id] = marker;
@@ -149,3 +151,4 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
 };
 
 export default Map;
+```
