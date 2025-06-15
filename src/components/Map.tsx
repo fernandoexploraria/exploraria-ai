@@ -16,8 +16,9 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<{ [key: string]: mapboxgl.Marker }>({});
 
+  // Initialize map (runs once)
   useEffect(() => {
-    if (!mapboxToken || !mapContainer.current) return;
+    if (!mapboxToken || !mapContainer.current || map.current) return;
 
     mapboxgl.accessToken = mapboxToken;
     map.current = new mapboxgl.Map({
@@ -32,24 +33,48 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       map.current?.setFog({}); // Add a sky layer and atmosphere
     });
 
-    landmarks.forEach((landmark) => {
-      const el = document.createElement('div');
-      el.className = 'w-4 h-4 rounded-full bg-cyan-400 border-2 border-white shadow-lg cursor-pointer transition-transform duration-300 hover:scale-125';
-      el.style.transition = 'background-color 0.3s, transform 0.3s';
-      
-      const marker = new mapboxgl.Marker(el)
-        .setLngLat(landmark.coordinates)
-        .addTo(map.current!);
+    return () => {
+      map.current?.remove();
+      map.current = null;
+    };
+  }, [mapboxToken]);
 
-      marker.getElement().addEventListener('click', () => {
-        onSelectLandmark(landmark);
-      });
-      markers.current[landmark.id] = marker;
+  // Update markers when landmarks change
+  useEffect(() => {
+    if (!map.current) return;
+
+    const landmarkIds = new Set(landmarks.map(l => l.id));
+
+    // Remove markers that are no longer in the landmarks list
+    Object.keys(markers.current).forEach(markerId => {
+      if (!landmarkIds.has(markerId)) {
+        markers.current[markerId].remove();
+        delete markers.current[markerId];
+      }
     });
 
-    return () => map.current?.remove();
-  }, [mapboxToken, landmarks, onSelectLandmark]);
+    // Add new markers
+    landmarks.forEach((landmark) => {
+      if (!markers.current[landmark.id]) {
+        const el = document.createElement('div');
+        el.className = 'w-4 h-4 rounded-full bg-cyan-400 border-2 border-white shadow-lg cursor-pointer transition-transform duration-300 hover:scale-125';
+        el.style.transition = 'background-color 0.3s, transform 0.3s';
+        
+        const marker = new mapboxgl.Marker(el)
+          .setLngLat(landmark.coordinates)
+          .addTo(map.current!);
 
+        marker.getElement().addEventListener('click', () => {
+          onSelectLandmark(landmark);
+        });
+        markers.current[landmark.id] = marker;
+      }
+    });
+
+  }, [landmarks, onSelectLandmark]);
+
+
+  // Fly to selected landmark and update marker styles
   useEffect(() => {
     if (map.current && selectedLandmark) {
       map.current.flyTo({

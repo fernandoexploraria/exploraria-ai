@@ -40,7 +40,7 @@ const SearchControl: React.FC<SearchControlProps> = ({ landmarks, onSelectLandma
     <>
       <Button
         variant="outline"
-        className="absolute top-4 left-4 z-10 bg-background/80 backdrop-blur-sm shadow-lg"
+        className="bg-background/80 backdrop-blur-sm shadow-lg"
         onClick={() => setOpen(true)}
       >
         <span className="mr-2 hidden sm:inline">Search destination...</span>
