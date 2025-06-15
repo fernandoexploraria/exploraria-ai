@@ -4,8 +4,7 @@ import { Landmark } from '@/data/landmarks';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useConversation } from '@11labs/react';
-import { Volume2, X } from 'lucide-react';
+import { Loader, Volume2, X } from 'lucide-react';
 import { toast } from "sonner";
 
 interface InfoPanelProps {
@@ -16,22 +15,56 @@ interface InfoPanelProps {
 }
 
 const InfoPanel: React.FC<InfoPanelProps> = ({ landmark, onClose, elevenLabsApiKey, setElevenLabsApiKey }) => {
-  const { play } = useConversation({
-    voiceId: "21m00Tcm4TlvDq8ikWAM", // Rachel
-    model: "eleven_multilingual_v2",
-  });
-  
+  const [isPlaying, setIsPlaying] = useState(false);
+
   const handlePlayAudio = async () => {
     if (!elevenLabsApiKey) {
       toast.error("Please enter your ElevenLabs API key.");
       return;
     }
     if (landmark) {
+      setIsPlaying(true);
       try {
-        await play({ text: landmark.description, apiKey: elevenLabsApiKey });
+        const voiceId = "21m00Tcm4TlvDq8ikWAM"; // Rachel
+        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+          method: 'POST',
+          headers: {
+            'Accept': 'audio/mpeg',
+            'Content-Type': 'application/json',
+            'xi-api-key': elevenLabsApiKey,
+          },
+          body: JSON.stringify({
+            text: landmark.description,
+            model_id: 'eleven_multilingual_v2',
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error("ElevenLabs API error:", errorData);
+          throw new Error(errorData.detail?.message || "Failed to fetch audio from ElevenLabs.");
+        }
+
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        
+        audio.onended = () => {
+          setIsPlaying(false);
+          URL.revokeObjectURL(audioUrl);
+        };
+        audio.onerror = () => {
+          setIsPlaying(false);
+          URL.revokeObjectURL(audioUrl);
+          toast.error("Error playing audio.");
+        }
+        
+        await audio.play();
+
       } catch (error) {
         console.error("Error playing audio:", error);
-        toast.error("Failed to play audio. Check your API key and console for details.");
+        toast.error(error instanceof Error ? error.message : "Failed to play audio. Check your API key and console for details.");
+        setIsPlaying(false);
       }
     }
   };
@@ -58,9 +91,13 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ landmark, onClose, elevenLabsApiK
             className="mt-1"
           />
         </div>
-        <Button onClick={handlePlayAudio} className="w-full" disabled={!elevenLabsApiKey}>
-          <Volume2 className="mr-2 h-4 w-4" />
-          Listen to Guide
+        <Button onClick={handlePlayAudio} className="w-full" disabled={!elevenLabsApiKey || isPlaying}>
+          {isPlaying ? (
+            <Loader className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Volume2 className="mr-2 h-4 w-4" />
+          )}
+          {isPlaying ? 'Loading...' : 'Listen to Guide'}
         </Button>
       </div>
     </div>
