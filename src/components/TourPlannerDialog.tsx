@@ -11,11 +11,9 @@ interface TourPlannerDialogProps {
   onOpenChange: (open: boolean) => void;
   onGenerateTour: (destination: string) => Promise<void>;
   isLoading: boolean;
-  perplexityApiKey: string;
-  onPerplexityApiKeyChange: (key: string) => void;
 }
 
-const TourPlannerDialog: React.FC<TourPlannerDialogProps> = ({ open, onOpenChange, onGenerateTour, isLoading, perplexityApiKey, onPerplexityApiKeyChange }) => {
+const TourPlannerDialog: React.FC<TourPlannerDialogProps> = ({ open, onOpenChange, onGenerateTour, isLoading }) => {
   const [destination, setDestination] = useState('');
 
   const handleGenerate = async () => {
@@ -44,23 +42,10 @@ const TourPlannerDialog: React.FC<TourPlannerDialogProps> = ({ open, onOpenChang
               placeholder="Enter a city or region"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="perplexity-key">Perplexity API Key</Label>
-            <Input
-              id="perplexity-key"
-              type="password"
-              value={perplexityApiKey}
-              onChange={(e) => onPerplexityApiKeyChange(e.target.value)}
-              placeholder="Enter your Perplexity API key"
-            />
-             <p className="text-xs text-muted-foreground">
-                Your key is stored in your browser's local storage.
-             </p>
-          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleGenerate} disabled={isLoading || !destination || !perplexityApiKey}>
+          <Button onClick={handleGenerate} disabled={isLoading || !destination}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Generate Tour
           </Button>

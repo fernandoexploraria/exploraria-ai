@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import Map from '@/components/Map';
 import InfoPanel from '@/components/InfoPanel';
@@ -15,6 +14,9 @@ const MAPBOX_TOKEN = 'pk.eyJ1IjoiZm9icmVnb25hIiwiYSI6ImNtMGlnYzFlYTBtYnUybG9tMGR
 
 // I will replace this with your key once you provide it.
 const ELEVENLABS_API_KEY = 'sk_eb59e166d9d2e3b2f5744a71424e493d53f472efff8191a9';
+
+// IMPORTANT: Replace this placeholder with your actual Perplexity API key.
+const PERPLEXITY_API_KEY = 'YOUR_PERPLEXITY_API_KEY';
 
 const Index: React.FC = () => {
   const [selectedLandmark, setSelectedLandmark] = useState<Landmark | null>(null);
@@ -40,7 +42,11 @@ const Index: React.FC = () => {
   };
 
   const handleGenerateTour = async (destination: string) => {
-    await generateTour(destination, perplexityApiKey);
+    if (!PERPLEXITY_API_KEY || PERPLEXITY_API_KEY === 'YOUR_PERPLEXITY_API_KEY') {
+        alert("Please replace 'YOUR_PERPLEXITY_API_KEY' with your actual key in src/pages/Index.tsx");
+        return;
+    }
+    await generateTour(destination, PERPLEXITY_API_KEY);
   };
 
   return (
@@ -72,8 +78,6 @@ const Index: React.FC = () => {
         onOpenChange={setIsTourPlannerOpen}
         onGenerateTour={handleGenerateTour}
         isLoading={isTourLoading}
-        perplexityApiKey={perplexityApiKey}
-        onPerplexityApiKeyChange={setPerplexityApiKey}
       />
     </div>
   );
