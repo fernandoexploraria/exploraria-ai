@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import Map from '@/components/Map';
 import InfoPanel from '@/components/InfoPanel';
 import { landmarks as staticLandmarks, Landmark } from '@/data/landmarks';
@@ -15,20 +15,14 @@ const MAPBOX_TOKEN = 'pk.eyJ1IjoiZm9icmVnb25hIiwiYSI6ImNtMGlnYzFlYTBtYnUybG9tMGR
 // I will replace this with your key once you provide it.
 const ELEVENLABS_API_KEY = 'sk_eb59e166d9d2e3b2f5744a71424e493d53f472efff8191a9';
 
-// IMPORTANT: Replace this placeholder with your actual Perplexity API key.
-const PERPLEXITY_API_KEY = 'YOUR_PERPLEXITY_API_KEY';
+// Your Perplexity API key.
+const PERPLEXITY_API_KEY = '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';
 
 const Index: React.FC = () => {
   const [selectedLandmark, setSelectedLandmark] = useState<Landmark | null>(null);
   const [isTourPlannerOpen, setIsTourPlannerOpen] = useState(false);
   const { plannedLandmarks, isLoading: isTourLoading, generateTour } = useTourPlanner();
   
-  const [perplexityApiKey, setPerplexityApiKey] = useState<string>(() => localStorage.getItem('perplexityApiKey') || '');
-
-  useEffect(() => {
-    localStorage.setItem('perplexityApiKey', perplexityApiKey);
-  }, [perplexityApiKey]);
-
   const allLandmarks = useMemo(() => {
     return [...staticLandmarks, ...plannedLandmarks];
   }, [plannedLandmarks]);
@@ -42,8 +36,8 @@ const Index: React.FC = () => {
   };
 
   const handleGenerateTour = async (destination: string) => {
-    if (!PERPLEXITY_API_KEY || PERPLEXITY_API_KEY === 'YOUR_PERPLEXITY_API_KEY') {
-        alert("Please replace 'YOUR_PERPLEXITY_API_KEY' with your actual key in src/pages/Index.tsx");
+    if (!PERPLEXITY_API_KEY || PERPLEXITY_API_KEY.includes('YOUR_')) {
+        alert("Please provide a valid Perplexity API key in src/pages/Index.tsx");
         return;
     }
     await generateTour(destination, PERPLEXITY_API_KEY);
