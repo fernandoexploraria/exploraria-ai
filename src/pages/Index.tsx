@@ -10,7 +10,7 @@ import SearchControl from '@/components/SearchControl';
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiZm9icmVnb25hIiwiYSI6ImNtMGlnYzFlYTBtYnUybG9tMGRuczNoMzkifQ.n_n-sCR4Zm-dCV5ijeXiDg';
 
 // I will replace this with your key once you provide it.
-const ELEVENLABS_API_KEY = 'YOUR_ELEVENLABS_API_KEY_HERE';
+const ELEVENLABS_API_KEY = 'sk_eb59e166d9d2e3b2f5744a71424e493d53f472efff8191a9';
 
 const Index: React.FC = () => {
   const [selectedLandmark, setSelectedLandmark] = useState<Landmark | null>(null);
