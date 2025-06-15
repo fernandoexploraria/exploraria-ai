@@ -6,7 +6,7 @@ import { landmarks, Landmark } from '@/data/landmarks';
 
 // IMPORTANT: Replace this with your own public Mapbox token!
 // You can get one from your Mapbox account: https://www.mapbox.com/
-const MAPBOX_TOKEN = 'pk.eyJ1IjoiZ3B0ZW5naW5lZXIiLCJhIjoiY2x0d2F3NW9kMWh2eDJrbzJwcjEwZ3lqZCJ9.7J_S_42K2Wm3l9Q4f2bXjA';
+const MAPBOX_TOKEN = 'pk.eyJ1IjoiZm9icmVnb25hIiwiYSI6ImNtMGlnYzFlYTBtYnUybG9tMGRuczNoMzkifQ.n_n-sCR4Zm-dCV5ijeXiDg';
 
 const Index: React.FC = () => {
   const [selectedLandmark, setSelectedLandmark] = useState<Landmark | null>(null);
