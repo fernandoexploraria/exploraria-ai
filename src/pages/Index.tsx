@@ -1,7 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import Map from '@/components/Map';
 import InfoPanel from '@/components/InfoPanel';
 import { landmarks, Landmark } from '@/data/landmarks';
+import SearchControl from '@/components/SearchControl';
 
 // IMPORTANT: Replace this with your own public Mapbox token!
 // You can get one from your Mapbox account: https://www.mapbox.com/
@@ -29,6 +31,7 @@ const Index: React.FC = () => {
 
   return (
     <div className="w-screen h-screen relative">
+      <SearchControl landmarks={landmarks} onSelectLandmark={handleSelectLandmark} />
       <Map 
         mapboxToken={MAPBOX_TOKEN}
         landmarks={landmarks}
