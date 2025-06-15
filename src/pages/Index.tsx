@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Map from '@/components/Map';
 import InfoPanel from '@/components/InfoPanel';
 import { landmarks, Landmark } from '@/data/landmarks';
@@ -9,17 +9,11 @@ import SearchControl from '@/components/SearchControl';
 // You can get one from your Mapbox account: https://www.mapbox.com/
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiZm9icmVnb25hIiwiYSI6ImNtMGlnYzFlYTBtYnUybG9tMGRuczNoMzkifQ.n_n-sCR4Zm-dCV5ijeXiDg';
 
+// I will replace this with your key once you provide it.
+const ELEVENLABS_API_KEY = 'YOUR_ELEVENLABS_API_KEY_HERE';
+
 const Index: React.FC = () => {
   const [selectedLandmark, setSelectedLandmark] = useState<Landmark | null>(null);
-  const [elevenLabsApiKey, setElevenLabsApiKey] = useState<string>(localStorage.getItem('elevenLabsApiKey') || '');
-
-  useEffect(() => {
-    if (elevenLabsApiKey) {
-      localStorage.setItem('elevenLabsApiKey', elevenLabsApiKey);
-    } else {
-      localStorage.removeItem('elevenLabsApiKey');
-    }
-  }, [elevenLabsApiKey]);
 
   const handleSelectLandmark = (landmark: Landmark) => {
     setSelectedLandmark(landmark);
@@ -41,8 +35,7 @@ const Index: React.FC = () => {
       <InfoPanel 
         landmark={selectedLandmark}
         onClose={handleClosePanel}
-        elevenLabsApiKey={elevenLabsApiKey}
-        setElevenLabsApiKey={setElevenLabsApiKey}
+        elevenLabsApiKey={ELEVENLABS_API_KEY}
       />
     </div>
   );

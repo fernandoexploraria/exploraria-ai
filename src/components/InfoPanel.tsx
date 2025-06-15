@@ -2,8 +2,6 @@
 import React, { useState } from 'react';
 import { Landmark } from '@/data/landmarks';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Loader, Volume2, X } from 'lucide-react';
 import { toast } from "sonner";
 
@@ -11,15 +9,14 @@ interface InfoPanelProps {
   landmark: Landmark | null;
   onClose: () => void;
   elevenLabsApiKey: string;
-  setElevenLabsApiKey: (key: string) => void;
 }
 
-const InfoPanel: React.FC<InfoPanelProps> = ({ landmark, onClose, elevenLabsApiKey, setElevenLabsApiKey }) => {
+const InfoPanel: React.FC<InfoPanelProps> = ({ landmark, onClose, elevenLabsApiKey }) => {
   const [isPlaying, setIsPlaying] = useState(false);
 
   const handlePlayAudio = async () => {
-    if (!elevenLabsApiKey) {
-      toast.error("Please enter your ElevenLabs API key.");
+    if (!elevenLabsApiKey || elevenLabsApiKey === 'YOUR_ELEVENLABS_API_KEY_HERE') {
+      toast.error("Please provide the ElevenLabs API key to enable audio guides.");
       return;
     }
     if (landmark) {
@@ -80,18 +77,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ landmark, onClose, elevenLabsApiK
       <p className="text-foreground/90 mb-6">{landmark.description}</p>
       
       <div className="space-y-4">
-        <div>
-          <Label htmlFor="elevenlabs-key">ElevenLabs API Key</Label>
-          <Input 
-            id="elevenlabs-key" 
-            type="password" 
-            placeholder="Enter your API key to enable audio" 
-            value={elevenLabsApiKey}
-            onChange={(e) => setElevenLabsApiKey(e.target.value)}
-            className="mt-1"
-          />
-        </div>
-        <Button onClick={handlePlayAudio} className="w-full" disabled={!elevenLabsApiKey || isPlaying}>
+        <Button onClick={handlePlayAudio} className="w-full" disabled={!elevenLabsApiKey || elevenLabsApiKey === 'YOUR_ELEVENLABS_API_KEY_HERE' || isPlaying}>
           {isPlaying ? (
             <Loader className="mr-2 h-4 w-4 animate-spin" />
           ) : (
