@@ -16,6 +16,11 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<{ [key: string]: mapboxgl.Marker }>({});
+  const popup = useRef(new mapboxgl.Popup({
+    closeButton: false,
+    closeOnClick: false,
+    offset: 20
+  }));
 
   // Initialize map (runs once)
   useEffect(() => {
@@ -68,6 +73,19 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
         marker.getElement().addEventListener('click', () => {
           onSelectLandmark(landmark);
         });
+
+        marker.getElement().addEventListener('mouseenter', () => {
+          if (!map.current) return;
+          popup.current
+            .setLngLat(landmark.coordinates)
+            .setText(landmark.name)
+            .addTo(map.current);
+        });
+        
+        marker.getElement().addEventListener('mouseleave', () => {
+          popup.current.remove();
+        });
+
         markers.current[landmark.id] = marker;
       }
     });
