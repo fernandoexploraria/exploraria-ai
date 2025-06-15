@@ -9,9 +9,10 @@ interface MapProps {
   landmarks: Landmark[];
   onSelectLandmark: (landmark: Landmark) => void;
   selectedLandmark: Landmark | null;
+  plannedLandmarks: Landmark[];
 }
 
-const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, selectedLandmark }) => {
+const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, selectedLandmark, plannedLandmarks }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<{ [key: string]: mapboxgl.Marker }>({});
@@ -98,6 +99,33 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     });
 
   }, [selectedLandmark]);
+
+  // Zooms to fit planned landmarks when a new tour is generated
+  useEffect(() => {
+    if (!map.current || !plannedLandmarks || plannedLandmarks.length === 0) {
+      return;
+    }
+
+    if (plannedLandmarks.length > 1) {
+      const bounds = new mapboxgl.LngLatBounds();
+      plannedLandmarks.forEach(landmark => {
+        bounds.extend(landmark.coordinates);
+      });
+      map.current.fitBounds(bounds, {
+        padding: 100,
+        duration: 2000,
+        maxZoom: 15,
+      });
+    } else if (plannedLandmarks.length === 1) {
+      map.current.flyTo({
+        center: plannedLandmarks[0].coordinates,
+        zoom: 14,
+        speed: 0.7,
+        curve: 1,
+        easing: (t) => t,
+      });
+    }
+  }, [plannedLandmarks]);
 
   return <div ref={mapContainer} className="absolute inset-0" />;
 };

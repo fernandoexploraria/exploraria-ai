@@ -19,7 +19,7 @@ export const useTourPlanner = () => {
     setPlannedLandmarks([]); // Clear previous results
 
     try {
-      const prompt = `You are an expert tour planner. Provide a list of the top 5 most famous landmarks in ${destination}.
+      const prompt = `You are an expert tour planner. Provide a list of the top 10 most famous landmarks in ${destination}.
       For each landmark, provide its name, a short description (2-3 sentences), and its geographic coordinates (latitude and longitude).
       VERY IMPORTANT: Your response MUST be a valid JSON array of objects. Do not include any text before or after the JSON array.
       Each object in the array should have the following structure:

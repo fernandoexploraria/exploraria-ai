@@ -61,6 +61,7 @@ const Index: React.FC = () => {
         landmarks={allLandmarks}
         onSelectLandmark={handleSelectLandmark}
         selectedLandmark={selectedLandmark}
+        plannedLandmarks={plannedLandmarks}
       />
       <InfoPanel 
         landmark={selectedLandmark}
