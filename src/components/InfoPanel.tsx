@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { X, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Landmark } from '@/data/landmarks';
-import { SpeechSynthesis } from '@11labs/react';
 import LandmarkTools from './LandmarkTools';
 
 interface InfoPanelProps {
@@ -14,6 +13,53 @@ interface InfoPanelProps {
 
 const InfoPanel: React.FC<InfoPanelProps> = ({ landmark, onClose, elevenLabsApiKey }) => {
   const [isPlaying, setIsPlaying] = useState(false);
+
+  const handleTextToSpeech = async () => {
+    if (!landmark || !elevenLabsApiKey || elevenLabsApiKey === 'YOUR_ELEVENLABS_API_KEY') {
+      return;
+    }
+
+    try {
+      setIsPlaying(true);
+      
+      // Use the ElevenLabs API directly
+      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'audio/mpeg',
+          'Content-Type': 'application/json',
+          'xi-api-key': elevenLabsApiKey
+        },
+        body: JSON.stringify({
+          text: `${landmark.name}. ${landmark.description}`,
+          model_id: 'eleven_multilingual_v2',
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.5
+          }
+        })
+      });
+
+      if (response.ok) {
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        
+        audio.onended = () => {
+          setIsPlaying(false);
+          URL.revokeObjectURL(audioUrl);
+        };
+        
+        await audio.play();
+      } else {
+        console.error('Error generating speech:', response.statusText);
+        setIsPlaying(false);
+      }
+    } catch (error) {
+      console.error('Error with text-to-speech:', error);
+      setIsPlaying(false);
+    }
+  };
 
   if (!landmark) return null;
 
@@ -32,31 +78,16 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ landmark, onClose, elevenLabsApiK
           
           {elevenLabsApiKey && elevenLabsApiKey !== 'YOUR_ELEVENLABS_API_KEY' && (
             <div className="flex items-center gap-2">
-              <SpeechSynthesis
-                apiKey={elevenLabsApiKey}
-                text={`${landmark.name}. ${landmark.description}`}
-                voiceId="21m00Tcm4TlvDq8ikWAM"
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleTextToSpeech}
+                disabled={isPlaying}
+                className="flex items-center gap-2"
               >
-                {({ play, stop, isPlaying: playing }) => (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      if (playing) {
-                        stop();
-                        setIsPlaying(false);
-                      } else {
-                        play();
-                        setIsPlaying(true);
-                      }
-                    }}
-                    className="flex items-center gap-2"
-                  >
-                    {playing ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-                    {playing ? 'Stop' : 'Listen'}
-                  </Button>
-                )}
-              </SpeechSynthesis>
+                {isPlaying ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                {isPlaying ? 'Playing...' : 'Listen'}
+              </Button>
             </div>
           )}
           
