@@ -40,16 +40,15 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     };
   }, [mapboxToken]);
 
-  // Function to fetch landmark image using Picsum (reliable placeholder service)
+  // Function to fetch landmark image from Unsplash
   const fetchLandmarkImage = async (landmarkName: string): Promise<string> => {
     if (imageCache.current[landmarkName]) {
       return imageCache.current[landmarkName];
     }
 
     try {
-      // Use Picsum for reliable placeholder images with a seed based on landmark name
-      const seed = landmarkName.toLowerCase().replace(/\s+/g, '-');
-      const imageUrl = `https://picsum.photos/seed/${seed}/400/300`;
+      // Use Unsplash Source API for direct image URLs
+      const imageUrl = `https://source.unsplash.com/400x300/?${encodeURIComponent(landmarkName)}`;
       
       // Test if the image loads successfully
       const img = new Image();
@@ -61,8 +60,8 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
           resolve(imageUrl);
         };
         img.onerror = () => {
-          // Fallback to a generic landmark image
-          const fallbackUrl = `https://picsum.photos/seed/landmark-${Math.floor(Math.random() * 1000)}/400/300`;
+          // Fallback to a more generic search
+          const fallbackUrl = `https://source.unsplash.com/400x300/?landmark,travel,${encodeURIComponent(landmarkName.split(' ')[0])}`;
           imageCache.current[landmarkName] = fallbackUrl;
           resolve(fallbackUrl);
         };
@@ -70,8 +69,8 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       });
     } catch (error) {
       console.error('Error fetching landmark image:', error);
-      // Fallback to a generic image
-      const fallbackUrl = `https://picsum.photos/400/300?random=${Math.floor(Math.random() * 1000)}`;
+      // Final fallback to a generic travel image
+      const fallbackUrl = `https://source.unsplash.com/400x300/?travel,landmark`;
       imageCache.current[landmarkName] = fallbackUrl;
       return fallbackUrl;
     }
