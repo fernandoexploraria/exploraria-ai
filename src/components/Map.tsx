@@ -40,37 +40,60 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     };
   }, [mapboxToken]);
 
-  // Function to fetch landmark image from Unsplash
+  // Function to fetch landmark image from Unsplash API
   const fetchLandmarkImage = async (landmarkName: string): Promise<string> => {
     if (imageCache.current[landmarkName]) {
       return imageCache.current[landmarkName];
     }
 
     try {
-      // Use Unsplash Source API for direct image URLs
-      const imageUrl = `https://source.unsplash.com/400x300/?${encodeURIComponent(landmarkName)}`;
+      console.log('Fetching image for:', landmarkName);
       
-      // Test if the image loads successfully
+      // Try Unsplash API first (requires no auth for basic usage)
+      const searchTerm = encodeURIComponent(landmarkName);
+      const unsplashUrl = `https://api.unsplash.com/photos/random?query=${searchTerm}&w=400&h=300&client_id=demo`;
+      
+      const response = await fetch(unsplashUrl);
+      console.log('Unsplash response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.urls && data.urls.small) {
+          const imageUrl = data.urls.small;
+          imageCache.current[landmarkName] = imageUrl;
+          console.log('Using Unsplash image:', imageUrl);
+          return imageUrl;
+        }
+      }
+      
+      // Fallback to Picsum if Unsplash fails
+      const seed = landmarkName.toLowerCase().replace(/\s+/g, '-');
+      const fallbackUrl = `https://picsum.photos/seed/${seed}/400/300`;
+      console.log('Falling back to Picsum:', fallbackUrl);
+      
+      // Test if fallback loads
       const img = new Image();
       img.crossOrigin = 'anonymous';
       
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
         img.onload = () => {
-          imageCache.current[landmarkName] = imageUrl;
-          resolve(imageUrl);
-        };
-        img.onerror = () => {
-          // Fallback to a more generic search
-          const fallbackUrl = `https://source.unsplash.com/400x300/?landmark,travel,${encodeURIComponent(landmarkName.split(' ')[0])}`;
           imageCache.current[landmarkName] = fallbackUrl;
           resolve(fallbackUrl);
         };
-        img.src = imageUrl;
+        img.onerror = () => {
+          // Final fallback - simple Picsum random image
+          const finalFallback = `https://picsum.photos/400/300?random=${Date.now()}`;
+          imageCache.current[landmarkName] = finalFallback;
+          console.log('Using final fallback:', finalFallback);
+          resolve(finalFallback);
+        };
+        img.src = fallbackUrl;
       });
+      
     } catch (error) {
       console.error('Error fetching landmark image:', error);
-      // Final fallback to a generic travel image
-      const fallbackUrl = `https://source.unsplash.com/400x300/?travel,landmark`;
+      // Final fallback to Picsum
+      const fallbackUrl = `https://picsum.photos/400/300?random=${Date.now()}`;
       imageCache.current[landmarkName] = fallbackUrl;
       return fallbackUrl;
     }
