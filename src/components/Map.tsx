@@ -40,40 +40,38 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     };
   }, [mapboxToken]);
 
-  // Function to fetch landmark image from Unsplash
+  // Function to fetch landmark image using Picsum (reliable placeholder service)
   const fetchLandmarkImage = async (landmarkName: string): Promise<string> => {
     if (imageCache.current[landmarkName]) {
       return imageCache.current[landmarkName];
     }
 
     try {
-      const response = await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(landmarkName)}&per_page=1&client_id=your_unsplash_access_key`);
+      // Use Picsum for reliable placeholder images with a seed based on landmark name
+      const seed = landmarkName.toLowerCase().replace(/\s+/g, '-');
+      const imageUrl = `https://picsum.photos/seed/${seed}/400/300`;
       
-      if (!response.ok) {
-        // Fallback to a more generic search or placeholder
-        const fallbackResponse = await fetch(`https://source.unsplash.com/400x300/?${encodeURIComponent(landmarkName)}`);
-        if (fallbackResponse.ok) {
-          imageCache.current[landmarkName] = fallbackResponse.url;
-          return fallbackResponse.url;
-        }
-        throw new Error('Failed to fetch image');
-      }
-
-      const data = await response.json();
-      if (data.results && data.results.length > 0) {
-        const imageUrl = data.results[0].urls.small;
-        imageCache.current[landmarkName] = imageUrl;
-        return imageUrl;
-      } else {
-        // Fallback to Unsplash Source API
-        const fallbackUrl = `https://source.unsplash.com/400x300/?${encodeURIComponent(landmarkName)}`;
-        imageCache.current[landmarkName] = fallbackUrl;
-        return fallbackUrl;
-      }
+      // Test if the image loads successfully
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      
+      return new Promise((resolve, reject) => {
+        img.onload = () => {
+          imageCache.current[landmarkName] = imageUrl;
+          resolve(imageUrl);
+        };
+        img.onerror = () => {
+          // Fallback to a generic landmark image
+          const fallbackUrl = `https://picsum.photos/seed/landmark-${Math.floor(Math.random() * 1000)}/400/300`;
+          imageCache.current[landmarkName] = fallbackUrl;
+          resolve(fallbackUrl);
+        };
+        img.src = imageUrl;
+      });
     } catch (error) {
       console.error('Error fetching landmark image:', error);
-      // Fallback to a generic landmark image
-      const fallbackUrl = `https://source.unsplash.com/400x300/?landmark,${encodeURIComponent(landmarkName)}`;
+      // Fallback to a generic image
+      const fallbackUrl = `https://picsum.photos/400/300?random=${Math.floor(Math.random() * 1000)}`;
       imageCache.current[landmarkName] = fallbackUrl;
       return fallbackUrl;
     }
@@ -140,7 +138,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
             .setHTML(`
               <div style="text-align: center; padding: 10px;">
                 <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold;">${landmark.name}</h3>
-                <div style="margin-bottom: 10px;">Loading image...</div>
+                <div style="margin-bottom: 10px; color: #666;">Loading image...</div>
               </div>
             `)
             .addTo(map.current!);
@@ -156,6 +154,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
               </div>
             `);
           } catch (error) {
+            console.error('Failed to load image for', landmark.name, error);
             clickPopup.setHTML(`
               <div style="text-align: center; padding: 10px; max-width: 350px;">
                 <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold;">${landmark.name}</h3>
