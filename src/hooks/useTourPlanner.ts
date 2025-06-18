@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { Landmark } from '@/data/landmarks';
 import { toast } from "sonner";
+import { supabase } from '@/integrations/supabase/client';
 
 export const useTourPlanner = () => {
   const [plannedLandmarks, setPlannedLandmarks] = useState<Landmark[]>([]);
@@ -72,6 +73,25 @@ export const useTourPlanner = () => {
       }));
 
       setPlannedLandmarks(newLandmarks);
+      
+      // Increment tour count for authenticated users
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        try {
+          const { data: tourCount, error: countError } = await supabase.rpc('increment_tour_count', {
+            user_id: user.id
+          });
+          
+          if (countError) {
+            console.error('Error incrementing tour count:', countError);
+          } else {
+            console.log('Tour count updated:', tourCount);
+          }
+        } catch (countErr) {
+          console.error('Failed to update tour count:', countErr);
+        }
+      }
+      
       toast.success(`Generated a tour for ${destination}!`);
       
     } catch (err) {

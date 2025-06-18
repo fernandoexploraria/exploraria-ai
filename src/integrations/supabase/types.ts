@@ -9,6 +9,30 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      user_tour_stats: {
+        Row: {
+          created_at: string
+          id: string
+          tour_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          tour_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          tour_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       voice_interactions: {
         Row: {
           assistant_response: string
@@ -85,6 +109,10 @@ export type Database = {
       hnswhandler: {
         Args: { "": unknown }
         Returns: unknown
+      }
+      increment_tour_count: {
+        Args: { user_id: string }
+        Returns: number
       }
       ivfflat_bit_support: {
         Args: { "": unknown }
