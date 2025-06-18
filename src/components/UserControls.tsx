@@ -17,9 +17,13 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
     console.log('Sign out button clicked');
     try {
       await onSignOut();
-      console.log('Sign out completed');
+      console.log('Sign out completed successfully');
+      // Force page reload to clear any remaining state
+      window.location.reload();
     } catch (error) {
       console.error('Sign out error:', error);
+      // Even if there's an error, try to reload the page to clear state
+      window.location.reload();
     }
   };
 
