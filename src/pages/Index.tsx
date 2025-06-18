@@ -1,147 +1,123 @@
-import { useState, useEffect } from "react";
-import { Landmark } from "@/data/landmarks";
-import { landmarks } from "@/data/landmarks";
-import Map from "@/components/Map";
-import InfoPanel from "@/components/InfoPanel";
-import TourPlannerDialog from "@/components/TourPlannerDialog";
-import VoiceAssistant from "@/components/VoiceAssistant";
-import VoiceSearchDialog from "@/components/VoiceSearchDialog";
-import VoiceInteractionsTable from "@/components/VoiceInteractionsTable";
-import { Button } from "@/components/ui/button";
-import { MessageSquare, Search, Database } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 
-const Index = () => {
+import React, { useState, useMemo, useCallback } from 'react';
+import Map from '@/components/Map';
+import InfoPanel from '@/components/InfoPanel';
+import { landmarks as staticLandmarks, Landmark } from '@/data/landmarks';
+import SearchControl from '@/components/SearchControl';
+import { useTourPlanner } from '@/hooks/useTourPlanner';
+import { Button } from '@/components/ui/button';
+import { Sparkles, Search } from 'lucide-react';
+import TourPlannerDialog from '@/components/TourPlannerDialog';
+import VoiceAssistant from '@/components/VoiceAssistant';
+import VoiceSearchDialog from '@/components/VoiceSearchDialog';
+
+// IMPORTANT: Replace this with your own public Mapbox token!
+// You can get one from your Mapbox account: https://www.mapbox.com/
+const MAPBOX_TOKEN = 'pk.eyJ1IjoiZm9icmVnb25hIiwiYSI6ImNtMGlnYzFlYTBtYnUybG9tMGRuczNoMzkifQ.n_n-sCR4Zm-dCV5ijeXiDg';
+
+// I will replace this with your key once you provide it.
+const ELEVENLABS_API_KEY = 'sk_eb59e166d9d2e3b2f5744a71424e493d53f472efff8191a9';
+
+// Your Perplexity API key.
+const PERPLEXITY_API_KEY = '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';
+
+const Index: React.FC = () => {
   const [selectedLandmark, setSelectedLandmark] = useState<Landmark | null>(null);
-  const [tourLandmarks, setTourLandmarks] = useState<Landmark[]>([]);
-  const [destination, setDestination] = useState('');
-  const [tourPlannerOpen, setTourPlannerOpen] = useState(false);
-  const [voiceAssistantOpen, setVoiceAssistantOpen] = useState(false);
-  const [voiceSearchOpen, setVoiceSearchOpen] = useState(false);
-  const [perplexityApiKey, setPerplexityApiKey] = useState('YOUR_PERPLEXITY_API_KEY');
-  const [elevenLabsApiKey, setElevenLabsApiKey] = useState('YOUR_ELEVENLABS_API_KEY');
-  const [mapboxToken, setMapboxToken] = useState('YOUR_MAPBOX_TOKEN');
-  const [isGeneratingTour, setIsGeneratingTour] = useState(false);
-  const { toast } = useToast();
+  const [isTourPlannerOpen, setIsTourPlannerOpen] = useState(false);
+  const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false);
+  const [isVoiceSearchOpen, setIsVoiceSearchOpen] = useState(false);
+  const [currentDestination, setCurrentDestination] = useState<string>('');
+  const { plannedLandmarks, isLoading: isTourLoading, generateTour } = useTourPlanner();
+  
+  const allLandmarks = useMemo(() => {
+    return [...staticLandmarks, ...plannedLandmarks];
+  }, [plannedLandmarks]);
 
-  const addLandmarkToTour = (landmark: Landmark) => {
-    setTourLandmarks([...tourLandmarks, landmark]);
-    toast({
-      title: "Landmark Added",
-      description: `${landmark.name} added to your tour.`,
-    });
+  const handleSelectLandmark = useCallback((landmark: Landmark) => {
+    setSelectedLandmark(landmark);
+  }, []);
+
+  const handleClosePanel = () => {
+    setSelectedLandmark(null);
   };
 
-  const removeLandmarkFromTour = (landmarkToRemove: Landmark) => {
-    setTourLandmarks(tourLandmarks.filter(landmark => landmark.id !== landmarkToRemove.id));
-    toast({
-      title: "Landmark Removed",
-      description: `${landmarkToRemove.name} removed from your tour.`,
-    });
-  };
-
-  const handleGenerateTour = async (tourDestination: string) => {
-    setIsGeneratingTour(true);
-    try {
-      // Placeholder for tour generation logic
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
-      toast({
-        title: "Tour Generated",
-        description: `Tour for ${tourDestination} has been generated.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to generate tour.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsGeneratingTour(false);
+  const handleGenerateTour = async (destination: string) => {
+    if (!PERPLEXITY_API_KEY || PERPLEXITY_API_KEY.includes('YOUR_')) {
+        alert("Please provide a valid Perplexity API key in src/pages/Index.tsx");
+        return;
     }
+    
+    setCurrentDestination(destination);
+    await generateTour(destination, PERPLEXITY_API_KEY);
+    
+    // Show voice assistant after tour is generated
+    setTimeout(() => {
+      setIsVoiceAssistantOpen(true);
+    }, 1000);
   };
-
-  const [showInteractionsTable, setShowInteractionsTable] = useState(false);
 
   return (
-    <div className="h-screen flex flex-col">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-gray-800">Tour Planner</h1>
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={() => setShowInteractionsTable(!showInteractionsTable)}
-            variant="outline"
-            size="sm"
-          >
-            <Database className="w-4 h-4 mr-2" />
-            {showInteractionsTable ? 'Hide' : 'Show'} Records
-          </Button>
-          <Button
-            onClick={() => setVoiceSearchOpen(true)}
-            variant="outline"
-            size="sm"
-          >
-            <Search className="w-4 h-4 mr-2" />
-            Search Conversations
-          </Button>
-          <Button
-            onClick={() => setVoiceAssistantOpen(true)}
-            variant="outline"
-            size="sm"
-          >
-            <MessageSquare className="w-4 h-4 mr-2" />
-            Voice Assistant
-          </Button>
-        </div>
-      </div>
-
-      {/* Voice Interactions Table */}
-      {showInteractionsTable && (
-        <div className="p-4 border-b border-gray-200 bg-gray-50">
-          <VoiceInteractionsTable />
-        </div>
-      )}
-
-      {/* Main Content */}
-      <div className="flex-1 flex">
-        <div className="flex-1">
-          <Map
-            mapboxToken={mapboxToken}
-            landmarks={landmarks}
-            onSelectLandmark={setSelectedLandmark}
-            selectedLandmark={selectedLandmark}
-            plannedLandmarks={tourLandmarks}
-          />
-        </div>
-        
-        {selectedLandmark && (
-          <InfoPanel
-            landmark={selectedLandmark}
-            onClose={() => setSelectedLandmark(null)}
-            elevenLabsApiKey={elevenLabsApiKey}
-          />
+    <div className="w-screen h-screen relative">
+      <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
+        <SearchControl landmarks={allLandmarks} onSelectLandmark={handleSelectLandmark} />
+        <Button
+          variant="outline"
+          className="bg-background/80 backdrop-blur-sm shadow-lg"
+          onClick={() => setIsTourPlannerOpen(true)}
+        >
+          <Sparkles className="mr-2 h-4 w-4" />
+          Plan a Tour
+        </Button>
+        {plannedLandmarks.length > 0 && (
+          <>
+            <Button
+              variant="outline"
+              className="bg-background/80 backdrop-blur-sm shadow-lg"
+              onClick={() => setIsVoiceAssistantOpen(true)}
+            >
+              <Sparkles className="mr-2 h-4 w-4" />
+              Voice Guide
+            </Button>
+            <Button
+              variant="outline"
+              className="bg-background/80 backdrop-blur-sm shadow-lg"
+              onClick={() => setIsVoiceSearchOpen(true)}
+            >
+              <Search className="mr-2 h-4 w-4" />
+              Search Conversations
+            </Button>
+          </>
         )}
       </div>
-
+      <Map 
+        mapboxToken={MAPBOX_TOKEN}
+        landmarks={allLandmarks}
+        onSelectLandmark={handleSelectLandmark}
+        selectedLandmark={selectedLandmark}
+        plannedLandmarks={plannedLandmarks}
+      />
+      <InfoPanel 
+        landmark={selectedLandmark}
+        onClose={handleClosePanel}
+        elevenLabsApiKey={ELEVENLABS_API_KEY}
+      />
       <TourPlannerDialog
-        open={tourPlannerOpen}
-        onOpenChange={setTourPlannerOpen}
+        open={isTourPlannerOpen}
+        onOpenChange={setIsTourPlannerOpen}
         onGenerateTour={handleGenerateTour}
-        isLoading={isGeneratingTour}
+        isLoading={isTourLoading}
       />
-
       <VoiceAssistant
-        open={voiceAssistantOpen}
-        onOpenChange={setVoiceAssistantOpen}
-        destination={destination}
-        landmarks={tourLandmarks}
-        perplexityApiKey={perplexityApiKey}
-        elevenLabsApiKey={elevenLabsApiKey}
+        open={isVoiceAssistantOpen}
+        onOpenChange={setIsVoiceAssistantOpen}
+        destination={currentDestination}
+        landmarks={plannedLandmarks}
+        perplexityApiKey={PERPLEXITY_API_KEY}
+        elevenLabsApiKey={ELEVENLABS_API_KEY}
       />
-
       <VoiceSearchDialog
-        open={voiceSearchOpen}
-        onOpenChange={setVoiceSearchOpen}
+        open={isVoiceSearchOpen}
+        onOpenChange={setIsVoiceSearchOpen}
       />
     </div>
   );
