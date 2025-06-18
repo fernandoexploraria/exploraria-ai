@@ -17,6 +17,17 @@ const FreeTourCounter: React.FC = () => {
   const isCancelled = subscriptionData?.cancel_at_period_end || false;
   const subscriptionEnd = subscriptionData?.subscription_end;
 
+  // Add debug logging
+  console.log('FreeTourCounter render:', {
+    tourStats,
+    toursUsed,
+    toursRemaining,
+    hasReachedLimit,
+    isSubscribed,
+    tourLoading,
+    subLoading
+  });
+
   const handleSubscribeClick = async () => {
     try {
       await createCheckout();
@@ -53,7 +64,7 @@ const FreeTourCounter: React.FC = () => {
           {hasReachedLimit ? (
             <>
               <Lock className="mr-1 h-3 w-3" />
-              <span>Free tours used</span>
+              <span>Free tours used ({toursUsed}/{FREE_TOUR_LIMIT})</span>
             </>
           ) : (
             <>
@@ -73,7 +84,7 @@ const FreeTourCounter: React.FC = () => {
           {hasReachedLimit ? (
             <>
               <Lock className="mr-2 h-4 w-4" />
-              <span>Free tours used</span>
+              <span>Free tours used ({toursUsed}/{FREE_TOUR_LIMIT})</span>
             </>
           ) : (
             <>

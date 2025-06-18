@@ -26,6 +26,8 @@ export const useTourStats = () => {
 
     try {
       setIsLoading(true);
+      console.log('Fetching tour stats for user:', user.id);
+      
       const { data, error } = await supabase
         .from('user_tour_stats')
         .select('*')
@@ -33,9 +35,11 @@ export const useTourStats = () => {
         .maybeSingle();
 
       if (error) {
+        console.error('Error fetching tour stats:', error);
         throw error;
       }
 
+      console.log('Tour stats fetched:', data);
       setTourStats(data);
     } catch (err) {
       console.error('Error fetching tour stats:', err);
@@ -44,6 +48,37 @@ export const useTourStats = () => {
       setIsLoading(false);
     }
   };
+
+  // Set up real-time subscription to tour stats changes
+  useEffect(() => {
+    if (!user) return;
+
+    console.log('Setting up tour stats subscription for user:', user.id);
+    
+    const channel = supabase
+      .channel('tour-stats-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_tour_stats',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('Tour stats changed:', payload);
+          if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+            setTourStats(payload.new as TourStats);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('Cleaning up tour stats subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   useEffect(() => {
     fetchTourStats();

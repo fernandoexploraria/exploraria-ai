@@ -11,7 +11,7 @@ export const useTourPlanner = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { subscriptionData } = useSubscription();
-  const { tourStats } = useTourStats();
+  const { tourStats, refetch: refetchTourStats } = useTourStats();
 
   const generateTour = async (destination: string, apiKey: string) => {
     if (!apiKey) {
@@ -23,6 +23,8 @@ export const useTourPlanner = () => {
     const FREE_TOUR_LIMIT = 3;
     const toursUsed = tourStats?.tour_count || 0;
     const isSubscribed = subscriptionData?.subscribed || false;
+    
+    console.log('Tour generation check:', { toursUsed, isSubscribed, FREE_TOUR_LIMIT });
     
     if (!isSubscribed && toursUsed >= FREE_TOUR_LIMIT) {
       toast.error("You've reached your free tour limit. Please subscribe to generate more tours.");
@@ -92,6 +94,7 @@ export const useTourPlanner = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         try {
+          console.log('Incrementing tour count for user:', user.id);
           const { data: tourCount, error: countError } = await supabase.rpc('increment_tour_count', {
             user_id: user.id
           });
@@ -100,6 +103,10 @@ export const useTourPlanner = () => {
             console.error('Error incrementing tour count:', countError);
           } else {
             console.log('Tour count updated:', tourCount);
+            // Manually refetch tour stats to ensure UI updates
+            setTimeout(() => {
+              refetchTourStats();
+            }, 500);
           }
         } catch (countErr) {
           console.error('Failed to update tour count:', countErr);
