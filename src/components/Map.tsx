@@ -128,54 +128,49 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     const cacheKey = `${landmark.name}-${landmark.coordinates[0]}-${landmark.coordinates[1]}`;
     
     if (imageCache.current[cacheKey]) {
+      console.log('Using cached image for:', landmark.name);
       return imageCache.current[cacheKey];
     }
 
     try {
       console.log('Fetching Google Places image for:', landmark.name);
       
-      // First, search for the place using Places Text Search
-      const searchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?` +
-        `query=${encodeURIComponent(landmark.name)}&` +
-        `location=${landmark.coordinates[1]},${landmark.coordinates[0]}&` +
-        `radius=1000&` +
-        `key=${GOOGLE_API_KEY}`;
+      // Use the Text Search API to find the place
+      const textSearchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(landmark.name)}&location=${landmark.coordinates[1]},${landmark.coordinates[0]}&radius=1000&key=${GOOGLE_API_KEY}`;
       
-      const searchResponse = await fetch(searchUrl);
-      const searchData = await searchResponse.json();
+      console.log('Making request to:', textSearchUrl);
       
-      console.log('Google Places search response:', searchData.status);
+      // Note: This will fail due to CORS in the browser
+      // We need to use a proxy or make this request from a backend
+      const response = await fetch(textSearchUrl);
       
-      if (searchData.status === 'OK' && searchData.results.length > 0) {
-        const place = searchData.results[0];
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Google Places API response:', data);
+      
+      if (data.status === 'OK' && data.results.length > 0) {
+        const place = data.results[0];
         
-        // Check if the place has photos
         if (place.photos && place.photos.length > 0) {
           const photoReference = place.photos[0].photo_reference;
+          const photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photoReference}&key=${GOOGLE_API_KEY}`;
           
-          // Get the photo using the photo reference
-          const photoUrl = `https://maps.googleapis.com/maps/api/place/photo?` +
-            `maxwidth=400&` +
-            `photo_reference=${photoReference}&` +
-            `key=${GOOGLE_API_KEY}`;
-          
-          console.log('Using Google Places photo:', photoUrl);
+          console.log('Found Google Places photo:', photoUrl);
           imageCache.current[cacheKey] = photoUrl;
           return photoUrl;
         }
       }
       
-      // Fallback to generic placeholder if no Google Places photo found
-      console.log('No Google Places photo found, using fallback');
-      const seed = landmark.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-      const fallbackUrl = `https://picsum.photos/seed/${seed}/400/300`;
-      imageCache.current[cacheKey] = fallbackUrl;
-      return fallbackUrl;
+      throw new Error('No photos found in Google Places API response');
       
     } catch (error) {
       console.error('Error fetching Google Places image:', error);
       
-      // Fallback to seeded placeholder
+      // Fallback to a seeded placeholder image
+      console.log('Using fallback image for:', landmark.name);
       const seed = landmark.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
       const fallbackUrl = `https://picsum.photos/seed/${seed}/400/300`;
       imageCache.current[cacheKey] = fallbackUrl;
