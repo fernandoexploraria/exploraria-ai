@@ -6,10 +6,12 @@ import { landmarks as staticLandmarks, Landmark } from '@/data/landmarks';
 import SearchControl from '@/components/SearchControl';
 import { useTourPlanner } from '@/hooks/useTourPlanner';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Search } from 'lucide-react';
+import { Sparkles, Search, User, LogOut } from 'lucide-react';
 import TourPlannerDialog from '@/components/TourPlannerDialog';
 import VoiceAssistant from '@/components/VoiceAssistant';
 import VoiceSearchDialog from '@/components/VoiceSearchDialog';
+import AuthDialog from '@/components/AuthDialog';
+import { useAuth } from '@/components/AuthProvider';
 
 // IMPORTANT: Replace this with your own public Mapbox token!
 // You can get one from your Mapbox account: https://www.mapbox.com/
@@ -26,8 +28,10 @@ const Index: React.FC = () => {
   const [isTourPlannerOpen, setIsTourPlannerOpen] = useState(false);
   const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false);
   const [isVoiceSearchOpen, setIsVoiceSearchOpen] = useState(false);
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [currentDestination, setCurrentDestination] = useState<string>('');
   const { plannedLandmarks, isLoading: isTourLoading, generateTour } = useTourPlanner();
+  const { user, signOut } = useAuth();
   
   const allLandmarks = useMemo(() => {
     return [...staticLandmarks, ...plannedLandmarks];
@@ -56,6 +60,22 @@ const Index: React.FC = () => {
     }, 1000);
   };
 
+  const handleVoiceAssistantOpen = () => {
+    if (!user) {
+      setIsAuthDialogOpen(true);
+      return;
+    }
+    setIsVoiceAssistantOpen(true);
+  };
+
+  const handleVoiceSearchOpen = () => {
+    if (!user) {
+      setIsAuthDialogOpen(true);
+      return;
+    }
+    setIsVoiceSearchOpen(true);
+  };
+
   return (
     <div className="w-screen h-screen relative">
       <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
@@ -73,7 +93,7 @@ const Index: React.FC = () => {
             <Button
               variant="outline"
               className="bg-background/80 backdrop-blur-sm shadow-lg"
-              onClick={() => setIsVoiceAssistantOpen(true)}
+              onClick={handleVoiceAssistantOpen}
             >
               <Sparkles className="mr-2 h-4 w-4" />
               Voice Guide
@@ -81,7 +101,7 @@ const Index: React.FC = () => {
             <Button
               variant="outline"
               className="bg-background/80 backdrop-blur-sm shadow-lg"
-              onClick={() => setIsVoiceSearchOpen(true)}
+              onClick={handleVoiceSearchOpen}
             >
               <Search className="mr-2 h-4 w-4" />
               Search Conversations
@@ -89,6 +109,35 @@ const Index: React.FC = () => {
           </>
         )}
       </div>
+
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+        {user ? (
+          <>
+            <span className="text-sm bg-background/80 backdrop-blur-sm px-3 py-2 rounded-lg shadow-lg">
+              {user.email}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="bg-background/80 backdrop-blur-sm shadow-lg"
+              onClick={signOut}
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
+            </Button>
+          </>
+        ) : (
+          <Button
+            variant="outline"
+            className="bg-background/80 backdrop-blur-sm shadow-lg"
+            onClick={() => setIsAuthDialogOpen(true)}
+          >
+            <User className="mr-2 h-4 w-4" />
+            Sign In
+          </Button>
+        )}
+      </div>
+
       <Map 
         mapboxToken={MAPBOX_TOKEN}
         landmarks={allLandmarks}
@@ -118,6 +167,10 @@ const Index: React.FC = () => {
       <VoiceSearchDialog
         open={isVoiceSearchOpen}
         onOpenChange={setIsVoiceSearchOpen}
+      />
+      <AuthDialog
+        open={isAuthDialogOpen}
+        onOpenChange={setIsAuthDialogOpen}
       />
     </div>
   );
