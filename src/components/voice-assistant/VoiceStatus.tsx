@@ -14,14 +14,18 @@ const VoiceStatus: React.FC<VoiceStatusProps> = ({
 }) => {
   return (
     <div className="relative w-32 h-32 flex items-center justify-center">
-      {/* Outer animated ring when speaking */}
-      {isSpeaking && (
-        <div className="absolute inset-0 rounded-full border-2 border-green-500 animate-ping opacity-75" />
+      {/* Outer animated ring when speaking or listening */}
+      {(isSpeaking || isListening) && (
+        <div className={`absolute inset-0 rounded-full border-2 animate-pulse ${
+          isSpeaking ? 'border-green-500' : 'border-blue-500'
+        }`} />
       )}
       
-      {/* Middle ring when listening */}
-      {isListening && (
-        <div className="absolute inset-2 rounded-full border-2 border-blue-500 animate-pulse" />
+      {/* Middle ring when speaking or listening */}
+      {(isSpeaking || isListening) && (
+        <div className={`absolute inset-2 rounded-full border-2 animate-pulse ${
+          isSpeaking ? 'border-green-400' : 'border-blue-400'
+        }`} style={{ animationDelay: '0.5s' }} />
       )}
       
       {/* Main circle */}
@@ -37,11 +41,6 @@ const VoiceStatus: React.FC<VoiceStatusProps> = ({
           'bg-gray-400'
         }`} />
       </div>
-      
-      {/* Additional ripple effect for speaking */}
-      {isSpeaking && (
-        <div className="absolute inset-4 rounded-full border border-green-400 animate-ping opacity-50" style={{ animationDelay: '0.5s' }} />
-      )}
     </div>
   );
 };
