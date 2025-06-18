@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Sparkles, Search, Star } from 'lucide-react';
 import SearchControl from '@/components/SearchControl';
 import { Landmark } from '@/data/landmarks';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface TopControlsProps {
   allLandmarks: Landmark[];
@@ -26,6 +27,67 @@ const TopControls: React.FC<TopControlsProps> = ({
   user,
   plannedLandmarks
 }) => {
+  const isMobile = useIsMobile();
+
+  if (isMobile) {
+    return (
+      <div className="absolute top-4 left-4 right-4 z-10 flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <img 
+            src="/lovable-uploads/ac9cbebd-b083-4d3d-a85e-782e03045422.png" 
+            alt="Explorar-IA Logo" 
+            className="h-8 w-auto bg-yellow-400 rounded-lg p-1 flex-shrink-0"
+          />
+          <SearchControl landmarks={allLandmarks} onSelectLandmark={onSelectLandmark} />
+        </div>
+        <div className="flex flex-wrap gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8"
+            onClick={onTourPlannerOpen}
+          >
+            <Sparkles className="mr-1 h-3 w-3" />
+            Plan Tour
+          </Button>
+          {user && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8"
+                onClick={onFavoritesOpen}
+              >
+                <Star className="mr-1 h-3 w-3" />
+                Favorites
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8"
+                onClick={onVoiceSearchOpen}
+              >
+                <Search className="mr-1 h-3 w-3" />
+                Search
+              </Button>
+            </>
+          )}
+          {plannedLandmarks.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8"
+              onClick={onVoiceAssistantOpen}
+            >
+              <Sparkles className="mr-1 h-3 w-3" />
+              Voice Guide
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
       <img 
