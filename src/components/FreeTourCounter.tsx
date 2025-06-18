@@ -3,77 +3,96 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Lock, CreditCard } from 'lucide-react';
 import { useTourStats } from '@/hooks/useTourStats';
+import { useSubscription } from '@/hooks/useSubscription';
 
 const FreeTourCounter: React.FC = () => {
-  const { tourStats, isLoading } = useTourStats();
+  const { tourStats, isLoading: tourLoading } = useTourStats();
+  const { subscriptionData, isLoading: subLoading, createCheckout, openCustomerPortal } = useSubscription();
   
   const FREE_TOUR_LIMIT = 10;
   const toursUsed = tourStats?.tour_count || 0;
   const toursRemaining = Math.max(0, FREE_TOUR_LIMIT - toursUsed);
   const hasReachedLimit = toursRemaining === 0;
+  const isSubscribed = subscriptionData?.subscribed || false;
 
-  if (isLoading) {
+  const handleSubscribeClick = async () => {
+    try {
+      if (isSubscribed) {
+        await openCustomerPortal();
+      } else {
+        await createCheckout();
+      }
+    } catch (error) {
+      console.error('Error handling subscription action:', error);
+    }
+  };
+
+  if (tourLoading || subLoading) {
     return null;
   }
 
   return (
     <div className="flex flex-col gap-2">
       {/* Tour Counter Button - Mobile/Tablet Layout */}
-      <Button
-        variant="outline"
-        size="sm"
-        className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left"
-      >
-        {hasReachedLimit ? (
-          <>
-            <Lock className="mr-1 h-3 w-3" />
-            <span>Free tours used</span>
-          </>
-        ) : (
-          <>
-            <Sparkles className="mr-1 h-3 w-3" />
-            <span>{toursRemaining} free tours left</span>
-          </>
-        )}
-      </Button>
+      {!isSubscribed && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left"
+        >
+          {hasReachedLimit ? (
+            <>
+              <Lock className="mr-1 h-3 w-3" />
+              <span>Free tours used</span>
+            </>
+          ) : (
+            <>
+              <Sparkles className="mr-1 h-3 w-3" />
+              <span>{toursRemaining} free tours left</span>
+            </>
+          )}
+        </Button>
+      )}
       
       {/* Tour Counter Button - Desktop Layout */}
-      <Button
-        variant="outline"
-        className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left"
-      >
-        {hasReachedLimit ? (
-          <>
-            <Lock className="mr-2 h-4 w-4" />
-            <span>Free tours used</span>
-          </>
-        ) : (
-          <>
-            <Sparkles className="mr-2 h-4 w-4" />
-            <span>{toursRemaining} free tours left</span>
-          </>
-        )}
-      </Button>
+      {!isSubscribed && (
+        <Button
+          variant="outline"
+          className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left"
+        >
+          {hasReachedLimit ? (
+            <>
+              <Lock className="mr-2 h-4 w-4" />
+              <span>Free tours used</span>
+            </>
+          ) : (
+            <>
+              <Sparkles className="mr-2 h-4 w-4" />
+              <span>{toursRemaining} free tours left</span>
+            </>
+          )}
+        </Button>
+      )}
       
-      {/* Subscribe Button - Mobile/Tablet Layout */}
+      {/* Subscribe/Manage Button - Mobile/Tablet Layout */}
       <Button
         variant="outline"
         size="sm"
         className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left"
-        disabled
+        onClick={handleSubscribeClick}
       >
         <CreditCard className="mr-1 h-3 w-3" />
-        Subscribe
+        {isSubscribed ? 'Manage' : 'Subscribe'}
       </Button>
       
-      {/* Subscribe Button - Desktop Layout */}
+      {/* Subscribe/Manage Button - Desktop Layout */}
       <Button
         variant="outline"
         className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left"
-        disabled
+        onClick={handleSubscribeClick}
       >
         <CreditCard className="mr-2 h-4 w-4" />
-        Subscribe
+        {isSubscribed ? 'Manage Subscription' : 'Subscribe for $9.99/month'}
       </Button>
     </div>
   );

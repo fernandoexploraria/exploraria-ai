@@ -1,0 +1,106 @@
+
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/components/AuthProvider';
+
+export interface SubscriptionData {
+  subscribed: boolean;
+  subscription_tier?: string | null;
+  subscription_end?: string | null;
+}
+
+export const useSubscription = () => {
+  const [subscriptionData, setSubscriptionData] = useState<SubscriptionData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { user, session } = useAuth();
+
+  const checkSubscription = async () => {
+    if (!user || !session) {
+      setSubscriptionData(null);
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase.functions.invoke('check-subscription', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      setSubscriptionData(data);
+    } catch (err) {
+      console.error('Error checking subscription:', err);
+      setError(err instanceof Error ? err.message : 'Failed to check subscription');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const createCheckout = async () => {
+    if (!user || !session) {
+      throw new Error('User not authenticated');
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Open Stripe checkout in a new tab
+      window.open(data.url, '_blank');
+    } catch (err) {
+      console.error('Error creating checkout:', err);
+      throw err;
+    }
+  };
+
+  const openCustomerPortal = async () => {
+    if (!user || !session) {
+      throw new Error('User not authenticated');
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('customer-portal', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Open customer portal in a new tab
+      window.open(data.url, '_blank');
+    } catch (err) {
+      console.error('Error opening customer portal:', err);
+      throw err;
+    }
+  };
+
+  useEffect(() => {
+    checkSubscription();
+  }, [user, session]);
+
+  return {
+    subscriptionData,
+    isLoading,
+    error,
+    checkSubscription,
+    createCheckout,
+    openCustomerPortal,
+  };
+};

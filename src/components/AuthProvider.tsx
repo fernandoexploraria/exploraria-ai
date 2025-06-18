@@ -31,14 +31,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Function to check subscription status after authentication
+  const checkSubscriptionStatus = async (currentSession: Session | null) => {
+    if (currentSession?.access_token) {
+      try {
+        console.log('Checking subscription status after auth change');
+        await supabase.functions.invoke('check-subscription', {
+          headers: {
+            Authorization: `Bearer ${currentSession.access_token}`,
+          },
+        });
+      } catch (error) {
+        console.error('Error checking subscription status:', error);
+      }
+    }
+  };
+
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+
+        // Check subscription status when user signs in or session refreshes
+        if (event === 'SIGNED_IN' || (event === 'TOKEN_REFRESHED' && session)) {
+          await checkSubscriptionStatus(session);
+        }
       }
     );
 
@@ -51,6 +72,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.log('Existing session found:', session.user.email);
           setSession(session);
           setUser(session.user);
+          // Check subscription status for existing session
+          await checkSubscriptionStatus(session);
         } else {
           console.log('No existing session found');
         }
