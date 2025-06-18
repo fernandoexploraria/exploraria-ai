@@ -1,98 +1,106 @@
 
-import React, { useState, useMemo } from 'react';
-import { Search, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Landmark } from '@/data/landmarks';
+import * as React from "react"
+import {
+  CommandDialog,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from "@/components/ui/command"
+import { Button } from "@/components/ui/button"
+import { Landmark } from "@/data/landmarks"
+import { TOP_LANDMARKS } from "@/data/topLandmarks"
+import { ArrowRight } from "lucide-react"
 
 interface SearchControlProps {
-  landmarks: Landmark[];
-  onSelectLandmark: (landmark: Landmark) => void;
+  landmarks: Landmark[]
+  onSelectLandmark: (landmark: Landmark) => void
 }
 
 const SearchControl: React.FC<SearchControlProps> = ({ landmarks, onSelectLandmark }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [open, setOpen] = React.useState(false)
 
-  const filteredLandmarks = useMemo(() => {
-    if (!searchTerm.trim()) return [];
+  React.useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault()
+        setOpen((open) => !open)
+      }
+    }
+    document.addEventListener("keydown", down)
+    return () => document.removeEventListener("keydown", down)
+  }, [])
+
+  const handleSelect = (landmark: Landmark) => {
+    // Create a special flag to indicate this is from search
+    const searchLandmark = { ...landmark, fromSearch: true };
+    onSelectLandmark(searchLandmark as any)
+    setOpen(false)
+  }
+
+  const handleTopLandmarkSelect = (topLandmark: any) => {
+    // Create a temporary landmark object for top landmarks
+    const tempLandmark: Landmark = {
+      id: `top-${Date.now()}`,
+      name: topLandmark.name,
+      coordinates: topLandmark.coordinates,
+      description: topLandmark.description
+    };
     
-    return landmarks.filter(landmark =>
-      landmark.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (landmark.description && landmark.description.toLowerCase().includes(searchTerm.toLowerCase()))
-    ).slice(0, 5); // Limit to 5 results
-  }, [landmarks, searchTerm]);
-
-  const handleLandmarkSelect = (landmark: Landmark) => {
-    // Set a flag to indicate this is from search
-    const landmarkWithFlag = { ...landmark, fromSearch: true };
-    onSelectLandmark(landmarkWithFlag);
-    setSearchTerm('');
-    setIsOpen(false);
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchTerm(value);
-    setIsOpen(value.trim().length > 0);
-  };
-
-  const handleClear = () => {
-    setSearchTerm('');
-    setIsOpen(false);
-  };
+    // Create a special flag to indicate this is from search
+    const searchLandmark = { ...tempLandmark, fromSearch: true };
+    onSelectLandmark(searchLandmark as any)
+    setOpen(false)
+  }
 
   return (
-    <div className="relative">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-        <Input
-          type="text"
-          placeholder="Search landmarks..."
-          value={searchTerm}
-          onChange={handleInputChange}
-          className="pl-10 pr-10 bg-white/90 backdrop-blur-sm border-gray-200"
-        />
-        {searchTerm && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleClear}
-            className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 hover:bg-gray-100"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
-      
-      {isOpen && filteredLandmarks.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-md shadow-lg border border-gray-200 z-50 max-h-64 overflow-y-auto">
-          {filteredLandmarks.map((landmark) => (
-            <button
-              key={landmark.id}
-              onClick={() => handleLandmarkSelect(landmark)}
-              className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
-            >
-              <div className="font-medium text-gray-900 text-sm">{landmark.name}</div>
-              {landmark.description && (
-                <div className="text-xs text-gray-500 mt-1 line-clamp-2">
-                  {landmark.description.substring(0, 100)}...
-                </div>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-      
-      {/* Overlay to close dropdown when clicking outside */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 z-40" 
-          onClick={() => setIsOpen(false)}
-        />
-      )}
-    </div>
-  );
-};
+    <>
+      <Button
+        variant="outline"
+        className="bg-background/80 backdrop-blur-sm shadow-lg"
+        onClick={() => setOpen(true)}
+      >
+        <span className="mr-2 hidden sm:inline">Search destination...</span>
+        <span className="mr-2 sm:hidden">Search...</span>
+        <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+          <span className="text-xs">⌘</span>K
+        </kbd>
+      </Button>
+      <CommandDialog open={open} onOpenChange={setOpen}>
+        <CommandInput placeholder="Where to?" />
+        <CommandList>
+          <CommandEmpty>No results found.</CommandEmpty>
+          {landmarks.length > 0 && (
+            <CommandGroup heading="Your Destinations">
+              {landmarks.map((landmark) => (
+                <CommandItem
+                  key={landmark.id}
+                  onSelect={() => handleSelect(landmark)}
+                  className="cursor-pointer"
+                >
+                  <ArrowRight className="mr-2 h-4 w-4" />
+                  <span>{landmark.name}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+          <CommandGroup heading="Top 100 World Landmarks">
+            {TOP_LANDMARKS.map((topLandmark, index) => (
+              <CommandItem
+                key={`top-${index}`}
+                onSelect={() => handleTopLandmarkSelect(topLandmark)}
+                className="cursor-pointer"
+              >
+                <ArrowRight className="mr-2 h-4 w-4" />
+                <span>{topLandmark.name}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </CommandList>
+      </CommandDialog>
+    </>
+  )
+}
 
-export default SearchControl;
+export default SearchControl

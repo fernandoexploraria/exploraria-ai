@@ -67,18 +67,7 @@ const Index: React.FC = () => {
   }, [user, pendingDestination, isTourLoading]);
 
   const handleSelectLandmark = useCallback((landmark: Landmark) => {
-    // Check if this selection came from search
-    const isFromSearch = landmark.fromSearch;
-    
-    if (isFromSearch) {
-      // Clean the fromSearch flag and only set for map navigation, not for InfoPanel
-      const cleanLandmark = { ...landmark };
-      delete cleanLandmark.fromSearch;
-      setSelectedLandmark({ ...cleanLandmark, fromSearch: true });
-    } else {
-      // Normal selection (from map marker click) - show InfoPanel
-      setSelectedLandmark(landmark);
-    }
+    setSelectedLandmark(landmark);
   }, []);
 
   const handleClosePanel = () => {
@@ -214,14 +203,11 @@ const Index: React.FC = () => {
         plannedLandmarks={plannedLandmarks}
       />
       
-      {/* Only show InfoPanel if landmark is selected and not from search */}
-      {selectedLandmark && !selectedLandmark.fromSearch && (
-        <InfoPanel 
-          landmark={selectedLandmark}
-          onClose={handleClosePanel}
-          elevenLabsApiKey={ELEVENLABS_API_KEY}
-        />
-      )}
+      <InfoPanel 
+        landmark={selectedLandmark}
+        onClose={handleClosePanel}
+        elevenLabsApiKey={ELEVENLABS_API_KEY}
+      />
 
       <CameraControls
         currentDestination={currentDestination}
