@@ -9,9 +9,7 @@ interface LandmarkToolsProps {
 const LandmarkTools: React.FC<LandmarkToolsProps> = ({ landmark }) => {
   return (
     <div className="space-y-4">
-      <div className="text-center text-gray-500 text-sm">
-        Additional tools for {landmark.name} will be available here.
-      </div>
+      {/* Tools will be added here in the future */}
     </div>
   );
 };
