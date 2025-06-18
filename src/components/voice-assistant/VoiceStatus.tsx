@@ -19,11 +19,7 @@ const VoiceStatus: React.FC<VoiceStatusProps> = ({
       isListening ? 'border-blue-500 bg-blue-50' : 
       'border-gray-300 bg-gray-50'
     }`}>
-      {isSpeaking ? (
-        <Volume2 className="w-12 h-12 text-green-600" />
-      ) : (
-        <Volume2 className="w-12 h-12 text-gray-400" />
-      )}
+      <Volume2 className={`w-12 h-12 ${isSpeaking ? 'text-green-600' : 'text-gray-400'}`} />
     </div>
   );
 };
