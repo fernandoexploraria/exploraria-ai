@@ -35,6 +35,21 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       map.current?.setFog({}); // Add a sky layer and atmosphere
     });
 
+    // Close all popups when clicking on the map
+    map.current.on('click', (e) => {
+      // Check if the click was on a marker by looking for our marker class
+      const clickedElement = e.originalEvent.target as HTMLElement;
+      const isMarkerClick = clickedElement.closest('.w-4.h-4.rounded-full.bg-cyan-400');
+      
+      if (!isMarkerClick) {
+        // Close all popups
+        Object.values(popups.current).forEach(popup => {
+          popup.remove();
+        });
+        popups.current = {};
+      }
+    });
+
     return () => {
       map.current?.remove();
       map.current = null;
@@ -148,8 +163,9 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
           hoverPopup.remove();
         });
 
-        // Create click popup without camera controls
-        marker.getElement().addEventListener('click', async () => {
+        // Create click popup with improved close button styling
+        marker.getElement().addEventListener('click', async (e) => {
+          e.stopPropagation(); // Prevent map click event
           onSelectLandmark(landmark);
           
           // Remove existing popup for this landmark
@@ -157,19 +173,39 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
             popups.current[landmark.id].remove();
           }
           
-          // Create new popup
+          // Create new popup with enhanced close button
           const clickPopup = new mapboxgl.Popup({
             closeButton: true,
             closeOnClick: false,
             offset: 25,
-            maxWidth: '450px'
+            maxWidth: '450px',
+            className: 'custom-popup'
           });
 
           clickPopup
             .setLngLat(landmark.coordinates)
             .setHTML(`
-              <div style="text-align: center; padding: 10px;">
-                <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold;">${landmark.name}</h3>
+              <div style="text-align: center; padding: 10px; position: relative;">
+                <button class="custom-close-btn" onclick="this.closest('.mapboxgl-popup').remove()" style="
+                  position: absolute;
+                  top: 5px;
+                  right: 5px;
+                  background: rgba(0, 0, 0, 0.7);
+                  color: white;
+                  border: none;
+                  border-radius: 50%;
+                  width: 24px;
+                  height: 24px;
+                  cursor: pointer;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-size: 14px;
+                  font-weight: bold;
+                  z-index: 1000;
+                  transition: background-color 0.2s;
+                " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
+                <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px;">${landmark.name}</h3>
                 <div style="margin-bottom: 10px; color: #666;">Loading image...</div>
               </div>
             `)
@@ -177,12 +213,36 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
 
           popups.current[landmark.id] = clickPopup;
 
-          // Fetch and display image without camera controls
+          // Handle popup close event
+          clickPopup.on('close', () => {
+            delete popups.current[landmark.id];
+          });
+
+          // Fetch and display image with enhanced close button
           try {
             const imageUrl = await fetchLandmarkImage(landmark.name);
             clickPopup.setHTML(`
-              <div style="text-align: center; padding: 10px; max-width: 400px;">
-                <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold;">${landmark.name}</h3>
+              <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
+                <button class="custom-close-btn" onclick="this.closest('.mapboxgl-popup').remove()" style="
+                  position: absolute;
+                  top: 5px;
+                  right: 5px;
+                  background: rgba(0, 0, 0, 0.7);
+                  color: white;
+                  border: none;
+                  border-radius: 50%;
+                  width: 24px;
+                  height: 24px;
+                  cursor: pointer;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-size: 14px;
+                  font-weight: bold;
+                  z-index: 1000;
+                  transition: background-color 0.2s;
+                " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
+                <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px;">${landmark.name}</h3>
                 <img src="${imageUrl}" alt="${landmark.name}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px; margin-bottom: 10px;" />
                 <p style="margin: 0; font-size: 12px; color: #666; line-height: 1.4;">${landmark.description}</p>
               </div>
@@ -190,8 +250,27 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
           } catch (error) {
             console.error('Failed to load image for', landmark.name, error);
             clickPopup.setHTML(`
-              <div style="text-align: center; padding: 10px; max-width: 400px;">
-                <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold;">${landmark.name}</h3>
+              <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
+                <button class="custom-close-btn" onclick="this.closest('.mapboxgl-popup').remove()" style="
+                  position: absolute;
+                  top: 5px;
+                  right: 5px;
+                  background: rgba(0, 0, 0, 0.7);
+                  color: white;
+                  border: none;
+                  border-radius: 50%;
+                  width: 24px;
+                  height: 24px;
+                  cursor: pointer;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-size: 14px;
+                  font-weight: bold;
+                  z-index: 1000;
+                  transition: background-color 0.2s;
+                " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
+                <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px;">${landmark.name}</h3>
                 <div style="width: 100%; height: 150px; background-color: #f0f0f0; border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; color: #888;">
                   No image available
                 </div>
