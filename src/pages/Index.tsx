@@ -1,6 +1,6 @@
+
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import Map from '@/components/Map';
-import InfoPanel from '@/components/InfoPanel';
 import SplashScreen from '@/components/SplashScreen';
 import { landmarks as staticLandmarks, Landmark } from '@/data/landmarks';
 import { useTourPlanner } from '@/hooks/useTourPlanner';
@@ -69,10 +69,6 @@ const Index: React.FC = () => {
   const handleSelectLandmark = useCallback((landmark: Landmark) => {
     setSelectedLandmark(landmark);
   }, []);
-
-  const handleClosePanel = () => {
-    setSelectedLandmark(null);
-  };
 
   const handleGenerateTour = async (destination: string) => {
     if (!PERPLEXITY_API_KEY || PERPLEXITY_API_KEY.includes('YOUR_')) {
@@ -201,12 +197,6 @@ const Index: React.FC = () => {
         onSelectLandmark={handleSelectLandmark}
         selectedLandmark={selectedLandmark}
         plannedLandmarks={plannedLandmarks}
-      />
-      
-      <InfoPanel 
-        landmark={selectedLandmark}
-        onClose={handleClosePanel}
-        elevenLabsApiKey={ELEVENLABS_API_KEY}
       />
 
       <CameraControls
