@@ -267,7 +267,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
                   z-index: 1000;
                   transition: background-color 0.2s;
                 " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
-                <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px;">${landmark.name}</h3>
+                <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
                 <div style="margin-bottom: 10px; color: #666;">Loading image...</div>
               </div>
             `)
@@ -306,7 +306,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
                   z-index: 1000;
                   transition: background-color 0.2s;
                 " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
-                <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px;">${landmark.name}</h3>
+                <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
                 <div style="position: relative; margin-bottom: 10px;">
                   <img src="${imageUrl}" alt="${landmark.name}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px;" />
                   <button 
@@ -373,7 +373,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
                   z-index: 1000;
                   transition: background-color 0.2s;
                 " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
-                <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px;">${landmark.name}</h3>
+                <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
                 <div style="width: 100%; height: 150px; background-color: #f0f0f0; border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; color: #888; position: relative;">
                   No image available
                   <button 
