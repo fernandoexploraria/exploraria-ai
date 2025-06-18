@@ -38,10 +38,17 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange }) => {
           variant: "destructive"
         });
       } else {
-        toast({
-          title: "Success",
-          description: isSignUp ? "Account created successfully!" : "Signed in successfully!",
-        });
+        if (isSignUp) {
+          toast({
+            title: "Check your email",
+            description: "We've sent you a confirmation email. Please check your inbox and click the link to activate your account.",
+          });
+        } else {
+          toast({
+            title: "Success",
+            description: "Signed in successfully!",
+          });
+        }
         onOpenChange(false);
         setEmail('');
         setPassword('');
