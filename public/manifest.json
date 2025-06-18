@@ -1,0 +1,28 @@
+
+{
+  "name": "Exploraria AI",
+  "short_name": "Exploraria",
+  "description": "AI-powered landmark exploration and tour planning",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#222222",
+  "theme_color": "#facc15",
+  "icons": [
+    {
+      "src": "/lovable-uploads/ac9cbebd-b083-4d3d-a85e-782e03045422.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/lovable-uploads/ac9cbebd-b083-4d3d-a85e-782e03045422.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/lovable-uploads/ac9cbebd-b083-4d3d-a85e-782e03045422.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
