@@ -1,20 +1,15 @@
+
 import React, { useState, useMemo, useCallback } from 'react';
 import Map from '@/components/Map';
 import InfoPanel from '@/components/InfoPanel';
 import { landmarks as staticLandmarks, Landmark } from '@/data/landmarks';
-import SearchControl from '@/components/SearchControl';
 import { useTourPlanner } from '@/hooks/useTourPlanner';
-import { Button } from '@/components/ui/button';
-import { Sparkles, Search, User, LogOut, Star } from 'lucide-react';
-import TourPlannerDialog from '@/components/TourPlannerDialog';
-import VoiceAssistant from '@/components/VoiceAssistant';
-import VoiceSearchDialog from '@/components/VoiceSearchDialog';
-import FavoritesDialog from '@/components/FavoritesDialog';
-import AuthDialog from '@/components/AuthDialog';
-import CameraCapture from '@/components/CameraCapture';
-import ImageAnalysisResult from '@/components/ImageAnalysisResult';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
+import TopControls from '@/components/TopControls';
+import UserControls from '@/components/UserControls';
+import CameraControls from '@/components/CameraControls';
+import DialogManager from '@/components/DialogManager';
 
 // IMPORTANT: Replace this with your own public Mapbox token!
 // You can get one from your Mapbox account: https://www.mapbox.com/
@@ -136,80 +131,22 @@ const Index: React.FC = () => {
 
   return (
     <div className="w-screen h-screen relative">
-      <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
-        <img 
-          src="/lovable-uploads/ac9cbebd-b083-4d3d-a85e-782e03045422.png" 
-          alt="Explorar-IA Logo" 
-          className="h-10 w-auto bg-yellow-400 rounded-lg p-1"
-        />
-        <SearchControl landmarks={allLandmarks} onSelectLandmark={handleSelectLandmark} />
-        <Button
-          variant="outline"
-          className="bg-background/80 backdrop-blur-sm shadow-lg"
-          onClick={() => setIsTourPlannerOpen(true)}
-        >
-          <Sparkles className="mr-2 h-4 w-4" />
-          Plan a Tour
-        </Button>
-        {user && (
-          <>
-            <Button
-              variant="outline"
-              className="bg-background/80 backdrop-blur-sm shadow-lg"
-              onClick={handleFavoritesOpen}
-            >
-              <Star className="mr-2 h-4 w-4" />
-              Favorites
-            </Button>
-            <Button
-              variant="outline"
-              className="bg-background/80 backdrop-blur-sm shadow-lg"
-              onClick={handleVoiceSearchOpen}
-            >
-              <Search className="mr-2 h-4 w-4" />
-              Search Conversations
-            </Button>
-          </>
-        )}
-        {plannedLandmarks.length > 0 && (
-          <Button
-            variant="outline"
-            className="bg-background/80 backdrop-blur-sm shadow-lg"
-            onClick={handleVoiceAssistantOpen}
-          >
-            <Sparkles className="mr-2 h-4 w-4" />
-            Voice Guide
-          </Button>
-        )}
-      </div>
+      <TopControls
+        allLandmarks={allLandmarks}
+        onSelectLandmark={handleSelectLandmark}
+        onTourPlannerOpen={() => setIsTourPlannerOpen(true)}
+        onFavoritesOpen={handleFavoritesOpen}
+        onVoiceSearchOpen={handleVoiceSearchOpen}
+        onVoiceAssistantOpen={handleVoiceAssistantOpen}
+        user={user}
+        plannedLandmarks={plannedLandmarks}
+      />
 
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-        {user ? (
-          <>
-            <span className="text-sm bg-background/80 backdrop-blur-sm px-3 py-2 rounded-lg shadow-lg">
-              {user.email}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              className="bg-background/80 backdrop-blur-sm shadow-lg"
-              onClick={signOut}
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
-            </Button>
-          </>
-        ) : (
-          <Button
-            variant="outline"
-            className="bg-background/80 backdrop-blur-sm shadow-lg"
-            onClick={() => setIsAuthDialogOpen(true)}
-          >
-            <User className="mr-2 h-4 w-4" />
-            Sign In
-          </Button>
-        )}
-      </div>
+      <UserControls
+        user={user}
+        onSignOut={signOut}
+        onAuthDialogOpen={() => setIsAuthDialogOpen(true)}
+      />
 
       <Map 
         mapboxToken={MAPBOX_TOKEN}
@@ -218,66 +155,40 @@ const Index: React.FC = () => {
         selectedLandmark={selectedLandmark}
         plannedLandmarks={plannedLandmarks}
       />
+      
       <InfoPanel 
         landmark={selectedLandmark}
         onClose={handleClosePanel}
         elevenLabsApiKey={ELEVENLABS_API_KEY}
       />
 
-      {/* Camera controls at bottom - show when destination is selected */}
-      {currentDestination && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20">
-          <div className="bg-background/90 backdrop-blur-sm shadow-lg rounded-lg p-4">
-            <div className="flex flex-col items-center gap-2">
-              <p className="text-sm text-muted-foreground text-center">
-                {selectedLandmark 
-                  ? `Analyze ${selectedLandmark.name} with your camera`
-                  : `Analyze any landmark in ${currentDestination} with your camera`
-                }
-              </p>
-              <CameraCapture 
-                onImageCapture={handleImageCapture}
-                isLoading={isAnalyzing}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Image Analysis Result Panel */}
-      <ImageAnalysisResult
-        open={isAnalysisResultOpen}
-        onOpenChange={setIsAnalysisResultOpen}
-        imageData={analysisResult?.imageData || null}
-        analysis={analysisResult?.analysis || null}
-        landmarkName={analysisResult?.landmarkName}
+      <CameraControls
+        currentDestination={currentDestination}
+        selectedLandmark={selectedLandmark}
+        onImageCapture={handleImageCapture}
+        isAnalyzing={isAnalyzing}
       />
 
-      <TourPlannerDialog
-        open={isTourPlannerOpen}
-        onOpenChange={setIsTourPlannerOpen}
+      <DialogManager
+        isTourPlannerOpen={isTourPlannerOpen}
+        onTourPlannerOpenChange={setIsTourPlannerOpen}
         onGenerateTour={handleGenerateTour}
-        isLoading={isTourLoading}
-      />
-      <VoiceAssistant
-        open={isVoiceAssistantOpen}
-        onOpenChange={setIsVoiceAssistantOpen}
-        destination={currentDestination}
-        landmarks={plannedLandmarks}
+        isTourLoading={isTourLoading}
+        isVoiceAssistantOpen={isVoiceAssistantOpen}
+        onVoiceAssistantOpenChange={setIsVoiceAssistantOpen}
+        currentDestination={currentDestination}
+        plannedLandmarks={plannedLandmarks}
         perplexityApiKey={PERPLEXITY_API_KEY}
         elevenLabsApiKey={ELEVENLABS_API_KEY}
-      />
-      <VoiceSearchDialog
-        open={isVoiceSearchOpen}
-        onOpenChange={setIsVoiceSearchOpen}
-      />
-      <FavoritesDialog
-        open={isFavoritesOpen}
-        onOpenChange={setIsFavoritesOpen}
-      />
-      <AuthDialog
-        open={isAuthDialogOpen}
-        onOpenChange={setIsAuthDialogOpen}
+        isVoiceSearchOpen={isVoiceSearchOpen}
+        onVoiceSearchOpenChange={setIsVoiceSearchOpen}
+        isFavoritesOpen={isFavoritesOpen}
+        onFavoritesOpenChange={setIsFavoritesOpen}
+        isAuthDialogOpen={isAuthDialogOpen}
+        onAuthDialogOpenChange={setIsAuthDialogOpen}
+        isAnalysisResultOpen={isAnalysisResultOpen}
+        onAnalysisResultOpenChange={setIsAnalysisResultOpen}
+        analysisResult={analysisResult}
       />
     </div>
   );
