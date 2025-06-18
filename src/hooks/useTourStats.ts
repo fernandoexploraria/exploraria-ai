@@ -19,6 +19,7 @@ export const useTourStats = () => {
 
   const fetchTourStats = async () => {
     if (!user) {
+      console.log('No user found, clearing tour stats');
       setTourStats(null);
       setIsLoading(false);
       return;
@@ -40,9 +41,31 @@ export const useTourStats = () => {
       }
 
       console.log('Tour stats fetched:', data);
-      setTourStats(data);
+      
+      // If no stats found, create initial record
+      if (!data) {
+        console.log('No tour stats found, creating initial record');
+        const { data: newStats, error: insertError } = await supabase
+          .from('user_tour_stats')
+          .insert({
+            user_id: user.id,
+            tour_count: 0
+          })
+          .select()
+          .single();
+          
+        if (insertError) {
+          console.error('Error creating initial tour stats:', insertError);
+          throw insertError;
+        }
+        
+        console.log('Initial tour stats created:', newStats);
+        setTourStats(newStats);
+      } else {
+        setTourStats(data);
+      }
     } catch (err) {
-      console.error('Error fetching tour stats:', err);
+      console.error('Error in fetchTourStats:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch tour stats');
     } finally {
       setIsLoading(false);
@@ -51,7 +74,7 @@ export const useTourStats = () => {
 
   // Set up real-time subscription to tour stats changes
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
 
     console.log('Setting up tour stats subscription for user:', user.id);
     
@@ -81,11 +104,11 @@ export const useTourStats = () => {
       console.log('Cleaning up tour stats subscription');
       supabase.removeChannel(channel);
     };
-  }, [user?.id]); // Use user.id instead of user object to prevent unnecessary re-subscriptions
+  }, [user?.id]);
 
   useEffect(() => {
     fetchTourStats();
-  }, [user]);
+  }, [user?.id]);
 
   return { tourStats, isLoading, error, refetch: fetchTourStats };
 };

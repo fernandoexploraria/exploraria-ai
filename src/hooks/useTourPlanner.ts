@@ -19,12 +19,21 @@ export const useTourPlanner = () => {
       return;
     }
 
+    // Check current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error("You must be logged in to generate tours.");
+      return;
+    }
+
+    console.log('Generating tour for user:', user.id);
+
     // Check if user is subscribed or within free tour limit
     const FREE_TOUR_LIMIT = 3;
     const toursUsed = tourStats?.tour_count || 0;
     const isSubscribed = subscriptionData?.subscribed || false;
     
-    console.log('Tour generation check:', { toursUsed, isSubscribed, FREE_TOUR_LIMIT });
+    console.log('Tour generation check:', { toursUsed, isSubscribed, FREE_TOUR_LIMIT, userId: user.id });
     
     if (!isSubscribed && toursUsed >= FREE_TOUR_LIMIT) {
       toast.error("You've reached your free tour limit. Please subscribe to generate more tours.");
@@ -91,26 +100,47 @@ export const useTourPlanner = () => {
       setPlannedLandmarks(newLandmarks);
       
       // Increment tour count for authenticated users
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        try {
-          console.log('Incrementing tour count for user:', user.id);
-          const { data: tourCount, error: countError } = await supabase.rpc('increment_tour_count', {
-            user_id: user.id
-          });
+      try {
+        console.log('Calling increment_tour_count function for user:', user.id);
+        
+        // Call the database function to increment tour count
+        const { data: incrementResult, error: incrementError } = await supabase.rpc('increment_tour_count', {
+          user_id: user.id
+        });
+        
+        if (incrementError) {
+          console.error('Error calling increment_tour_count:', incrementError);
+          // Try to insert directly if the function fails
+          console.log('Attempting direct insert/update...');
+          const { data: insertResult, error: insertError } = await supabase
+            .from('user_tour_stats')
+            .upsert({
+              user_id: user.id,
+              tour_count: toursUsed + 1,
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'user_id'
+            })
+            .select()
+            .single();
           
-          if (countError) {
-            console.error('Error incrementing tour count:', countError);
+          if (insertError) {
+            console.error('Error with direct insert:', insertError);
           } else {
-            console.log('Tour count updated:', tourCount);
-            // Manually refetch tour stats to ensure UI updates
-            setTimeout(() => {
-              refetchTourStats();
-            }, 500);
+            console.log('Direct insert successful:', insertResult);
           }
-        } catch (countErr) {
-          console.error('Failed to update tour count:', countErr);
+        } else {
+          console.log('increment_tour_count successful, new count:', incrementResult);
         }
+        
+        // Force refetch tour stats after increment
+        setTimeout(() => {
+          console.log('Refetching tour stats...');
+          refetchTourStats();
+        }, 1000);
+        
+      } catch (countErr) {
+        console.error('Failed to update tour count:', countErr);
       }
       
       toast.success(`Generated a tour for ${destination}!`);
