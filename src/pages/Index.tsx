@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import Map from '@/components/Map';
 import InfoPanel from '@/components/InfoPanel';
@@ -69,12 +68,13 @@ const Index: React.FC = () => {
 
   const handleSelectLandmark = useCallback((landmark: Landmark) => {
     // Check if this selection came from search
-    const isFromSearch = (landmark as any).fromSearch;
+    const isFromSearch = landmark.fromSearch;
     
     if (isFromSearch) {
       // Clean the fromSearch flag and only set for map navigation, not for InfoPanel
-      delete (landmark as any).fromSearch;
-      setSelectedLandmark({ ...landmark, fromSearch: true });
+      const cleanLandmark = { ...landmark };
+      delete cleanLandmark.fromSearch;
+      setSelectedLandmark({ ...cleanLandmark, fromSearch: true });
     } else {
       // Normal selection (from map marker click) - show InfoPanel
       setSelectedLandmark(landmark);
@@ -215,7 +215,7 @@ const Index: React.FC = () => {
       />
       
       {/* Only show InfoPanel if landmark is selected and not from search */}
-      {selectedLandmark && !(selectedLandmark as any).fromSearch && (
+      {selectedLandmark && !selectedLandmark.fromSearch && (
         <InfoPanel 
           landmark={selectedLandmark}
           onClose={handleClosePanel}

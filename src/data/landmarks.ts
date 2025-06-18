@@ -4,6 +4,7 @@ export interface Landmark {
   name: string;
   coordinates: [number, number];
   description: string;
+  fromSearch?: boolean;
 }
 
 export const landmarks: Landmark[] = [
