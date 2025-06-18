@@ -43,15 +43,18 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange }) => {
             title: "Check your email",
             description: "We've sent you a confirmation email. Please check your inbox and click the link to activate your account.",
           });
+          // Don't close dialog immediately for sign up, let user see the message
+          setEmail('');
+          setPassword('');
         } else {
           toast({
             title: "Success",
             description: "Signed in successfully!",
           });
+          onOpenChange(false);
+          setEmail('');
+          setPassword('');
         }
-        onOpenChange(false);
-        setEmail('');
-        setPassword('');
       }
     } catch (error) {
       toast({
