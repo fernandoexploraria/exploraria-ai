@@ -21,10 +21,14 @@ serve(async (req) => {
 
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openAIApiKey) {
+      console.error('OpenAI API key not found in environment variables');
       throw new Error('OpenAI API key not configured');
     }
 
-    const prompt = landmarkName 
+    console.log('Analyzing image for landmark:', landmarkName);
+    console.log('API key present:', !!openAIApiKey);
+
+    const prompt = landmarkName && landmarkName !== 'Unknown location'
       ? `Analyze this image and tell me if this appears to be ${landmarkName}. Provide a detailed description of what you see, including architectural details, historical significance, and any interesting facts. If this doesn't appear to be ${landmarkName}, let me know what landmark or location this might be instead.`
       : `Analyze this image and identify what landmark or location this appears to be. Provide a detailed description including architectural details, historical significance, and any interesting facts about what you observe.`;
 
@@ -57,12 +61,18 @@ serve(async (req) => {
       }),
     });
 
+    console.log('OpenAI response status:', response.status);
+
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('OpenAI API error:', response.status, errorText);
+      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
     const analysis = data.choices[0].message.content;
+
+    console.log('Analysis successful');
 
     return new Response(
       JSON.stringify({ analysis }),

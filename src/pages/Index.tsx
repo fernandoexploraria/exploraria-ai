@@ -69,12 +69,19 @@ const Index: React.FC = () => {
     
     try {
       const landmarkName = selectedLandmark ? selectedLandmark.name : 'Unknown location';
+      console.log('Sending image for analysis:', { landmarkName, imageDataLength: imageData.length });
+      
       const { data, error } = await supabase.functions.invoke('analyze-landmark-image', {
         body: { imageData, landmarkName }
       });
 
       if (error) {
+        console.error('Supabase function error:', error);
         throw error;
+      }
+
+      if (!data || !data.analysis) {
+        throw new Error('No analysis data received');
       }
 
       // You could display the analysis in a toast or update the InfoPanel
@@ -83,7 +90,8 @@ const Index: React.FC = () => {
 
     } catch (error) {
       console.error('Error analyzing image:', error);
-      alert('Failed to analyze image. Please try again.');
+      const errorMessage = error.message || 'Failed to analyze image. Please try again.';
+      alert(`Error: ${errorMessage}`);
     } finally {
       setIsAnalyzing(false);
     }
