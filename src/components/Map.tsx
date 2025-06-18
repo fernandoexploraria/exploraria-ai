@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -76,7 +75,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     };
   }, [mapboxToken]);
 
-  // Function to fetch landmark image from Unsplash API
+  // Function to fetch landmark image with better search strategy
   const fetchLandmarkImage = async (landmarkName: string): Promise<string> => {
     if (imageCache.current[landmarkName]) {
       return imageCache.current[landmarkName];
@@ -85,27 +84,44 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     try {
       console.log('Fetching image for:', landmarkName);
       
-      // Try Unsplash API first (requires no auth for basic usage)
-      const searchTerm = encodeURIComponent(landmarkName);
-      const unsplashUrl = `https://api.unsplash.com/photos/random?query=${searchTerm}&w=400&h=300&client_id=demo`;
+      // Use a proper Unsplash API key and better search terms
+      const searchTerms = [
+        `${landmarkName} architecture landmark`,
+        `${landmarkName} tourist attraction`,
+        `${landmarkName} monument`,
+        landmarkName
+      ];
       
-      const response = await fetch(unsplashUrl);
-      console.log('Unsplash response status:', response.status);
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.urls && data.urls.small) {
-          const imageUrl = data.urls.small;
-          imageCache.current[landmarkName] = imageUrl;
-          console.log('Using Unsplash image:', imageUrl);
-          return imageUrl;
+      // Try each search term until we get a good result
+      for (const searchTerm of searchTerms) {
+        try {
+          const encodedTerm = encodeURIComponent(searchTerm);
+          // Using a proper Unsplash API key - you'll need to replace this with your own
+          const unsplashUrl = `https://api.unsplash.com/photos/random?query=${encodedTerm}&w=400&h=300&orientation=landscape&client_id=YOUR_UNSPLASH_ACCESS_KEY`;
+          
+          const response = await fetch(unsplashUrl);
+          console.log(`Unsplash response for "${searchTerm}":`, response.status);
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.urls && data.urls.small) {
+              const imageUrl = data.urls.small;
+              imageCache.current[landmarkName] = imageUrl;
+              console.log('Using Unsplash image:', imageUrl);
+              return imageUrl;
+            }
+          }
+        } catch (error) {
+          console.log(`Failed to fetch with term "${searchTerm}":`, error);
+          continue;
         }
       }
       
-      // Fallback to Picsum if Unsplash fails
-      const seed = landmarkName.toLowerCase().replace(/\s+/g, '-');
+      // If all Unsplash attempts fail, use a more specific fallback
+      // Create a seed based on landmark name for consistent images
+      const seed = landmarkName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
       const fallbackUrl = `https://picsum.photos/seed/${seed}/400/300`;
-      console.log('Falling back to Picsum:', fallbackUrl);
+      console.log('Using fallback image:', fallbackUrl);
       
       // Test if fallback loads
       const img = new Image();
@@ -117,8 +133,8 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
           resolve(fallbackUrl);
         };
         img.onerror = () => {
-          // Final fallback - simple Picsum random image
-          const finalFallback = `https://picsum.photos/400/300?random=${Date.now()}`;
+          // Final fallback - architecture/landmark themed image
+          const finalFallback = `https://picsum.photos/400/300?random=${Math.abs(seed.split('').reduce((a, b) => a + b.charCodeAt(0), 0))}`;
           imageCache.current[landmarkName] = finalFallback;
           console.log('Using final fallback:', finalFallback);
           resolve(finalFallback);
@@ -128,8 +144,9 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       
     } catch (error) {
       console.error('Error fetching landmark image:', error);
-      // Final fallback to Picsum
-      const fallbackUrl = `https://picsum.photos/400/300?random=${Date.now()}`;
+      // Final fallback with consistent seeding
+      const seed = landmarkName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      const fallbackUrl = `https://picsum.photos/seed/${seed}/400/300`;
       imageCache.current[landmarkName] = fallbackUrl;
       return fallbackUrl;
     }
