@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -243,7 +242,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
             z-index: 1000;
             transition: background-color 0.2s;
           " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
-          <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #333;">${landmark.name}</h3>
+          <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
           <div style="margin-bottom: 10px; color: #666;">Loading image...</div>
         </div>
       `)
@@ -282,7 +281,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
             z-index: 1000;
             transition: background-color 0.2s;
           " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
-          <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #333;">${landmark.name}</h3>
+          <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
           <div style="position: relative; margin-bottom: 10px;">
             <img src="${imageUrl}" alt="${landmark.name}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px;" />
             <button 
@@ -290,25 +289,27 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
               onclick="window.handleLandmarkListen('${landmark.id}')"
               style="
                 position: absolute;
-                bottom: 8px;
-                right: 8px;
-                background: rgba(0, 0, 0, 0.7);
+                bottom: 10px;
+                right: 10px;
+                background: rgba(0, 0, 0, 0.8);
                 color: white;
-                border: none;
+                border: 2px solid rgba(255, 255, 255, 0.8);
                 border-radius: 50%;
-                width: 36px;
-                height: 36px;
+                width: 48px;
+                height: 48px;
                 cursor: pointer;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 16px;
-                transition: background-color 0.2s;
+                font-size: 20px;
+                transition: all 0.2s ease;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
                 ${isPlaying ? 'opacity: 0.7;' : ''}
               "
-              onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'"
-              onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'"
+              onmouseover="this.style.backgroundColor='rgba(59, 130, 246, 0.9)'; this.style.borderColor='white'; this.style.transform='scale(1.1)'"
+              onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.8)'; this.style.borderColor='rgba(255, 255, 255, 0.8)'; this.style.transform='scale(1)'"
               ${isPlaying ? 'disabled' : ''}
+              title="Listen to description"
             >
               🔊
             </button>
@@ -349,7 +350,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
             z-index: 1000;
             transition: background-color 0.2s;
           " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
-          <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #333;">${landmark.name}</h3>
+          <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
           <div style="width: 100%; height: 150px; background-color: #f0f0f0; border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; color: #888; position: relative;">
             No image available
             <button 
@@ -357,23 +358,25 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
               onclick="window.handleLandmarkListen('${landmark.id}')"
               style="
                 position: absolute;
-                bottom: 8px;
-                right: 8px;
-                background: rgba(0, 0, 0, 0.7);
+                bottom: 10px;
+                right: 10px;
+                background: rgba(0, 0, 0, 0.8);
                 color: white;
-                border: none;
+                border: 2px solid rgba(255, 255, 255, 0.8);
                 border-radius: 50%;
-                width: 36px;
-                height: 36px;
+                width: 48px;
+                height: 48px;
                 cursor: pointer;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 16px;
-                transition: background-color 0.2s;
+                font-size: 20px;
+                transition: all 0.2s ease;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
               "
-              onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'"
-              onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'"
+              onmouseover="this.style.backgroundColor='rgba(59, 130, 246, 0.9)'; this.style.borderColor='white'; this.style.transform='scale(1.1)'"
+              onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.8)'; this.style.borderColor='rgba(255, 255, 255, 0.8)'; this.style.transform='scale(1)'"
+              title="Listen to description"
             >
               🔊
             </button>
