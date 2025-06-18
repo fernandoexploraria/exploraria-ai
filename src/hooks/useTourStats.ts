@@ -55,8 +55,11 @@ export const useTourStats = () => {
 
     console.log('Setting up tour stats subscription for user:', user.id);
     
+    // Create a unique channel name to avoid conflicts
+    const channelName = `tour-stats-${user.id}-${Date.now()}`;
+    
     const channel = supabase
-      .channel('tour-stats-changes')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -78,7 +81,7 @@ export const useTourStats = () => {
       console.log('Cleaning up tour stats subscription');
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user?.id]); // Use user.id instead of user object to prevent unnecessary re-subscriptions
 
   useEffect(() => {
     fetchTourStats();
