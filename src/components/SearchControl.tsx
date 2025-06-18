@@ -1,4 +1,3 @@
-
 import * as React from "react"
 import {
   CommandDialog,
@@ -33,9 +32,8 @@ const SearchControl: React.FC<SearchControlProps> = ({ landmarks, onSelectLandma
   }, [])
 
   const handleSelect = (landmark: Landmark) => {
-    // Create a special flag to indicate this is from search
-    const searchLandmark = { ...landmark, fromSearch: true };
-    onSelectLandmark(searchLandmark as any)
+    // Remove the fromSearch flag - let the marker click handle everything
+    onSelectLandmark(landmark)
     setOpen(false)
   }
 
@@ -48,9 +46,8 @@ const SearchControl: React.FC<SearchControlProps> = ({ landmarks, onSelectLandma
       description: topLandmark.description
     };
     
-    // Create a special flag to indicate this is from search
-    const searchLandmark = { ...tempLandmark, fromSearch: true };
-    onSelectLandmark(searchLandmark as any)
+    // Remove the fromSearch flag - let the marker click handle everything
+    onSelectLandmark(tempLandmark)
     setOpen(false)
   }
 

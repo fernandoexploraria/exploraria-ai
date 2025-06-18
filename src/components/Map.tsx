@@ -413,25 +413,17 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
 
   }, [allLandmarksWithTop, playingAudio, onSelectLandmark]);
 
-  // Fly to selected landmark and update marker styles
+  // Fly to selected landmark and update marker styles - simplified without fromSearch logic
   useEffect(() => {
     if (map.current && selectedLandmark) {
-      // Check if this selection came from search
-      const isFromSearch = (selectedLandmark as any).fromSearch;
-      
-      // Only zoom if it's from search (not from marker click, which already zoomed)
-      if (isFromSearch) {
-        map.current.flyTo({
-          center: selectedLandmark.coordinates,
-          zoom: 14,
-          speed: 0.7,
-          curve: 1,
-          easing: (t) => t,
-        });
-        
-        // Clean the fromSearch flag for future use
-        delete (selectedLandmark as any).fromSearch;
-      }
+      // Always zoom to the selected landmark when it changes
+      map.current.flyTo({
+        center: selectedLandmark.coordinates,
+        zoom: 14,
+        speed: 0.7,
+        curve: 1,
+        easing: (t) => t,
+      });
     }
 
     Object.entries(markers.current).forEach(([id, marker]) => {
