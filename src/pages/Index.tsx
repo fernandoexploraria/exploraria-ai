@@ -65,13 +65,12 @@ const Index: React.FC = () => {
   };
 
   const handleImageCapture = async (imageData: string) => {
-    if (!selectedLandmark) return;
-    
     setIsAnalyzing(true);
     
     try {
+      const landmarkName = selectedLandmark ? selectedLandmark.name : 'Unknown location';
       const { data, error } = await supabase.functions.invoke('analyze-landmark-image', {
-        body: { imageData, landmarkName: selectedLandmark.name }
+        body: { imageData, landmarkName }
       });
 
       if (error) {
@@ -204,13 +203,16 @@ const Index: React.FC = () => {
         elevenLabsApiKey={ELEVENLABS_API_KEY}
       />
 
-      {/* Camera controls at bottom - only show when destination is selected and a landmark is selected */}
-      {currentDestination && selectedLandmark && (
+      {/* Camera controls at bottom - show when destination is selected */}
+      {currentDestination && (
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20">
           <div className="bg-background/90 backdrop-blur-sm shadow-lg rounded-lg p-4">
             <div className="flex flex-col items-center gap-2">
               <p className="text-sm text-muted-foreground text-center">
-                Analyze {selectedLandmark.name} with your camera
+                {selectedLandmark 
+                  ? `Analyze ${selectedLandmark.name} with your camera`
+                  : `Analyze any landmark in ${currentDestination} with your camera`
+                }
               </p>
               <CameraCapture 
                 onImageCapture={handleImageCapture}
