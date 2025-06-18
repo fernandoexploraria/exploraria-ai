@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Mic, Volume2, Speaker } from 'lucide-react';
+import { Speaker } from 'lucide-react';
 
 interface VoiceStatusProps {
   isListening: boolean;
