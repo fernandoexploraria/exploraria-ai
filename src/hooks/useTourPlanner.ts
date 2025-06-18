@@ -20,7 +20,7 @@ export const useTourPlanner = () => {
     }
 
     // Check if user is subscribed or within free tour limit
-    const FREE_TOUR_LIMIT = 10;
+    const FREE_TOUR_LIMIT = 3;
     const toursUsed = tourStats?.tour_count || 0;
     const isSubscribed = subscriptionData?.subscribed || false;
     

@@ -9,7 +9,7 @@ const FreeTourCounter: React.FC = () => {
   const { tourStats, isLoading: tourLoading } = useTourStats();
   const { subscriptionData, isLoading: subLoading, createCheckout, openCustomerPortal } = useSubscription();
   
-  const FREE_TOUR_LIMIT = 10;
+  const FREE_TOUR_LIMIT = 3;
   const toursUsed = tourStats?.tour_count || 0;
   const toursRemaining = Math.max(0, FREE_TOUR_LIMIT - toursUsed);
   const hasReachedLimit = toursRemaining === 0;
