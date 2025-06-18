@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -6,6 +5,7 @@ import { Mic, MicOff, Volume2 } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from './AuthProvider';
 
 interface VoiceAssistantProps {
   open: boolean;
@@ -30,6 +30,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const recognitionRef = useRef<any>(null);
   const { toast } = useToast();
+  const { user, session } = useAuth();
 
   // Check if speech recognition is supported
   const isSpeechRecognitionSupported = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
@@ -41,7 +42,9 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       landmarksCount: landmarks.length,
       hasPerplexityKey: !!perplexityApiKey,
       hasElevenLabsKey: !!elevenLabsApiKey,
-      speechRecognitionSupported: isSpeechRecognitionSupported
+      speechRecognitionSupported: isSpeechRecognitionSupported,
+      userAuthenticated: !!user,
+      sessionExists: !!session
     });
 
     if (open && isSpeechRecognitionSupported) {
@@ -105,20 +108,8 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     try {
       console.log('Attempting to store interaction...', { userInput, assistantResponse, destination });
       
-      // Check authentication first
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        console.error('Session error:', sessionError);
-        toast({
-          title: "Authentication Error", 
-          description: "Please refresh the page and try again.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      if (!session?.user) {
+      // Use the auth context instead of getting session directly
+      if (!user || !session) {
         console.log('No authenticated user found');
         toast({
           title: "Authentication Required",
