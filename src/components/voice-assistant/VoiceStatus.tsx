@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Speaker } from 'lucide-react';
+import { Volume2 } from 'lucide-react';
 
 interface VoiceStatusProps {
   isListening: boolean;
@@ -20,9 +20,9 @@ const VoiceStatus: React.FC<VoiceStatusProps> = ({
       'border-gray-300 bg-gray-50'
     }`}>
       {isSpeaking ? (
-        <Speaker className="w-12 h-12 text-green-600" />
+        <Volume2 className="w-12 h-12 text-green-600" />
       ) : (
-        <Speaker className="w-12 h-12 text-gray-400" />
+        <Volume2 className="w-12 h-12 text-gray-400" />
       )}
     </div>
   );
