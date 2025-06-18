@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback } from 'react';
 import Map from '@/components/Map';
 import InfoPanel from '@/components/InfoPanel';
@@ -29,6 +28,7 @@ const Index: React.FC = () => {
   const [isTourPlannerOpen, setIsTourPlannerOpen] = useState(false);
   const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false);
   const [isVoiceSearchOpen, setIsVoiceSearchOpen] = useState(false);
+  const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [currentDestination, setCurrentDestination] = useState<string>('');
   const { plannedLandmarks, isLoading: isTourLoading, generateTour } = useTourPlanner();
@@ -77,6 +77,14 @@ const Index: React.FC = () => {
     setIsVoiceSearchOpen(true);
   };
 
+  const handleFavoritesOpen = () => {
+    if (!user) {
+      setIsAuthDialogOpen(true);
+      return;
+    }
+    setIsFavoritesOpen(true);
+  };
+
   return (
     <div className="w-screen h-screen relative">
       <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
@@ -89,6 +97,16 @@ const Index: React.FC = () => {
           <Sparkles className="mr-2 h-4 w-4" />
           Plan a Tour
         </Button>
+        {user && (
+          <Button
+            variant="outline"
+            className="bg-background/80 backdrop-blur-sm shadow-lg"
+            onClick={handleFavoritesOpen}
+          >
+            <Star className="mr-2 h-4 w-4" />
+            Favorites
+          </Button>
+        )}
         {plannedLandmarks.length > 0 && (
           <>
             <Button
@@ -168,6 +186,10 @@ const Index: React.FC = () => {
       <VoiceSearchDialog
         open={isVoiceSearchOpen}
         onOpenChange={setIsVoiceSearchOpen}
+      />
+      <FavoritesDialog
+        open={isFavoritesOpen}
+        onOpenChange={setIsFavoritesOpen}
       />
       <AuthDialog
         open={isAuthDialogOpen}
