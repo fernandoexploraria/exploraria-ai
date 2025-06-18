@@ -12,6 +12,7 @@ import VoiceSearchDialog from '@/components/VoiceSearchDialog';
 import FavoritesDialog from '@/components/FavoritesDialog';
 import AuthDialog from '@/components/AuthDialog';
 import CameraCapture from '@/components/CameraCapture';
+import ImageAnalysisResult from '@/components/ImageAnalysisResult';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -34,6 +35,12 @@ const Index: React.FC = () => {
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [currentDestination, setCurrentDestination] = useState<string>('');
+  const [analysisResult, setAnalysisResult] = useState<{
+    imageData: string;
+    analysis: string;
+    landmarkName: string;
+  } | null>(null);
+  const [isAnalysisResultOpen, setIsAnalysisResultOpen] = useState(false);
   const { plannedLandmarks, isLoading: isTourLoading, generateTour } = useTourPlanner();
   const { user, signOut } = useAuth();
   
@@ -84,9 +91,15 @@ const Index: React.FC = () => {
         throw new Error('No analysis data received');
       }
 
-      // You could display the analysis in a toast or update the InfoPanel
       console.log('AI Analysis:', data.analysis);
-      alert(`AI Analysis: ${data.analysis}`);
+      
+      // Store the result and show the analysis panel
+      setAnalysisResult({
+        imageData,
+        analysis: data.analysis,
+        landmarkName
+      });
+      setIsAnalysisResultOpen(true);
 
     } catch (error) {
       console.error('Error analyzing image:', error);
@@ -230,6 +243,15 @@ const Index: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Image Analysis Result Panel */}
+      <ImageAnalysisResult
+        open={isAnalysisResultOpen}
+        onOpenChange={setIsAnalysisResultOpen}
+        imageData={analysisResult?.imageData || null}
+        analysis={analysisResult?.analysis || null}
+        landmarkName={analysisResult?.landmarkName}
+      />
 
       <TourPlannerDialog
         open={isTourPlannerOpen}
