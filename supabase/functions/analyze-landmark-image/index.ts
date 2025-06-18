@@ -25,8 +25,16 @@ serve(async (req) => {
       throw new Error('OpenAI API key not configured');
     }
 
+    // Validate API key format
+    const trimmedKey = openAIApiKey.trim();
+    if (!trimmedKey.startsWith('sk-')) {
+      console.error('Invalid OpenAI API key format - should start with sk-');
+      throw new Error('Invalid OpenAI API key format');
+    }
+
     console.log('Analyzing image for landmark:', landmarkName);
-    console.log('API key present:', !!openAIApiKey);
+    console.log('API key format valid:', trimmedKey.startsWith('sk-'));
+    console.log('API key length:', trimmedKey.length);
 
     const prompt = landmarkName && landmarkName !== 'Unknown location'
       ? `Analyze this image and tell me if this appears to be ${landmarkName}. Provide a detailed description of what you see, including architectural details, historical significance, and any interesting facts. If this doesn't appear to be ${landmarkName}, let me know what landmark or location this might be instead.`
@@ -35,7 +43,7 @@ serve(async (req) => {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
+        'Authorization': `Bearer ${trimmedKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -66,10 +74,21 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('OpenAI API error:', response.status, errorText);
+      
+      if (response.status === 401) {
+        throw new Error('Invalid OpenAI API key. Please check that your API key is correct and has sufficient credits.');
+      }
+      
       throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
+    
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error('Unexpected OpenAI response format:', data);
+      throw new Error('Unexpected response format from OpenAI');
+    }
+    
     const analysis = data.choices[0].message.content;
 
     console.log('Analysis successful');
