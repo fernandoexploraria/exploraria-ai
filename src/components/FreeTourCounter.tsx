@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Lock, CreditCard } from 'lucide-react';
+import { Sparkles, Lock, CreditCard, X } from 'lucide-react';
 import { useTourStats } from '@/hooks/useTourStats';
 import { useSubscription } from '@/hooks/useSubscription';
 
@@ -17,13 +17,17 @@ const FreeTourCounter: React.FC = () => {
 
   const handleSubscribeClick = async () => {
     try {
-      if (isSubscribed) {
-        await openCustomerPortal();
-      } else {
-        await createCheckout();
-      }
+      await createCheckout();
     } catch (error) {
-      console.error('Error handling subscription action:', error);
+      console.error('Error creating checkout:', error);
+    }
+  };
+
+  const handleManageClick = async () => {
+    try {
+      await openCustomerPortal();
+    } catch (error) {
+      console.error('Error opening customer portal:', error);
     }
   };
 
@@ -74,26 +78,80 @@ const FreeTourCounter: React.FC = () => {
         </Button>
       )}
       
-      {/* Subscribe/Manage Button - Mobile/Tablet Layout */}
-      <Button
-        variant="outline"
-        size="sm"
-        className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left"
-        onClick={handleSubscribeClick}
-      >
-        <CreditCard className="mr-1 h-3 w-3" />
-        {isSubscribed ? 'Manage' : 'Subscribe'}
-      </Button>
+      {/* Subscribe Button - Mobile/Tablet Layout */}
+      {!isSubscribed && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left"
+          onClick={handleSubscribeClick}
+        >
+          <CreditCard className="mr-1 h-3 w-3" />
+          Subscribe
+        </Button>
+      )}
       
-      {/* Subscribe/Manage Button - Desktop Layout */}
-      <Button
-        variant="outline"
-        className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left"
-        onClick={handleSubscribeClick}
-      >
-        <CreditCard className="mr-2 h-4 w-4" />
-        {isSubscribed ? 'Manage Subscription' : 'Subscribe for $9.99/month'}
-      </Button>
+      {/* Subscribe Button - Desktop Layout */}
+      {!isSubscribed && (
+        <Button
+          variant="outline"
+          className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left"
+          onClick={handleSubscribeClick}
+        >
+          <CreditCard className="mr-2 h-4 w-4" />
+          Subscribe for $9.99/month
+        </Button>
+      )}
+
+      {/* Manage Subscription Button - Mobile/Tablet Layout */}
+      {isSubscribed && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left"
+          onClick={handleManageClick}
+        >
+          <CreditCard className="mr-1 h-3 w-3" />
+          Manage
+        </Button>
+      )}
+      
+      {/* Manage Subscription Button - Desktop Layout */}
+      {isSubscribed && (
+        <Button
+          variant="outline"
+          className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left"
+          onClick={handleManageClick}
+        >
+          <CreditCard className="mr-2 h-4 w-4" />
+          Manage Subscription
+        </Button>
+      )}
+
+      {/* Cancel Subscription Button - Mobile/Tablet Layout */}
+      {isSubscribed && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left text-red-600 hover:text-red-700"
+          onClick={handleManageClick}
+        >
+          <X className="mr-1 h-3 w-3" />
+          Cancel
+        </Button>
+      )}
+      
+      {/* Cancel Subscription Button - Desktop Layout */}
+      {isSubscribed && (
+        <Button
+          variant="outline"
+          className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left text-red-600 hover:text-red-700"
+          onClick={handleManageClick}
+        >
+          <X className="mr-2 h-4 w-4" />
+          Cancel Subscription
+        </Button>
+      )}
     </div>
   );
 };
