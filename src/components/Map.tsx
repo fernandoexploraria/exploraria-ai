@@ -20,6 +20,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
   const imageCache = useRef<{ [key: string]: string }>({});
   const photoPopups = useRef<{ [key: string]: mapboxgl.Popup }>({});
   const [playingAudio, setPlayingAudio] = useState<{ [key: string]: boolean }>({});
+  const pendingPopupLandmark = useRef<Landmark | null>(null);
 
   // Convert top landmarks to Landmark format
   const allLandmarksWithTop = React.useMemo(() => {
@@ -68,6 +69,19 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
         mapboxPopups.forEach(popup => {
           popup.remove();
         });
+      }
+    });
+
+    // Handle moveend event to show popup after zoom completes
+    map.current.on('moveend', () => {
+      if (pendingPopupLandmark.current) {
+        const landmark = pendingPopupLandmark.current;
+        pendingPopupLandmark.current = null;
+        
+        // Small delay to ensure zoom animation is fully complete
+        setTimeout(() => {
+          showLandmarkPopup(landmark);
+        }, 100);
       }
     });
 
@@ -176,6 +190,188 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     }
   };
 
+  // Function to show landmark popup
+  const showLandmarkPopup = async (landmark: Landmark) => {
+    if (!map.current) return;
+    
+    // Remove existing photo popup for this landmark
+    if (photoPopups.current[landmark.id]) {
+      photoPopups.current[landmark.id].remove();
+    }
+    
+    // Create new photo popup with image and listen button
+    const photoPopup = new mapboxgl.Popup({
+      closeButton: true,
+      closeOnClick: false,
+      offset: 25,
+      maxWidth: '450px',
+      className: 'custom-popup'
+    });
+
+    // Initial popup with loading state
+    photoPopup
+      .setLngLat(landmark.coordinates)
+      .setHTML(`
+        <div style="text-align: center; padding: 10px; position: relative;">
+          <button class="custom-close-btn" onclick="this.closest('.mapboxgl-popup').remove()" style="
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 1000;
+            transition: background-color 0.2s;
+          " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
+          <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
+          <div style="margin-bottom: 10px; color: #666;">Loading image...</div>
+        </div>
+      `)
+      .addTo(map.current!);
+
+    photoPopups.current[landmark.id] = photoPopup;
+
+    // Handle popup close event
+    photoPopup.on('close', () => {
+      delete photoPopups.current[landmark.id];
+    });
+
+    // Fetch and display image with listen button
+    try {
+      const imageUrl = await fetchLandmarkImage(landmark.name);
+      const isPlaying = playingAudio[landmark.id] || false;
+      
+      photoPopup.setHTML(`
+        <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
+          <button class="custom-close-btn" onclick="this.closest('.mapboxgl-popup').remove()" style="
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 1000;
+            transition: background-color 0.2s;
+          " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
+          <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
+          <div style="position: relative; margin-bottom: 10px;">
+            <img src="${imageUrl}" alt="${landmark.name}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px;" />
+            <button 
+              class="listen-btn-${landmark.id}" 
+              onclick="window.handleLandmarkListen('${landmark.id}')"
+              style="
+                position: absolute;
+                bottom: 8px;
+                right: 8px;
+                background: rgba(0, 0, 0, 0.7);
+                color: white;
+                border: none;
+                border-radius: 50%;
+                width: 36px;
+                height: 36px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 16px;
+                transition: background-color 0.2s;
+                ${isPlaying ? 'opacity: 0.7;' : ''}
+              "
+              onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'"
+              onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'"
+              ${isPlaying ? 'disabled' : ''}
+            >
+              🔊
+            </button>
+          </div>
+        </div>
+      `);
+
+      // Add global handler for listen button if it doesn't exist
+      if (!(window as any).handleLandmarkListen) {
+        (window as any).handleLandmarkListen = (landmarkId: string) => {
+          const targetLandmark = allLandmarksWithTop.find(l => l.id === landmarkId);
+          if (targetLandmark) {
+            handleTextToSpeech(targetLandmark);
+          }
+        };
+      }
+
+    } catch (error) {
+      console.error('Failed to load image for', landmark.name, error);
+      photoPopup.setHTML(`
+        <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
+          <button class="custom-close-btn" onclick="this.closest('.mapboxgl-popup').remove()" style="
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 1000;
+            transition: background-color 0.2s;
+          " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
+          <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
+          <div style="width: 100%; height: 150px; background-color: #f0f0f0; border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; color: #888; position: relative;">
+            No image available
+            <button 
+              class="listen-btn-${landmark.id}" 
+              onclick="window.handleLandmarkListen('${landmark.id}')"
+              style="
+                position: absolute;
+                bottom: 8px;
+                right: 8px;
+                background: rgba(0, 0, 0, 0.7);
+                color: white;
+                border: none;
+                border-radius: 50%;
+                width: 36px;
+                height: 36px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 16px;
+                transition: background-color 0.2s;
+              "
+              onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'"
+              onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'"
+            >
+              🔊
+            </button>
+          </div>
+        </div>
+      `);
+    }
+  };
+
   // Update markers when landmarks change
   useEffect(() => {
     if (!map.current) return;
@@ -210,7 +406,6 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
           .setLngLat(landmark.coordinates)
           .addTo(map.current!);
 
-        // REMOVED: No more hover popup - only click popup with photo and listen button
         marker.getElement().addEventListener('click', async (e) => {
           e.stopPropagation(); // Prevent map click event
           
@@ -229,182 +424,8 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
           // Call the landmark selection handler to update the selected landmark
           onSelectLandmark(landmark);
           
-          // Remove existing photo popup for this landmark
-          if (photoPopups.current[landmark.id]) {
-            photoPopups.current[landmark.id].remove();
-          }
-          
-          // Create new photo popup with image and listen button
-          const photoPopup = new mapboxgl.Popup({
-            closeButton: true,
-            closeOnClick: false,
-            offset: 25,
-            maxWidth: '450px',
-            className: 'custom-popup'
-          });
-
-          // Initial popup with loading state
-          photoPopup
-            .setLngLat(landmark.coordinates)
-            .setHTML(`
-              <div style="text-align: center; padding: 10px; position: relative;">
-                <button class="custom-close-btn" onclick="this.closest('.mapboxgl-popup').remove()" style="
-                  position: absolute;
-                  top: 5px;
-                  right: 5px;
-                  background: rgba(0, 0, 0, 0.7);
-                  color: white;
-                  border: none;
-                  border-radius: 50%;
-                  width: 24px;
-                  height: 24px;
-                  cursor: pointer;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  font-size: 14px;
-                  font-weight: bold;
-                  z-index: 1000;
-                  transition: background-color 0.2s;
-                " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
-                <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
-                <div style="margin-bottom: 10px; color: #666;">Loading image...</div>
-              </div>
-            `)
-            .addTo(map.current!);
-
-          photoPopups.current[landmark.id] = photoPopup;
-
-          // Handle popup close event
-          photoPopup.on('close', () => {
-            delete photoPopups.current[landmark.id];
-          });
-
-          // Fetch and display image with listen button
-          try {
-            const imageUrl = await fetchLandmarkImage(landmark.name);
-            const isPlaying = playingAudio[landmark.id] || false;
-            
-            photoPopup.setHTML(`
-              <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
-                <button class="custom-close-btn" onclick="this.closest('.mapboxgl-popup').remove()" style="
-                  position: absolute;
-                  top: 5px;
-                  right: 5px;
-                  background: rgba(0, 0, 0, 0.7);
-                  color: white;
-                  border: none;
-                  border-radius: 50%;
-                  width: 24px;
-                  height: 24px;
-                  cursor: pointer;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  font-size: 14px;
-                  font-weight: bold;
-                  z-index: 1000;
-                  transition: background-color 0.2s;
-                " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
-                <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
-                <div style="position: relative; margin-bottom: 10px;">
-                  <img src="${imageUrl}" alt="${landmark.name}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px;" />
-                  <button 
-                    class="listen-btn-${landmark.id}" 
-                    onclick="window.handleLandmarkListen('${landmark.id}')"
-                    style="
-                      position: absolute;
-                      bottom: 8px;
-                      right: 8px;
-                      background: rgba(0, 0, 0, 0.7);
-                      color: white;
-                      border: none;
-                      border-radius: 50%;
-                      width: 36px;
-                      height: 36px;
-                      cursor: pointer;
-                      display: flex;
-                      align-items: center;
-                      justify-content: center;
-                      font-size: 16px;
-                      transition: background-color 0.2s;
-                      ${isPlaying ? 'opacity: 0.7;' : ''}
-                    "
-                    onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'"
-                    onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'"
-                    ${isPlaying ? 'disabled' : ''}
-                  >
-                    🔊
-                  </button>
-                </div>
-              </div>
-            `);
-
-            // Add global handler for listen button if it doesn't exist
-            if (!(window as any).handleLandmarkListen) {
-              (window as any).handleLandmarkListen = (landmarkId: string) => {
-                const targetLandmark = allLandmarksWithTop.find(l => l.id === landmarkId);
-                if (targetLandmark) {
-                  handleTextToSpeech(targetLandmark);
-                }
-              };
-            }
-
-          } catch (error) {
-            console.error('Failed to load image for', landmark.name, error);
-            photoPopup.setHTML(`
-              <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
-                <button class="custom-close-btn" onclick="this.closest('.mapboxgl-popup').remove()" style="
-                  position: absolute;
-                  top: 5px;
-                  right: 5px;
-                  background: rgba(0, 0, 0, 0.7);
-                  color: white;
-                  border: none;
-                  border-radius: 50%;
-                  width: 24px;
-                  height: 24px;
-                  cursor: pointer;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  font-size: 14px;
-                  font-weight: bold;
-                  z-index: 1000;
-                  transition: background-color 0.2s;
-                " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
-                <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
-                <div style="width: 100%; height: 150px; background-color: #f0f0f0; border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; color: #888; position: relative;">
-                  No image available
-                  <button 
-                    class="listen-btn-${landmark.id}" 
-                    onclick="window.handleLandmarkListen('${landmark.id}')"
-                    style="
-                      position: absolute;
-                      bottom: 8px;
-                      right: 8px;
-                      background: rgba(0, 0, 0, 0.7);
-                      color: white;
-                      border: none;
-                      border-radius: 50%;
-                      width: 36px;
-                      height: 36px;
-                      cursor: pointer;
-                      display: flex;
-                      align-items: center;
-                      justify-content: center;
-                      font-size: 16px;
-                      transition: background-color 0.2s;
-                    "
-                    onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'"
-                    onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'"
-                  >
-                    🔊
-                  </button>
-                </div>
-              </div>
-            `);
-          }
+          // Show popup immediately for marker clicks (no zoom needed)
+          showLandmarkPopup(landmark);
         });
 
         markers.current[landmark.id] = marker;
@@ -413,17 +434,25 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
 
   }, [allLandmarksWithTop, playingAudio, onSelectLandmark]);
 
-  // Fly to selected landmark and update marker styles - simplified without fromSearch logic
+  // Fly to selected landmark and update marker styles
   useEffect(() => {
     if (map.current && selectedLandmark) {
-      // Always zoom to the selected landmark when it changes
-      map.current.flyTo({
-        center: selectedLandmark.coordinates,
-        zoom: 14,
-        speed: 0.7,
-        curve: 1,
-        easing: (t) => t,
-      });
+      const currentZoom = map.current.getZoom() || 1.5;
+      
+      // If we need to zoom, set up the pending popup and zoom
+      if (currentZoom < 10) {
+        pendingPopupLandmark.current = selectedLandmark;
+        map.current.flyTo({
+          center: selectedLandmark.coordinates,
+          zoom: 14,
+          speed: 0.7,
+          curve: 1,
+          easing: (t) => t,
+        });
+      } else {
+        // If already zoomed in, show popup immediately
+        showLandmarkPopup(selectedLandmark);
+      }
     }
 
     Object.entries(markers.current).forEach(([id, marker]) => {
