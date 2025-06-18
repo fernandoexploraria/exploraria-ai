@@ -2,8 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Landmark } from '@/data/landmarks';
-import CameraCapture from './CameraCapture';
-import { supabase } from '@/integrations/supabase/client';
 
 interface MapProps {
   mapboxToken: string;
@@ -19,7 +17,6 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
   const markers = useRef<{ [key: string]: mapboxgl.Marker }>({});
   const imageCache = useRef<{ [key: string]: string }>({});
   const popups = useRef<{ [key: string]: mapboxgl.Popup }>({});
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // Initialize map (runs once)
   useEffect(() => {
@@ -103,112 +100,6 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     }
   };
 
-  // Set up global functions for camera interactions
-  useEffect(() => {
-    (window as any).startCamera = (landmarkId: string) => {
-      // This would need a more sophisticated implementation in a real app
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.capture = 'environment';
-      input.onchange = (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0];
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            const imageData = event.target?.result as string;
-            const landmark = landmarks.find(l => l.id === landmarkId);
-            const popup = popups.current[landmarkId];
-            if (landmark && popup) {
-              analyzeImage(imageData, landmark.name, popup, landmark);
-            }
-          };
-          reader.readAsDataURL(file);
-        }
-      };
-      input.click();
-    };
-
-    (window as any).uploadImage = (landmarkId: string) => {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.onchange = (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0];
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            const imageData = event.target?.result as string;
-            const landmark = landmarks.find(l => l.id === landmarkId);
-            const popup = popups.current[landmarkId];
-            if (landmark && popup) {
-              analyzeImage(imageData, landmark.name, popup, landmark);
-            }
-          };
-          reader.readAsDataURL(file);
-        }
-      };
-      input.click();
-    };
-  }, [landmarks]);
-
-  // Analyze image with AI
-  const analyzeImage = async (imageData: string, landmarkName: string, popup: mapboxgl.Popup, landmark: Landmark) => {
-    setIsAnalyzing(true);
-    
-    try {
-      const { data, error } = await supabase.functions.invoke('analyze-landmark-image', {
-        body: { imageData, landmarkName }
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      // Update popup with analysis
-      const landmarkImage = await fetchLandmarkImage(landmark.name);
-      popup.setHTML(`
-        <div style="text-align: center; padding: 10px; max-width: 400px;">
-          <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold;">${landmark.name}</h3>
-          <img src="${landmarkImage}" alt="${landmark.name}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px; margin-bottom: 10px;" />
-          <div style="margin-bottom: 10px;">
-            <div id="camera-container-${landmark.id}"></div>
-          </div>
-          <div style="max-height: 200px; overflow-y: auto; text-align: left; padding: 10px; background: #f9f9f9; border-radius: 8px; margin-bottom: 10px;">
-            <h4 style="margin: 0 0 8px 0; font-size: 14px; font-weight: bold; color: #2563eb;">AI Analysis:</h4>
-            <p style="margin: 0; font-size: 12px; color: #374151; line-height: 1.4;">${data.analysis}</p>
-          </div>
-          <p style="margin: 0; font-size: 12px; color: #666; line-height: 1.4;">${landmark.description}</p>
-        </div>
-      `);
-
-      // Re-add camera component to the updated popup
-      const cameraContainer = document.getElementById(`camera-container-${landmark.id}`);
-      if (cameraContainer) {
-        const cameraComponent = document.createElement('div');
-        cameraContainer.appendChild(cameraComponent);
-        
-        // Note: This is a simplified approach. In a real React app, you'd want to use a portal
-        cameraComponent.innerHTML = `
-          <div style="display: flex; gap: 8px; justify-content: center; margin: 8px 0;">
-            <button onclick="window.startCamera('${landmark.id}')" style="padding: 4px 8px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; background: white; cursor: pointer;">
-              📷 Camera
-            </button>
-            <button onclick="window.uploadImage('${landmark.id}')" style="padding: 4px 8px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; background: white; cursor: pointer;">
-              📁 Upload
-            </button>
-          </div>
-        `;
-      }
-
-    } catch (error) {
-      console.error('Error analyzing image:', error);
-      alert('Failed to analyze image. Please try again.');
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
   // Update markers when landmarks change
   useEffect(() => {
     if (!map.current) return;
@@ -257,7 +148,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
           hoverPopup.remove();
         });
 
-        // Create click popup with camera feature
+        // Create click popup without camera controls
         marker.getElement().addEventListener('click', async () => {
           onSelectLandmark(landmark);
           
@@ -286,26 +177,13 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
 
           popups.current[landmark.id] = clickPopup;
 
-          // Fetch and display image with camera controls
+          // Fetch and display image without camera controls
           try {
             const imageUrl = await fetchLandmarkImage(landmark.name);
             clickPopup.setHTML(`
               <div style="text-align: center; padding: 10px; max-width: 400px;">
                 <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold;">${landmark.name}</h3>
                 <img src="${imageUrl}" alt="${landmark.name}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px; margin-bottom: 10px;" />
-                <div style="display: flex; gap: 8px; justify-content: center; margin: 10px 0;">
-                  <button onclick="window.startCamera('${landmark.id}')" 
-                          style="padding: 6px 12px; font-size: 12px; border: 1px solid #3b82f6; border-radius: 6px; background: #3b82f6; color: white; cursor: pointer; display: flex; align-items: center; gap: 4px;"
-                          ${isAnalyzing ? 'disabled' : ''}>
-                    📷 Analyze with Camera
-                  </button>
-                  <button onclick="window.uploadImage('${landmark.id}')" 
-                          style="padding: 6px 12px; font-size: 12px; border: 1px solid #6b7280; border-radius: 6px; background: #6b7280; color: white; cursor: pointer; display: flex; align-items: center; gap: 4px;"
-                          ${isAnalyzing ? 'disabled' : ''}>
-                    📁 Upload Image
-                  </button>
-                </div>
-                ${isAnalyzing ? '<div style="color: #3b82f6; font-size: 12px;">Analyzing image...</div>' : ''}
                 <p style="margin: 0; font-size: 12px; color: #666; line-height: 1.4;">${landmark.description}</p>
               </div>
             `);
@@ -317,16 +195,6 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
                 <div style="width: 100%; height: 150px; background-color: #f0f0f0; border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; color: #888;">
                   No image available
                 </div>
-                <div style="display: flex; gap: 8px; justify-content: center; margin: 10px 0;">
-                  <button onclick="window.startCamera('${landmark.id}')" 
-                          style="padding: 6px 12px; font-size: 12px; border: 1px solid #3b82f6; border-radius: 6px; background: #3b82f6; color: white; cursor: pointer;">
-                    📷 Analyze with Camera
-                  </button>
-                  <button onclick="window.uploadImage('${landmark.id}')" 
-                          style="padding: 6px 12px; font-size: 12px; border: 1px solid #6b7280; border-radius: 6px; background: #6b7280; color: white; cursor: pointer;">
-                    📁 Upload Image
-                  </button>
-                </div>
                 <p style="margin: 0; font-size: 12px; color: #666; line-height: 1.4;">${landmark.description}</p>
               </div>
             `);
@@ -337,7 +205,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       }
     });
 
-  }, [landmarks, onSelectLandmark, isAnalyzing]);
+  }, [landmarks, onSelectLandmark]);
 
   // Fly to selected landmark and update marker styles
   useEffect(() => {

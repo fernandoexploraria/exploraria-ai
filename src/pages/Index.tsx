@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback } from 'react';
 import Map from '@/components/Map';
 import InfoPanel from '@/components/InfoPanel';
@@ -12,7 +11,9 @@ import VoiceAssistant from '@/components/VoiceAssistant';
 import VoiceSearchDialog from '@/components/VoiceSearchDialog';
 import FavoritesDialog from '@/components/FavoritesDialog';
 import AuthDialog from '@/components/AuthDialog';
+import CameraCapture from '@/components/CameraCapture';
 import { useAuth } from '@/components/AuthProvider';
+import { supabase } from '@/integrations/supabase/client';
 
 // IMPORTANT: Replace this with your own public Mapbox token!
 // You can get one from your Mapbox account: https://www.mapbox.com/
@@ -31,6 +32,7 @@ const Index: React.FC = () => {
   const [isVoiceSearchOpen, setIsVoiceSearchOpen] = useState(false);
   const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [currentDestination, setCurrentDestination] = useState<string>('');
   const { plannedLandmarks, isLoading: isTourLoading, generateTour } = useTourPlanner();
   const { user, signOut } = useAuth();
@@ -60,6 +62,32 @@ const Index: React.FC = () => {
     setTimeout(() => {
       setIsVoiceAssistantOpen(true);
     }, 1000);
+  };
+
+  const handleImageCapture = async (imageData: string) => {
+    if (!selectedLandmark) return;
+    
+    setIsAnalyzing(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-landmark-image', {
+        body: { imageData, landmarkName: selectedLandmark.name }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // You could display the analysis in a toast or update the InfoPanel
+      console.log('AI Analysis:', data.analysis);
+      alert(`AI Analysis: ${data.analysis}`);
+
+    } catch (error) {
+      console.error('Error analyzing image:', error);
+      alert('Failed to analyze image. Please try again.');
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const handleVoiceAssistantOpen = () => {
@@ -175,6 +203,24 @@ const Index: React.FC = () => {
         onClose={handleClosePanel}
         elevenLabsApiKey={ELEVENLABS_API_KEY}
       />
+
+      {/* Camera controls at bottom - only show when destination is selected and a landmark is selected */}
+      {currentDestination && selectedLandmark && (
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20">
+          <div className="bg-background/90 backdrop-blur-sm shadow-lg rounded-lg p-4">
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-sm text-muted-foreground text-center">
+                Analyze {selectedLandmark.name} with your camera
+              </p>
+              <CameraCapture 
+                onImageCapture={handleImageCapture}
+                isLoading={isAnalyzing}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <TourPlannerDialog
         open={isTourPlannerOpen}
         onOpenChange={setIsTourPlannerOpen}
