@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -55,11 +56,17 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       const isMarkerClick = clickedElement.closest('.w-4.h-4.rounded-full');
       
       if (!isMarkerClick) {
-        // Close all popups
+        // Close all popups including preview popups
         Object.values(popups.current).forEach(popup => {
           popup.remove();
         });
         popups.current = {};
+        
+        // Also close any Mapbox popups that might be open
+        const mapboxPopups = document.querySelectorAll('.mapboxgl-popup');
+        mapboxPopups.forEach(popup => {
+          popup.remove();
+        });
       }
     });
 
