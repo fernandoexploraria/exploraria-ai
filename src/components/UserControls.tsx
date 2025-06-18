@@ -17,14 +17,12 @@ const UserControls: React.FC<UserControlsProps> = ({
 }) => {
   const isMobile = useIsMobile();
 
-  if (isMobile) {
+  // Use mobile layout for screens below lg breakpoint (1024px)
+  if (window.innerWidth < 1024) {
     return (
-      <div className="absolute top-20 right-4 z-10 flex flex-col items-end gap-2">
+      <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-2">
         {user ? (
           <>
-            <span className="text-xs bg-background/80 backdrop-blur-sm px-2 py-1 rounded-lg shadow-lg max-w-[120px] truncate">
-              {user.email}
-            </span>
             <Button
               variant="outline"
               size="sm"
@@ -34,6 +32,9 @@ const UserControls: React.FC<UserControlsProps> = ({
               <LogOut className="w-3 h-3 mr-1" />
               Sign Out
             </Button>
+            <span className="text-xs bg-background/80 backdrop-blur-sm px-2 py-1 rounded-lg shadow-lg max-w-[120px] truncate">
+              {user.email}
+            </span>
           </>
         ) : (
           <Button
@@ -50,6 +51,7 @@ const UserControls: React.FC<UserControlsProps> = ({
     );
   }
 
+  // Desktop layout (lg and above)
   return (
     <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
       {user ? (
