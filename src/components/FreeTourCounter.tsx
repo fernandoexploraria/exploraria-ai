@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Lock } from 'lucide-react';
+import { Sparkles, Lock, CreditCard } from 'lucide-react';
 import { useTourStats } from '@/hooks/useTourStats';
 
 const FreeTourCounter: React.FC = () => {
@@ -62,8 +62,8 @@ const FreeTourCounter: React.FC = () => {
         className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden"
         disabled
       >
-        <Sparkles className="mr-1 h-3 w-3" />
-        Subscribe for unlimited tours
+        <CreditCard className="mr-1 h-3 w-3" />
+        Subscribe
       </Button>
       
       {/* Subscribe Button - Desktop Layout */}
@@ -72,8 +72,8 @@ const FreeTourCounter: React.FC = () => {
         className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex"
         disabled
       >
-        <Sparkles className="mr-2 h-4 w-4" />
-        Subscribe for unlimited tours
+        <CreditCard className="mr-2 h-4 w-4" />
+        Subscribe
       </Button>
     </div>
   );
