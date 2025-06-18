@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Mic, MicOff, Volume2 } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface VoiceAssistantProps {
   open: boolean;
@@ -26,6 +27,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [transcript, setTranscript] = useState('');
   const recognitionRef = useRef<any>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (open && 'webkitSpeechRecognition' in window) {
@@ -66,22 +68,69 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     };
   }, [open, destination]);
 
+  const ensureValidSession = async () => {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('Session error:', error);
+        toast({
+          title: "Authentication Error",
+          description: "Please refresh the page and try again.",
+          variant: "destructive"
+        });
+        return null;
+      }
+
+      if (!session) {
+        console.log('No active session found');
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to use the voice assistant.",
+          variant: "destructive"
+        });
+        return null;
+      }
+
+      // Check if token is close to expiring (within 5 minutes)
+      const expiresAt = session.expires_at || 0;
+      const now = Math.floor(Date.now() / 1000);
+      const timeUntilExpiry = expiresAt - now;
+
+      if (timeUntilExpiry < 300) { // Less than 5 minutes
+        console.log('Token expiring soon, refreshing...');
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        
+        if (refreshError) {
+          console.error('Token refresh error:', refreshError);
+          toast({
+            title: "Session Expired",
+            description: "Please refresh the page and log in again.",
+            variant: "destructive"
+          });
+          return null;
+        }
+        
+        return refreshedSession;
+      }
+
+      return session;
+    } catch (error) {
+      console.error('Unexpected session error:', error);
+      return null;
+    }
+  };
+
   const storeInteraction = async (userInput: string, assistantResponse: string) => {
     try {
       console.log('Attempting to store interaction:', { userInput, assistantResponse, destination });
       
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) {
-        console.error('Session error:', sessionError);
-        return;
-      }
-      
+      const session = await ensureValidSession();
       if (!session) {
-        console.log('No user session found, user not authenticated');
         return;
       }
 
-      console.log('User authenticated, calling edge function...');
+      console.log('Valid session found, calling edge function...');
       
       const { data, error } = await supabase.functions.invoke('store-voice-interaction', {
         body: {
@@ -94,11 +143,23 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       if (error) {
         console.error('Error storing voice interaction:', error);
         console.error('Error details:', JSON.stringify(error, null, 2));
+        
+        // Show user-friendly error message
+        toast({
+          title: "Storage Error",
+          description: "Couldn't save conversation. Please try again.",
+          variant: "destructive"
+        });
       } else {
         console.log('Voice interaction stored successfully:', data);
       }
     } catch (error) {
       console.error('Unexpected error storing interaction:', error);
+      toast({
+        title: "Storage Error",
+        description: "Couldn't save conversation. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 

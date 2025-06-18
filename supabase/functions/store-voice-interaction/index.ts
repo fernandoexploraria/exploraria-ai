@@ -20,13 +20,25 @@ serve(async (req) => {
 
     if (!userInput || !assistantResponse || !destination) {
       console.error('Missing required fields');
-      throw new Error('Missing required fields: userInput, assistantResponse, and destination are required');
+      return new Response(
+        JSON.stringify({ error: 'Missing required fields: userInput, assistantResponse, and destination are required' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400 
+        }
+      )
     }
 
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
       console.error('No authorization header');
-      throw new Error('No authorization header provided');
+      return new Response(
+        JSON.stringify({ error: 'No authorization header provided' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401 
+        }
+      )
     }
     
     console.log('Creating Supabase client...');
@@ -37,17 +49,42 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     )
 
-    // Get current user
+    // Get current user with better error handling
     console.log('Getting user...');
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
+    
     if (userError) {
       console.error('Error getting user:', userError);
-      throw new Error(`User authentication error: ${userError.message}`);
+      
+      // Check if it's a token expiration error
+      if (userError.message?.includes('expired') || userError.message?.includes('invalid')) {
+        return new Response(
+          JSON.stringify({ error: 'Authentication token expired or invalid. Please refresh and try again.' }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 401 
+          }
+        )
+      }
+      
+      return new Response(
+        JSON.stringify({ error: `User authentication error: ${userError.message}` }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401 
+        }
+      )
     }
     
     if (!user) {
       console.error('User not authenticated');
-      throw new Error('User not authenticated')
+      return new Response(
+        JSON.stringify({ error: 'User not authenticated' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401 
+        }
+      )
     }
     
     console.log('User authenticated:', user.id);
@@ -56,7 +93,13 @@ serve(async (req) => {
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
     if (!openaiApiKey) {
       console.error('OpenAI API key not configured');
-      throw new Error('OpenAI API key not configured')
+      return new Response(
+        JSON.stringify({ error: 'OpenAI API key not configured' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500 
+        }
+      )
     }
 
     console.log('Generating embeddings...');
@@ -84,7 +127,25 @@ serve(async (req) => {
 
     if (error) {
       console.error('Database error:', error)
-      throw error
+      
+      // Handle specific database errors
+      if (error.code === '42501') {
+        return new Response(
+          JSON.stringify({ error: 'Database permission error. Please check authentication.' }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 403 
+          }
+        )
+      }
+      
+      return new Response(
+        JSON.stringify({ error: `Database error: ${error.message}` }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500 
+        }
+      )
     }
 
     console.log('Interaction stored successfully:', data);
@@ -100,7 +161,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error storing voice interaction:', error)
     return new Response(
-      JSON.stringify({ error: error.message, details: error }),
+      JSON.stringify({ error: `Unexpected error: ${error.message}` }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500 
