@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import Map from '@/components/Map';
 import InfoPanel from '@/components/InfoPanel';
 import SplashScreen from '@/components/SplashScreen';
@@ -45,6 +45,17 @@ const Index: React.FC = () => {
     return [...staticLandmarks, ...plannedLandmarks];
   }, [plannedLandmarks]);
 
+  // Handle post-authentication tour generation
+  useEffect(() => {
+    if (user && pendingDestination && !isTourLoading) {
+      console.log('User signed in with pending destination:', pendingDestination);
+      // Automatically generate tour and open tour planner
+      setIsTourPlannerOpen(true);
+      handleGenerateTour(pendingDestination);
+      setPendingDestination('');
+    }
+  }, [user, pendingDestination, isTourLoading]);
+
   const handleSelectLandmark = useCallback((landmark: Landmark) => {
     setSelectedLandmark(landmark);
   }, []);
@@ -69,6 +80,7 @@ const Index: React.FC = () => {
   };
 
   const handleTourAuthRequired = (destination: string) => {
+    console.log('Auth required for destination:', destination);
     setPendingDestination(destination);
     setIsAuthDialogOpen(true);
   };
@@ -76,11 +88,8 @@ const Index: React.FC = () => {
   const handleAuthDialogClose = (open: boolean) => {
     setIsAuthDialogOpen(open);
     
-    // If user just signed in and we have a pending destination, generate the tour
-    if (!open && user && pendingDestination) {
-      handleGenerateTour(pendingDestination);
-      setPendingDestination('');
-    }
+    // Note: The useEffect above will handle the tour generation when user signs in
+    // No need to check for pendingDestination here as OAuth redirects might not preserve state
   };
 
   const handleImageCapture = async (imageData: string) => {
