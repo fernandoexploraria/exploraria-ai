@@ -98,24 +98,14 @@ const Index: React.FC = () => {
           Plan a Tour
         </Button>
         {user && (
-          <Button
-            variant="outline"
-            className="bg-background/80 backdrop-blur-sm shadow-lg"
-            onClick={handleFavoritesOpen}
-          >
-            <Star className="mr-2 h-4 w-4" />
-            Favorites
-          </Button>
-        )}
-        {plannedLandmarks.length > 0 && (
           <>
             <Button
               variant="outline"
               className="bg-background/80 backdrop-blur-sm shadow-lg"
-              onClick={handleVoiceAssistantOpen}
+              onClick={handleFavoritesOpen}
             >
-              <Sparkles className="mr-2 h-4 w-4" />
-              Voice Guide
+              <Star className="mr-2 h-4 w-4" />
+              Favorites
             </Button>
             <Button
               variant="outline"
@@ -126,6 +116,16 @@ const Index: React.FC = () => {
               Search Conversations
             </Button>
           </>
+        )}
+        {plannedLandmarks.length > 0 && (
+          <Button
+            variant="outline"
+            className="bg-background/80 backdrop-blur-sm shadow-lg"
+            onClick={handleVoiceAssistantOpen}
+          >
+            <Sparkles className="mr-2 h-4 w-4" />
+            Voice Guide
+          </Button>
         )}
       </div>
 
