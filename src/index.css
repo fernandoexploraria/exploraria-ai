@@ -44,6 +44,11 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Custom favicon for browser tabs */
+  link[rel="icon"] {
+    border-radius: 4px;
+  }
 }
 
 #root {

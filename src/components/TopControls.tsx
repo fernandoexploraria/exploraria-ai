@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Search, Star } from 'lucide-react';
+import { Sparkles, Search, Star, Bookmark } from 'lucide-react';
 import SearchControl from '@/components/SearchControl';
 import { Landmark } from '@/data/landmarks';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -39,8 +39,8 @@ const TopControls: React.FC<TopControlsProps> = ({
         <div className="flex items-center gap-2">
           <img 
             src="/lovable-uploads/ac9cbebd-b083-4d3d-a85e-782e03045422.png" 
-            alt="Explorar-IA Logo" 
-            className="h-8 w-auto bg-yellow-400 rounded-lg p-1 flex-shrink-0"
+            alt="Exploraria Logo" 
+            className="h-16 w-auto bg-yellow-400 rounded-lg p-1 flex-shrink-0"
           />
           <SearchControl landmarks={allLandmarks} onSelectLandmark={onSelectLandmark} />
         </div>
@@ -94,8 +94,8 @@ const TopControls: React.FC<TopControlsProps> = ({
       <div className="hidden lg:flex items-center gap-2">
         <img 
           src="/lovable-uploads/ac9cbebd-b083-4d3d-a85e-782e03045422.png" 
-          alt="Explorar-IA Logo" 
-          className="h-10 w-auto bg-yellow-400 rounded-lg p-1"
+          alt="Exploraria Logo" 
+          className="h-20 w-auto bg-yellow-400 rounded-lg p-1"
         />
         <SearchControl landmarks={allLandmarks} onSelectLandmark={onSelectLandmark} />
         <Button
