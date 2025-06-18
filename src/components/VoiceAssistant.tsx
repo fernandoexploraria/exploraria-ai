@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -31,6 +32,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
   const { user, session } = useAuth();
 
@@ -62,12 +64,13 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       try {
         const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
         recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = true;
+        recognitionRef.current.continuous = false; // Changed to false for better control
         recognitionRef.current.interimResults = true;
         recognitionRef.current.lang = 'en-US';
 
         recognitionRef.current.onstart = () => {
           console.log('Speech recognition started');
+          setIsListening(true);
         };
 
         recognitionRef.current.onresult = (event: any) => {
@@ -81,6 +84,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           if (finalTranscript) {
             console.log('Final transcript:', finalTranscript);
             setTranscript(finalTranscript);
+            setIsListening(false); // Stop listening when we get final transcript
             handleUserInput(finalTranscript);
           }
         };
@@ -111,6 +115,11 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         } catch (error) {
           console.error('Error stopping recognition:', error);
         }
+      }
+      // Stop any current audio
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
       }
     };
   }, [open]);
@@ -176,8 +185,6 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     if (recognitionRef.current && !isSpeaking) {
       try {
         console.log('Starting speech recognition...');
-        setIsListening(true);
-        setHasUserInteracted(true);
         recognitionRef.current.start();
       } catch (error) {
         console.error('Error starting speech recognition:', error);
@@ -194,7 +201,6 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const stopListening = () => {
     if (recognitionRef.current) {
       console.log('Stopping speech recognition...');
-      setIsListening(false);
       recognitionRef.current.stop();
     }
   };
@@ -204,9 +210,19 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       console.log('Speaking text:', text.substring(0, 50) + '...');
       setIsSpeaking(true);
       
+      // Stop any current audio
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
+      }
+      
       // Check ElevenLabs API key
       if (!elevenLabsApiKey || elevenLabsApiKey === 'YOUR_ELEVENLABS_API_KEY') {
         console.log('Using browser speech synthesis...');
+        
+        // Stop any existing speech synthesis
+        speechSynthesis.cancel();
+        
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.onstart = () => {
           console.log('Speech synthesis started');
@@ -246,17 +262,34 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         const audioBlob = await response.blob();
         const audioUrl = URL.createObjectURL(audioBlob);
         const audio = new Audio(audioUrl);
+        currentAudioRef.current = audio;
+        
+        audio.onloadstart = () => {
+          console.log('Audio loading started');
+          setIsSpeaking(true);
+        };
+        
+        audio.oncanplaythrough = () => {
+          console.log('Audio can play through');
+        };
+        
+        audio.onplay = () => {
+          console.log('Audio playback started');
+          setIsSpeaking(true);
+        };
         
         audio.onended = () => {
           console.log('Audio playback ended');
           setIsSpeaking(false);
           URL.revokeObjectURL(audioUrl);
+          currentAudioRef.current = null;
         };
         
         audio.onerror = (error) => {
           console.error('Audio playback error:', error);
           setIsSpeaking(false);
           URL.revokeObjectURL(audioUrl);
+          currentAudioRef.current = null;
         };
         
         await audio.play();
@@ -401,7 +434,7 @@ Please provide a helpful, conversational response about the destination or landm
               <p className="text-center text-sm font-medium">
                 {isSpeaking ? 'Speaking...' : 
                  isListening ? 'Listening...' : 
-                 hasUserInteracted ? 'Tap to speak' : 'Click welcome first'}
+                 hasUserInteracted ? 'Click to speak' : 'Click welcome first'}
               </p>
 
               {/* Welcome button (only show if user hasn't interacted) */}
@@ -410,6 +443,7 @@ Please provide a helpful, conversational response about the destination or landm
                   onClick={handleWelcomeClick}
                   className="mb-2"
                   variant="outline"
+                  disabled={isSpeaking}
                 >
                   Start Tour Guide
                 </Button>
@@ -445,7 +479,7 @@ Please provide a helpful, conversational response about the destination or landm
             <div className="text-center">
               <p className="text-xs text-muted-foreground">
                 {hasUserInteracted 
-                  ? "Press and hold the microphone to ask questions about your tour"
+                  ? "Click the microphone to ask questions about your tour"
                   : "Click 'Start Tour Guide' to begin your interactive tour experience"
                 }
               </p>
