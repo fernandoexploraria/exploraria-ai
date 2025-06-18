@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Landmark } from '@/data/landmarks';
+import { TOP_LANDMARKS } from '@/data/topLandmarks';
 
 interface MapProps {
   mapboxToken: string;
@@ -17,6 +18,18 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
   const markers = useRef<{ [key: string]: mapboxgl.Marker }>({});
   const imageCache = useRef<{ [key: string]: string }>({});
   const popups = useRef<{ [key: string]: mapboxgl.Popup }>({});
+
+  // Convert top landmarks to Landmark format
+  const allLandmarksWithTop = React.useMemo(() => {
+    const topLandmarksConverted: Landmark[] = TOP_LANDMARKS.map((topLandmark, index) => ({
+      id: `top-landmark-${index}`,
+      name: topLandmark.name,
+      coordinates: topLandmark.coordinates,
+      description: topLandmark.description
+    }));
+    
+    return [...landmarks, ...topLandmarksConverted];
+  }, [landmarks]);
 
   // Initialize map (runs once)
   useEffect(() => {
@@ -39,7 +52,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     map.current.on('click', (e) => {
       // Check if the click was on a marker by looking for our marker class
       const clickedElement = e.originalEvent.target as HTMLElement;
-      const isMarkerClick = clickedElement.closest('.w-4.h-4.rounded-full.bg-cyan-400');
+      const isMarkerClick = clickedElement.closest('.w-4.h-4.rounded-full');
       
       if (!isMarkerClick) {
         // Close all popups
@@ -119,7 +132,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
   useEffect(() => {
     if (!map.current) return;
 
-    const landmarkIds = new Set(landmarks.map(l => l.id));
+    const landmarkIds = new Set(allLandmarksWithTop.map(l => l.id));
 
     // Remove markers that are no longer in the landmarks list
     Object.keys(markers.current).forEach(markerId => {
@@ -134,10 +147,15 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     });
 
     // Add new markers
-    landmarks.forEach((landmark) => {
+    allLandmarksWithTop.forEach((landmark) => {
       if (!markers.current[landmark.id]) {
         const el = document.createElement('div');
-        el.className = 'w-4 h-4 rounded-full bg-cyan-400 border-2 border-white shadow-lg cursor-pointer transition-transform duration-300 hover:scale-125';
+        
+        // Different styling for top landmarks vs user landmarks
+        const isTopLandmark = landmark.id.startsWith('top-landmark-');
+        const markerColor = isTopLandmark ? 'bg-yellow-400' : 'bg-cyan-400';
+        
+        el.className = `w-4 h-4 rounded-full ${markerColor} border-2 border-white shadow-lg cursor-pointer transition-transform duration-300 hover:scale-125`;
         el.style.transition = 'background-color 0.3s, transform 0.3s';
         
         const marker = new mapboxgl.Marker(el)
@@ -284,7 +302,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       }
     });
 
-  }, [landmarks, onSelectLandmark]);
+  }, [allLandmarksWithTop, onSelectLandmark]);
 
   // Fly to selected landmark and update marker styles
   useEffect(() => {
@@ -300,11 +318,14 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
 
     Object.entries(markers.current).forEach(([id, marker]) => {
       const element = marker.getElement();
-      if (id === selectedLandmark?.id) {
+      const isSelected = id === selectedLandmark?.id;
+      const isTopLandmark = id.startsWith('top-landmark-');
+      
+      if (isSelected) {
         element.style.backgroundColor = '#f87171'; // red-400
         element.style.transform = 'scale(1.5)';
       } else {
-        element.style.backgroundColor = '#22d3ee'; // cyan-400
+        element.style.backgroundColor = isTopLandmark ? '#facc15' : '#22d3ee'; // yellow-400 or cyan-400
         element.style.transform = 'scale(1)';
       }
     });
