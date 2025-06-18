@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -84,7 +85,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     try {
       console.log('Fetching image for:', landmarkName);
       
-      // Use a proper Unsplash API key and better search terms
+      // Use your Unsplash API key with better search terms
       const searchTerms = [
         `${landmarkName} architecture landmark`,
         `${landmarkName} tourist attraction`,
@@ -96,8 +97,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       for (const searchTerm of searchTerms) {
         try {
           const encodedTerm = encodeURIComponent(searchTerm);
-          // Using a proper Unsplash API key - you'll need to replace this with your own
-          const unsplashUrl = `https://api.unsplash.com/photos/random?query=${encodedTerm}&w=400&h=300&orientation=landscape&client_id=YOUR_UNSPLASH_ACCESS_KEY`;
+          const unsplashUrl = `https://api.unsplash.com/photos/random?query=${encodedTerm}&w=400&h=300&orientation=landscape&client_id=hGYkz9JVkFhlOvr477qg35Ns4d92kOc1p2lTEYt6WWY`;
           
           const response = await fetch(unsplashUrl);
           console.log(`Unsplash response for "${searchTerm}":`, response.status);
