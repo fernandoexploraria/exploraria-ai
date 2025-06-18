@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback } from 'react';
 import Map from '@/components/Map';
 import InfoPanel from '@/components/InfoPanel';
@@ -88,6 +89,11 @@ const Index: React.FC = () => {
   return (
     <div className="w-screen h-screen relative">
       <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
+        <img 
+          src="/lovable-uploads/ac9cbebd-b083-4d3d-a85e-782e03045422.png" 
+          alt="Explorar-IA Logo" 
+          className="h-10 w-auto bg-yellow-400 rounded-lg p-1"
+        />
         <SearchControl landmarks={allLandmarks} onSelectLandmark={handleSelectLandmark} />
         <Button
           variant="outline"
