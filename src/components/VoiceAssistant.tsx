@@ -108,7 +108,16 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     try {
       console.log('Attempting to store interaction...', { userInput, assistantResponse, destination });
       
-      // Use the auth context instead of getting session directly
+      // Skip storage for demo mode to avoid authentication issues
+      if (user?.id === 'demo-user-id') {
+        console.log('Demo mode - skipping interaction storage');
+        toast({
+          title: "Demo Mode",
+          description: "Conversation saved locally (demo mode).",
+        });
+        return;
+      }
+
       if (!user || !session) {
         console.log('No authenticated user found');
         toast({

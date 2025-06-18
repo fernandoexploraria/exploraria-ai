@@ -27,10 +27,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Demo credentials for automatic login
-  const DEMO_EMAIL = 'demo@tourguide.com';
-  const DEMO_PASSWORD = 'demo123456';
-
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -42,7 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    // Check for existing session first
+    // Check for existing session and create anonymous session if needed
     const initializeAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -51,48 +47,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('Existing session found:', session.user.email);
           setSession(session);
           setUser(session.user);
-          setLoading(false);
         } else {
-          console.log('No existing session, attempting auto-login...');
-          // Try to sign in with demo credentials
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email: DEMO_EMAIL,
-            password: DEMO_PASSWORD,
-          });
+          console.log('No session found, creating anonymous session...');
+          // Create a mock session for demo purposes
+          const mockUser = {
+            id: 'demo-user-id',
+            email: 'demo@tourguide.com',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            app_metadata: {},
+            user_metadata: {},
+            aud: 'authenticated',
+            role: 'authenticated'
+          } as User;
 
-          if (error) {
-            console.log('Demo user does not exist, creating one...');
-            // If demo user doesn't exist, create it
-            const { error: signUpError } = await supabase.auth.signUp({
-              email: DEMO_EMAIL,
-              password: DEMO_PASSWORD,
-              options: {
-                emailRedirectTo: `${window.location.origin}/`
-              }
-            });
+          const mockSession = {
+            access_token: 'demo-token',
+            refresh_token: 'demo-refresh',
+            expires_in: 3600,
+            expires_at: Math.floor(Date.now() / 1000) + 3600,
+            token_type: 'bearer',
+            user: mockUser
+          } as Session;
 
-            if (signUpError) {
-              console.error('Failed to create demo user:', signUpError);
-            } else {
-              console.log('Demo user created successfully');
-              // Try to sign in again
-              const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-                email: DEMO_EMAIL,
-                password: DEMO_PASSWORD,
-              });
-              
-              if (!signInError && signInData.session) {
-                setSession(signInData.session);
-                setUser(signInData.session.user);
-              }
-            }
-          } else if (data.session) {
-            console.log('Auto-login successful:', data.user.email);
-            setSession(data.session);
-            setUser(data.user);
-          }
-          setLoading(false);
+          setSession(mockSession);
+          setUser(mockUser);
         }
+        setLoading(false);
       } catch (error) {
         console.error('Auth initialization error:', error);
         setLoading(false);
