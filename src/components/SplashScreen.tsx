@@ -44,7 +44,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
       <div 
         className="fixed inset-0 z-50 flex items-center justify-center animate-fade-out pointer-events-none"
         style={{
-          backgroundImage: 'url("https://images.unsplash.com/photo-1501854140801-50d01698950b?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80")',
+          backgroundImage: 'url("https://images.unsplash.com/photo-1449824913935-59a10b8d2000?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80")',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat'
@@ -70,7 +70,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in"
       style={{
-        backgroundImage: 'url("https://images.unsplash.com/photo-1501854140801-50d01698950b?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80")',
+        backgroundImage: 'url("https://images.unsplash.com/photo-1449824913935-59a10b8d2000?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80")',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat'
