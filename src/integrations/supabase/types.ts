@@ -16,6 +16,7 @@ export type Database = {
           created_at: string
           destination: string
           id: string
+          is_favorite: boolean | null
           user_id: string | null
           user_input: string
           user_input_embedding: string | null
@@ -26,6 +27,7 @@ export type Database = {
           created_at?: string
           destination: string
           id?: string
+          is_favorite?: boolean | null
           user_id?: string | null
           user_input: string
           user_input_embedding?: string | null
@@ -36,6 +38,7 @@ export type Database = {
           created_at?: string
           destination?: string
           id?: string
+          is_favorite?: boolean | null
           user_id?: string | null
           user_input?: string
           user_input_embedding?: string | null

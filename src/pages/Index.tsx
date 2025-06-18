@@ -6,9 +6,10 @@ import { landmarks as staticLandmarks, Landmark } from '@/data/landmarks';
 import SearchControl from '@/components/SearchControl';
 import { useTourPlanner } from '@/hooks/useTourPlanner';
 import { Button } from '@/components/ui/button';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Search } from 'lucide-react';
 import TourPlannerDialog from '@/components/TourPlannerDialog';
 import VoiceAssistant from '@/components/VoiceAssistant';
+import VoiceSearchDialog from '@/components/VoiceSearchDialog';
 
 // IMPORTANT: Replace this with your own public Mapbox token!
 // You can get one from your Mapbox account: https://www.mapbox.com/
@@ -24,6 +25,7 @@ const Index: React.FC = () => {
   const [selectedLandmark, setSelectedLandmark] = useState<Landmark | null>(null);
   const [isTourPlannerOpen, setIsTourPlannerOpen] = useState(false);
   const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false);
+  const [isVoiceSearchOpen, setIsVoiceSearchOpen] = useState(false);
   const [currentDestination, setCurrentDestination] = useState<string>('');
   const { plannedLandmarks, isLoading: isTourLoading, generateTour } = useTourPlanner();
   
@@ -67,14 +69,24 @@ const Index: React.FC = () => {
           Plan a Tour
         </Button>
         {plannedLandmarks.length > 0 && (
-          <Button
-            variant="outline"
-            className="bg-background/80 backdrop-blur-sm shadow-lg"
-            onClick={() => setIsVoiceAssistantOpen(true)}
-          >
-            <Sparkles className="mr-2 h-4 w-4" />
-            Voice Guide
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              className="bg-background/80 backdrop-blur-sm shadow-lg"
+              onClick={() => setIsVoiceAssistantOpen(true)}
+            >
+              <Sparkles className="mr-2 h-4 w-4" />
+              Voice Guide
+            </Button>
+            <Button
+              variant="outline"
+              className="bg-background/80 backdrop-blur-sm shadow-lg"
+              onClick={() => setIsVoiceSearchOpen(true)}
+            >
+              <Search className="mr-2 h-4 w-4" />
+              Search Conversations
+            </Button>
+          </>
         )}
       </div>
       <Map 
@@ -102,6 +114,10 @@ const Index: React.FC = () => {
         landmarks={plannedLandmarks}
         perplexityApiKey={PERPLEXITY_API_KEY}
         elevenLabsApiKey={ELEVENLABS_API_KEY}
+      />
+      <VoiceSearchDialog
+        open={isVoiceSearchOpen}
+        onOpenChange={setIsVoiceSearchOpen}
       />
     </div>
   );
