@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Lock, CreditCard, X } from 'lucide-react';
+import { Sparkles, Lock, CreditCard, X, AlertTriangle } from 'lucide-react';
 import { useTourStats } from '@/hooks/useTourStats';
 import { useSubscription } from '@/hooks/useSubscription';
 
@@ -14,6 +14,8 @@ const FreeTourCounter: React.FC = () => {
   const toursRemaining = Math.max(0, FREE_TOUR_LIMIT - toursUsed);
   const hasReachedLimit = toursRemaining === 0;
   const isSubscribed = subscriptionData?.subscribed || false;
+  const isCancelled = subscriptionData?.cancel_at_period_end || false;
+  const subscriptionEnd = subscriptionData?.subscription_end;
 
   const handleSubscribeClick = async () => {
     try {
@@ -29,6 +31,10 @@ const FreeTourCounter: React.FC = () => {
     } catch (error) {
       console.error('Error opening customer portal:', error);
     }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
   };
 
   if (tourLoading || subLoading) {
@@ -75,6 +81,29 @@ const FreeTourCounter: React.FC = () => {
               <span>{toursRemaining} free tours left</span>
             </>
           )}
+        </Button>
+      )}
+
+      {/* Cancelled Subscription Warning - Mobile/Tablet Layout */}
+      {isSubscribed && isCancelled && subscriptionEnd && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="bg-orange-50/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left text-orange-700 border-orange-200"
+        >
+          <AlertTriangle className="mr-1 h-3 w-3" />
+          <span>Expires {formatDate(subscriptionEnd)}</span>
+        </Button>
+      )}
+      
+      {/* Cancelled Subscription Warning - Desktop Layout */}
+      {isSubscribed && isCancelled && subscriptionEnd && (
+        <Button
+          variant="outline"
+          className="bg-orange-50/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left text-orange-700 border-orange-200"
+        >
+          <AlertTriangle className="mr-2 h-4 w-4" />
+          <span>Subscription expires {formatDate(subscriptionEnd)}</span>
         </Button>
       )}
       
@@ -128,8 +157,8 @@ const FreeTourCounter: React.FC = () => {
         </Button>
       )}
 
-      {/* Cancel Subscription Button - Mobile/Tablet Layout */}
-      {isSubscribed && (
+      {/* Cancel Subscription Button - Mobile/Tablet Layout (only show if not already cancelled) */}
+      {isSubscribed && !isCancelled && (
         <Button
           variant="outline"
           size="sm"
@@ -141,8 +170,8 @@ const FreeTourCounter: React.FC = () => {
         </Button>
       )}
       
-      {/* Cancel Subscription Button - Desktop Layout */}
-      {isSubscribed && (
+      {/* Cancel Subscription Button - Desktop Layout (only show if not already cancelled) */}
+      {isSubscribed && !isCancelled && (
         <Button
           variant="outline"
           className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left text-red-600 hover:text-red-700"
