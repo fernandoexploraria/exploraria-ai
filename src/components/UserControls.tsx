@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { User, LogOut } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
-import TourCounter from '@/components/TourCounter';
 
 interface UserControlsProps {
   user: SupabaseUser | null;
@@ -30,27 +29,24 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
   return (
     <div className="absolute top-4 right-4 z-20 flex items-start gap-2">
       {user ? (
-        <>
-          <TourCounter />
-          <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm rounded-md px-3 py-2 shadow-lg border border-input h-10">
-            <Avatar className="w-6 h-6">
-              <AvatarFallback className="text-xs">
-                {user.email?.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <span className="text-sm font-medium text-foreground max-w-[100px] truncate">
-              {user.email}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleSignOut}
-              className="h-6 w-6 p-0 hover:bg-accent hover:text-accent-foreground relative z-30 ml-1"
-            >
-              <LogOut className="w-3 h-3" />
-            </Button>
-          </div>
-        </>
+        <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm rounded-md px-3 py-2 shadow-lg border border-input h-10">
+          <Avatar className="w-6 h-6">
+            <AvatarFallback className="text-xs">
+              {user.email?.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <span className="text-sm font-medium text-foreground max-w-[100px] truncate">
+            {user.email}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleSignOut}
+            className="h-6 w-6 p-0 hover:bg-accent hover:text-accent-foreground relative z-30 ml-1"
+          >
+            <LogOut className="w-3 h-3" />
+          </Button>
+        </div>
       ) : (
         <Button
           onClick={onAuthDialogOpen}
