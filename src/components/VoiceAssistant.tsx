@@ -68,13 +68,22 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
   const storeInteraction = async (userInput: string, assistantResponse: string) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      console.log('Attempting to store interaction:', { userInput, assistantResponse, destination });
+      
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        return;
+      }
+      
       if (!session) {
-        console.log('No user session, skipping interaction storage');
+        console.log('No user session found, user not authenticated');
         return;
       }
 
-      const { error } = await supabase.functions.invoke('store-voice-interaction', {
+      console.log('User authenticated, calling edge function...');
+      
+      const { data, error } = await supabase.functions.invoke('store-voice-interaction', {
         body: {
           userInput,
           assistantResponse,
@@ -84,11 +93,12 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
       if (error) {
         console.error('Error storing voice interaction:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
       } else {
-        console.log('Voice interaction stored successfully');
+        console.log('Voice interaction stored successfully:', data);
       }
     } catch (error) {
-      console.error('Error storing interaction:', error);
+      console.error('Unexpected error storing interaction:', error);
     }
   };
 
@@ -157,6 +167,8 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   };
 
   const handleUserInput = async (input: string) => {
+    console.log('Processing user input:', input);
+    
     if (!perplexityApiKey) {
       const response = "I'm sorry, but I need a Perplexity API key to answer your questions.";
       speakText(response);
@@ -172,6 +184,8 @@ Available landmarks in their tour: ${landmarkNames}
 
 Please provide a helpful, conversational response about the destination or landmarks. Keep your response under 200 words and speak as if you're a friendly local guide. If they ask about a specific landmark, provide interesting facts and tips.`;
 
+      console.log('Calling Perplexity API...');
+      
       const response = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
         headers: {
@@ -192,11 +206,15 @@ Please provide a helpful, conversational response about the destination or landm
       if (response.ok) {
         const data = await response.json();
         const aiResponse = data.choices[0].message.content;
+        console.log('Got AI response:', aiResponse);
+        
         speakText(aiResponse);
         
         // Store the interaction in the vector database
+        console.log('Storing interaction...');
         await storeInteraction(input, aiResponse);
       } else {
+        console.error('Perplexity API error:', response.status, await response.text());
         const errorResponse = "I'm sorry, I couldn't process your question right now. Please try again.";
         speakText(errorResponse);
         await storeInteraction(input, errorResponse);
