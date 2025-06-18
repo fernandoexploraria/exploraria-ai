@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Landmark } from "@/data/landmarks";
 import { landmarks } from "@/data/landmarks";
@@ -19,9 +18,9 @@ const Index = () => {
   const [tourPlannerOpen, setTourPlannerOpen] = useState(false);
   const [voiceAssistantOpen, setVoiceAssistantOpen] = useState(false);
   const [voiceSearchOpen, setVoiceSearchOpen] = useState(false);
-  const [perplexityApiKey, setPerplexityApiKey] = useState(process.env.NEXT_PUBLIC_PERPLEXITY_API_KEY || 'YOUR_PERPLEXITY_API_KEY');
-  const [elevenLabsApiKey, setElevenLabsApiKey] = useState(process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY || 'YOUR_ELEVENLABS_API_KEY');
-  const [mapboxToken, setMapboxToken] = useState(process.env.NEXT_PUBLIC_MAPBOX_TOKEN || 'YOUR_MAPBOX_TOKEN');
+  const [perplexityApiKey, setPerplexityApiKey] = useState('YOUR_PERPLEXITY_API_KEY');
+  const [elevenLabsApiKey, setElevenLabsApiKey] = useState('YOUR_ELEVENLABS_API_KEY');
+  const [mapboxToken, setMapboxToken] = useState('YOUR_MAPBOX_TOKEN');
   const [isGeneratingTour, setIsGeneratingTour] = useState(false);
   const { toast } = useToast();
 
