@@ -13,6 +13,9 @@ interface MapProps {
   plannedLandmarks: Landmark[];
 }
 
+// Add Google API key here - replace with your actual key
+const GOOGLE_API_KEY = 'YOUR_GOOGLE_API_KEY_HERE';
+
 const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, selectedLandmark, plannedLandmarks }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -120,74 +123,62 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     }
   };
 
-  // Function to fetch landmark image
-  const fetchLandmarkImage = async (landmarkName: string): Promise<string> => {
-    if (imageCache.current[landmarkName]) {
-      return imageCache.current[landmarkName];
+  // Function to fetch landmark image using Google Places API
+  const fetchLandmarkImage = async (landmark: Landmark): Promise<string> => {
+    const cacheKey = `${landmark.name}-${landmark.coordinates[0]}-${landmark.coordinates[1]}`;
+    
+    if (imageCache.current[cacheKey]) {
+      return imageCache.current[cacheKey];
     }
 
     try {
-      console.log('Fetching image for:', landmarkName);
+      console.log('Fetching Google Places image for:', landmark.name);
       
-      // Use your Unsplash API key with better search terms
-      const searchTerms = [
-        `${landmarkName} architecture landmark`,
-        `${landmarkName} tourist attraction`,
-        `${landmarkName} monument`,
-        landmarkName
-      ];
+      // First, search for the place using Places Text Search
+      const searchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?` +
+        `query=${encodeURIComponent(landmark.name)}&` +
+        `location=${landmark.coordinates[1]},${landmark.coordinates[0]}&` +
+        `radius=1000&` +
+        `key=${GOOGLE_API_KEY}`;
       
-      // Try each search term until we get a good result
-      for (const searchTerm of searchTerms) {
-        try {
-          const encodedTerm = encodeURIComponent(searchTerm);
-          const unsplashUrl = `https://api.unsplash.com/photos/random?query=${encodedTerm}&w=400&h=300&orientation=landscape&client_id=hGYkz9JVkFhlOvr477qg35Ns4d92kOc1p2lTEYt6WWY`;
+      const searchResponse = await fetch(searchUrl);
+      const searchData = await searchResponse.json();
+      
+      console.log('Google Places search response:', searchData.status);
+      
+      if (searchData.status === 'OK' && searchData.results.length > 0) {
+        const place = searchData.results[0];
+        
+        // Check if the place has photos
+        if (place.photos && place.photos.length > 0) {
+          const photoReference = place.photos[0].photo_reference;
           
-          const response = await fetch(unsplashUrl);
-          console.log(`Unsplash response for "${searchTerm}":`, response.status);
+          // Get the photo using the photo reference
+          const photoUrl = `https://maps.googleapis.com/maps/api/place/photo?` +
+            `maxwidth=400&` +
+            `photo_reference=${photoReference}&` +
+            `key=${GOOGLE_API_KEY}`;
           
-          if (response.ok) {
-            const data = await response.json();
-            if (data.urls && data.urls.small) {
-              const imageUrl = data.urls.small;
-              imageCache.current[landmarkName] = imageUrl;
-              console.log('Using Unsplash image:', imageUrl);
-              return imageUrl;
-            }
-          }
-        } catch (error) {
-          console.log(`Failed to fetch with term "${searchTerm}":`, error);
-          continue;
+          console.log('Using Google Places photo:', photoUrl);
+          imageCache.current[cacheKey] = photoUrl;
+          return photoUrl;
         }
       }
       
-      // Fallback to a seeded image
-      const seed = landmarkName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      // Fallback to generic placeholder if no Google Places photo found
+      console.log('No Google Places photo found, using fallback');
+      const seed = landmark.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
       const fallbackUrl = `https://picsum.photos/seed/${seed}/400/300`;
-      console.log('Using fallback image:', fallbackUrl);
-      
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      
-      return new Promise((resolve) => {
-        img.onload = () => {
-          imageCache.current[landmarkName] = fallbackUrl;
-          resolve(fallbackUrl);
-        };
-        img.onerror = () => {
-          const finalFallback = `https://picsum.photos/400/300?random=${Math.abs(seed.split('').reduce((a, b) => a + b.charCodeAt(0), 0))}`;
-          imageCache.current[landmarkName] = finalFallback;
-          console.log('Using final fallback:', finalFallback);
-          resolve(finalFallback);
-        };
-        img.src = fallbackUrl;
-      });
+      imageCache.current[cacheKey] = fallbackUrl;
+      return fallbackUrl;
       
     } catch (error) {
-      console.error('Error fetching landmark image:', error);
-      const seed = landmarkName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      console.error('Error fetching Google Places image:', error);
+      
+      // Fallback to seeded placeholder
+      const seed = landmark.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
       const fallbackUrl = `https://picsum.photos/seed/${seed}/400/300`;
-      imageCache.current[landmarkName] = fallbackUrl;
+      imageCache.current[cacheKey] = fallbackUrl;
       return fallbackUrl;
     }
   };
@@ -257,7 +248,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
 
     // Fetch and display image with listen button
     try {
-      const imageUrl = await fetchLandmarkImage(landmark.name);
+      const imageUrl = await fetchLandmarkImage(landmark);
       const isPlaying = playingAudio[landmark.id] || false;
       
       photoPopup.setHTML(`
@@ -291,23 +282,23 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
                 position: absolute;
                 bottom: 10px;
                 right: 10px;
-                background: rgba(0, 0, 0, 0.8);
+                background: rgba(0, 0, 0, 0.9);
                 color: white;
-                border: 2px solid rgba(255, 255, 255, 0.8);
+                border: 3px solid rgba(255, 255, 255, 0.9);
                 border-radius: 50%;
-                width: 48px;
-                height: 48px;
+                width: 56px;
+                height: 56px;
                 cursor: pointer;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 20px;
-                transition: all 0.2s ease;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+                font-size: 24px;
+                transition: all 0.3s ease;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
                 ${isPlaying ? 'opacity: 0.7;' : ''}
               "
-              onmouseover="this.style.backgroundColor='rgba(59, 130, 246, 0.9)'; this.style.borderColor='white'; this.style.transform='scale(1.1)'"
-              onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.8)'; this.style.borderColor='rgba(255, 255, 255, 0.8)'; this.style.transform='scale(1)'"
+              onmouseover="this.style.backgroundColor='rgba(59, 130, 246, 0.95)'; this.style.borderColor='white'; this.style.transform='scale(1.15)'; this.style.boxShadow='0 6px 20px rgba(0, 0, 0, 0.5)'"
+              onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'; this.style.borderColor='rgba(255, 255, 255, 0.9)'; this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.4)'"
               ${isPlaying ? 'disabled' : ''}
               title="Listen to description"
             >
@@ -360,22 +351,22 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
                 position: absolute;
                 bottom: 10px;
                 right: 10px;
-                background: rgba(0, 0, 0, 0.8);
+                background: rgba(0, 0, 0, 0.9);
                 color: white;
-                border: 2px solid rgba(255, 255, 255, 0.8);
+                border: 3px solid rgba(255, 255, 255, 0.9);
                 border-radius: 50%;
-                width: 48px;
-                height: 48px;
+                width: 56px;
+                height: 56px;
                 cursor: pointer;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 20px;
-                transition: all 0.2s ease;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+                font-size: 24px;
+                transition: all 0.3s ease;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
               "
-              onmouseover="this.style.backgroundColor='rgba(59, 130, 246, 0.9)'; this.style.borderColor='white'; this.style.transform='scale(1.1)'"
-              onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.8)'; this.style.borderColor='rgba(255, 255, 255, 0.8)'; this.style.transform='scale(1)'"
+              onmouseover="this.style.backgroundColor='rgba(59, 130, 246, 0.95)'; this.style.borderColor='white'; this.style.transform='scale(1.15)'; this.style.boxShadow='0 6px 20px rgba(0, 0, 0, 0.5)'"
+              onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'; this.style.borderColor='rgba(255, 255, 255, 0.9)'; this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.4)'"
               title="Listen to description"
             >
               🔊
