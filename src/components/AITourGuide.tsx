@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Bot, User, X } from 'lucide-react';
+import { Send, Bot, User, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
 
 interface Message {
@@ -20,6 +20,7 @@ interface AITourGuideProps {
   destination: string;
   landmarks: Landmark[];
   perplexityApiKey: string;
+  elevenLabsApiKey: string;
 }
 
 const AITourGuide: React.FC<AITourGuideProps> = ({ 
@@ -27,12 +28,42 @@ const AITourGuide: React.FC<AITourGuideProps> = ({
   onOpenChange, 
   destination, 
   landmarks,
-  perplexityApiKey 
+  perplexityApiKey,
+  elevenLabsApiKey 
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+
+  // Initialize speech recognition
+  useEffect(() => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'en-US';
+
+      recognitionRef.current.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        setInputMessage(transcript);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onerror = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
+  }, []);
 
   // Initialize with welcome message when dialog opens
   useEffect(() => {
@@ -40,12 +71,17 @@ const AITourGuide: React.FC<AITourGuideProps> = ({
       const welcomeMessage: Message = {
         id: '1',
         role: 'assistant',
-        content: `Hello! I'm your AI tour guide for ${destination}. I see you've planned a tour with these amazing landmarks: ${landmarks.map(l => l.name).join(', ')}. I'm here to help you make the most of your visit! Feel free to ask me about the history, best times to visit, local tips, or anything else about your tour.`,
+        content: `Hello! I'm your AI tour guide for ${destination}. I see you've planned a tour with these amazing landmarks: ${landmarks.map(l => l.name).join(', ')}. I'm here to help you make the most of your visit! You can speak to me or type your questions about the history, best times to visit, local tips, or anything else about your tour.`,
         timestamp: new Date()
       };
       setMessages([welcomeMessage]);
+      
+      // Speak welcome message if voice is enabled
+      if (voiceEnabled && elevenLabsApiKey && elevenLabsApiKey !== 'sk_eb59e166d9d2e3b2f5744a71424e493d53f472efff8191a9') {
+        speakText(welcomeMessage.content);
+      }
     }
-  }, [open, destination, landmarks, messages.length]);
+  }, [open, destination, landmarks, messages.length, voiceEnabled, elevenLabsApiKey]);
 
   // Auto scroll to bottom when new messages are added
   useEffect(() => {
@@ -53,6 +89,66 @@ const AITourGuide: React.FC<AITourGuideProps> = ({
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
   }, [messages]);
+
+  const speakText = async (text: string) => {
+    if (!elevenLabsApiKey || elevenLabsApiKey === 'sk_eb59e166d9d2e3b2f5744a71424e493d53f472efff8191a9') {
+      return;
+    }
+
+    try {
+      setIsSpeaking(true);
+      
+      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'audio/mpeg',
+          'Content-Type': 'application/json',
+          'xi-api-key': elevenLabsApiKey
+        },
+        body: JSON.stringify({
+          text: text,
+          model_id: 'eleven_multilingual_v2',
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.5
+          }
+        })
+      });
+
+      if (response.ok) {
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        
+        audio.onended = () => {
+          setIsSpeaking(false);
+          URL.revokeObjectURL(audioUrl);
+        };
+        
+        await audio.play();
+      } else {
+        console.error('Error generating speech:', response.statusText);
+        setIsSpeaking(false);
+      }
+    } catch (error) {
+      console.error('Error with text-to-speech:', error);
+      setIsSpeaking(false);
+    }
+  };
+
+  const startListening = () => {
+    if (recognitionRef.current && !isListening) {
+      setIsListening(true);
+      recognitionRef.current.start();
+    }
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current && isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    }
+  };
 
   const sendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
@@ -70,7 +166,7 @@ const AITourGuide: React.FC<AITourGuideProps> = ({
 
     try {
       const landmarkNames = landmarks.map(l => l.name).join(', ');
-      const systemPrompt = `You are an expert tour guide for ${destination}. The user has planned a tour that includes these landmarks: ${landmarkNames}. Provide helpful, accurate, and engaging information about the destination, landmarks, local culture, history, travel tips, and recommendations. Keep responses conversational and informative. If asked about specific landmarks from their tour, provide detailed insights.`;
+      const systemPrompt = `You are an expert tour guide for ${destination}. The user has planned a tour that includes these landmarks: ${landmarkNames}. Provide helpful, accurate, and engaging information about the destination, landmarks, local culture, history, travel tips, and recommendations. Keep responses conversational and informative. If asked about specific landmarks from their tour, provide detailed insights. Keep responses concise and engaging since they will be spoken aloud.`;
 
       const response = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
@@ -107,6 +203,11 @@ const AITourGuide: React.FC<AITourGuideProps> = ({
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+      
+      // Speak the response if voice is enabled
+      if (voiceEnabled && elevenLabsApiKey && elevenLabsApiKey !== 'sk_eb59e166d9d2e3b2f5744a71424e493d53f472efff8191a9') {
+        speakText(assistantMessage.content);
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       const errorMessage: Message = {
@@ -132,9 +233,19 @@ const AITourGuide: React.FC<AITourGuideProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl h-[600px] flex flex-col">
         <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="flex items-center gap-2">
-            <Bot className="h-5 w-5 text-primary" />
-            AI Tour Guide - {destination}
+          <DialogTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Bot className="h-5 w-5 text-primary" />
+              AI Tour Guide - {destination}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setVoiceEnabled(!voiceEnabled)}
+              className={voiceEnabled ? 'text-primary' : 'text-muted-foreground'}
+            >
+              {voiceEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+            </Button>
           </DialogTitle>
         </DialogHeader>
         
@@ -168,7 +279,9 @@ const AITourGuide: React.FC<AITourGuideProps> = ({
                   <div className="bg-muted rounded-lg p-3 max-w-[80%]">
                     <div className="flex items-center gap-2">
                       <Bot className="h-4 w-4" />
-                      <div className="text-sm">Thinking...</div>
+                      <div className="text-sm">
+                        {isSpeaking ? 'Speaking...' : 'Thinking...'}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -182,19 +295,40 @@ const AITourGuide: React.FC<AITourGuideProps> = ({
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Ask me anything about your tour..."
+                placeholder="Ask me anything about your tour or speak to me..."
                 className="flex-1 min-h-[80px] resize-none"
-                disabled={isLoading}
+                disabled={isLoading || isListening}
               />
-              <Button
-                onClick={sendMessage}
-                disabled={!inputMessage.trim() || isLoading}
-                size="sm"
-                className="self-end"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
+              <div className="flex flex-col gap-2">
+                <Button
+                  onClick={isListening ? stopListening : startListening}
+                  disabled={isLoading || isSpeaking}
+                  size="sm"
+                  variant={isListening ? "destructive" : "outline"}
+                  className="aspect-square p-0 w-10 h-10"
+                >
+                  {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                </Button>
+                <Button
+                  onClick={sendMessage}
+                  disabled={!inputMessage.trim() || isLoading || isListening}
+                  size="sm"
+                  className="aspect-square p-0 w-10 h-10"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
+            {isListening && (
+              <div className="text-sm text-muted-foreground mt-2 text-center">
+                🎤 Listening... Speak now
+              </div>
+            )}
+            {isSpeaking && (
+              <div className="text-sm text-muted-foreground mt-2 text-center">
+                🔊 Speaking...
+              </div>
+            )}
           </div>
         </div>
       </DialogContent>

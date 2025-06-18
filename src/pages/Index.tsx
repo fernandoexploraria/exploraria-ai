@@ -101,6 +101,7 @@ const Index: React.FC = () => {
         destination={currentDestination}
         landmarks={plannedLandmarks}
         perplexityApiKey={PERPLEXITY_API_KEY}
+        elevenLabsApiKey={ELEVENLABS_API_KEY}
       />
     </div>
   );
