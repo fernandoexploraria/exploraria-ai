@@ -28,54 +28,88 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  const [debugInfo, setDebugInfo] = useState('');
   const recognitionRef = useRef<any>(null);
   const { toast } = useToast();
 
+  // Check if speech recognition is supported
+  const isSpeechRecognitionSupported = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+
   useEffect(() => {
-    if (open && 'webkitSpeechRecognition' in window) {
-      const SpeechRecognition = (window as any).webkitSpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = true;
-      recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = 'en-US';
+    console.log('VoiceAssistant mounted with props:', {
+      open,
+      destination,
+      landmarksCount: landmarks.length,
+      hasPerplexityKey: !!perplexityApiKey,
+      hasElevenLabsKey: !!elevenLabsApiKey,
+      speechRecognitionSupported: isSpeechRecognitionSupported
+    });
 
-      recognitionRef.current.onresult = (event: any) => {
-        let finalTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
+    if (open && isSpeechRecognitionSupported) {
+      try {
+        const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = true;
+        recognitionRef.current.interimResults = true;
+        recognitionRef.current.lang = 'en-US';
+
+        recognitionRef.current.onstart = () => {
+          console.log('Speech recognition started');
+          setDebugInfo('Speech recognition started');
+        };
+
+        recognitionRef.current.onresult = (event: any) => {
+          console.log('Speech recognition result event:', event);
+          let finalTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i].isFinal) {
+              finalTranscript += event.results[i][0].transcript;
+            }
           }
-        }
-        if (finalTranscript) {
-          setTranscript(finalTranscript);
-          handleUserInput(finalTranscript);
-        }
-      };
+          if (finalTranscript) {
+            console.log('Final transcript:', finalTranscript);
+            setTranscript(finalTranscript);
+            setDebugInfo(`Recognized: ${finalTranscript}`);
+            handleUserInput(finalTranscript);
+          }
+        };
 
-      recognitionRef.current.onend = () => {
-        setIsListening(false);
-      };
+        recognitionRef.current.onend = () => {
+          console.log('Speech recognition ended');
+          setIsListening(false);
+          setDebugInfo('Speech recognition ended');
+        };
 
-      recognitionRef.current.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error);
-        setIsListening(false);
-        toast({
-          title: "Speech Recognition Error",
-          description: "Please check your microphone permissions and try again.",
-          variant: "destructive"
-        });
-      };
+        recognitionRef.current.onerror = (event: any) => {
+          console.error('Speech recognition error:', event.error);
+          setIsListening(false);
+          setDebugInfo(`Error: ${event.error}`);
+          toast({
+            title: "Speech Recognition Error",
+            description: `Error: ${event.error}. Please check your microphone permissions.`,
+            variant: "destructive"
+          });
+        };
+      } catch (error) {
+        console.error('Error setting up speech recognition:', error);
+        setDebugInfo(`Setup error: ${error}`);
+      }
     }
 
     return () => {
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        try {
+          recognitionRef.current.stop();
+        } catch (error) {
+          console.error('Error stopping recognition:', error);
+        }
       }
     };
-  }, [open, destination]);
+  }, [open]);
 
   const ensureValidSession = async () => {
     try {
+      console.log('Checking session...');
       const { data: { session }, error } = await supabase.auth.getSession();
       
       if (error) {
@@ -98,28 +132,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         return null;
       }
 
-      // Check if token is close to expiring (within 5 minutes)
-      const expiresAt = session.expires_at || 0;
-      const now = Math.floor(Date.now() / 1000);
-      const timeUntilExpiry = expiresAt - now;
-
-      if (timeUntilExpiry < 300) { // Less than 5 minutes
-        console.log('Token expiring soon, refreshing...');
-        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-        
-        if (refreshError) {
-          console.error('Token refresh error:', refreshError);
-          toast({
-            title: "Session Expired",
-            description: "Please refresh the page and log in again.",
-            variant: "destructive"
-          });
-          return null;
-        }
-        
-        return refreshedSession;
-      }
-
+      console.log('Valid session found:', session.user.id);
       return session;
     } catch (error) {
       console.error('Unexpected session error:', error);
@@ -129,14 +142,15 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
   const storeInteraction = async (userInput: string, assistantResponse: string) => {
     try {
-      console.log('Attempting to store interaction:', { userInput, assistantResponse, destination });
+      console.log('Attempting to store interaction...');
       
       const session = await ensureValidSession();
       if (!session) {
+        console.log('No valid session, skipping storage');
         return;
       }
 
-      console.log('Valid session found, calling edge function...');
+      console.log('Calling edge function to store interaction...');
       
       const { data, error } = await supabase.functions.invoke('store-voice-interaction', {
         body: {
@@ -158,23 +172,30 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       }
     } catch (error) {
       console.error('Unexpected error storing interaction:', error);
-      toast({
-        title: "Storage Error",
-        description: "Couldn't save conversation. Please try again.",
-        variant: "destructive"
-      });
     }
   };
 
   const startListening = () => {
+    if (!isSpeechRecognitionSupported) {
+      toast({
+        title: "Not Supported",
+        description: "Speech recognition is not supported in this browser.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (recognitionRef.current && !isSpeaking) {
       try {
+        console.log('Starting speech recognition...');
         setIsListening(true);
         setHasUserInteracted(true);
+        setDebugInfo('Starting to listen...');
         recognitionRef.current.start();
       } catch (error) {
         console.error('Error starting speech recognition:', error);
         setIsListening(false);
+        setDebugInfo(`Start error: ${error}`);
         toast({
           title: "Microphone Error",
           description: "Please allow microphone access and try again.",
@@ -186,16 +207,19 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
   const stopListening = () => {
     if (recognitionRef.current) {
+      console.log('Stopping speech recognition...');
       setIsListening(false);
+      setDebugInfo('Stopping...');
       recognitionRef.current.stop();
     }
   };
 
   const speakText = async (text: string) => {
     try {
+      console.log('Speaking text:', text.substring(0, 50) + '...');
       setIsSpeaking(true);
+      setDebugInfo('Speaking...');
       
-      // Only attempt audio playback if user has interacted with the page
       if (!hasUserInteracted) {
         console.log('User has not interacted yet, skipping audio playback');
         setIsSpeaking(false);
@@ -203,18 +227,27 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       }
 
       if (!elevenLabsApiKey || elevenLabsApiKey === 'YOUR_ELEVENLABS_API_KEY') {
-        // Fallback to browser speech synthesis
+        console.log('Using browser speech synthesis...');
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.onstart = () => setIsSpeaking(true);
-        utterance.onend = () => setIsSpeaking(false);
+        utterance.onstart = () => {
+          console.log('Speech synthesis started');
+          setIsSpeaking(true);
+        };
+        utterance.onend = () => {
+          console.log('Speech synthesis ended');
+          setIsSpeaking(false);
+          setDebugInfo('Finished speaking');
+        };
         utterance.onerror = (error) => {
           console.error('Speech synthesis error:', error);
           setIsSpeaking(false);
+          setDebugInfo(`Speech error: ${error}`);
         };
         speechSynthesis.speak(utterance);
         return;
       }
 
+      console.log('Using ElevenLabs API...');
       const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM`, {
         method: 'POST',
         headers: {
@@ -238,39 +271,39 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         const audio = new Audio(audioUrl);
         
         audio.onended = () => {
+          console.log('Audio playback ended');
           setIsSpeaking(false);
+          setDebugInfo('Finished speaking');
           URL.revokeObjectURL(audioUrl);
         };
         
         audio.onerror = (error) => {
           console.error('Audio playback error:', error);
           setIsSpeaking(false);
+          setDebugInfo(`Audio error: ${error}`);
           URL.revokeObjectURL(audioUrl);
         };
         
-        // Only play if user has interacted
-        if (hasUserInteracted) {
-          await audio.play();
-        } else {
-          setIsSpeaking(false);
-          URL.revokeObjectURL(audioUrl);
-        }
+        await audio.play();
       } else {
         console.error('ElevenLabs API error:', response.status, await response.text());
         setIsSpeaking(false);
+        setDebugInfo('ElevenLabs API error');
       }
     } catch (error) {
       console.error('Error with text-to-speech:', error);
       setIsSpeaking(false);
+      setDebugInfo(`TTS error: ${error}`);
     }
   };
 
   const handleUserInput = async (input: string) => {
     console.log('Processing user input:', input);
+    setDebugInfo('Processing your question...');
     
-    if (!perplexityApiKey) {
+    if (!perplexityApiKey || perplexityApiKey.includes('YOUR_')) {
       const response = "I'm sorry, but I need a Perplexity API key to answer your questions.";
-      speakText(response);
+      await speakText(response);
       await storeInteraction(input, response);
       return;
     }
@@ -284,6 +317,7 @@ Available landmarks in their tour: ${landmarkNames}
 Please provide a helpful, conversational response about the destination or landmarks. Keep your response under 200 words and speak as if you're a friendly local guide. If they ask about a specific landmark, provide interesting facts and tips.`;
 
       console.log('Calling Perplexity API...');
+      setDebugInfo('Getting AI response...');
       
       const response = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
@@ -307,24 +341,29 @@ Please provide a helpful, conversational response about the destination or landm
         const aiResponse = data.choices[0].message.content;
         console.log('Got AI response:', aiResponse);
         
-        speakText(aiResponse);
+        await speakText(aiResponse);
         await storeInteraction(input, aiResponse);
+        setDebugInfo('Response complete');
       } else {
         console.error('Perplexity API error:', response.status, await response.text());
         const errorResponse = "I'm sorry, I couldn't process your question right now. Please try again.";
-        speakText(errorResponse);
+        await speakText(errorResponse);
         await storeInteraction(input, errorResponse);
+        setDebugInfo('API error occurred');
       }
     } catch (error) {
       console.error('Error getting AI response:', error);
       const errorResponse = "I'm sorry, I encountered an error. Please try asking again.";
-      speakText(errorResponse);
+      await speakText(errorResponse);
       await storeInteraction(input, errorResponse);
+      setDebugInfo(`Error: ${error}`);
     }
   };
 
   const handleWelcomeClick = () => {
+    console.log('Welcome button clicked');
     setHasUserInteracted(true);
+    setDebugInfo('Welcome! Ready to help.');
     const welcomeMessage = `Welcome to your ${destination} tour! I'm your voice assistant. You can ask me about any of the landmarks we've planned for you. What would you like to know?`;
     speakText(welcomeMessage);
   };
@@ -340,6 +379,13 @@ Please provide a helpful, conversational response about the destination or landm
         </DialogHeader>
         
         <div className="flex flex-col items-center space-y-6 py-8">
+          {/* Debug info */}
+          {debugInfo && (
+            <div className="text-xs text-gray-500 text-center max-w-sm">
+              Debug: {debugInfo}
+            </div>
+          )}
+
           <div className="flex flex-col items-center space-y-4">
             {/* Visual indicator */}
             <div className={`w-32 h-32 rounded-full border-4 flex items-center justify-center transition-colors ${
@@ -377,11 +423,18 @@ Please provide a helpful, conversational response about the destination or landm
               size="lg"
               variant={isListening ? "destructive" : "default"}
               onClick={isListening ? stopListening : startListening}
-              disabled={isSpeaking || !hasUserInteracted}
+              disabled={isSpeaking || !hasUserInteracted || !isSpeechRecognitionSupported}
               className="rounded-full w-16 h-16"
             >
               {isListening ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
             </Button>
+
+            {/* Browser support warning */}
+            {!isSpeechRecognitionSupported && (
+              <div className="text-center text-sm text-red-600 max-w-sm">
+                Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.
+              </div>
+            )}
 
             {/* Last transcript */}
             {transcript && (
