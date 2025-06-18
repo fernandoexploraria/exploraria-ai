@@ -65,9 +65,14 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ landmark, onClose, elevenLabsApiK
 
   return (
     <div className="absolute top-4 right-4 w-80 max-h-[calc(100vh-2rem)] bg-white rounded-lg shadow-xl z-10 overflow-hidden">
-      <div className="flex items-center justify-between p-4 border-b">
-        <h2 className="text-lg font-semibold truncate">{landmark.name}</h2>
-        <Button variant="ghost" size="sm" onClick={onClose}>
+      <div className="flex items-center justify-between p-4 border-b bg-white">
+        <h2 className="text-lg font-semibold truncate text-gray-900">{landmark.name}</h2>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={onClose}
+          className="h-8 w-8 p-0 hover:bg-gray-100 text-gray-600 hover:text-gray-900 flex-shrink-0"
+        >
           <X className="h-4 w-4" />
         </Button>
       </div>

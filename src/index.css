@@ -45,9 +45,27 @@
     @apply bg-background text-foreground;
   }
   
+  /* Ensure consistent header styling */
+  .header-bg {
+    background: hsl(var(--background));
+  }
+  
   /* Custom favicon for browser tabs */
   link[rel="icon"] {
     border-radius: 4px;
+  }
+
+  /* Ensure proper button contrast in panels */
+  .info-panel button {
+    color: inherit;
+  }
+  
+  /* Fix any orange theme issues on mobile */
+  @media (max-width: 768px) {
+    .mobile-header {
+      background: hsl(var(--background)) !important;
+      color: hsl(var(--foreground)) !important;
+    }
   }
 }
 
