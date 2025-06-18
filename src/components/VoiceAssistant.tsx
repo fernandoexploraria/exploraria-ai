@@ -1,9 +1,9 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Mic, MicOff, Volume2 } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
+import { supabase } from '@/integrations/supabase/client';
 
 interface VoiceAssistantProps {
   open: boolean;
@@ -54,7 +54,8 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
       // Start with a welcome message
       setTimeout(() => {
-        speakText(`Welcome to your ${destination} tour! I'm your voice assistant. You can ask me about any of the landmarks we've planned for you. What would you like to know?`);
+        const welcomeMessage = `Welcome to your ${destination} tour! I'm your voice assistant. You can ask me about any of the landmarks we've planned for you. What would you like to know?`;
+        speakText(welcomeMessage);
       }, 500);
     }
 
@@ -64,6 +65,32 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       }
     };
   }, [open, destination]);
+
+  const storeInteraction = async (userInput: string, assistantResponse: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.log('No user session, skipping interaction storage');
+        return;
+      }
+
+      const { error } = await supabase.functions.invoke('store-voice-interaction', {
+        body: {
+          userInput,
+          assistantResponse,
+          destination
+        }
+      });
+
+      if (error) {
+        console.error('Error storing voice interaction:', error);
+      } else {
+        console.log('Voice interaction stored successfully');
+      }
+    } catch (error) {
+      console.error('Error storing interaction:', error);
+    }
+  };
 
   const startListening = () => {
     if (recognitionRef.current && !isSpeaking) {
@@ -131,7 +158,9 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
   const handleUserInput = async (input: string) => {
     if (!perplexityApiKey) {
-      speakText("I'm sorry, but I need a Perplexity API key to answer your questions.");
+      const response = "I'm sorry, but I need a Perplexity API key to answer your questions.";
+      speakText(response);
+      await storeInteraction(input, response);
       return;
     }
 
@@ -164,12 +193,19 @@ Please provide a helpful, conversational response about the destination or landm
         const data = await response.json();
         const aiResponse = data.choices[0].message.content;
         speakText(aiResponse);
+        
+        // Store the interaction in the vector database
+        await storeInteraction(input, aiResponse);
       } else {
-        speakText("I'm sorry, I couldn't process your question right now. Please try again.");
+        const errorResponse = "I'm sorry, I couldn't process your question right now. Please try again.";
+        speakText(errorResponse);
+        await storeInteraction(input, errorResponse);
       }
     } catch (error) {
       console.error('Error getting AI response:', error);
-      speakText("I'm sorry, I encountered an error. Please try asking again.");
+      const errorResponse = "I'm sorry, I encountered an error. Please try asking again.";
+      speakText(errorResponse);
+      await storeInteraction(input, errorResponse);
     }
   };
 
