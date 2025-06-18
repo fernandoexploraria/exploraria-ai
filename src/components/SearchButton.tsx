@@ -16,7 +16,7 @@ const SearchButton: React.FC = () => {
         className="gap-2"
       >
         <Search className="w-4 h-4" />
-        Search Conversations
+        History
       </Button>
       
       <VoiceSearchDialog
