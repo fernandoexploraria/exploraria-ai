@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import Map from '@/components/Map';
 import InfoPanel from '@/components/InfoPanel';
@@ -84,8 +83,9 @@ const Index: React.FC = () => {
     setCurrentDestination(destination);
     await generateTour(destination, PERPLEXITY_API_KEY);
     
-    // Show voice assistant after tour is generated
+    // Close tour planner and show voice assistant after tour is generated
     setTimeout(() => {
+      setIsTourPlannerOpen(false);
       setIsVoiceAssistantOpen(true);
     }, 1000);
   };
