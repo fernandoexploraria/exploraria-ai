@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -31,13 +30,36 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [transcript, setTranscript] = useState('');
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [audioContextInitialized, setAudioContextInitialized] = useState(false);
   const recognitionRef = useRef<any>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
   const { toast } = useToast();
   const { user, session } = useAuth();
 
   // Check if speech recognition is supported
   const isSpeechRecognitionSupported = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+
+  // Initialize audio context for iOS compatibility
+  const initializeAudioContext = async () => {
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        console.log('Audio context created');
+      }
+      
+      if (audioContextRef.current.state === 'suspended') {
+        await audioContextRef.current.resume();
+        console.log('Audio context resumed');
+      }
+      
+      setAudioContextInitialized(true);
+      return true;
+    } catch (error) {
+      console.error('Error initializing audio context:', error);
+      return false;
+    }
+  };
 
   // Check authentication when dialog opens
   useEffect(() => {
@@ -172,7 +194,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     }
   };
 
-  const startListening = () => {
+  const startListening = async () => {
     if (!isSpeechRecognitionSupported) {
       toast({
         title: "Not Supported",
@@ -180,6 +202,11 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         variant: "destructive"
       });
       return;
+    }
+
+    // Initialize audio context on first user interaction
+    if (!audioContextInitialized) {
+      await initializeAudioContext();
     }
 
     if (recognitionRef.current && !isSpeaking) {
@@ -209,6 +236,19 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     try {
       console.log('Speaking text:', text.substring(0, 50) + '...');
       setIsSpeaking(true);
+      
+      // Ensure audio context is initialized for iOS
+      if (!audioContextInitialized) {
+        const initialized = await initializeAudioContext();
+        if (!initialized) {
+          console.log('Audio context initialization failed, using fallback TTS');
+          // Fallback to browser TTS
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.onend = () => setIsSpeaking(false);
+          speechSynthesis.speak(utterance);
+          return;
+        }
+      }
       
       // Stop any current audio
       if (currentAudioRef.current) {
@@ -264,6 +304,9 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         const audio = new Audio(audioUrl);
         currentAudioRef.current = audio;
         
+        // iOS requires explicit user interaction for audio playback
+        audio.preload = 'auto';
+        
         audio.onloadstart = () => {
           console.log('Audio loading started');
           setIsSpeaking(true);
@@ -290,9 +333,28 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           setIsSpeaking(false);
           URL.revokeObjectURL(audioUrl);
           currentAudioRef.current = null;
+          
+          // Fallback to browser TTS on audio error
+          console.log('Falling back to browser TTS due to audio error');
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.onend = () => setIsSpeaking(false);
+          speechSynthesis.speak(utterance);
         };
         
-        await audio.play();
+        // For iOS, we need to play the audio immediately after user interaction
+        try {
+          await audio.play();
+        } catch (playError) {
+          console.error('Error playing audio, falling back to browser TTS:', playError);
+          setIsSpeaking(false);
+          URL.revokeObjectURL(audioUrl);
+          currentAudioRef.current = null;
+          
+          // Fallback to browser TTS
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.onend = () => setIsSpeaking(false);
+          speechSynthesis.speak(utterance);
+        }
       } else {
         console.error('ElevenLabs API error:', response.status, await response.text());
         setIsSpeaking(false);
@@ -382,6 +444,10 @@ Please provide a helpful, conversational response about the destination or landm
   const handleWelcomeClick = async () => {
     console.log('Welcome button clicked');
     setHasUserInteracted(true);
+    
+    // Initialize audio context on first user interaction (required for iOS)
+    await initializeAudioContext();
+    
     const welcomeMessage = `Welcome to your ${destination} tour! I'm your voice assistant. You can ask me about any of the landmarks we've planned for you. What would you like to know?`;
     await speakText(welcomeMessage);
   };
