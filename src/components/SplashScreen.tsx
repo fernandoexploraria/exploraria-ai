@@ -41,8 +41,17 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
 
   if (!isVisible) {
     return (
-      <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center animate-fade-out pointer-events-none">
-        <div className="text-center animate-scale-out">
+      <div 
+        className="fixed inset-0 z-50 flex items-center justify-center animate-fade-out pointer-events-none"
+        style={{
+          backgroundImage: 'url("https://images.unsplash.com/photo-1501854140801-50d01698950b?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80")',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      >
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm"></div>
+        <div className="relative text-center animate-scale-out z-10">
           <img 
             src="/lovable-uploads/ac9cbebd-b083-4d3d-a85e-782e03045422.png" 
             alt="Exploraria Logo" 
@@ -58,8 +67,17 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center animate-fade-in">
-      <div className="text-center animate-scale-in">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in"
+      style={{
+        backgroundImage: 'url("https://images.unsplash.com/photo-1501854140801-50d01698950b?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80")',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }}
+    >
+      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm"></div>
+      <div className="relative text-center animate-scale-in z-10">
         <img 
           src="/lovable-uploads/ac9cbebd-b083-4d3d-a85e-782e03045422.png" 
           alt="Exploraria Logo" 
