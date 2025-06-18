@@ -19,44 +19,54 @@ serve(async (req) => {
 
     const GOOGLE_API_KEY = Deno.env.get('GOOGLE_API_KEY');
     if (!GOOGLE_API_KEY) {
-      console.error('❌ GOOGLE_API_KEY not found in environment');
-      throw new Error('Google API key not configured');
+      console.log('⚠️ No Google API key found, using fallback image');
+      const seed = landmarkName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      const fallbackUrl = `https://picsum.photos/seed/${seed}/400/300`;
+      
+      return new Response(
+        JSON.stringify({ success: true, imageUrl: fallbackUrl, source: 'fallback-no-key' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    console.log('✅ Google API key found (length:', GOOGLE_API_KEY.length, ')');
+    console.log('✅ Google API key found, attempting Places API request');
 
-    // Search for the place using Places Text Search
+    // Try Google Places API with better error handling
     const textSearchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(landmarkName)}&location=${coordinates[1]},${coordinates[0]}&radius=1000&key=${GOOGLE_API_KEY}`;
     
     console.log('🌐 Making Google Places API request...');
-    console.log('URL (masked):', textSearchUrl.replace(GOOGLE_API_KEY, '[MASKED]'));
     
     const response = await fetch(textSearchUrl);
     console.log('📡 Response status:', response.status, response.statusText);
     
     if (!response.ok) {
       console.error('❌ HTTP Error:', response.status, response.statusText);
-      const errorText = await response.text();
-      console.error('Error body:', errorText);
-      throw new Error(`Google Places API HTTP error: ${response.status} - ${errorText}`);
+      throw new Error(`Google Places API HTTP error: ${response.status}`);
     }
     
     const data = await response.json();
     console.log('📋 API Response Status:', data.status);
     
+    // Handle different API response statuses
     if (data.status === 'REQUEST_DENIED') {
-      console.error('❌ REQUEST_DENIED - API Key Issues:');
-      console.error('- Error message:', data.error_message);
-      console.error('- Check: API key restrictions in Google Cloud Console');
-      console.error('- Check: Places API is enabled');
-      console.error('- Check: Billing is set up');
-      console.error('- Check: API restrictions allow requests from Supabase domain');
-    } else if (data.status === 'ZERO_RESULTS') {
-      console.log('⚠️ No results found for:', landmarkName);
-    } else if (data.status === 'OVER_QUERY_LIMIT') {
-      console.error('❌ Over query limit - check billing');
-    } else if (data.status === 'INVALID_REQUEST') {
-      console.error('❌ Invalid request - check parameters');
+      console.error('❌ Google Places API Request Denied');
+      console.error('- Error:', data.error_message);
+      console.error('- This usually means API key restrictions or billing issues');
+      console.error('- Falling back to placeholder image');
+      
+      // Use a more descriptive fallback for API key issues
+      const seed = landmarkName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      const fallbackUrl = `https://picsum.photos/seed/${seed}/400/300`;
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          imageUrl: fallbackUrl, 
+          source: 'fallback-api-denied',
+          message: 'Google API access denied - check API key configuration'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
     
     if (data.status === 'OK' && data.results && data.results.length > 0) {
@@ -73,45 +83,39 @@ serve(async (req) => {
           JSON.stringify({ success: true, imageUrl: photoUrl, source: 'google-places' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
-      } else {
-        console.log('⚠️ Place found but no photos available');
       }
     }
 
-    // Return fallback if no photo found or API issues
+    // Fallback to seeded image for any other case
     console.log('🔄 Using fallback image for:', landmarkName);
     const seed = landmarkName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     const fallbackUrl = `https://picsum.photos/seed/${seed}/400/300`;
     
     return new Response(
-      JSON.stringify({ success: true, imageUrl: fallbackUrl, source: 'fallback', apiStatus: data.status }),
+      JSON.stringify({ 
+        success: true, 
+        imageUrl: fallbackUrl, 
+        source: 'fallback-general',
+        apiStatus: data.status 
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('💥 Error in fetch-landmark-image function:', error);
     
-    // Return fallback on error
-    try {
-      const { landmarkName } = await req.json().catch(() => ({ landmarkName: 'unknown' }));
-      const seed = landmarkName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-      const fallbackUrl = `https://picsum.photos/seed/${seed}/400/300`;
-      
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          imageUrl: fallbackUrl, 
-          source: 'fallback-error',
-          error: error.message 
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    } catch (fallbackError) {
-      console.error('💥 Fallback error:', fallbackError);
-      return new Response(
-        JSON.stringify({ success: false, error: error.message }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
-    }
+    // Always return a working fallback image
+    const seed = 'default-landmark';
+    const fallbackUrl = `https://picsum.photos/seed/${seed}/400/300`;
+    
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        imageUrl: fallbackUrl, 
+        source: 'fallback-error',
+        error: error.message 
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 });
