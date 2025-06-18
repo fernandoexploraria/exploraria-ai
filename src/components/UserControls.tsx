@@ -14,7 +14,7 @@ interface UserControlsProps {
 
 const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDialogOpen }) => {
   return (
-    <div className="absolute top-4 right-4 z-20 flex items-end gap-2">
+    <div className="absolute top-4 right-4 z-20 flex items-start gap-2">
       {user ? (
         <>
           <TourCounter />
