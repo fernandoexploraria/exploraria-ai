@@ -214,6 +214,21 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
         marker.getElement().addEventListener('click', async (e) => {
           e.stopPropagation(); // Prevent map click event
           
+          // Check current zoom level and zoom in if needed
+          const currentZoom = map.current?.getZoom() || 1.5;
+          if (currentZoom < 10) {
+            map.current?.flyTo({
+              center: landmark.coordinates,
+              zoom: 14,
+              speed: 0.7,
+              curve: 1,
+              easing: (t) => t,
+            });
+          }
+          
+          // Call the landmark selection handler to update the selected landmark
+          onSelectLandmark(landmark);
+          
           // Remove existing photo popup for this landmark
           if (photoPopups.current[landmark.id]) {
             photoPopups.current[landmark.id].remove();
@@ -396,7 +411,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       }
     });
 
-  }, [allLandmarksWithTop, playingAudio]);
+  }, [allLandmarksWithTop, playingAudio, onSelectLandmark]);
 
   // Fly to selected landmark and update marker styles
   useEffect(() => {
@@ -404,19 +419,18 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       // Check if this selection came from search
       const isFromSearch = (selectedLandmark as any).fromSearch;
       
-      map.current.flyTo({
-        center: selectedLandmark.coordinates,
-        zoom: 14,
-        speed: 0.7,
-        curve: 1,
-        easing: (t) => t,
-      });
-
-      // If it's from search, don't show any popup - user must click marker
+      // Only zoom if it's from search (not from marker click, which already zoomed)
       if (isFromSearch) {
+        map.current.flyTo({
+          center: selectedLandmark.coordinates,
+          zoom: 14,
+          speed: 0.7,
+          curve: 1,
+          easing: (t) => t,
+        });
+        
         // Clean the fromSearch flag for future use
         delete (selectedLandmark as any).fromSearch;
-        return;
       }
     }
 
