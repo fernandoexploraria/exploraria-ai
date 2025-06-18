@@ -5,22 +5,39 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/components/AuthProvider';
 
 interface TourPlannerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onGenerateTour: (destination: string) => Promise<void>;
+  onAuthRequired: () => void;
   isLoading: boolean;
 }
 
-const TourPlannerDialog: React.FC<TourPlannerDialogProps> = ({ open, onOpenChange, onGenerateTour, isLoading }) => {
+const TourPlannerDialog: React.FC<TourPlannerDialogProps> = ({ 
+  open, 
+  onOpenChange, 
+  onGenerateTour, 
+  onAuthRequired,
+  isLoading 
+}) => {
   const [destination, setDestination] = useState('');
+  const { user } = useAuth();
 
   const handleGenerate = async () => {
-    if (destination) {
-      await onGenerateTour(destination);
-      onOpenChange(false); // Close dialog after generating
+    if (!destination) return;
+    
+    if (!user) {
+      // Store the destination and close this dialog
+      setDestination(destination);
+      onOpenChange(false);
+      onAuthRequired();
+      return;
     }
+
+    await onGenerateTour(destination);
+    onOpenChange(false); // Close dialog after generating
   };
 
   return (
@@ -47,7 +64,7 @@ const TourPlannerDialog: React.FC<TourPlannerDialogProps> = ({ open, onOpenChang
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleGenerate} disabled={isLoading || !destination}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Generate Tour
+            {!user ? 'Sign In to Generate Tour' : 'Generate Tour'}
           </Button>
         </DialogFooter>
       </DialogContent>

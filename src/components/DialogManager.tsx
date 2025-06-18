@@ -13,6 +13,7 @@ interface DialogManagerProps {
   isTourPlannerOpen: boolean;
   onTourPlannerOpenChange: (open: boolean) => void;
   onGenerateTour: (destination: string) => Promise<void>;
+  onTourAuthRequired: () => void;
   isTourLoading: boolean;
   
   // Voice Assistant
@@ -49,6 +50,7 @@ const DialogManager: React.FC<DialogManagerProps> = ({
   isTourPlannerOpen,
   onTourPlannerOpenChange,
   onGenerateTour,
+  onTourAuthRequired,
   isTourLoading,
   isVoiceAssistantOpen,
   onVoiceAssistantOpenChange,
@@ -80,6 +82,7 @@ const DialogManager: React.FC<DialogManagerProps> = ({
         open={isTourPlannerOpen}
         onOpenChange={onTourPlannerOpenChange}
         onGenerateTour={onGenerateTour}
+        onAuthRequired={onTourAuthRequired}
         isLoading={isTourLoading}
       />
       

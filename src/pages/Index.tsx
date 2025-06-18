@@ -31,6 +31,7 @@ const Index: React.FC = () => {
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [currentDestination, setCurrentDestination] = useState<string>('');
+  const [pendingDestination, setPendingDestination] = useState<string>('');
   const [analysisResult, setAnalysisResult] = useState<{
     imageData: string;
     analysis: string;
@@ -65,6 +66,20 @@ const Index: React.FC = () => {
     setTimeout(() => {
       setIsVoiceAssistantOpen(true);
     }, 1000);
+  };
+
+  const handleTourAuthRequired = () => {
+    setIsAuthDialogOpen(true);
+  };
+
+  const handleAuthDialogClose = (open: boolean) => {
+    setIsAuthDialogOpen(open);
+    
+    // If user just signed in and we have a pending destination, generate the tour
+    if (!open && user && pendingDestination) {
+      handleGenerateTour(pendingDestination);
+      setPendingDestination('');
+    }
   };
 
   const handleImageCapture = async (imageData: string) => {
@@ -182,6 +197,7 @@ const Index: React.FC = () => {
         isTourPlannerOpen={isTourPlannerOpen}
         onTourPlannerOpenChange={setIsTourPlannerOpen}
         onGenerateTour={handleGenerateTour}
+        onTourAuthRequired={handleTourAuthRequired}
         isTourLoading={isTourLoading}
         isVoiceAssistantOpen={isVoiceAssistantOpen}
         onVoiceAssistantOpenChange={setIsVoiceAssistantOpen}
@@ -194,7 +210,7 @@ const Index: React.FC = () => {
         isFavoritesOpen={isFavoritesOpen}
         onFavoritesOpenChange={setIsFavoritesOpen}
         isAuthDialogOpen={isAuthDialogOpen}
-        onAuthDialogOpenChange={setIsAuthDialogOpen}
+        onAuthDialogOpenChange={handleAuthDialogClose}
         isAnalysisResultOpen={isAnalysisResultOpen}
         onAnalysisResultOpenChange={setIsAnalysisResultOpen}
         analysisResult={analysisResult}
