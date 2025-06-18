@@ -22,7 +22,7 @@ const FreeTourCounter: React.FC = () => {
       <Button
         variant="outline"
         size="sm"
-        className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden"
+        className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left"
       >
         {hasReachedLimit ? (
           <>
@@ -40,7 +40,7 @@ const FreeTourCounter: React.FC = () => {
       {/* Tour Counter Button - Desktop Layout */}
       <Button
         variant="outline"
-        className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex"
+        className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left"
       >
         {hasReachedLimit ? (
           <>
@@ -59,7 +59,7 @@ const FreeTourCounter: React.FC = () => {
       <Button
         variant="outline"
         size="sm"
-        className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden"
+        className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left"
         disabled
       >
         <CreditCard className="mr-1 h-3 w-3" />
@@ -69,7 +69,7 @@ const FreeTourCounter: React.FC = () => {
       {/* Subscribe Button - Desktop Layout */}
       <Button
         variant="outline"
-        className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex"
+        className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left"
         disabled
       >
         <CreditCard className="mr-2 h-4 w-4" />
