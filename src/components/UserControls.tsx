@@ -14,7 +14,7 @@ interface UserControlsProps {
 
 const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDialogOpen }) => {
   return (
-    <div className="absolute top-4 right-4 z-20 flex items-start gap-2">
+    <div className="absolute top-4 right-4 z-20 flex items-end gap-2">
       {user ? (
         <>
           <TourCounter />
@@ -42,7 +42,7 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
           onClick={onAuthDialogOpen}
           variant="outline"
           size="default"
-          className="bg-background/80 backdrop-blur-sm shadow-lg border border-input text-foreground hover:bg-accent hover:text-accent-foreground"
+          className="bg-background/80 backdrop-blur-sm shadow-lg border border-input text-foreground hover:bg-accent hover:text-accent-foreground h-10"
         >
           <User className="w-4 h-4 mr-2" />
           Sign In
