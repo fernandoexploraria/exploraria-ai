@@ -210,26 +210,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
           .setLngLat(landmark.coordinates)
           .addTo(map.current!);
 
-        // Create hover popup (just for name)
-        const hoverPopup = new mapboxgl.Popup({
-          closeButton: false,
-          closeOnClick: false,
-          offset: 20
-        });
-
-        marker.getElement().addEventListener('mouseenter', () => {
-          if (!map.current) return;
-          hoverPopup
-            .setLngLat(landmark.coordinates)
-            .setText(landmark.name)
-            .addTo(map.current);
-        });
-        
-        marker.getElement().addEventListener('mouseleave', () => {
-          hoverPopup.remove();
-        });
-
-        // Create click popup with image and listen button only
+        // REMOVED: No more hover popup - only click popup with photo and listen button
         marker.getElement().addEventListener('click', async (e) => {
           e.stopPropagation(); // Prevent map click event
           
