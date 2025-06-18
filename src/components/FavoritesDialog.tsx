@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Star, Calendar, Trash2, Bookmark } from 'lucide-react';
+import { Star, Calendar, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from './AuthProvider';
@@ -132,13 +133,8 @@ const FavoritesDialog: React.FC<FavoritesDialogProps> = ({ open, onOpenChange })
       <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <img 
-              src="/lovable-uploads/ac9cbebd-b083-4d3d-a85e-782e03045422.png" 
-              alt="Exploraria" 
-              className="w-6 h-6"
-            />
-            <Bookmark className="w-5 h-5 text-blue-500" />
-            Bookmarked Conversations
+            <Star className="w-5 h-5 text-yellow-500 fill-current" />
+            Favorite Conversations
           </DialogTitle>
         </DialogHeader>
         
@@ -146,7 +142,7 @@ const FavoritesDialog: React.FC<FavoritesDialogProps> = ({ open, onOpenChange })
           {isLoading ? (
             <div className="text-center py-8 text-muted-foreground">
               <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-              <p>Loading your bookmarked conversations...</p>
+              <p>Loading your favorite conversations...</p>
             </div>
           ) : favorites.length > 0 ? (
             favorites.map((interaction) => (
@@ -183,9 +179,9 @@ const FavoritesDialog: React.FC<FavoritesDialogProps> = ({ open, onOpenChange })
             ))
           ) : (
             <div className="text-center py-8 text-muted-foreground">
-              <Bookmark className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No bookmarked conversations yet.</p>
-              <p className="text-sm">Mark conversations as bookmarks during your tour to see them here.</p>
+              <Star className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>No favorite conversations yet.</p>
+              <p className="text-sm">Mark conversations as favorites during your tour to see them here.</p>
             </div>
           )}
         </div>
