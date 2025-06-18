@@ -101,51 +101,35 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     };
   }, [open]);
 
-  const ensureValidSession = async () => {
+  const storeInteraction = async (userInput: string, assistantResponse: string) => {
     try {
-      console.log('Checking session...');
-      const { data: { session }, error } = await supabase.auth.getSession();
+      console.log('Attempting to store interaction...', { userInput, assistantResponse, destination });
       
-      if (error) {
-        console.error('Session error:', error);
+      // Check authentication first
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Session error:', sessionError);
         toast({
-          title: "Authentication Error",
+          title: "Authentication Error", 
           description: "Please refresh the page and try again.",
           variant: "destructive"
         });
-        return null;
-      }
-
-      if (!session) {
-        console.log('No active session found');
-        toast({
-          title: "Authentication Required",
-          description: "Please log in to use the voice assistant.",
-          variant: "destructive"
-        });
-        return null;
-      }
-
-      console.log('Valid session found:', session.user.id);
-      return session;
-    } catch (error) {
-      console.error('Unexpected session error:', error);
-      return null;
-    }
-  };
-
-  const storeInteraction = async (userInput: string, assistantResponse: string) => {
-    try {
-      console.log('Attempting to store interaction...');
-      
-      const session = await ensureValidSession();
-      if (!session) {
-        console.log('No valid session, skipping storage');
         return;
       }
 
-      console.log('Calling edge function to store interaction...');
-      
+      if (!session?.user) {
+        console.log('No authenticated user found');
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to save your conversations.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log('User authenticated, calling edge function...');
+
       const { data, error } = await supabase.functions.invoke('store-voice-interaction', {
         body: {
           userInput,
@@ -163,9 +147,18 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         });
       } else {
         console.log('Voice interaction stored successfully:', data);
+        toast({
+          title: "Conversation Saved",
+          description: "Your interaction has been saved.",
+        });
       }
     } catch (error) {
       console.error('Unexpected error storing interaction:', error);
+      toast({
+        title: "Storage Error",
+        description: "An unexpected error occurred while saving.",
+        variant: "destructive"
+      });
     }
   };
 
