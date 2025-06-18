@@ -16,11 +16,13 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ landmark, onClose, elevenLabsApiK
 
   const handleTextToSpeech = async () => {
     if (!landmark || !elevenLabsApiKey || elevenLabsApiKey === 'YOUR_ELEVENLABS_API_KEY') {
+      console.log('Missing landmark or API key');
       return;
     }
 
     try {
       setIsPlaying(true);
+      console.log('Starting text-to-speech for:', landmark.name);
       
       // Use the ElevenLabs API directly
       const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM`, {
@@ -41,23 +43,92 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ landmark, onClose, elevenLabsApiK
       });
 
       if (response.ok) {
+        console.log('Audio response received');
         const audioBlob = await response.blob();
         const audioUrl = URL.createObjectURL(audioBlob);
         const audio = new Audio(audioUrl);
         
+        // Set audio properties for better compatibility
+        audio.preload = 'auto';
+        audio.volume = 1.0;
+        
+        // iOS compatibility
+        if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+          audio.setAttribute('playsinline', 'true');
+          audio.setAttribute('webkit-playsinline', 'true');
+        }
+        
+        // Event handlers
+        audio.onloadeddata = () => {
+          console.log('Audio loaded successfully');
+        };
+        
+        audio.onplay = () => {
+          console.log('Audio started playing');
+          setIsPlaying(true);
+        };
+        
         audio.onended = () => {
+          console.log('Audio playback ended');
           setIsPlaying(false);
           URL.revokeObjectURL(audioUrl);
         };
         
-        await audio.play();
+        audio.onerror = (error) => {
+          console.error('Audio playback error:', error);
+          setIsPlaying(false);
+          URL.revokeObjectURL(audioUrl);
+          
+          // Fallback to browser TTS
+          console.log('Falling back to browser speech synthesis');
+          const utterance = new SpeechSynthesisUtterance(`${landmark.name}. ${landmark.description}`);
+          utterance.onend = () => setIsPlaying(false);
+          speechSynthesis.speak(utterance);
+        };
+        
+        // Load and play
+        audio.load();
+        
+        try {
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            await playPromise;
+            console.log('Audio play promise resolved');
+          }
+        } catch (playError) {
+          console.error('Play error, trying fallback:', playError);
+          setIsPlaying(false);
+          URL.revokeObjectURL(audioUrl);
+          
+          // Fallback to browser TTS
+          const utterance = new SpeechSynthesisUtterance(`${landmark.name}. ${landmark.description}`);
+          utterance.onend = () => setIsPlaying(false);
+          speechSynthesis.speak(utterance);
+        }
       } else {
-        console.error('Error generating speech:', response.statusText);
+        const errorText = await response.text();
+        console.error('ElevenLabs API error:', response.status, errorText);
         setIsPlaying(false);
+        
+        // Fallback to browser TTS
+        console.log('Using browser speech synthesis as fallback');
+        const utterance = new SpeechSynthesisUtterance(`${landmark.name}. ${landmark.description}`);
+        utterance.onend = () => setIsPlaying(false);
+        speechSynthesis.speak(utterance);
       }
     } catch (error) {
       console.error('Error with text-to-speech:', error);
       setIsPlaying(false);
+      
+      // Fallback to browser TTS
+      try {
+        console.log('Using browser speech synthesis as error fallback');
+        const utterance = new SpeechSynthesisUtterance(`${landmark.name}. ${landmark.description}`);
+        utterance.onend = () => setIsPlaying(false);
+        speechSynthesis.speak(utterance);
+      } catch (fallbackError) {
+        console.error('Fallback TTS also failed:', fallbackError);
+      }
     }
   };
 
@@ -81,20 +152,18 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ landmark, onClose, elevenLabsApiK
         <div className="p-4 space-y-4">
           <p className="text-sm text-gray-600 leading-relaxed">{landmark.description}</p>
           
-          {elevenLabsApiKey && elevenLabsApiKey !== 'YOUR_ELEVENLABS_API_KEY' && (
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleTextToSpeech}
-                disabled={isPlaying}
-                className="flex items-center gap-2"
-              >
-                {isPlaying ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-                {isPlaying ? 'Playing...' : 'Listen'}
-              </Button>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleTextToSpeech}
+              disabled={isPlaying}
+              className="flex items-center gap-2"
+            >
+              {isPlaying ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+              {isPlaying ? 'Playing...' : 'Listen'}
+            </Button>
+          </div>
           
           <LandmarkTools landmark={landmark} />
         </div>
