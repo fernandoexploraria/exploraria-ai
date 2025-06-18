@@ -92,13 +92,16 @@ export const useTourStats = () => {
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          console.log('Tour stats changed:', payload);
+          console.log('Real-time tour stats update:', payload);
           if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+            console.log('Updating tour stats from real-time:', payload.new);
             setTourStats(payload.new as TourStats);
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Tour stats subscription status:', status);
+      });
 
     return () => {
       console.log('Cleaning up tour stats subscription');
@@ -110,5 +113,11 @@ export const useTourStats = () => {
     fetchTourStats();
   }, [user?.id]);
 
-  return { tourStats, isLoading, error, refetch: fetchTourStats };
+  // Force refresh function that can be called externally
+  const forceRefresh = async () => {
+    console.log('Force refreshing tour stats...');
+    await fetchTourStats();
+  };
+
+  return { tourStats, isLoading, error, refetch: fetchTourStats, forceRefresh };
 };

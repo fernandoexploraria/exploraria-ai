@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Landmark } from '@/data/landmarks';
 import { toast } from "sonner";
@@ -11,7 +10,7 @@ export const useTourPlanner = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { subscriptionData } = useSubscription();
-  const { tourStats, refetch: refetchTourStats } = useTourStats();
+  const { tourStats, forceRefresh } = useTourStats();
 
   const generateTour = async (destination: string, apiKey: string) => {
     if (!apiKey) {
@@ -133,11 +132,9 @@ export const useTourPlanner = () => {
           console.log('increment_tour_count successful, new count:', incrementResult);
         }
         
-        // Force refetch tour stats after increment
-        setTimeout(() => {
-          console.log('Refetching tour stats...');
-          refetchTourStats();
-        }, 1000);
+        // Force refresh tour stats after increment
+        console.log('Triggering force refresh of tour stats...');
+        await forceRefresh();
         
       } catch (countErr) {
         console.error('Failed to update tour count:', countErr);
