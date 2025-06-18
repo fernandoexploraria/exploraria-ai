@@ -31,7 +31,7 @@ const TopControls: React.FC<TopControlsProps> = ({
 
   if (isMobile) {
     return (
-      <div className="absolute top-4 left-4 right-4 z-10 flex flex-col gap-2">
+      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 max-w-[calc(100vw-120px)]">
         <div className="flex items-center gap-2">
           <img 
             src="/lovable-uploads/ac9cbebd-b083-4d3d-a85e-782e03045422.png" 
@@ -40,11 +40,11 @@ const TopControls: React.FC<TopControlsProps> = ({
           />
           <SearchControl landmarks={allLandmarks} onSelectLandmark={onSelectLandmark} />
         </div>
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-col gap-1 w-fit">
           <Button
             variant="outline"
             size="sm"
-            className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8"
+            className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full"
             onClick={onTourPlannerOpen}
           >
             <Sparkles className="mr-1 h-3 w-3" />
@@ -55,7 +55,7 @@ const TopControls: React.FC<TopControlsProps> = ({
               <Button
                 variant="outline"
                 size="sm"
-                className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8"
+                className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full"
                 onClick={onFavoritesOpen}
               >
                 <Star className="mr-1 h-3 w-3" />
@@ -64,7 +64,7 @@ const TopControls: React.FC<TopControlsProps> = ({
               <Button
                 variant="outline"
                 size="sm"
-                className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8"
+                className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full"
                 onClick={onVoiceSearchOpen}
               >
                 <Search className="mr-1 h-3 w-3" />
@@ -76,7 +76,7 @@ const TopControls: React.FC<TopControlsProps> = ({
             <Button
               variant="outline"
               size="sm"
-              className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8"
+              className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full"
               onClick={onVoiceAssistantOpen}
             >
               <Sparkles className="mr-1 h-3 w-3" />
