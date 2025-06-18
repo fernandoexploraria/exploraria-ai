@@ -13,6 +13,16 @@ interface UserControlsProps {
 }
 
 const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDialogOpen }) => {
+  const handleSignOut = async () => {
+    console.log('Sign out button clicked');
+    try {
+      await onSignOut();
+      console.log('Sign out completed');
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
+  };
+
   return (
     <div className="absolute top-4 right-4 z-20 flex items-start gap-2">
       {user ? (
@@ -30,7 +40,7 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
             <Button
               variant="ghost"
               size="sm"
-              onClick={onSignOut}
+              onClick={handleSignOut}
               className="h-6 w-6 p-0 hover:bg-accent hover:text-accent-foreground relative z-30 ml-1"
             >
               <LogOut className="w-3 h-3" />
