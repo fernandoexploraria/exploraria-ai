@@ -13,8 +13,8 @@ interface MapProps {
   plannedLandmarks: Landmark[];
 }
 
-// Add Google API key here - replace with your actual key
-const GOOGLE_API_KEY = 'YOUR_GOOGLE_API_KEY_HERE';
+// Google API key
+const GOOGLE_API_KEY = 'AIzaSyCjQKg2W9uIrIx4EmRnyf3WCkO4eeEvpyg';
 
 const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, selectedLandmark, plannedLandmarks }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
