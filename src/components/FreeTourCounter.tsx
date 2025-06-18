@@ -18,11 +18,11 @@ const FreeTourCounter: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-2">
+      {/* Tour Counter Button - Mobile/Tablet Layout */}
       <Button
-        variant={hasReachedLimit ? "destructive" : "outline"}
+        variant="outline"
         size="sm"
-        className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full"
-        disabled={hasReachedLimit}
+        className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden"
       >
         {hasReachedLimit ? (
           <>
@@ -37,13 +37,42 @@ const FreeTourCounter: React.FC = () => {
         )}
       </Button>
       
+      {/* Tour Counter Button - Desktop Layout */}
+      <Button
+        variant="outline"
+        className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex"
+      >
+        {hasReachedLimit ? (
+          <>
+            <Lock className="mr-2 h-4 w-4" />
+            <span>Free tours used</span>
+          </>
+        ) : (
+          <>
+            <Sparkles className="mr-2 h-4 w-4" />
+            <span>{toursRemaining} free tours left</span>
+          </>
+        )}
+      </Button>
+      
+      {/* Subscribe Button - Mobile/Tablet Layout */}
       <Button
         variant="outline"
         size="sm"
-        className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full"
+        className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden"
         disabled
       >
         <Sparkles className="mr-1 h-3 w-3" />
+        Subscribe for unlimited tours
+      </Button>
+      
+      {/* Subscribe Button - Desktop Layout */}
+      <Button
+        variant="outline"
+        className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex"
+        disabled
+      >
+        <Sparkles className="mr-2 h-4 w-4" />
         Subscribe for unlimited tours
       </Button>
     </div>
