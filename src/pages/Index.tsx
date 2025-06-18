@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback } from 'react';
 import Map from '@/components/Map';
 import InfoPanel from '@/components/InfoPanel';
@@ -7,6 +8,7 @@ import { useTourPlanner } from '@/hooks/useTourPlanner';
 import { Button } from '@/components/ui/button';
 import { Sparkles } from 'lucide-react';
 import TourPlannerDialog from '@/components/TourPlannerDialog';
+import AITourGuide from '@/components/AITourGuide';
 
 // IMPORTANT: Replace this with your own public Mapbox token!
 // You can get one from your Mapbox account: https://www.mapbox.com/
@@ -21,6 +23,8 @@ const PERPLEXITY_API_KEY = 'pplx-7F7AGfBcFh6NIZlgq26zm8fq59Lhy5Jp1kMzsnI4nn8U0PG
 const Index: React.FC = () => {
   const [selectedLandmark, setSelectedLandmark] = useState<Landmark | null>(null);
   const [isTourPlannerOpen, setIsTourPlannerOpen] = useState(false);
+  const [isAIGuideOpen, setIsAIGuideOpen] = useState(false);
+  const [currentDestination, setCurrentDestination] = useState<string>('');
   const { plannedLandmarks, isLoading: isTourLoading, generateTour } = useTourPlanner();
   
   const allLandmarks = useMemo(() => {
@@ -40,7 +44,14 @@ const Index: React.FC = () => {
         alert("Please provide a valid Perplexity API key in src/pages/Index.tsx");
         return;
     }
+    
+    setCurrentDestination(destination);
     await generateTour(destination, PERPLEXITY_API_KEY);
+    
+    // Show AI tour guide after tour is generated
+    setTimeout(() => {
+      setIsAIGuideOpen(true);
+    }, 1000);
   };
 
   return (
@@ -55,6 +66,16 @@ const Index: React.FC = () => {
           <Sparkles className="mr-2 h-4 w-4" />
           Plan a Tour
         </Button>
+        {plannedLandmarks.length > 0 && (
+          <Button
+            variant="outline"
+            className="bg-background/80 backdrop-blur-sm shadow-lg"
+            onClick={() => setIsAIGuideOpen(true)}
+          >
+            <Sparkles className="mr-2 h-4 w-4" />
+            Tour Guide
+          </Button>
+        )}
       </div>
       <Map 
         mapboxToken={MAPBOX_TOKEN}
@@ -73,6 +94,13 @@ const Index: React.FC = () => {
         onOpenChange={setIsTourPlannerOpen}
         onGenerateTour={handleGenerateTour}
         isLoading={isTourLoading}
+      />
+      <AITourGuide
+        open={isAIGuideOpen}
+        onOpenChange={setIsAIGuideOpen}
+        destination={currentDestination}
+        landmarks={plannedLandmarks}
+        perplexityApiKey={PERPLEXITY_API_KEY}
       />
     </div>
   );
