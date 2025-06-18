@@ -1,7 +1,7 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { Volume2, VolumeX } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 
@@ -19,6 +19,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
   const markers = useRef<{ [key: string]: mapboxgl.Marker }>({});
   const imageCache = useRef<{ [key: string]: string }>({});
   const popups = useRef<{ [key: string]: mapboxgl.Popup }>({});
+  const [playingAudio, setPlayingAudio] = useState<{ [key: string]: boolean }>({});
 
   // Convert top landmarks to Landmark format
   const allLandmarksWithTop = React.useMemo(() => {
@@ -56,7 +57,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       const isMarkerClick = clickedElement.closest('.w-4.h-4.rounded-full');
       
       if (!isMarkerClick) {
-        // Close all popups including preview popups
+        // Close all popups
         Object.values(popups.current).forEach(popup => {
           popup.remove();
         });
@@ -75,6 +76,33 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       map.current = null;
     };
   }, [mapboxToken]);
+
+  // Function to handle text-to-speech
+  const handleTextToSpeech = async (landmark: Landmark) => {
+    const landmarkId = landmark.id;
+    
+    if (playingAudio[landmarkId]) {
+      return; // Already playing
+    }
+
+    try {
+      setPlayingAudio(prev => ({ ...prev, [landmarkId]: true }));
+      
+      // Try browser speech synthesis first
+      const utterance = new SpeechSynthesisUtterance(`${landmark.name}. ${landmark.description}`);
+      utterance.onend = () => {
+        setPlayingAudio(prev => ({ ...prev, [landmarkId]: false }));
+      };
+      utterance.onerror = () => {
+        setPlayingAudio(prev => ({ ...prev, [landmarkId]: false }));
+      };
+      
+      speechSynthesis.speak(utterance);
+    } catch (error) {
+      console.error('Error with text-to-speech:', error);
+      setPlayingAudio(prev => ({ ...prev, [landmarkId]: false }));
+    }
+  };
 
   // Function to fetch landmark image with better search strategy
   const fetchLandmarkImage = async (landmarkName: string): Promise<string> => {
@@ -205,7 +233,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
           hoverPopup.remove();
         });
 
-        // Create click popup with improved close button styling
+        // Create click popup with image and listen button
         marker.getElement().addEventListener('click', async (e) => {
           e.stopPropagation(); // Prevent map click event
           onSelectLandmark(landmark);
@@ -215,7 +243,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
             popups.current[landmark.id].remove();
           }
           
-          // Create new popup with enhanced close button
+          // Create new popup with image and listen button
           const clickPopup = new mapboxgl.Popup({
             closeButton: true,
             closeOnClick: false,
@@ -224,6 +252,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
             className: 'custom-popup'
           });
 
+          // Initial popup with loading state
           clickPopup
             .setLngLat(landmark.coordinates)
             .setHTML(`
@@ -260,9 +289,11 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
             delete popups.current[landmark.id];
           });
 
-          // Fetch and display image with enhanced close button
+          // Fetch and display image with listen button
           try {
             const imageUrl = await fetchLandmarkImage(landmark.name);
+            const isPlaying = playingAudio[landmark.id] || false;
+            
             clickPopup.setHTML(`
               <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
                 <button class="custom-close-btn" onclick="this.closest('.mapboxgl-popup').remove()" style="
@@ -285,10 +316,49 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
                   transition: background-color 0.2s;
                 " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
                 <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px;">${landmark.name}</h3>
-                <img src="${imageUrl}" alt="${landmark.name}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px; margin-bottom: 10px;" />
-                <p style="margin: 0; font-size: 12px; color: #666; line-height: 1.4;">${landmark.description}</p>
+                <div style="position: relative; margin-bottom: 10px;">
+                  <img src="${imageUrl}" alt="${landmark.name}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px;" />
+                  <button 
+                    class="listen-btn-${landmark.id}" 
+                    onclick="window.handleLandmarkListen('${landmark.id}')"
+                    style="
+                      position: absolute;
+                      bottom: 8px;
+                      right: 8px;
+                      background: rgba(0, 0, 0, 0.7);
+                      color: white;
+                      border: none;
+                      border-radius: 50%;
+                      width: 36px;
+                      height: 36px;
+                      cursor: pointer;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      font-size: 16px;
+                      transition: background-color 0.2s;
+                      ${isPlaying ? 'opacity: 0.7;' : ''}
+                    "
+                    onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'"
+                    onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'"
+                    ${isPlaying ? 'disabled' : ''}
+                  >
+                    ${isPlaying ? '🔊' : '🔊'}
+                  </button>
+                </div>
               </div>
             `);
+
+            // Add global handler for listen button if it doesn't exist
+            if (!(window as any).handleLandmarkListen) {
+              (window as any).handleLandmarkListen = (landmarkId: string) => {
+                const targetLandmark = allLandmarksWithTop.find(l => l.id === landmarkId);
+                if (targetLandmark) {
+                  handleTextToSpeech(targetLandmark);
+                }
+              };
+            }
+
           } catch (error) {
             console.error('Failed to load image for', landmark.name, error);
             clickPopup.setHTML(`
@@ -313,10 +383,34 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
                   transition: background-color 0.2s;
                 " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
                 <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px;">${landmark.name}</h3>
-                <div style="width: 100%; height: 150px; background-color: #f0f0f0; border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; color: #888;">
+                <div style="width: 100%; height: 150px; background-color: #f0f0f0; border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; color: #888; position: relative;">
                   No image available
+                  <button 
+                    class="listen-btn-${landmark.id}" 
+                    onclick="window.handleLandmarkListen('${landmark.id}')"
+                    style="
+                      position: absolute;
+                      bottom: 8px;
+                      right: 8px;
+                      background: rgba(0, 0, 0, 0.7);
+                      color: white;
+                      border: none;
+                      border-radius: 50%;
+                      width: 36px;
+                      height: 36px;
+                      cursor: pointer;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      font-size: 16px;
+                      transition: background-color 0.2s;
+                    "
+                    onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'"
+                    onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'"
+                  >
+                    🔊
+                  </button>
                 </div>
-                <p style="margin: 0; font-size: 12px; color: #666; line-height: 1.4;">${landmark.description}</p>
               </div>
             `);
           }
@@ -326,7 +420,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       }
     });
 
-  }, [allLandmarksWithTop, onSelectLandmark]);
+  }, [allLandmarksWithTop, onSelectLandmark, playingAudio]);
 
   // Fly to selected landmark and update marker styles
   useEffect(() => {
