@@ -38,7 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    // Check for existing session and create anonymous session if needed
+    // Check for existing session
     const initializeAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -48,30 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setSession(session);
           setUser(session.user);
         } else {
-          console.log('No session found, creating anonymous session...');
-          // Create a mock session for demo purposes
-          const mockUser = {
-            id: 'demo-user-id',
-            email: 'demo@tourguide.com',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            app_metadata: {},
-            user_metadata: {},
-            aud: 'authenticated',
-            role: 'authenticated'
-          } as User;
-
-          const mockSession = {
-            access_token: 'demo-token',
-            refresh_token: 'demo-refresh',
-            expires_in: 3600,
-            expires_at: Math.floor(Date.now() / 1000) + 3600,
-            token_type: 'bearer',
-            user: mockUser
-          } as Session;
-
-          setSession(mockSession);
-          setUser(mockUser);
+          console.log('No existing session found');
         }
         setLoading(false);
       } catch (error) {

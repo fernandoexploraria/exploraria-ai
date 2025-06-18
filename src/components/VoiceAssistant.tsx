@@ -6,6 +6,7 @@ import { Landmark } from '@/data/landmarks';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from './AuthProvider';
+import AuthDialog from './AuthDialog';
 
 interface VoiceAssistantProps {
   open: boolean;
@@ -28,12 +29,22 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
   const recognitionRef = useRef<any>(null);
   const { toast } = useToast();
   const { user, session } = useAuth();
 
   // Check if speech recognition is supported
   const isSpeechRecognitionSupported = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+
+  // Check authentication when dialog opens
+  useEffect(() => {
+    if (open && !user) {
+      console.log('Voice assistant opened but user not authenticated, showing auth dialog');
+      setShowAuthDialog(true);
+      onOpenChange(false); // Close voice assistant until authenticated
+    }
+  }, [open, user, onOpenChange]);
 
   useEffect(() => {
     console.log('VoiceAssistant mounted with props:', {
@@ -108,16 +119,6 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     try {
       console.log('Attempting to store interaction...', { userInput, assistantResponse, destination });
       
-      // Skip storage for demo mode to avoid authentication issues
-      if (user?.id === 'demo-user-id') {
-        console.log('Demo mode - skipping interaction storage');
-        toast({
-          title: "Demo Mode",
-          description: "Conversation saved locally (demo mode).",
-        });
-        return;
-      }
-
       if (!user || !session) {
         console.log('No authenticated user found');
         toast({
@@ -352,87 +353,107 @@ Please provide a helpful, conversational response about the destination or landm
     await speakText(welcomeMessage);
   };
 
+  const handleAuthSuccess = () => {
+    setShowAuthDialog(false);
+    // Small delay to ensure auth state is updated
+    setTimeout(() => {
+      onOpenChange(true);
+    }, 100);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Voice Tour Guide</DialogTitle>
-          <DialogDescription>
-            Ask me anything about your {destination} tour! Click the welcome button first, then use the microphone to speak.
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="flex flex-col items-center space-y-6 py-8">
-          <div className="flex flex-col items-center space-y-4">
-            {/* Visual indicator */}
-            <div className={`w-32 h-32 rounded-full border-4 flex items-center justify-center transition-colors ${
-              isSpeaking ? 'border-green-500 bg-green-50' : 
-              isListening ? 'border-blue-500 bg-blue-50' : 
-              'border-gray-300 bg-gray-50'
-            }`}>
-              {isSpeaking ? (
-                <Volume2 className="w-12 h-12 text-green-600" />
-              ) : (
-                <Mic className={`w-12 h-12 ${isListening ? 'text-blue-600' : 'text-gray-400'}`} />
+    <>
+      <AuthDialog
+        open={showAuthDialog}
+        onOpenChange={(open) => {
+          setShowAuthDialog(open);
+          if (!open && user) {
+            handleAuthSuccess();
+          }
+        }}
+      />
+      
+      <Dialog open={open && !!user} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Voice Tour Guide</DialogTitle>
+            <DialogDescription>
+              Ask me anything about your {destination} tour! Click the welcome button first, then use the microphone to speak.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex flex-col items-center space-y-6 py-8">
+            <div className="flex flex-col items-center space-y-4">
+              {/* Visual indicator */}
+              <div className={`w-32 h-32 rounded-full border-4 flex items-center justify-center transition-colors ${
+                isSpeaking ? 'border-green-500 bg-green-50' : 
+                isListening ? 'border-blue-500 bg-blue-50' : 
+                'border-gray-300 bg-gray-50'
+              }`}>
+                {isSpeaking ? (
+                  <Volume2 className="w-12 h-12 text-green-600" />
+                ) : (
+                  <Mic className={`w-12 h-12 ${isListening ? 'text-blue-600' : 'text-gray-400'}`} />
+                )}
+              </div>
+
+              {/* Status text */}
+              <p className="text-center text-sm font-medium">
+                {isSpeaking ? 'Speaking...' : 
+                 isListening ? 'Listening...' : 
+                 hasUserInteracted ? 'Tap to speak' : 'Click welcome first'}
+              </p>
+
+              {/* Welcome button (only show if user hasn't interacted) */}
+              {!hasUserInteracted && (
+                <Button
+                  onClick={handleWelcomeClick}
+                  className="mb-2"
+                  variant="outline"
+                >
+                  Start Tour Guide
+                </Button>
+              )}
+
+              {/* Microphone button */}
+              <Button
+                size="lg"
+                variant={isListening ? "destructive" : "default"}
+                onClick={isListening ? stopListening : startListening}
+                disabled={isSpeaking || !hasUserInteracted || !isSpeechRecognitionSupported}
+                className="rounded-full w-16 h-16"
+              >
+                {isListening ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+              </Button>
+
+              {/* Browser support warning */}
+              {!isSpeechRecognitionSupported && (
+                <div className="text-center text-sm text-red-600 max-w-sm">
+                  Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.
+                </div>
+              )}
+
+              {/* Last transcript */}
+              {transcript && (
+                <div className="text-center max-w-sm">
+                  <p className="text-xs text-muted-foreground mb-1">You said:</p>
+                  <p className="text-sm italic">"{transcript}"</p>
+                </div>
               )}
             </div>
 
-            {/* Status text */}
-            <p className="text-center text-sm font-medium">
-              {isSpeaking ? 'Speaking...' : 
-               isListening ? 'Listening...' : 
-               hasUserInteracted ? 'Tap to speak' : 'Click welcome first'}
-            </p>
-
-            {/* Welcome button (only show if user hasn't interacted) */}
-            {!hasUserInteracted && (
-              <Button
-                onClick={handleWelcomeClick}
-                className="mb-2"
-                variant="outline"
-              >
-                Start Tour Guide
-              </Button>
-            )}
-
-            {/* Microphone button */}
-            <Button
-              size="lg"
-              variant={isListening ? "destructive" : "default"}
-              onClick={isListening ? stopListening : startListening}
-              disabled={isSpeaking || !hasUserInteracted || !isSpeechRecognitionSupported}
-              className="rounded-full w-16 h-16"
-            >
-              {isListening ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
-            </Button>
-
-            {/* Browser support warning */}
-            {!isSpeechRecognitionSupported && (
-              <div className="text-center text-sm text-red-600 max-w-sm">
-                Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.
-              </div>
-            )}
-
-            {/* Last transcript */}
-            {transcript && (
-              <div className="text-center max-w-sm">
-                <p className="text-xs text-muted-foreground mb-1">You said:</p>
-                <p className="text-sm italic">"{transcript}"</p>
-              </div>
-            )}
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground">
+                {hasUserInteracted 
+                  ? "Press and hold the microphone to ask questions about your tour"
+                  : "Click 'Start Tour Guide' to begin your interactive tour experience"
+                }
+              </p>
+            </div>
           </div>
-
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground">
-              {hasUserInteracted 
-                ? "Press and hold the microphone to ask questions about your tour"
-                : "Click 'Start Tour Guide' to begin your interactive tour experience"
-              }
-            </p>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
