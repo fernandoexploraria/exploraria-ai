@@ -6,10 +6,11 @@ import { landmarks as staticLandmarks, Landmark } from '@/data/landmarks';
 import SearchControl from '@/components/SearchControl';
 import { useTourPlanner } from '@/hooks/useTourPlanner';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Search, User, LogOut } from 'lucide-react';
+import { Sparkles, Search, User, LogOut, Star } from 'lucide-react';
 import TourPlannerDialog from '@/components/TourPlannerDialog';
 import VoiceAssistant from '@/components/VoiceAssistant';
 import VoiceSearchDialog from '@/components/VoiceSearchDialog';
+import FavoritesDialog from '@/components/FavoritesDialog';
 import AuthDialog from '@/components/AuthDialog';
 import { useAuth } from '@/components/AuthProvider';
 
