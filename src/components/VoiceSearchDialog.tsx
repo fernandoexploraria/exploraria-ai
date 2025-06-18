@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Search, Star, StarOff, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from './AuthProvider';
 
 interface VoiceInteraction {
   id: string;
@@ -15,7 +16,7 @@ interface VoiceInteraction {
   assistant_response: string;
   is_favorite: boolean;
   created_at: string;
-  similarity: number;
+  similarity?: number;
 }
 
 interface VoiceSearchDialogProps {
@@ -28,28 +29,61 @@ const VoiceSearchDialog: React.FC<VoiceSearchDialogProps> = ({ open, onOpenChang
   const [searchResults, setSearchResults] = useState<VoiceInteraction[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
 
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to search your conversations.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsSearching(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast({
-          title: "Authentication required",
-          description: "Please log in to search your conversations.",
-          variant: "destructive"
+      console.log('Starting search with query:', searchQuery);
+
+      // First try the vector search function if available
+      try {
+        const { data, error } = await supabase.functions.invoke('search-voice-interactions', {
+          body: { query: searchQuery }
         });
-        return;
+
+        if (error) {
+          console.error('Vector search error:', error);
+          throw error;
+        }
+
+        if (data && data.results) {
+          console.log('Vector search results:', data.results);
+          setSearchResults(data.results);
+          
+          if (data.results.length === 0) {
+            toast({
+              title: "No results found",
+              description: "Try searching with different keywords.",
+            });
+          }
+          return;
+        }
+      } catch (vectorError) {
+        console.log('Vector search not available, falling back to text search:', vectorError);
       }
 
-      const { data, error } = await supabase.functions.invoke('search-voice-interactions', {
-        body: { query: searchQuery }
-      });
+      // Fallback to simple text search
+      const { data: interactions, error: searchError } = await supabase
+        .from('voice_interactions')
+        .select('*')
+        .or(`user_input.ilike.%${searchQuery}%,assistant_response.ilike.%${searchQuery}%,destination.ilike.%${searchQuery}%`)
+        .order('created_at', { ascending: false })
+        .limit(20);
 
-      if (error) {
-        console.error('Search error:', error);
+      if (searchError) {
+        console.error('Text search error:', searchError);
         toast({
           title: "Search failed",
           description: "There was an error searching your conversations.",
@@ -58,14 +92,16 @@ const VoiceSearchDialog: React.FC<VoiceSearchDialogProps> = ({ open, onOpenChang
         return;
       }
 
-      setSearchResults(data.results || []);
+      console.log('Text search results:', interactions);
+      setSearchResults(interactions || []);
       
-      if (data.results?.length === 0) {
+      if (!interactions || interactions.length === 0) {
         toast({
           title: "No results found",
           description: "Try searching with different keywords.",
         });
       }
+
     } catch (error) {
       console.error('Search error:', error);
       toast({
@@ -79,6 +115,15 @@ const VoiceSearchDialog: React.FC<VoiceSearchDialogProps> = ({ open, onOpenChang
   };
 
   const toggleFavorite = async (interaction: VoiceInteraction) => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to update favorites.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('voice_interactions')
@@ -156,9 +201,11 @@ const VoiceSearchDialog: React.FC<VoiceSearchDialogProps> = ({ open, onOpenChang
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2">
                     <Badge variant="outline">{interaction.destination}</Badge>
-                    <Badge variant="secondary">
-                      {Math.round(interaction.similarity * 100)}% match
-                    </Badge>
+                    {interaction.similarity && (
+                      <Badge variant="secondary">
+                        {Math.round(interaction.similarity * 100)}% match
+                      </Badge>
+                    )}
                     <div className="flex items-center text-sm text-muted-foreground">
                       <Calendar className="w-3 h-3 mr-1" />
                       {formatDate(interaction.created_at)}
