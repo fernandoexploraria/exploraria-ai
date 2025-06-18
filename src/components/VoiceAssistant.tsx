@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -28,7 +27,6 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
-  const [debugInfo, setDebugInfo] = useState('');
   const recognitionRef = useRef<any>(null);
   const { toast } = useToast();
 
@@ -190,12 +188,10 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         console.log('Starting speech recognition...');
         setIsListening(true);
         setHasUserInteracted(true);
-        setDebugInfo('Starting to listen...');
         recognitionRef.current.start();
       } catch (error) {
         console.error('Error starting speech recognition:', error);
         setIsListening(false);
-        setDebugInfo(`Start error: ${error}`);
         toast({
           title: "Microphone Error",
           description: "Please allow microphone access and try again.",
@@ -209,7 +205,6 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     if (recognitionRef.current) {
       console.log('Stopping speech recognition...');
       setIsListening(false);
-      setDebugInfo('Stopping...');
       recognitionRef.current.stop();
     }
   };
@@ -396,13 +391,6 @@ Please provide a helpful, conversational response about the destination or landm
         </DialogHeader>
         
         <div className="flex flex-col items-center space-y-6 py-8">
-          {/* Debug info */}
-          {debugInfo && (
-            <div className="text-xs text-gray-500 text-center max-w-sm">
-              Debug: {debugInfo}
-            </div>
-          )}
-
           <div className="flex flex-col items-center space-y-4">
             {/* Visual indicator */}
             <div className={`w-32 h-32 rounded-full border-4 flex items-center justify-center transition-colors ${
