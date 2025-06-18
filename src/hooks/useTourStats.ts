@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 
@@ -16,6 +16,8 @@ export const useTourStats = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
+  const channelRef = useRef<any>(null);
+  const isSubscribedRef = useRef(false);
 
   const fetchTourStats = async () => {
     if (!user) {
@@ -80,17 +82,18 @@ export const useTourStats = () => {
       return;
     }
 
+    // Clean up any existing subscription first
+    if (channelRef.current && isSubscribedRef.current) {
+      console.log('Cleaning up existing subscription before creating new one');
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+      isSubscribedRef.current = false;
+    }
+
     console.log('Setting up tour stats subscription for user:', user.id);
     
-    // Create a unique channel name to avoid conflicts
+    // Create a unique channel name
     const channelName = `tour-stats-${user.id}`;
-    
-    // Remove any existing channel first to prevent duplicate subscriptions
-    const existingChannel = supabase.getChannels().find(ch => ch.topic === channelName);
-    if (existingChannel) {
-      console.log('Removing existing channel before creating new one');
-      supabase.removeChannel(existingChannel);
-    }
     
     const channel = supabase
       .channel(channelName)
@@ -113,14 +116,27 @@ export const useTourStats = () => {
       .subscribe((status) => {
         console.log('Tour stats subscription status:', status);
         if (status === 'SUBSCRIBED') {
+          isSubscribedRef.current = true;
           // Only fetch initial data after successful subscription
           fetchTourStats();
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('Channel subscription error');
+          isSubscribedRef.current = false;
+        } else if (status === 'TIMED_OUT') {
+          console.error('Channel subscription timed out');
+          isSubscribedRef.current = false;
         }
       });
 
+    channelRef.current = channel;
+
     return () => {
       console.log('Cleaning up tour stats subscription');
-      supabase.removeChannel(channel);
+      if (channelRef.current && isSubscribedRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+        isSubscribedRef.current = false;
+      }
     };
   }, [user?.id]);
 
