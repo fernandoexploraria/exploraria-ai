@@ -14,24 +14,24 @@ interface UserControlsProps {
 
 const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDialogOpen }) => {
   return (
-    <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+    <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
       {user ? (
         <>
           <TourCounter />
-          <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-sm">
+          <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg border border-input">
             <Avatar className="w-6 h-6">
               <AvatarFallback className="text-xs">
                 {user.email?.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <span className="text-sm font-medium text-gray-700 max-w-[100px] truncate">
+            <span className="text-sm font-medium text-foreground max-w-[100px] truncate">
               {user.email}
             </span>
             <Button
               variant="ghost"
               size="sm"
               onClick={onSignOut}
-              className="h-6 w-6 p-0 hover:bg-gray-100"
+              className="h-6 w-6 p-0 hover:bg-accent hover:text-accent-foreground relative z-30 ml-1"
             >
               <LogOut className="w-3 h-3" />
             </Button>
@@ -40,9 +40,9 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
       ) : (
         <Button
           onClick={onAuthDialogOpen}
-          variant="default"
+          variant="outline"
           size="sm"
-          className="bg-white/90 backdrop-blur-sm text-gray-900 hover:bg-white"
+          className="bg-background/80 backdrop-blur-sm shadow-lg border border-input text-foreground hover:bg-accent hover:text-accent-foreground"
         >
           <User className="w-4 h-4 mr-2" />
           Sign In
