@@ -3,6 +3,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Search, Star, Bookmark } from 'lucide-react';
 import SearchControl from '@/components/SearchControl';
+import FreeTourCounter from '@/components/FreeTourCounter';
 import { Landmark } from '@/data/landmarks';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -44,6 +45,9 @@ const TopControls: React.FC<TopControlsProps> = ({
           />
           <SearchControl landmarks={allLandmarks} onSelectLandmark={onSelectLandmark} />
         </div>
+        
+        {user && <FreeTourCounter />}
+        
         <div className="flex flex-col gap-1 w-fit">
           <Button
             variant="outline"
@@ -98,6 +102,9 @@ const TopControls: React.FC<TopControlsProps> = ({
           className="h-20 w-auto bg-yellow-400 rounded-lg p-1"
         />
         <SearchControl landmarks={allLandmarks} onSelectLandmark={onSelectLandmark} />
+        
+        {user && <FreeTourCounter />}
+        
         <Button
           variant="outline"
           className="bg-background/80 backdrop-blur-sm shadow-lg"
