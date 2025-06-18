@@ -217,15 +217,11 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const speakText = async (text: string) => {
     try {
       console.log('Speaking text:', text.substring(0, 50) + '...');
+      console.log('User has interacted:', hasUserInteracted);
       setIsSpeaking(true);
       setDebugInfo('Speaking...');
       
-      if (!hasUserInteracted) {
-        console.log('User has not interacted yet, skipping audio playback');
-        setIsSpeaking(false);
-        return;
-      }
-
+      // Check ElevenLabs API key
       if (!elevenLabsApiKey || elevenLabsApiKey === 'YOUR_ELEVENLABS_API_KEY') {
         console.log('Using browser speech synthesis...');
         const utterance = new SpeechSynthesisUtterance(text);
@@ -288,12 +284,33 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       } else {
         console.error('ElevenLabs API error:', response.status, await response.text());
         setIsSpeaking(false);
-        setDebugInfo('ElevenLabs API error');
+        setDebugInfo('ElevenLabs API error - falling back to browser TTS');
+        
+        // Fallback to browser TTS
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.onend = () => {
+          setIsSpeaking(false);
+          setDebugInfo('Finished speaking (fallback)');
+        };
+        speechSynthesis.speak(utterance);
       }
     } catch (error) {
       console.error('Error with text-to-speech:', error);
       setIsSpeaking(false);
-      setDebugInfo(`TTS error: ${error}`);
+      setDebugInfo(`TTS error: ${error} - trying fallback`);
+      
+      // Fallback to browser TTS
+      try {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.onend = () => {
+          setIsSpeaking(false);
+          setDebugInfo('Finished speaking (fallback)');
+        };
+        speechSynthesis.speak(utterance);
+      } catch (fallbackError) {
+        console.error('Fallback TTS also failed:', fallbackError);
+        setDebugInfo(`All TTS failed: ${fallbackError}`);
+      }
     }
   };
 
@@ -360,12 +377,12 @@ Please provide a helpful, conversational response about the destination or landm
     }
   };
 
-  const handleWelcomeClick = () => {
+  const handleWelcomeClick = async () => {
     console.log('Welcome button clicked');
     setHasUserInteracted(true);
     setDebugInfo('Welcome! Ready to help.');
     const welcomeMessage = `Welcome to your ${destination} tour! I'm your voice assistant. You can ask me about any of the landmarks we've planned for you. What would you like to know?`;
-    speakText(welcomeMessage);
+    await speakText(welcomeMessage);
   };
 
   return (
