@@ -1,7 +1,7 @@
-
 import React, { useState, useMemo, useCallback } from 'react';
 import Map from '@/components/Map';
 import InfoPanel from '@/components/InfoPanel';
+import SplashScreen from '@/components/SplashScreen';
 import { landmarks as staticLandmarks, Landmark } from '@/data/landmarks';
 import { useTourPlanner } from '@/hooks/useTourPlanner';
 import { useAuth } from '@/components/AuthProvider';
@@ -22,6 +22,7 @@ const ELEVENLABS_API_KEY = 'sk_eb59e166d9d2e3b2f5744a71424e493d53f472efff8191a9'
 const PERPLEXITY_API_KEY = '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';
 
 const Index: React.FC = () => {
+  const [showSplash, setShowSplash] = useState(true);
   const [selectedLandmark, setSelectedLandmark] = useState<Landmark | null>(null);
   const [isTourPlannerOpen, setIsTourPlannerOpen] = useState(false);
   const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false);
@@ -128,6 +129,14 @@ const Index: React.FC = () => {
     }
     setIsFavoritesOpen(true);
   };
+
+  const handleSplashDismiss = () => {
+    setShowSplash(false);
+  };
+
+  if (showSplash) {
+    return <SplashScreen onDismiss={handleSplashDismiss} />;
+  }
 
   return (
     <div className="w-screen h-screen relative">
