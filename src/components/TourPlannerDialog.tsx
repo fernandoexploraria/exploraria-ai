@@ -11,7 +11,7 @@ interface TourPlannerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onGenerateTour: (destination: string) => Promise<void>;
-  onAuthRequired: () => void;
+  onAuthRequired: (destination: string) => void;
   isLoading: boolean;
 }
 
@@ -29,10 +29,9 @@ const TourPlannerDialog: React.FC<TourPlannerDialogProps> = ({
     if (!destination) return;
     
     if (!user) {
-      // Store the destination and close this dialog
-      setDestination(destination);
+      // Pass the destination to the auth handler
+      onAuthRequired(destination);
       onOpenChange(false);
-      onAuthRequired();
       return;
     }
 

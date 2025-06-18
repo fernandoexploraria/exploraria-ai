@@ -13,7 +13,7 @@ interface DialogManagerProps {
   isTourPlannerOpen: boolean;
   onTourPlannerOpenChange: (open: boolean) => void;
   onGenerateTour: (destination: string) => Promise<void>;
-  onTourAuthRequired: () => void;
+  onTourAuthRequired: (destination: string) => void;
   isTourLoading: boolean;
   
   // Voice Assistant

@@ -68,7 +68,8 @@ const Index: React.FC = () => {
     }, 1000);
   };
 
-  const handleTourAuthRequired = () => {
+  const handleTourAuthRequired = (destination: string) => {
+    setPendingDestination(destination);
     setIsAuthDialogOpen(true);
   };
 
