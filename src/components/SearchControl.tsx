@@ -33,17 +33,10 @@ const SearchControl: React.FC<SearchControlProps> = ({ landmarks, onSelectLandma
   }, [])
 
   const handleSelect = (landmark: Landmark) => {
-    // Only call onSelectLandmark to fly to the location
-    // The photo popup will be handled by clicking the marker on the map
-    onSelectLandmark(landmark)
+    // Create a special flag to indicate this is from search
+    const searchLandmark = { ...landmark, fromSearch: true };
+    onSelectLandmark(searchLandmark as any)
     setOpen(false)
-    
-    // Simulate a click on the map marker after a short delay to show the photo popup
-    setTimeout(() => {
-      const markerElements = document.querySelectorAll('.w-4.h-4.rounded-full');
-      // Find the marker that corresponds to this landmark (this is a simplified approach)
-      // The map component will handle showing the photo popup when the marker is clicked
-    }, 100);
   }
 
   const handleTopLandmarkSelect = (topLandmark: any) => {
@@ -55,8 +48,9 @@ const SearchControl: React.FC<SearchControlProps> = ({ landmarks, onSelectLandma
       description: topLandmark.description
     };
     
-    // Only call onSelectLandmark to fly to the location
-    onSelectLandmark(tempLandmark)
+    // Create a special flag to indicate this is from search
+    const searchLandmark = { ...tempLandmark, fromSearch: true };
+    onSelectLandmark(searchLandmark as any)
     setOpen(false)
   }
 

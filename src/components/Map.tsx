@@ -1,5 +1,3 @@
-
-
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -422,6 +420,9 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
   // Fly to selected landmark and update marker styles
   useEffect(() => {
     if (map.current && selectedLandmark) {
+      // Check if this selection came from search
+      const isFromSearch = (selectedLandmark as any).fromSearch;
+      
       map.current.flyTo({
         center: selectedLandmark.coordinates,
         zoom: 14,
@@ -429,6 +430,13 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
         curve: 1,
         easing: (t) => t,
       });
+
+      // If it's from search, don't show any popup - user must click marker
+      if (isFromSearch) {
+        // Clean the fromSearch flag for future use
+        delete (selectedLandmark as any).fromSearch;
+        return;
+      }
     }
 
     Object.entries(markers.current).forEach(([id, marker]) => {
@@ -478,4 +486,3 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
 };
 
 export default Map;
-
