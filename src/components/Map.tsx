@@ -4,6 +4,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { Volume2, VolumeX } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
+import { supabase } from '@/integrations/supabase/client';
 
 interface MapProps {
   mapboxToken: string;
@@ -123,7 +124,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     }
   };
 
-  // Function to fetch landmark image using Google Places API
+  // Function to fetch landmark image using Supabase edge function
   const fetchLandmarkImage = async (landmark: Landmark): Promise<string> => {
     const cacheKey = `${landmark.name}-${landmark.coordinates[0]}-${landmark.coordinates[1]}`;
     
@@ -133,44 +134,33 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     }
 
     try {
-      console.log('Fetching Google Places image for:', landmark.name);
+      console.log('Fetching image via edge function for:', landmark.name);
       
-      // Use the Text Search API to find the place
-      const textSearchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(landmark.name)}&location=${landmark.coordinates[1]},${landmark.coordinates[0]}&radius=1000&key=${GOOGLE_API_KEY}`;
-      
-      console.log('Making request to:', textSearchUrl);
-      
-      // Note: This will fail due to CORS in the browser
-      // We need to use a proxy or make this request from a backend
-      const response = await fetch(textSearchUrl);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('Google Places API response:', data);
-      
-      if (data.status === 'OK' && data.results.length > 0) {
-        const place = data.results[0];
-        
-        if (place.photos && place.photos.length > 0) {
-          const photoReference = place.photos[0].photo_reference;
-          const photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photoReference}&key=${GOOGLE_API_KEY}`;
-          
-          console.log('Found Google Places photo:', photoUrl);
-          imageCache.current[cacheKey] = photoUrl;
-          return photoUrl;
+      const { data, error } = await supabase.functions.invoke('fetch-landmark-image', {
+        body: { 
+          landmarkName: landmark.name,
+          coordinates: landmark.coordinates
         }
+      });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
       }
-      
-      throw new Error('No photos found in Google Places API response');
+
+      if (data && data.imageUrl) {
+        console.log('Received image URL for:', landmark.name, data.isFallback ? '(fallback)' : '(Google Places)');
+        imageCache.current[cacheKey] = data.imageUrl;
+        return data.imageUrl;
+      }
+
+      throw new Error('No image URL received from edge function');
       
     } catch (error) {
-      console.error('Error fetching Google Places image:', error);
+      console.error('Error fetching image for', landmark.name, error);
       
       // Fallback to a seeded placeholder image
-      console.log('Using fallback image for:', landmark.name);
+      console.log('Using local fallback image for:', landmark.name);
       const seed = landmark.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
       const fallbackUrl = `https://picsum.photos/seed/${seed}/400/300`;
       imageCache.current[cacheKey] = fallbackUrl;
