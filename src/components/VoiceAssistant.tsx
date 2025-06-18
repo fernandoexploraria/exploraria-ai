@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -53,7 +54,6 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
         recognitionRef.current.onstart = () => {
           console.log('Speech recognition started');
-          setDebugInfo('Speech recognition started');
         };
 
         recognitionRef.current.onresult = (event: any) => {
@@ -67,7 +67,6 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           if (finalTranscript) {
             console.log('Final transcript:', finalTranscript);
             setTranscript(finalTranscript);
-            setDebugInfo(`Recognized: ${finalTranscript}`);
             handleUserInput(finalTranscript);
           }
         };
@@ -75,13 +74,11 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         recognitionRef.current.onend = () => {
           console.log('Speech recognition ended');
           setIsListening(false);
-          setDebugInfo('Speech recognition ended');
         };
 
         recognitionRef.current.onerror = (event: any) => {
           console.error('Speech recognition error:', event.error);
           setIsListening(false);
-          setDebugInfo(`Error: ${event.error}`);
           toast({
             title: "Speech Recognition Error",
             description: `Error: ${event.error}. Please check your microphone permissions.`,
@@ -90,7 +87,6 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         };
       } catch (error) {
         console.error('Error setting up speech recognition:', error);
-        setDebugInfo(`Setup error: ${error}`);
       }
     }
 
@@ -212,9 +208,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const speakText = async (text: string) => {
     try {
       console.log('Speaking text:', text.substring(0, 50) + '...');
-      console.log('User has interacted:', hasUserInteracted);
       setIsSpeaking(true);
-      setDebugInfo('Speaking...');
       
       // Check ElevenLabs API key
       if (!elevenLabsApiKey || elevenLabsApiKey === 'YOUR_ELEVENLABS_API_KEY') {
@@ -227,12 +221,10 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         utterance.onend = () => {
           console.log('Speech synthesis ended');
           setIsSpeaking(false);
-          setDebugInfo('Finished speaking');
         };
         utterance.onerror = (error) => {
           console.error('Speech synthesis error:', error);
           setIsSpeaking(false);
-          setDebugInfo(`Speech error: ${error}`);
         };
         speechSynthesis.speak(utterance);
         return;
@@ -264,14 +256,12 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         audio.onended = () => {
           console.log('Audio playback ended');
           setIsSpeaking(false);
-          setDebugInfo('Finished speaking');
           URL.revokeObjectURL(audioUrl);
         };
         
         audio.onerror = (error) => {
           console.error('Audio playback error:', error);
           setIsSpeaking(false);
-          setDebugInfo(`Audio error: ${error}`);
           URL.revokeObjectURL(audioUrl);
         };
         
@@ -279,39 +269,33 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       } else {
         console.error('ElevenLabs API error:', response.status, await response.text());
         setIsSpeaking(false);
-        setDebugInfo('ElevenLabs API error - falling back to browser TTS');
         
         // Fallback to browser TTS
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.onend = () => {
           setIsSpeaking(false);
-          setDebugInfo('Finished speaking (fallback)');
         };
         speechSynthesis.speak(utterance);
       }
     } catch (error) {
       console.error('Error with text-to-speech:', error);
       setIsSpeaking(false);
-      setDebugInfo(`TTS error: ${error} - trying fallback`);
       
       // Fallback to browser TTS
       try {
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.onend = () => {
           setIsSpeaking(false);
-          setDebugInfo('Finished speaking (fallback)');
         };
         speechSynthesis.speak(utterance);
       } catch (fallbackError) {
         console.error('Fallback TTS also failed:', fallbackError);
-        setDebugInfo(`All TTS failed: ${fallbackError}`);
       }
     }
   };
 
   const handleUserInput = async (input: string) => {
     console.log('Processing user input:', input);
-    setDebugInfo('Processing your question...');
     
     if (!perplexityApiKey || perplexityApiKey.includes('YOUR_')) {
       const response = "I'm sorry, but I need a Perplexity API key to answer your questions.";
@@ -329,7 +313,6 @@ Available landmarks in their tour: ${landmarkNames}
 Please provide a helpful, conversational response about the destination or landmarks. Keep your response under 200 words and speak as if you're a friendly local guide. If they ask about a specific landmark, provide interesting facts and tips.`;
 
       console.log('Calling Perplexity API...');
-      setDebugInfo('Getting AI response...');
       
       const response = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
@@ -355,27 +338,23 @@ Please provide a helpful, conversational response about the destination or landm
         
         await speakText(aiResponse);
         await storeInteraction(input, aiResponse);
-        setDebugInfo('Response complete');
       } else {
         console.error('Perplexity API error:', response.status, await response.text());
         const errorResponse = "I'm sorry, I couldn't process your question right now. Please try again.";
         await speakText(errorResponse);
         await storeInteraction(input, errorResponse);
-        setDebugInfo('API error occurred');
       }
     } catch (error) {
       console.error('Error getting AI response:', error);
       const errorResponse = "I'm sorry, I encountered an error. Please try asking again.";
       await speakText(errorResponse);
       await storeInteraction(input, errorResponse);
-      setDebugInfo(`Error: ${error}`);
     }
   };
 
   const handleWelcomeClick = async () => {
     console.log('Welcome button clicked');
     setHasUserInteracted(true);
-    setDebugInfo('Welcome! Ready to help.');
     const welcomeMessage = `Welcome to your ${destination} tour! I'm your voice assistant. You can ask me about any of the landmarks we've planned for you. What would you like to know?`;
     await speakText(welcomeMessage);
   };
