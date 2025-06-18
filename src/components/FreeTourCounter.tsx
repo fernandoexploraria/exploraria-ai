@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Sparkles, Lock } from 'lucide-react';
 import { useTourStats } from '@/hooks/useTourStats';
 
@@ -18,29 +17,35 @@ const FreeTourCounter: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="flex flex-col gap-2">
       <Button
-        variant={hasReachedLimit ? "destructive" : "secondary"}
+        variant={hasReachedLimit ? "destructive" : "outline"}
         size="sm"
-        className="flex items-center gap-2 bg-white/90 backdrop-blur-sm shadow-lg"
+        className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full"
         disabled={hasReachedLimit}
       >
         {hasReachedLimit ? (
           <>
-            <Lock className="w-4 h-4" />
+            <Lock className="mr-1 h-3 w-3" />
             <span>Free tours used</span>
           </>
         ) : (
           <>
-            <Sparkles className="w-4 h-4" />
+            <Sparkles className="mr-1 h-3 w-3" />
             <span>{toursRemaining} free tours left</span>
           </>
         )}
       </Button>
       
-      <Badge variant="outline" className="text-xs bg-white/90 backdrop-blur-sm">
+      <Button
+        variant="outline"
+        size="sm"
+        className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full"
+        disabled
+      >
+        <Sparkles className="mr-1 h-3 w-3" />
         Subscribe for unlimited tours
-      </Badge>
+      </Button>
     </div>
   );
 };

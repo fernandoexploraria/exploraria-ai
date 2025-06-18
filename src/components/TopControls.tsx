@@ -46,8 +46,6 @@ const TopControls: React.FC<TopControlsProps> = ({
           <SearchControl landmarks={allLandmarks} onSelectLandmark={onSelectLandmark} />
         </div>
         
-        {user && <FreeTourCounter />}
-        
         <div className="flex flex-col gap-1 w-fit">
           <Button
             variant="outline"
@@ -91,6 +89,8 @@ const TopControls: React.FC<TopControlsProps> = ({
               Voice Guide
             </Button>
           )}
+          
+          {user && <FreeTourCounter />}
         </div>
       </div>
 
@@ -102,8 +102,6 @@ const TopControls: React.FC<TopControlsProps> = ({
           className="h-20 w-auto bg-yellow-400 rounded-lg p-1"
         />
         <SearchControl landmarks={allLandmarks} onSelectLandmark={onSelectLandmark} />
-        
-        {user && <FreeTourCounter />}
         
         <Button
           variant="outline"
@@ -131,6 +129,7 @@ const TopControls: React.FC<TopControlsProps> = ({
               <Search className="mr-2 h-4 w-4" />
               Search Conversations
             </Button>
+            <FreeTourCounter />
           </>
         )}
         {plannedLandmarks.length > 0 && (
