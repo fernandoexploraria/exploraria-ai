@@ -1,5 +1,6 @@
+
 import React, { useState, useRef, useEffect } from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Mic, MicOff, Volume2 } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
@@ -26,6 +27,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const recognitionRef = useRef<any>(null);
   const { toast } = useToast();
 
@@ -54,11 +56,15 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         setIsListening(false);
       };
 
-      // Start with a welcome message
-      setTimeout(() => {
-        const welcomeMessage = `Welcome to your ${destination} tour! I'm your voice assistant. You can ask me about any of the landmarks we've planned for you. What would you like to know?`;
-        speakText(welcomeMessage);
-      }, 500);
+      recognitionRef.current.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+        toast({
+          title: "Speech Recognition Error",
+          description: "Please check your microphone permissions and try again.",
+          variant: "destructive"
+        });
+      };
     }
 
     return () => {
@@ -142,9 +148,6 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
       if (error) {
         console.error('Error storing voice interaction:', error);
-        console.error('Error details:', JSON.stringify(error, null, 2));
-        
-        // Show user-friendly error message
         toast({
           title: "Storage Error",
           description: "Couldn't save conversation. Please try again.",
@@ -165,8 +168,19 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
   const startListening = () => {
     if (recognitionRef.current && !isSpeaking) {
-      setIsListening(true);
-      recognitionRef.current.start();
+      try {
+        setIsListening(true);
+        setHasUserInteracted(true);
+        recognitionRef.current.start();
+      } catch (error) {
+        console.error('Error starting speech recognition:', error);
+        setIsListening(false);
+        toast({
+          title: "Microphone Error",
+          description: "Please allow microphone access and try again.",
+          variant: "destructive"
+        });
+      }
     }
   };
 
@@ -178,18 +192,29 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   };
 
   const speakText = async (text: string) => {
-    if (!elevenLabsApiKey || elevenLabsApiKey === 'YOUR_ELEVENLABS_API_KEY') {
-      // Fallback to browser speech synthesis
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
-      speechSynthesis.speak(utterance);
-      return;
-    }
-
     try {
       setIsSpeaking(true);
       
+      // Only attempt audio playback if user has interacted with the page
+      if (!hasUserInteracted) {
+        console.log('User has not interacted yet, skipping audio playback');
+        setIsSpeaking(false);
+        return;
+      }
+
+      if (!elevenLabsApiKey || elevenLabsApiKey === 'YOUR_ELEVENLABS_API_KEY') {
+        // Fallback to browser speech synthesis
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.onstart = () => setIsSpeaking(true);
+        utterance.onend = () => setIsSpeaking(false);
+        utterance.onerror = (error) => {
+          console.error('Speech synthesis error:', error);
+          setIsSpeaking(false);
+        };
+        speechSynthesis.speak(utterance);
+        return;
+      }
+
       const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM`, {
         method: 'POST',
         headers: {
@@ -217,8 +242,21 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           URL.revokeObjectURL(audioUrl);
         };
         
-        await audio.play();
+        audio.onerror = (error) => {
+          console.error('Audio playback error:', error);
+          setIsSpeaking(false);
+          URL.revokeObjectURL(audioUrl);
+        };
+        
+        // Only play if user has interacted
+        if (hasUserInteracted) {
+          await audio.play();
+        } else {
+          setIsSpeaking(false);
+          URL.revokeObjectURL(audioUrl);
+        }
       } else {
+        console.error('ElevenLabs API error:', response.status, await response.text());
         setIsSpeaking(false);
       }
     } catch (error) {
@@ -270,9 +308,6 @@ Please provide a helpful, conversational response about the destination or landm
         console.log('Got AI response:', aiResponse);
         
         speakText(aiResponse);
-        
-        // Store the interaction in the vector database
-        console.log('Storing interaction...');
         await storeInteraction(input, aiResponse);
       } else {
         console.error('Perplexity API error:', response.status, await response.text());
@@ -288,17 +323,23 @@ Please provide a helpful, conversational response about the destination or landm
     }
   };
 
+  const handleWelcomeClick = () => {
+    setHasUserInteracted(true);
+    const welcomeMessage = `Welcome to your ${destination} tour! I'm your voice assistant. You can ask me about any of the landmarks we've planned for you. What would you like to know?`;
+    speakText(welcomeMessage);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Voice Tour Guide</DialogTitle>
+          <DialogDescription>
+            Ask me anything about your {destination} tour! Click the welcome button first, then use the microphone to speak.
+          </DialogDescription>
+        </DialogHeader>
+        
         <div className="flex flex-col items-center space-y-6 py-8">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold mb-2">Voice Tour Guide</h2>
-            <p className="text-sm text-muted-foreground">
-              Ask me anything about your {destination} tour!
-            </p>
-          </div>
-
           <div className="flex flex-col items-center space-y-4">
             {/* Visual indicator */}
             <div className={`w-32 h-32 rounded-full border-4 flex items-center justify-center transition-colors ${
@@ -317,15 +358,26 @@ Please provide a helpful, conversational response about the destination or landm
             <p className="text-center text-sm font-medium">
               {isSpeaking ? 'Speaking...' : 
                isListening ? 'Listening...' : 
-               'Tap to speak'}
+               hasUserInteracted ? 'Tap to speak' : 'Click welcome first'}
             </p>
+
+            {/* Welcome button (only show if user hasn't interacted) */}
+            {!hasUserInteracted && (
+              <Button
+                onClick={handleWelcomeClick}
+                className="mb-2"
+                variant="outline"
+              >
+                Start Tour Guide
+              </Button>
+            )}
 
             {/* Microphone button */}
             <Button
               size="lg"
               variant={isListening ? "destructive" : "default"}
               onClick={isListening ? stopListening : startListening}
-              disabled={isSpeaking}
+              disabled={isSpeaking || !hasUserInteracted}
               className="rounded-full w-16 h-16"
             >
               {isListening ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
@@ -342,7 +394,10 @@ Please provide a helpful, conversational response about the destination or landm
 
           <div className="text-center">
             <p className="text-xs text-muted-foreground">
-              Press and hold the microphone to ask questions about your tour
+              {hasUserInteracted 
+                ? "Press and hold the microphone to ask questions about your tour"
+                : "Click 'Start Tour Guide' to begin your interactive tour experience"
+              }
             </p>
           </div>
         </div>
