@@ -74,12 +74,23 @@ export const useTourStats = () => {
 
   // Set up real-time subscription to tour stats changes
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setTourStats(null);
+      setIsLoading(false);
+      return;
+    }
 
     console.log('Setting up tour stats subscription for user:', user.id);
     
     // Create a unique channel name to avoid conflicts
-    const channelName = `tour-stats-${user.id}-${Date.now()}`;
+    const channelName = `tour-stats-${user.id}`;
+    
+    // Remove any existing channel first to prevent duplicate subscriptions
+    const existingChannel = supabase.getChannels().find(ch => ch.topic === channelName);
+    if (existingChannel) {
+      console.log('Removing existing channel before creating new one');
+      supabase.removeChannel(existingChannel);
+    }
     
     const channel = supabase
       .channel(channelName)
@@ -101,16 +112,16 @@ export const useTourStats = () => {
       )
       .subscribe((status) => {
         console.log('Tour stats subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          // Only fetch initial data after successful subscription
+          fetchTourStats();
+        }
       });
 
     return () => {
       console.log('Cleaning up tour stats subscription');
       supabase.removeChannel(channel);
     };
-  }, [user?.id]);
-
-  useEffect(() => {
-    fetchTourStats();
   }, [user?.id]);
 
   // Force refresh function that can be called externally
