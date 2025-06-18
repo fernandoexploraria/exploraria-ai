@@ -57,27 +57,52 @@ export const useTextToSpeech = (elevenLabsApiKey: string, audioContextInitialize
         const audio = new Audio(audioUrl);
         currentAudioRef.current = audio;
         
-        // iOS-specific audio handling
+        // iOS-specific audio setup - must be done before play()
         audio.preload = 'auto';
-        
-        // Set additional properties for iOS compatibility
         audio.muted = false;
         audio.volume = 1.0;
         
-        // For iOS, we need to ensure the audio context is resumed
-        if (audioContextInitialized && window.AudioContext) {
+        // Critical for iOS: Set these properties immediately
+        audio.setAttribute('playsinline', 'true');
+        audio.setAttribute('webkit-playsinline', 'true');
+        
+        // For iOS Safari, we need to ensure audio context is active
+        if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+          console.log('iOS detected, managing audio context...');
+          
           try {
-            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-            if (audioContext.state === 'suspended') {
-              await audioContext.resume();
+            // Create or get existing audio context
+            const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+            if (AudioContext) {
+              const audioContext = new AudioContext();
+              
+              // Resume if suspended
+              if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+                console.log('Audio context resumed for iOS');
+              }
+              
+              // Connect audio element to context (iOS requirement)
+              const source = audioContext.createMediaElementSource(audio);
+              source.connect(audioContext.destination);
             }
           } catch (contextError) {
-            console.log('Audio context handling failed, continuing without it:', contextError);
+            console.log('Audio context setup failed, trying direct play:', contextError);
           }
         }
         
-        audio.onplay = () => setIsSpeaking(true);
+        // Set up event handlers before attempting to play
+        audio.oncanplaythrough = () => {
+          console.log('Audio can play through');
+        };
+        
+        audio.onplay = () => {
+          console.log('Audio started playing');
+          setIsSpeaking(true);
+        };
+        
         audio.onended = () => {
+          console.log('Audio ended');
           setIsSpeaking(false);
           URL.revokeObjectURL(audioUrl);
           currentAudioRef.current = null;
@@ -90,27 +115,56 @@ export const useTextToSpeech = (elevenLabsApiKey: string, audioContextInitialize
           currentAudioRef.current = null;
           
           // Fallback to browser TTS
+          console.log('Falling back to browser TTS');
           const utterance = new SpeechSynthesisUtterance(text);
           utterance.onend = () => setIsSpeaking(false);
           speechSynthesis.speak(utterance);
         };
         
+        // Load the audio first
+        audio.load();
+        
+        // For iOS, we need to play immediately after user interaction
         try {
-          // For iOS, we need to play immediately after user interaction
+          console.log('Attempting to play audio...');
           const playPromise = audio.play();
           
           if (playPromise !== undefined) {
             await playPromise;
+            console.log('Audio play promise resolved');
           }
         } catch (playError) {
-          console.error('Error playing audio, falling back to browser TTS:', playError);
-          setIsSpeaking(false);
-          URL.revokeObjectURL(audioUrl);
-          currentAudioRef.current = null;
+          console.error('Error playing audio:', playError);
           
-          const utterance = new SpeechSynthesisUtterance(text);
-          utterance.onend = () => setIsSpeaking(false);
-          speechSynthesis.speak(utterance);
+          // For iOS, try one more time with a slight delay
+          if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+            console.log('iOS play failed, trying with delay...');
+            setTimeout(async () => {
+              try {
+                await audio.play();
+                console.log('iOS delayed play successful');
+              } catch (delayedError) {
+                console.error('iOS delayed play also failed:', delayedError);
+                // Final fallback to browser TTS
+                setIsSpeaking(false);
+                URL.revokeObjectURL(audioUrl);
+                currentAudioRef.current = null;
+                
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.onend = () => setIsSpeaking(false);
+                speechSynthesis.speak(utterance);
+              }
+            }, 100);
+          } else {
+            // Non-iOS fallback
+            setIsSpeaking(false);
+            URL.revokeObjectURL(audioUrl);
+            currentAudioRef.current = null;
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.onend = () => setIsSpeaking(false);
+            speechSynthesis.speak(utterance);
+          }
         }
       } else {
         console.error('ElevenLabs API error:', response.status, await response.text());
