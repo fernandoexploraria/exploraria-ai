@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import Map from '@/components/Map';
 import InfoPanel from '@/components/InfoPanel';
@@ -20,6 +21,8 @@ const ELEVENLABS_API_KEY = 'sk_eb59e166d9d2e3b2f5744a71424e493d53f472efff8191a9'
 
 // Your Perplexity API key.
 const PERPLEXITY_API_KEY = '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';
+
+const PENDING_DESTINATION_KEY = 'pendingTourDestination';
 
 const Index: React.FC = () => {
   const [showSplash, setShowSplash] = useState(true);
@@ -47,12 +50,20 @@ const Index: React.FC = () => {
 
   // Handle post-authentication tour generation
   useEffect(() => {
-    if (user && pendingDestination && !isTourLoading) {
-      console.log('User signed in with pending destination:', pendingDestination);
-      // Automatically generate tour and open tour planner
-      setIsTourPlannerOpen(true);
-      handleGenerateTour(pendingDestination);
-      setPendingDestination('');
+    if (user && !isTourLoading) {
+      // Check both state and localStorage for pending destination
+      const storedDestination = localStorage.getItem(PENDING_DESTINATION_KEY);
+      const destinationToUse = pendingDestination || storedDestination;
+      
+      if (destinationToUse) {
+        console.log('User signed in with pending destination:', destinationToUse);
+        // Clear from localStorage
+        localStorage.removeItem(PENDING_DESTINATION_KEY);
+        // Automatically generate tour and open tour planner
+        setIsTourPlannerOpen(true);
+        handleGenerateTour(destinationToUse);
+        setPendingDestination('');
+      }
     }
   }, [user, pendingDestination, isTourLoading]);
 
@@ -81,7 +92,9 @@ const Index: React.FC = () => {
 
   const handleTourAuthRequired = (destination: string) => {
     console.log('Auth required for destination:', destination);
+    // Store in both state and localStorage for OAuth persistence
     setPendingDestination(destination);
+    localStorage.setItem(PENDING_DESTINATION_KEY, destination);
     setIsAuthDialogOpen(true);
   };
 
