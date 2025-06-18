@@ -18,7 +18,7 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
       {user ? (
         <>
           <TourCounter />
-          <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg border border-input">
+          <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm rounded-md px-3 py-2 shadow-lg border border-input h-10">
             <Avatar className="w-6 h-6">
               <AvatarFallback className="text-xs">
                 {user.email?.charAt(0).toUpperCase()}
@@ -41,7 +41,7 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
         <Button
           onClick={onAuthDialogOpen}
           variant="outline"
-          size="sm"
+          size="default"
           className="bg-background/80 backdrop-blur-sm shadow-lg border border-input text-foreground hover:bg-accent hover:text-accent-foreground"
         >
           <User className="w-4 h-4 mr-2" />
