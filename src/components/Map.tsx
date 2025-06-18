@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -233,7 +234,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
           hoverPopup.remove();
         });
 
-        // Create click popup with image and listen button
+        // Create click popup with image and listen button only
         marker.getElement().addEventListener('click', async (e) => {
           e.stopPropagation(); // Prevent map click event
           onSelectLandmark(landmark);
