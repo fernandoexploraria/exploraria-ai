@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Landmark } from "@/data/landmarks";
 import { landmarks } from "@/data/landmarks";
@@ -20,6 +21,8 @@ const Index = () => {
   const [voiceSearchOpen, setVoiceSearchOpen] = useState(false);
   const [perplexityApiKey, setPerplexityApiKey] = useState(process.env.NEXT_PUBLIC_PERPLEXITY_API_KEY || 'YOUR_PERPLEXITY_API_KEY');
   const [elevenLabsApiKey, setElevenLabsApiKey] = useState(process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY || 'YOUR_ELEVENLABS_API_KEY');
+  const [mapboxToken, setMapboxToken] = useState(process.env.NEXT_PUBLIC_MAPBOX_TOKEN || 'YOUR_MAPBOX_TOKEN');
+  const [isGeneratingTour, setIsGeneratingTour] = useState(false);
   const { toast } = useToast();
 
   const addLandmarkToTour = (landmark: Landmark) => {
@@ -36,6 +39,26 @@ const Index = () => {
       title: "Landmark Removed",
       description: `${landmarkToRemove.name} removed from your tour.`,
     });
+  };
+
+  const handleGenerateTour = async (tourDestination: string) => {
+    setIsGeneratingTour(true);
+    try {
+      // Placeholder for tour generation logic
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
+      toast({
+        title: "Tour Generated",
+        description: `Tour for ${tourDestination} has been generated.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate tour.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingTour(false);
+    }
   };
 
   const [showInteractionsTable, setShowInteractionsTable] = useState(false);
@@ -84,32 +107,28 @@ const Index = () => {
       <div className="flex-1 flex">
         <div className="flex-1">
           <Map
+            mapboxToken={mapboxToken}
             landmarks={landmarks}
+            onSelectLandmark={setSelectedLandmark}
             selectedLandmark={selectedLandmark}
-            onLandmarkSelect={setSelectedLandmark}
-            tourLandmarks={tourLandmarks}
-            destination={destination}
+            plannedLandmarks={tourLandmarks}
           />
         </div>
-        <div className="w-80 border-l border-gray-200">
+        
+        {selectedLandmark && (
           <InfoPanel
-            selectedLandmark={selectedLandmark}
-            tourLandmarks={tourLandmarks}
-            onAddToTour={addLandmarkToTour}
-            onRemoveFromTour={removeLandmarkFromTour}
-            destination={destination}
-            onDestinationChange={setDestination}
-            onPlanTour={() => setTourPlannerOpen(true)}
+            landmark={selectedLandmark}
+            onClose={() => setSelectedLandmark(null)}
+            elevenLabsApiKey={elevenLabsApiKey}
           />
-        </div>
+        )}
       </div>
 
       <TourPlannerDialog
         open={tourPlannerOpen}
         onOpenChange={setTourPlannerOpen}
-        destination={destination}
-        landmarks={tourLandmarks}
-        onRemoveLandmark={removeLandmarkFromTour}
+        onGenerateTour={handleGenerateTour}
+        isLoading={isGeneratingTour}
       />
 
       <VoiceAssistant
