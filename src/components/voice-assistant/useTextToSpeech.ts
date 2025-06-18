@@ -57,7 +57,24 @@ export const useTextToSpeech = (elevenLabsApiKey: string, audioContextInitialize
         const audio = new Audio(audioUrl);
         currentAudioRef.current = audio;
         
+        // iOS-specific audio handling
         audio.preload = 'auto';
+        
+        // Set additional properties for iOS compatibility
+        audio.muted = false;
+        audio.volume = 1.0;
+        
+        // For iOS, we need to ensure the audio context is resumed
+        if (audioContextInitialized && window.AudioContext) {
+          try {
+            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            if (audioContext.state === 'suspended') {
+              await audioContext.resume();
+            }
+          } catch (contextError) {
+            console.log('Audio context handling failed, continuing without it:', contextError);
+          }
+        }
         
         audio.onplay = () => setIsSpeaking(true);
         audio.onended = () => {
@@ -79,7 +96,12 @@ export const useTextToSpeech = (elevenLabsApiKey: string, audioContextInitialize
         };
         
         try {
-          await audio.play();
+          // For iOS, we need to play immediately after user interaction
+          const playPromise = audio.play();
+          
+          if (playPromise !== undefined) {
+            await playPromise;
+          }
         } catch (playError) {
           console.error('Error playing audio, falling back to browser TTS:', playError);
           setIsSpeaking(false);
@@ -110,7 +132,7 @@ export const useTextToSpeech = (elevenLabsApiKey: string, audioContextInitialize
         console.error('Fallback TTS also failed:', fallbackError);
       }
     }
-  }, [elevenLabsApiKey]);
+  }, [elevenLabsApiKey, audioContextInitialized]);
 
   const cleanup = useCallback(() => {
     if (currentAudioRef.current) {
