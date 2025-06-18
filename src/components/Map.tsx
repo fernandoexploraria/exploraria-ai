@@ -1,4 +1,5 @@
 
+
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -19,7 +20,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<{ [key: string]: mapboxgl.Marker }>({});
   const imageCache = useRef<{ [key: string]: string }>({});
-  const popups = useRef<{ [key: string]: mapboxgl.Popup }>({});
+  const photoPopups = useRef<{ [key: string]: mapboxgl.Popup }>({});
   const [playingAudio, setPlayingAudio] = useState<{ [key: string]: boolean }>({});
 
   // Convert top landmarks to Landmark format
@@ -58,11 +59,11 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       const isMarkerClick = clickedElement.closest('.w-4.h-4.rounded-full');
       
       if (!isMarkerClick) {
-        // Close all popups
-        Object.values(popups.current).forEach(popup => {
+        // Close all photo popups
+        Object.values(photoPopups.current).forEach(popup => {
           popup.remove();
         });
-        popups.current = {};
+        photoPopups.current = {};
         
         // Also close any Mapbox popups that might be open
         const mapboxPopups = document.querySelectorAll('.mapboxgl-popup');
@@ -105,7 +106,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     }
   };
 
-  // Function to fetch landmark image with better search strategy
+  // Function to fetch landmark image
   const fetchLandmarkImage = async (landmarkName: string): Promise<string> => {
     if (imageCache.current[landmarkName]) {
       return imageCache.current[landmarkName];
@@ -146,13 +147,11 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
         }
       }
       
-      // If all Unsplash attempts fail, use a more specific fallback
-      // Create a seed based on landmark name for consistent images
+      // Fallback to a seeded image
       const seed = landmarkName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
       const fallbackUrl = `https://picsum.photos/seed/${seed}/400/300`;
       console.log('Using fallback image:', fallbackUrl);
       
-      // Test if fallback loads
       const img = new Image();
       img.crossOrigin = 'anonymous';
       
@@ -162,7 +161,6 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
           resolve(fallbackUrl);
         };
         img.onerror = () => {
-          // Final fallback - architecture/landmark themed image
           const finalFallback = `https://picsum.photos/400/300?random=${Math.abs(seed.split('').reduce((a, b) => a + b.charCodeAt(0), 0))}`;
           imageCache.current[landmarkName] = finalFallback;
           console.log('Using final fallback:', finalFallback);
@@ -173,7 +171,6 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       
     } catch (error) {
       console.error('Error fetching landmark image:', error);
-      // Final fallback with consistent seeding
       const seed = landmarkName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
       const fallbackUrl = `https://picsum.photos/seed/${seed}/400/300`;
       imageCache.current[landmarkName] = fallbackUrl;
@@ -192,9 +189,9 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       if (!landmarkIds.has(markerId)) {
         markers.current[markerId].remove();
         delete markers.current[markerId];
-        if (popups.current[markerId]) {
-          popups.current[markerId].remove();
-          delete popups.current[markerId];
+        if (photoPopups.current[markerId]) {
+          photoPopups.current[markerId].remove();
+          delete photoPopups.current[markerId];
         }
       }
     });
@@ -215,7 +212,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
           .setLngLat(landmark.coordinates)
           .addTo(map.current!);
 
-        // Create hover popup
+        // Create hover popup (just for name)
         const hoverPopup = new mapboxgl.Popup({
           closeButton: false,
           closeOnClick: false,
@@ -237,15 +234,14 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
         // Create click popup with image and listen button only
         marker.getElement().addEventListener('click', async (e) => {
           e.stopPropagation(); // Prevent map click event
-          onSelectLandmark(landmark);
           
-          // Remove existing popup for this landmark
-          if (popups.current[landmark.id]) {
-            popups.current[landmark.id].remove();
+          // Remove existing photo popup for this landmark
+          if (photoPopups.current[landmark.id]) {
+            photoPopups.current[landmark.id].remove();
           }
           
-          // Create new popup with image and listen button
-          const clickPopup = new mapboxgl.Popup({
+          // Create new photo popup with image and listen button
+          const photoPopup = new mapboxgl.Popup({
             closeButton: true,
             closeOnClick: false,
             offset: 25,
@@ -254,7 +250,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
           });
 
           // Initial popup with loading state
-          clickPopup
+          photoPopup
             .setLngLat(landmark.coordinates)
             .setHTML(`
               <div style="text-align: center; padding: 10px; position: relative;">
@@ -283,11 +279,11 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
             `)
             .addTo(map.current!);
 
-          popups.current[landmark.id] = clickPopup;
+          photoPopups.current[landmark.id] = photoPopup;
 
           // Handle popup close event
-          clickPopup.on('close', () => {
-            delete popups.current[landmark.id];
+          photoPopup.on('close', () => {
+            delete photoPopups.current[landmark.id];
           });
 
           // Fetch and display image with listen button
@@ -295,7 +291,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
             const imageUrl = await fetchLandmarkImage(landmark.name);
             const isPlaying = playingAudio[landmark.id] || false;
             
-            clickPopup.setHTML(`
+            photoPopup.setHTML(`
               <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
                 <button class="custom-close-btn" onclick="this.closest('.mapboxgl-popup').remove()" style="
                   position: absolute;
@@ -344,7 +340,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
                     onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'"
                     ${isPlaying ? 'disabled' : ''}
                   >
-                    ${isPlaying ? '🔊' : '🔊'}
+                    🔊
                   </button>
                 </div>
               </div>
@@ -362,7 +358,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
 
           } catch (error) {
             console.error('Failed to load image for', landmark.name, error);
-            clickPopup.setHTML(`
+            photoPopup.setHTML(`
               <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
                 <button class="custom-close-btn" onclick="this.closest('.mapboxgl-popup').remove()" style="
                   position: absolute;
@@ -421,7 +417,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       }
     });
 
-  }, [allLandmarksWithTop, onSelectLandmark, playingAudio]);
+  }, [allLandmarksWithTop, playingAudio]);
 
   // Fly to selected landmark and update marker styles
   useEffect(() => {
@@ -482,3 +478,4 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
 };
 
 export default Map;
+
