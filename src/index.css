@@ -60,11 +60,32 @@
     color: inherit;
   }
   
-  /* Fix any orange theme issues on mobile */
+  /* Fix mobile header background color */
   @media (max-width: 768px) {
     .mobile-header {
       background: hsl(var(--background)) !important;
       color: hsl(var(--foreground)) !important;
+    }
+    
+    /* Force mobile browser chrome to use our background color */
+    html {
+      background-color: hsl(var(--background)) !important;
+    }
+    
+    body {
+      background-color: hsl(var(--background)) !important;
+    }
+    
+    /* Override any iOS Safari specific styling */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: env(safe-area-inset-top, 0px);
+      background-color: hsl(var(--background));
+      z-index: 9999;
     }
   }
 }
@@ -73,4 +94,5 @@
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+  background-color: hsl(var(--background));
 }
