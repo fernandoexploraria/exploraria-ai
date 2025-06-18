@@ -3,15 +3,29 @@ import { useState } from 'react';
 import { Landmark } from '@/data/landmarks';
 import { toast } from "sonner";
 import { supabase } from '@/integrations/supabase/client';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useTourStats } from '@/hooks/useTourStats';
 
 export const useTourPlanner = () => {
   const [plannedLandmarks, setPlannedLandmarks] = useState<Landmark[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { subscriptionData } = useSubscription();
+  const { tourStats } = useTourStats();
 
   const generateTour = async (destination: string, apiKey: string) => {
     if (!apiKey) {
       toast.error("Please provide a Perplexity API key.");
+      return;
+    }
+
+    // Check if user is subscribed or within free tour limit
+    const FREE_TOUR_LIMIT = 10;
+    const toursUsed = tourStats?.tour_count || 0;
+    const isSubscribed = subscriptionData?.subscribed || false;
+    
+    if (!isSubscribed && toursUsed >= FREE_TOUR_LIMIT) {
+      toast.error("You've reached your free tour limit. Please subscribe to generate more tours.");
       return;
     }
     
