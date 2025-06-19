@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Landmark } from '@/data/landmarks';
@@ -72,10 +73,20 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     }
 
     return () => {
+      console.log('VoiceAssistant cleanup');
       cleanupRecognition();
       cleanupTTS();
     };
   }, [open, isSpeechRecognitionSupported, setupRecognition, cleanupRecognition, cleanupTTS]);
+
+  // Reset state when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setHasUserInteracted(false);
+      cleanupTTS();
+      cleanupRecognition();
+    }
+  }, [open, cleanupTTS, cleanupRecognition]);
 
   const storeInteraction = async (userInput: string, assistantResponse: string) => {
     try {
@@ -210,7 +221,13 @@ Please provide a helpful, conversational response about the destination or landm
     
     const welcomeMessage = `Welcome to your ${destination} tour! I'm your voice assistant. You can ask me about any of the landmarks we've planned for you. What would you like to know?`;
     console.log('Playing welcome message:', welcomeMessage);
-    await speakText(welcomeMessage);
+    
+    try {
+      await speakText(welcomeMessage);
+      console.log('Welcome message completed');
+    } catch (error) {
+      console.error('Error playing welcome message:', error);
+    }
   };
 
   const handleAuthSuccess = () => {
