@@ -12,9 +12,6 @@ import DialogManager from '@/components/DialogManager';
 // You can get one from your Mapbox account: https://www.mapbox.com/
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiZm9icmVnb25hIiwiYSI6ImNtMGlnYzFlYTBtYnUybG9tMGRuczNoMzkifQ.n_n-sCR4Zm-dCV5ijeXiDg';
 
-// I will replace this with your key once you provide it.
-const ELEVENLABS_API_KEY = 'sk_eb59e166d9d2e3b2f5744a71424e493d53f472efff8191a9';
-
 // Your Perplexity API key.
 const PERPLEXITY_API_KEY = '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';
 
@@ -171,7 +168,7 @@ const Index: React.FC = () => {
         currentDestination={currentDestination}
         plannedLandmarks={plannedLandmarks}
         perplexityApiKey={PERPLEXITY_API_KEY}
-        elevenLabsApiKey={ELEVENLABS_API_KEY}
+        elevenLabsApiKey=""
         isVoiceSearchOpen={isVoiceSearchOpen}
         onVoiceSearchOpenChange={setIsVoiceSearchOpen}
         isFavoritesOpen={isFavoritesOpen}
