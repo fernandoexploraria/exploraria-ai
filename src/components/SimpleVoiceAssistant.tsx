@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Mic, MicOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface SimpleVoiceAssistantProps {
   open: boolean;
@@ -33,8 +34,28 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
     try {
       console.log('Connecting to OpenAI Realtime API via Supabase...');
       
-      // Fixed URL format for Supabase edge functions
-      const ws = new WebSocket(`wss://ejqgdmbuabrcjxbhpxup.supabase.co/functions/v1/openai-realtime`);
+      // Get the session to include auth headers
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      
+      if (!token) {
+        toast({
+          title: "Authentication Required",
+          description: "Please sign in to use the voice assistant",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Create WebSocket connection with auth
+      const wsUrl = `wss://ejqgdmbuabrcjxbhpxup.supabase.co/functions/v1/openai-realtime`;
+      console.log('Connecting to:', wsUrl);
+      
+      const ws = new WebSocket(wsUrl, [], {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        }
+      });
 
       ws.onopen = () => {
         console.log('Connected to OpenAI Realtime API');
@@ -67,8 +88,8 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
         });
       };
 
-      ws.onclose = () => {
-        console.log('WebSocket closed');
+      ws.onclose = (event) => {
+        console.log('WebSocket closed:', event.code, event.reason);
         setIsConnected(false);
         setIsListening(false);
         setIsSpeaking(false);
