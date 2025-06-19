@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -207,6 +208,7 @@ Keep your main response conversational and under 200 words, then add the JSON su
       
       if (!aiResponse) {
         const errorResponse = "I'm sorry, I couldn't process your question right now. Please try again.";
+        console.log('Speaking error response:', errorResponse);
         await speakText(errorResponse);
         await storeInteraction(input, errorResponse);
         return;
@@ -221,9 +223,19 @@ Keep your main response conversational and under 200 words, then add the JSON su
         setShowSuggestions(true);
       }
       
-      // Clean response for speech (remove JSON part)
-      const cleanResponse = aiResponse.replace(/\[[\s\S]*?\]/, '').trim();
+      // Clean response for speech (remove JSON part if present)
+      let cleanResponse = aiResponse;
+      const jsonMatch = aiResponse.match(/\[[\s\S]*?\]/);
+      if (jsonMatch) {
+        cleanResponse = aiResponse.replace(/\[[\s\S]*?\]/, '').trim();
+      }
       
+      // Ensure we have content to speak
+      if (!cleanResponse || cleanResponse.length === 0) {
+        cleanResponse = aiResponse; // Use the full response if cleaning resulted in empty content
+      }
+      
+      console.log('Speaking AI response:', cleanResponse.substring(0, 100) + '...');
       await speakText(cleanResponse);
       await storeInteraction(input, aiResponse);
       
@@ -231,12 +243,14 @@ Keep your main response conversational and under 200 words, then add the JSON su
       if (suggestions.length > 0) {
         setTimeout(async () => {
           const addQuestion = `I found ${suggestions.length} additional interesting spots. Would you like me to add them to your map?`;
+          console.log('Speaking suggestion question:', addQuestion);
           await speakText(addQuestion);
         }, 1000);
       }
     } catch (error) {
       console.error('Error getting AI response:', error);
       const errorResponse = "I'm sorry, I encountered an error. Please try asking again.";
+      console.log('Speaking error response:', errorResponse);
       await speakText(errorResponse);
       await storeInteraction(input, errorResponse);
     }
