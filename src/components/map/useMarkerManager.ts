@@ -60,6 +60,24 @@ export const useMarkerManager = ({ map, landmarks, selectedLandmark, onMarkerCli
       }
     });
 
+    // Force map refresh after markers are added
+    if (landmarks.length > 0) {
+      console.log('Triggering map refresh to display markers');
+      
+      // Use requestAnimationFrame to ensure DOM updates are complete
+      requestAnimationFrame(() => {
+        if (map) {
+          // Trigger a repaint by slightly adjusting the map
+          map.triggerRepaint();
+          
+          // Also force a resize event which can help with marker visibility
+          map.resize();
+          
+          console.log('Map refresh completed');
+        }
+      });
+    }
+
     isInitialized.current = true;
     console.log('Markers initialization complete');
 
