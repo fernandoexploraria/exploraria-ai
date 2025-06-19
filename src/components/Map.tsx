@@ -5,6 +5,7 @@ import { Volume2, VolumeX } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { supabase } from '@/integrations/supabase/client';
+import { useGoogleTextToSpeech } from './voice-assistant/useGoogleTextToSpeech';
 
 interface MapProps {
   mapboxToken: string;
@@ -26,6 +27,9 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
   const [playingAudio, setPlayingAudio] = useState<{ [key: string]: boolean }>({});
   const pendingPopupLandmark = useRef<Landmark | null>(null);
   const isZooming = useRef<boolean>(false);
+
+  // Use Google Cloud TTS hook
+  const { isSpeaking, speakText } = useGoogleTextToSpeech();
 
   // Convert top landmarks to Landmark format
   const allLandmarksWithTop = React.useMemo(() => {
@@ -97,29 +101,21 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     };
   }, [mapboxToken]);
 
-  // Function to handle text-to-speech
+  // Function to handle text-to-speech using Google Cloud TTS
   const handleTextToSpeech = async (landmark: Landmark) => {
     const landmarkId = landmark.id;
     
-    if (playingAudio[landmarkId]) {
+    if (playingAudio[landmarkId] || isSpeaking) {
       return; // Already playing
     }
 
     try {
       setPlayingAudio(prev => ({ ...prev, [landmarkId]: true }));
-      
-      // Try browser speech synthesis first
-      const utterance = new SpeechSynthesisUtterance(`${landmark.name}. ${landmark.description}`);
-      utterance.onend = () => {
-        setPlayingAudio(prev => ({ ...prev, [landmarkId]: false }));
-      };
-      utterance.onerror = () => {
-        setPlayingAudio(prev => ({ ...prev, [landmarkId]: false }));
-      };
-      
-      speechSynthesis.speak(utterance);
+      const text = `${landmark.name}. ${landmark.description}`;
+      await speakText(text);
     } catch (error) {
-      console.error('Error with text-to-speech:', error);
+      console.error('Error with Google Cloud TTS:', error);
+    } finally {
       setPlayingAudio(prev => ({ ...prev, [landmarkId]: false }));
     }
   };
@@ -234,7 +230,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     // Fetch and display image with listen button
     try {
       const imageUrl = await fetchLandmarkImage(landmark);
-      const isPlaying = playingAudio[landmark.id] || false;
+      const isPlaying = playingAudio[landmark.id] || isSpeaking;
       
       photoPopup.setHTML(`
         <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
