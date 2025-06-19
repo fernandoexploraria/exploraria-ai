@@ -113,7 +113,7 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
             <div className="mb-4">
               <img 
                 src={capturedImage} 
-                alt="Captured landmark" 
+                alt="Captured image" 
                 className="w-full h-48 object-cover rounded-lg"
               />
             </div>
@@ -121,30 +121,14 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
           
           {analysisResult && (
             <div className="space-y-3">
-              <div>
-                <h3 className="font-semibold text-lg mb-2">{analysisResult.landmark_name}</h3>
-                <div className="flex items-center gap-2 mb-3">
-                  <Badge variant={analysisResult.is_from_tour ? "default" : "secondary"}>
-                    {analysisResult.is_from_tour ? "From Your Tour" : "Other Landmark"}
-                  </Badge>
-                  <Badge variant="outline">
-                    {Math.round(analysisResult.confidence * 100)}% confidence
-                  </Badge>
-                </div>
-              </div>
-              
-              <div className="bg-muted/50 p-3 rounded-lg">
-                <p className="text-sm text-muted-foreground">
-                  {analysisResult.description}
-                </p>
-              </div>
+              <p className="text-sm">
+                {analysisResult.description}
+              </p>
               
               {analysisResult.additional_info && (
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <p className="text-sm">
-                    {analysisResult.additional_info}
-                  </p>
-                </div>
+                <p className="text-sm">
+                  {analysisResult.additional_info}
+                </p>
               )}
             </div>
           )}
