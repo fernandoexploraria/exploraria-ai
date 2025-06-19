@@ -57,7 +57,7 @@ serve(async (req) => {
                 type: 'session.update',
                 session: {
                   modalities: ['text', 'audio'],
-                  instructions: 'You are a friendly tour guide assistant. Provide helpful information about landmarks, attractions, and travel tips. Keep responses conversational and engaging.',
+                  instructions: 'You are a knowledgeable Rome tour guide assistant. Provide helpful information about Rome\'s landmarks, attractions, history, and travel tips. Keep responses conversational, engaging, and informative. When users ask about specific places in Rome, provide interesting historical facts, visiting tips, and cultural insights.',
                   voice: 'alloy',
                   input_audio_format: 'pcm16',
                   output_audio_format: 'pcm16',
