@@ -104,18 +104,27 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     if (!isSpeechRecognitionSupported) {
       toast({
         title: "Not Supported",
-        description: "Speech recognition is not supported in this browser.",
+        description: "Speech recognition is not supported in this browser. Please try Chrome, Edge, or Safari.",
         variant: "destructive"
       });
       return;
     }
 
-    if (!audioContextInitialized) {
-      await initializeAudioContext();
-    }
+    try {
+      if (!audioContextInitialized) {
+        await initializeAudioContext();
+      }
 
-    if (!isSpeaking) {
-      startListening();
+      if (!isSpeaking) {
+        startListening();
+      }
+    } catch (error) {
+      console.error('Error starting speech recognition:', error);
+      toast({
+        title: "Microphone Error",
+        description: "Please allow microphone access and try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -123,16 +132,21 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     console.log('Welcome button clicked');
     setHasUserInteracted(true);
     
-    await initializeAudioContext();
-    
-    const welcomeMessage = `Welcome to your ${destination} tour! I'm your voice assistant powered by Google Gemini. You can ask me about any of the landmarks we've planned for you. What would you like to know?`;
-    console.log('Playing welcome message:', welcomeMessage);
-    
     try {
+      await initializeAudioContext();
+      
+      const welcomeMessage = `Welcome to your ${destination} tour! I'm your voice assistant powered by Google Gemini. You can ask me about any of the landmarks we've planned for you. What would you like to know?`;
+      console.log('Playing welcome message:', welcomeMessage);
+      
       await speakText(welcomeMessage);
       console.log('Welcome message completed');
     } catch (error) {
       console.error('Error playing welcome message:', error);
+      toast({
+        title: "Audio Error",
+        description: "There was an issue with audio playback. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -160,7 +174,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           <DialogHeader>
             <DialogTitle>Voice Tour Guide</DialogTitle>
             <DialogDescription>
-              Ask me anything about your {destination} tour! I'll share stories, tips, and suggest additional places you might love.
+              Ask me anything about your {destination} tour! I'm powered by Google Gemini and I'll share stories, tips, and suggest additional places you might love.
             </DialogDescription>
           </DialogHeader>
           

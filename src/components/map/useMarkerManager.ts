@@ -1,5 +1,5 @@
 
-import { useRef, useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { Landmark } from '@/data/landmarks';
 
@@ -10,71 +10,78 @@ interface UseMarkerManagerProps {
   onMarkerClick: (landmark: Landmark) => void;
 }
 
-export const useMarkerManager = ({
-  map,
-  landmarks,
-  selectedLandmark,
-  onMarkerClick
-}: UseMarkerManagerProps) => {
-  const markers = useRef<{ [key: string]: mapboxgl.Marker }>({});
+export const useMarkerManager = ({ map, landmarks, selectedLandmark, onMarkerClick }: UseMarkerManagerProps) => {
+  const markersRef = useRef<{ [key: string]: mapboxgl.Marker }>({});
 
-  // Update markers when landmarks change
   useEffect(() => {
-    if (!map) return;
+    if (!map || !map.isStyleLoaded()) {
+      console.log('Map not ready for markers');
+      return;
+    }
 
-    const landmarkIds = new Set(landmarks.map(l => l.id));
+    console.log('Updating markers, landmarks count:', landmarks.length);
 
-    // Remove markers that are no longer in the landmarks list
-    Object.keys(markers.current).forEach(markerId => {
-      if (!landmarkIds.has(markerId)) {
-        markers.current[markerId].remove();
-        delete markers.current[markerId];
-      }
-    });
+    // Clear existing markers
+    Object.values(markersRef.current).forEach(marker => marker.remove());
+    markersRef.current = {};
 
     // Add new markers
-    landmarks.forEach((landmark) => {
-      if (!markers.current[landmark.id]) {
+    landmarks.forEach(landmark => {
+      try {
+        // Check if map container exists before creating marker
+        if (!map.getCanvasContainer()) {
+          console.warn('Map canvas container not available');
+          return;
+        }
+
         const el = document.createElement('div');
-        
-        // Different styling for top landmarks vs user landmarks
-        const isTopLandmark = landmark.id.startsWith('top-landmark-');
-        const markerColor = isTopLandmark ? 'bg-yellow-400' : 'bg-cyan-400';
-        
-        el.className = `w-4 h-4 rounded-full ${markerColor} border-2 border-white shadow-lg cursor-pointer transition-transform duration-300 hover:scale-125`;
-        el.style.transition = 'background-color 0.3s, transform 0.3s';
+        el.className = `w-4 h-4 rounded-full cursor-pointer transition-all duration-200 ${
+          selectedLandmark?.id === landmark.id 
+            ? 'bg-yellow-400 ring-4 ring-yellow-200 scale-125' 
+            : 'bg-red-500 hover:bg-red-600 hover:scale-110'
+        }`;
         
         const marker = new mapboxgl.Marker(el)
           .setLngLat(landmark.coordinates)
           .addTo(map);
 
-        marker.getElement().addEventListener('click', (e) => {
+        el.addEventListener('click', (e) => {
           e.stopPropagation();
           onMarkerClick(landmark);
         });
 
-        markers.current[landmark.id] = marker;
+        markersRef.current[landmark.id] = marker;
+      } catch (error) {
+        console.error('Error creating marker for', landmark.name, error);
       }
     });
 
-  }, [map, landmarks, onMarkerClick]);
+    return () => {
+      // Cleanup markers when component unmounts
+      Object.values(markersRef.current).forEach(marker => {
+        try {
+          marker.remove();
+        } catch (error) {
+          console.warn('Error removing marker:', error);
+        }
+      });
+      markersRef.current = {};
+    };
+  }, [map, landmarks, selectedLandmark, onMarkerClick]);
 
-  // Update marker styles based on selection
+  // Update marker styles when selected landmark changes
   useEffect(() => {
-    Object.entries(markers.current).forEach(([id, marker]) => {
-      const element = marker.getElement();
-      const isSelected = id === selectedLandmark?.id;
-      const isTopLandmark = id.startsWith('top-landmark-');
-      
-      if (isSelected) {
-        element.style.backgroundColor = '#f87171'; // red-400
-        element.style.transform = 'scale(1.5)';
-      } else {
-        element.style.backgroundColor = isTopLandmark ? '#facc15' : '#22d3ee'; // yellow-400 or cyan-400
-        element.style.transform = 'scale(1)';
-      }
-    });
-  }, [selectedLandmark]);
+    if (!map) return;
 
-  return { markers: markers.current };
+    Object.entries(markersRef.current).forEach(([landmarkId, marker]) => {
+      const el = marker.getElement();
+      const isSelected = selectedLandmark?.id === landmarkId;
+      
+      el.className = `w-4 h-4 rounded-full cursor-pointer transition-all duration-200 ${
+        isSelected 
+          ? 'bg-yellow-400 ring-4 ring-yellow-200 scale-125' 
+          : 'bg-red-500 hover:bg-red-600 hover:scale-110'
+      }`;
+    });
+  }, [selectedLandmark, map]);
 };
