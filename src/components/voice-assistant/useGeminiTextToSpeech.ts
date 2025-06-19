@@ -4,85 +4,110 @@ import { supabase } from '@/integrations/supabase/client';
 
 export const useGeminiTextToSpeech = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const speakText = useCallback(async (text: string) => {
     try {
-      console.log('Enhancing text with Gemini for TTS:', text.substring(0, 50) + '...');
+      console.log('Starting Gemini TTS for:', text.substring(0, 50) + '...');
       setIsSpeaking(true);
       
-      // Stop any current speech
-      if (currentUtteranceRef.current) {
-        speechSynthesis.cancel();
-        currentUtteranceRef.current = null;
+      // Stop any current audio
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
       }
       
-      // Call Supabase edge function to enhance text with Gemini
+      // Call Supabase edge function for Gemini-enhanced TTS
       const { data, error } = await supabase.functions.invoke('gemini-tts', {
         body: { text }
       });
 
       if (error) {
         console.error('Gemini TTS error:', error);
-        // Fallback to original text if Gemini fails
-        await speakWithBrowser(text);
+        setIsSpeaking(false);
         return;
       }
 
-      const textToSpeak = data?.enhancedText || text;
-      await speakWithBrowser(textToSpeak);
+      if (data?.audioContent && !data.fallbackToBrowser) {
+        // Play the audio from Google TTS directly
+        await playAudioFromBase64(data.audioContent);
+      } else {
+        console.log('No audio content received, TTS may have failed');
+        setIsSpeaking(false);
+      }
       
     } catch (error) {
-      console.error('Error with Gemini-enhanced TTS:', error);
-      // Fallback to original text
-      await speakWithBrowser(text);
+      console.error('Error with Gemini TTS:', error);
+      setIsSpeaking(false);
     }
   }, []);
 
-  const speakWithBrowser = async (text: string) => {
+  const playAudioFromBase64 = async (base64Audio: string) => {
     return new Promise<void>((resolve, reject) => {
-      if (!('speechSynthesis' in window)) {
-        console.error('Speech synthesis not supported');
+      try {
+        // Convert base64 to blob URL
+        const binaryString = atob(base64Audio);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        const blob = new Blob([bytes], { type: 'audio/mp3' });
+        const audioUrl = URL.createObjectURL(blob);
+        
+        const audio = new Audio(audioUrl);
+        currentAudioRef.current = audio;
+        
+        audio.onloadstart = () => {
+          console.log('Audio loading started');
+        };
+        
+        audio.oncanplay = () => {
+          console.log('Audio can start playing');
+        };
+        
+        audio.onplay = () => {
+          console.log('Audio playback started');
+          setIsSpeaking(true);
+        };
+        
+        audio.onended = () => {
+          console.log('Audio playback ended');
+          setIsSpeaking(false);
+          URL.revokeObjectURL(audioUrl);
+          currentAudioRef.current = null;
+          resolve();
+        };
+        
+        audio.onerror = (error) => {
+          console.error('Audio playback error:', error);
+          setIsSpeaking(false);
+          URL.revokeObjectURL(audioUrl);
+          currentAudioRef.current = null;
+          reject(error);
+        };
+        
+        // Start playing
+        audio.play().catch(error => {
+          console.error('Failed to play audio:', error);
+          setIsSpeaking(false);
+          URL.revokeObjectURL(audioUrl);
+          currentAudioRef.current = null;
+          reject(error);
+        });
+        
+      } catch (error) {
+        console.error('Error creating audio from base64:', error);
         setIsSpeaking(false);
-        reject(new Error('Speech synthesis not supported'));
-        return;
-      }
-
-      const utterance = new SpeechSynthesisUtterance(text);
-      currentUtteranceRef.current = utterance;
-      
-      // Configure speech settings
-      utterance.rate = 0.9;
-      utterance.pitch = 1.0;
-      utterance.volume = 1.0;
-      
-      utterance.onstart = () => {
-        console.log('Gemini-enhanced TTS started');
-        setIsSpeaking(true);
-      };
-      
-      utterance.onend = () => {
-        console.log('Gemini-enhanced TTS ended');
-        setIsSpeaking(false);
-        currentUtteranceRef.current = null;
-        resolve();
-      };
-      
-      utterance.onerror = (error) => {
-        console.error('TTS error:', error);
-        setIsSpeaking(false);
-        currentUtteranceRef.current = null;
         reject(error);
-      };
-      
-      speechSynthesis.speak(utterance);
+      }
     });
   };
 
   const cleanup = useCallback(() => {
-    if (currentUtteranceRef.current) {
-      speechSynthesis.cancel();
-      currentUtteranceRef.current = null;
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
     }
     setIsSpeaking(false);
   }, []);

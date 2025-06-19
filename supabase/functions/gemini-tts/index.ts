@@ -24,10 +24,10 @@ serve(async (req) => {
       throw new Error('Google AI API key not configured')
     }
 
-    console.log('Using Google AI API for text-to-speech...')
+    console.log('Step 1: Enhancing text with Gemini AI...')
     
-    // Use the correct model name for Gemini API
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${googleApiKey}`, {
+    // First, enhance the text with Gemini for better narration
+    const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${googleApiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -35,7 +35,7 @@ serve(async (req) => {
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `Please provide a natural, conversational audio description for: "${text}". Make it sound like a friendly tour guide speaking to visitors. Keep it under 30 seconds when spoken aloud.`
+            text: `Please enhance this landmark description for audio narration. Make it sound like a friendly, knowledgeable tour guide speaking to visitors. Keep it conversational and under 30 seconds when spoken aloud. Original text: "${text}"`
           }]
         }],
         generationConfig: {
@@ -45,31 +45,79 @@ serve(async (req) => {
       })
     })
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('Google AI API error:', response.status, errorText)
-      throw new Error(`Google AI API error: ${response.status}`)
+    if (!geminiResponse.ok) {
+      const errorText = await geminiResponse.text()
+      console.error('Gemini API error:', geminiResponse.status, errorText)
+      throw new Error(`Gemini API error: ${geminiResponse.status}`)
     }
 
-    const data = await response.json()
-    console.log('Gemini API response received for TTS')
+    const geminiData = await geminiResponse.json()
+    console.log('Step 2: Gemini enhancement complete')
     
-    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-      const generatedText = data.candidates[0].content.parts[0].text
+    let enhancedText = text
+    if (geminiData.candidates && geminiData.candidates[0] && geminiData.candidates[0].content) {
+      enhancedText = geminiData.candidates[0].content.parts[0].text
+    }
+
+    console.log('Step 3: Converting enhanced text to speech...')
+
+    // Now convert the enhanced text to speech using Google Cloud TTS
+    const ttsResponse = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${googleApiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        input: { text: enhancedText },
+        voice: {
+          languageCode: 'en-US',
+          name: 'en-US-Neural2-F',
+          ssmlGender: 'FEMALE'
+        },
+        audioConfig: {
+          audioEncoding: 'MP3',
+          speakingRate: 0.9,
+          pitch: 0.0,
+          volumeGainDb: 0.0
+        }
+      })
+    })
+
+    if (!ttsResponse.ok) {
+      const errorText = await ttsResponse.text()
+      console.error('Google TTS API error:', ttsResponse.status, errorText)
       
-      // Since Gemini doesn't provide actual audio, we'll return the enhanced text
-      // The frontend will use browser TTS with this enhanced description
+      // If TTS fails, return the enhanced text for browser fallback
       return new Response(
         JSON.stringify({ 
-          enhancedText: generatedText,
-          originalText: text 
+          enhancedText: enhancedText,
+          originalText: text,
+          audioContent: null,
+          fallbackToBrowser: true
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      )
+    }
+
+    const ttsData = await ttsResponse.json()
+    console.log('Step 4: Audio generation complete')
+    
+    if (ttsData.audioContent) {
+      return new Response(
+        JSON.stringify({ 
+          enhancedText: enhancedText,
+          originalText: text,
+          audioContent: ttsData.audioContent,
+          fallbackToBrowser: false
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
       )
     } else {
-      throw new Error('No valid response from Gemini API')
+      throw new Error('No audio content received from Google TTS')
     }
   } catch (error) {
     console.error('Error in gemini-tts function:', error)
