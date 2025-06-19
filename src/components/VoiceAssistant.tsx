@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Landmark } from '@/data/landmarks';
@@ -10,7 +9,7 @@ import VoiceStatus from './voice-assistant/VoiceStatus';
 import VoiceControls from './voice-assistant/VoiceControls';
 import { useAudioContext } from './voice-assistant/useAudioContext';
 import { useSpeechRecognition } from './voice-assistant/useSpeechRecognition';
-import { useTextToSpeech } from './voice-assistant/useTextToSpeech';
+import { useSimpleTextToSpeech } from './voice-assistant/useSimpleTextToSpeech';
 
 interface VoiceAssistantProps {
   open: boolean;
@@ -44,7 +43,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     stopListening, 
     cleanup: cleanupRecognition 
   } = useSpeechRecognition();
-  const { isSpeaking, speakText, cleanup: cleanupTTS } = useTextToSpeech(elevenLabsApiKey, audioContextInitialized);
+  const { isSpeaking, speakText, cleanup: cleanupTTS } = useSimpleTextToSpeech();
 
   // Check authentication when dialog opens
   useEffect(() => {
