@@ -5,7 +5,10 @@ serve(async (req) => {
   const { headers } = req;
   const upgradeHeader = headers.get("upgrade") || "";
 
-  console.log("OpenAI Realtime function called with upgrade header:", upgradeHeader);
+  console.log("OpenAI Realtime function called");
+  console.log("Upgrade header:", upgradeHeader);
+  console.log("Request method:", req.method);
+  console.log("Request URL:", req.url);
 
   if (upgradeHeader.toLowerCase() !== "websocket") {
     console.log("Not a WebSocket request, returning 400");
@@ -15,7 +18,7 @@ serve(async (req) => {
   // Check for OpenAI API key
   const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
   if (!openAIApiKey) {
-    console.error("OpenAI API key not found");
+    console.error("OpenAI API key not found in environment");
     return new Response("OpenAI API key not configured", { status: 500 });
   }
 
@@ -23,6 +26,7 @@ serve(async (req) => {
 
   try {
     const { socket, response } = Deno.upgradeWebSocket(req);
+    console.log("WebSocket upgrade successful");
     
     let openAISocket: WebSocket | null = null;
 
@@ -31,7 +35,7 @@ serve(async (req) => {
       
       // Connect to OpenAI Realtime API
       const openAIUrl = `wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17`;
-      console.log("Connecting to OpenAI:", openAIUrl);
+      console.log("Attempting to connect to OpenAI:", openAIUrl);
       
       try {
         openAISocket = new WebSocket(openAIUrl, [], {
@@ -42,13 +46,13 @@ serve(async (req) => {
         });
 
         openAISocket.onopen = () => {
-          console.log("Connected to OpenAI Realtime API successfully");
+          console.log("Successfully connected to OpenAI Realtime API");
         };
 
         openAISocket.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
-            console.log("OpenAI message:", data.type);
+            console.log("Received from OpenAI:", data.type);
             
             // Send session update after receiving session.created
             if (data.type === 'session.created') {
@@ -74,13 +78,20 @@ serve(async (req) => {
                   max_response_output_tokens: 'inf'
                 }
               };
-              openAISocket?.send(JSON.stringify(sessionUpdate));
-              console.log("Session update sent");
+              
+              if (openAISocket && openAISocket.readyState === WebSocket.OPEN) {
+                openAISocket.send(JSON.stringify(sessionUpdate));
+                console.log("Session update sent successfully");
+              } else {
+                console.error("OpenAI socket not ready for session update");
+              }
             }
 
             // Forward all messages to client
             if (socket.readyState === WebSocket.OPEN) {
               socket.send(event.data);
+            } else {
+              console.warn("Client socket not ready, message not forwarded");
             }
           } catch (error) {
             console.error("Error processing OpenAI message:", error);
@@ -95,44 +106,57 @@ serve(async (req) => {
         };
 
         openAISocket.onclose = (event) => {
-          console.log("OpenAI WebSocket closed:", event.code, event.reason);
+          console.log("OpenAI WebSocket closed - Code:", event.code, "Reason:", event.reason);
           if (socket.readyState === WebSocket.OPEN) {
-            socket.close();
+            socket.close(event.code, event.reason);
           }
         };
+
       } catch (error) {
-        console.error("Error creating OpenAI WebSocket:", error);
-        socket.close(1000, "Failed to connect to OpenAI");
+        console.error("Error creating OpenAI WebSocket connection:", error);
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.close(1000, "Failed to connect to OpenAI");
+        }
       }
     };
 
     socket.onmessage = (event) => {
-      console.log("Received message from client:", event.data);
-      // Forward client messages to OpenAI
-      if (openAISocket && openAISocket.readyState === WebSocket.OPEN) {
-        openAISocket.send(event.data);
-      } else {
-        console.log("OpenAI socket not ready, message not forwarded");
+      console.log("Message received from client");
+      try {
+        const message = JSON.parse(event.data);
+        console.log("Client message type:", message.type);
+        
+        // Forward client messages to OpenAI
+        if (openAISocket && openAISocket.readyState === WebSocket.OPEN) {
+          openAISocket.send(event.data);
+          console.log("Message forwarded to OpenAI");
+        } else {
+          console.warn("OpenAI socket not ready, message not forwarded");
+        }
+      } catch (error) {
+        console.error("Error processing client message:", error);
       }
     };
 
     socket.onclose = (event) => {
-      console.log("Client WebSocket connection closed:", event.code, event.reason);
-      if (openAISocket) {
+      console.log("Client WebSocket connection closed - Code:", event.code, "Reason:", event.reason);
+      if (openAISocket && openAISocket.readyState === WebSocket.OPEN) {
         openAISocket.close();
       }
     };
 
     socket.onerror = (error) => {
       console.error("Client WebSocket error:", error);
-      if (openAISocket) {
+      if (openAISocket && openAISocket.readyState === WebSocket.OPEN) {
         openAISocket.close();
       }
     };
 
+    console.log("Returning WebSocket response");
     return response;
+
   } catch (error) {
-    console.error("Error upgrading WebSocket:", error);
-    return new Response("Failed to upgrade WebSocket", { status: 500 });
+    console.error("Error in WebSocket upgrade process:", error);
+    return new Response(`Failed to upgrade WebSocket: ${error.message}`, { status: 500 });
   }
 });
