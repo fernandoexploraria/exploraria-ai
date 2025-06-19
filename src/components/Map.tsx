@@ -5,7 +5,7 @@ import { Volume2, VolumeX } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { supabase } from '@/integrations/supabase/client';
-import { useGoogleTextToSpeech } from './voice-assistant/useGoogleTextToSpeech';
+import { useSimpleTextToSpeech } from './voice-assistant/useSimpleTextToSpeech';
 
 interface MapProps {
   mapboxToken: string;
@@ -28,8 +28,8 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
   const pendingPopupLandmark = useRef<Landmark | null>(null);
   const isZooming = useRef<boolean>(false);
 
-  // Use Google Cloud TTS hook
-  const { isSpeaking, speakText } = useGoogleTextToSpeech();
+  // Use simple browser TTS hook
+  const { isSpeaking, speakText } = useSimpleTextToSpeech();
 
   // Convert top landmarks to Landmark format
   const allLandmarksWithTop = React.useMemo(() => {
@@ -101,7 +101,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     };
   }, [mapboxToken]);
 
-  // Function to handle text-to-speech using Google Cloud TTS
+  // Function to handle text-to-speech using browser TTS
   const handleTextToSpeech = async (landmark: Landmark) => {
     const landmarkId = landmark.id;
     
@@ -114,7 +114,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       const text = `${landmark.name}. ${landmark.description}`;
       await speakText(text);
     } catch (error) {
-      console.error('Error with Google Cloud TTS:', error);
+      console.error('Error with browser TTS:', error);
     } finally {
       setPlayingAudio(prev => ({ ...prev, [landmarkId]: false }));
     }
