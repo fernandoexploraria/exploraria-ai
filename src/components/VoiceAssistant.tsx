@@ -9,7 +9,7 @@ import AuthDialog from './AuthDialog';
 import VoiceStatus from './voice-assistant/VoiceStatus';
 import VoiceControls from './voice-assistant/VoiceControls';
 import { useAudioContext } from './voice-assistant/useAudioContext';
-import { useSpeechRecognition } from './voice-assistant/useSpeechRecognition';
+import { useGoogleSpeechRecognition } from './voice-assistant/useGoogleSpeechRecognition';
 import { useGeminiTextToSpeech } from './voice-assistant/useGeminiTextToSpeech';
 import { useGeminiAPI } from '@/hooks/useGeminiAPI';
 
@@ -40,6 +40,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [suggestedLandmarks, setSuggestedLandmarks] = useState<LandmarkSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [currentOnResult, setCurrentOnResult] = useState<((transcript: string) => void) | null>(null);
   const { toast } = useToast();
   const { user, session } = useAuth();
   const { callGemini } = useGeminiAPI();
@@ -54,7 +55,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     stopListening,
     forceStopListening,
     cleanup: cleanupRecognition 
-  } = useSpeechRecognition();
+  } = useGoogleSpeechRecognition();
   const { isSpeaking, speakText, cleanup: cleanupTTS } = useGeminiTextToSpeech();
 
   // Stop speech recognition when TTS starts
@@ -87,6 +88,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
     if (open && isSpeechRecognitionSupported) {
       setupRecognition(handleUserInput);
+      setCurrentOnResult(() => handleUserInput);
     }
 
     return () => {
@@ -170,21 +172,18 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   };
 
   const handleStartListening = async () => {
-    if (!isSpeechRecognitionSupported) {
-      toast({
-        title: "Not Supported",
-        description: "Speech recognition is not supported in this browser.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     if (!audioContextInitialized) {
       await initializeAudioContext();
     }
 
     if (!isSpeaking) {
       startListening();
+    }
+  };
+
+  const handleStopListening = async () => {
+    if (currentOnResult) {
+      await stopListening(currentOnResult);
     }
   };
 
@@ -357,7 +356,7 @@ Keep your main response conversational and under 200 words, then add the JSON su
                 hasUserInteracted={hasUserInteracted}
                 isSpeechRecognitionSupported={isSpeechRecognitionSupported}
                 onStartListening={handleStartListening}
-                onStopListening={stopListening}
+                onStopListening={handleStopListening}
                 onWelcomeClick={handleWelcomeClick}
               />
 
