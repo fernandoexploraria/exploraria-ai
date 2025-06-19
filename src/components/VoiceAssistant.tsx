@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,6 @@ import VoiceStatus from './voice-assistant/VoiceStatus';
 import VoiceControls from './voice-assistant/VoiceControls';
 import { useAudioContext } from './voice-assistant/useAudioContext';
 import { useGoogleSpeechRecognition } from './voice-assistant/useGoogleSpeechRecognition';
-import { useGeminiTextToSpeech } from './voice-assistant/useGeminiTextToSpeech';
 import { useGeminiAPI } from '@/hooks/useGeminiAPI';
 
 interface VoiceAssistantProps {
@@ -41,6 +41,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [suggestedLandmarks, setSuggestedLandmarks] = useState<LandmarkSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [textInput, setTextInput] = useState('');
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const { toast } = useToast();
   const { user, session } = useAuth();
   const { callGemini } = useGeminiAPI();
@@ -56,7 +57,6 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     forceStopListening,
     cleanup: cleanupRecognition 
   } = useGoogleSpeechRecognition();
-  const { isSpeaking, speakText, cleanup: cleanupTTS } = useGeminiTextToSpeech();
 
   // Stop speech recognition when TTS starts
   useEffect(() => {
@@ -93,19 +93,108 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     return () => {
       console.log('VoiceAssistant cleanup');
       cleanupRecognition();
-      cleanupTTS();
+      cleanup();
     };
-  }, [open, isSpeechRecognitionSupported, setupRecognition, cleanupRecognition, cleanupTTS]);
+  }, [open, isSpeechRecognitionSupported, setupRecognition, cleanupRecognition]);
 
   // Reset state when dialog closes
   useEffect(() => {
     if (!open) {
       setHasUserInteracted(false);
       setTextInput('');
-      cleanupTTS();
+      cleanup();
       cleanupRecognition();
     }
-  }, [open, cleanupTTS, cleanupRecognition]);
+  }, [open, cleanupRecognition]);
+
+  const cleanup = () => {
+    console.log('Cleaning up TTS');
+    setIsSpeaking(false);
+  };
+
+  const speakText = async (text: string) => {
+    try {
+      console.log('Starting Gemini TTS for text:', text.substring(0, 100) + '...');
+      setIsSpeaking(true);
+      
+      // Call Supabase edge function for Gemini-enhanced TTS
+      console.log('Calling gemini-tts edge function...');
+      const { data, error } = await supabase.functions.invoke('gemini-tts', {
+        body: { text }
+      });
+
+      if (error) {
+        console.error('Gemini TTS error:', error);
+        setIsSpeaking(false);
+        return;
+      }
+
+      console.log('TTS response received:', { 
+        hasAudioContent: !!data?.audioContent, 
+        fallbackToBrowser: data?.fallbackToBrowser,
+        dataKeys: Object.keys(data || {}),
+        audioContentLength: data?.audioContent?.length || 0
+      });
+
+      if (data?.audioContent && !data.fallbackToBrowser) {
+        console.log('Playing audio from Gemini TTS, audio length:', data.audioContent.length);
+        await playAudioFromBase64(data.audioContent);
+      } else {
+        console.log('No audio content received or fallback requested, data:', data);
+        setIsSpeaking(false);
+      }
+      
+    } catch (error) {
+      console.error('Error with Gemini TTS:', error);
+      setIsSpeaking(false);
+    }
+  };
+
+  const playAudioFromBase64 = async (base64Audio: string) => {
+    return new Promise<void>((resolve, reject) => {
+      try {
+        console.log('Converting base64 to audio blob, length:', base64Audio.length);
+        
+        const binaryString = atob(base64Audio);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        const blob = new Blob([bytes], { type: 'audio/mp3' });
+        const audioUrl = URL.createObjectURL(blob);
+        const audio = new Audio(audioUrl);
+        
+        audio.onended = () => {
+          console.log('Audio playback ended');
+          setIsSpeaking(false);
+          URL.revokeObjectURL(audioUrl);
+          resolve();
+        };
+        
+        audio.onerror = (error) => {
+          console.error('Audio playback error:', error);
+          setIsSpeaking(false);
+          URL.revokeObjectURL(audioUrl);
+          reject(error);
+        };
+        
+        audio.play().then(() => {
+          console.log('Audio.play() promise resolved successfully');
+        }).catch(error => {
+          console.error('Failed to play audio:', error);
+          setIsSpeaking(false);
+          URL.revokeObjectURL(audioUrl);
+          reject(error);
+        });
+        
+      } catch (error) {
+        console.error('Error creating audio from base64:', error);
+        setIsSpeaking(false);
+        reject(error);
+      }
+    });
+  };
 
   const extractLandmarkSuggestions = (aiResponse: string): LandmarkSuggestion[] => {
     // Look for JSON-formatted landmark suggestions in the response
@@ -123,9 +212,35 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     return [];
   };
 
+  const cleanResponseForSpeech = (aiResponse: string): string => {
+    console.log('Original AI response length:', aiResponse.length);
+    console.log('Original AI response preview:', aiResponse.substring(0, 200) + '...');
+    
+    // Remove any JSON blocks (everything from [ to ])
+    let cleanResponse = aiResponse.replace(/\[[\s\S]*?\]/g, '').trim();
+    
+    // Remove any remaining JSON artifacts or markdown code blocks
+    cleanResponse = cleanResponse.replace(/```json[\s\S]*?```/g, '').trim();
+    cleanResponse = cleanResponse.replace(/```[\s\S]*?```/g, '').trim();
+    
+    // Remove any trailing punctuation that might be left from JSON removal
+    cleanResponse = cleanResponse.replace(/,\s*$/, '').trim();
+    
+    console.log('Cleaned response length:', cleanResponse.length);
+    console.log('Cleaned response preview:', cleanResponse.substring(0, 200) + '...');
+    
+    // If cleaning resulted in empty or very short content, return a fallback
+    if (!cleanResponse || cleanResponse.length < 10) {
+      console.log('Cleaned response too short, using fallback');
+      return `I have some information about ${destination} for you. Let me know what specific aspects you'd like to explore!`;
+    }
+    
+    return cleanResponse;
+  };
+
   const storeInteraction = async (userInput: string, assistantResponse: string) => {
     try {
-      console.log('Attempting to store interaction...', { userInput, assistantResponse, destination });
+      console.log('Attempting to store interaction...', { userInput, assistantResponse: assistantResponse.substring(0, 100) + '...', destination });
       
       if (!user || !session) {
         console.log('No authenticated user found');
@@ -219,28 +334,19 @@ Keep your main response conversational and under 200 words, then add the JSON su
         return;
       }
 
-      console.log('Got AI response:', aiResponse);
+      console.log('Got AI response:', aiResponse.substring(0, 200) + '...');
       
-      // Extract landmark suggestions
+      // Extract landmark suggestions first
       const suggestions = extractLandmarkSuggestions(aiResponse);
       if (suggestions.length > 0) {
         setSuggestedLandmarks(suggestions);
         setShowSuggestions(true);
       }
       
-      // Clean response for speech (remove JSON part if present)
-      let cleanResponse = aiResponse;
-      const jsonMatch = aiResponse.match(/\[[\s\S]*?\]/);
-      if (jsonMatch) {
-        cleanResponse = aiResponse.replace(/\[[\s\S]*?\]/, '').trim();
-      }
+      // Clean response for speech (remove JSON and other artifacts)
+      const cleanResponse = cleanResponseForSpeech(aiResponse);
       
-      // Ensure we have content to speak - if cleaning resulted in empty content, use original
-      if (!cleanResponse || cleanResponse.length === 0) {
-        cleanResponse = aiResponse;
-      }
-      
-      console.log('Speaking AI response:', cleanResponse.substring(0, 100) + '...');
+      console.log('Speaking cleaned response:', cleanResponse.substring(0, 100) + '...');
       await speakText(cleanResponse);
       await storeInteraction(input, aiResponse);
       
