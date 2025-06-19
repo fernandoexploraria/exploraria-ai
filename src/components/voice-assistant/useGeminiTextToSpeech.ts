@@ -18,6 +18,7 @@ export const useGeminiTextToSpeech = () => {
       }
       
       // Call Supabase edge function for Gemini-enhanced TTS
+      console.log('Calling gemini-tts edge function...');
       const { data, error } = await supabase.functions.invoke('gemini-tts', {
         body: { text }
       });
@@ -28,11 +29,18 @@ export const useGeminiTextToSpeech = () => {
         return;
       }
 
+      console.log('TTS response received:', { 
+        hasAudioContent: !!data?.audioContent, 
+        fallbackToBrowser: data?.fallbackToBrowser,
+        dataKeys: Object.keys(data || {})
+      });
+
       if (data?.audioContent && !data.fallbackToBrowser) {
+        console.log('Playing audio from Gemini TTS');
         // Play the audio from Google TTS directly
         await playAudioFromBase64(data.audioContent);
       } else {
-        console.log('No audio content received, TTS may have failed');
+        console.log('No audio content received or fallback requested');
         setIsSpeaking(false);
       }
       
@@ -45,6 +53,8 @@ export const useGeminiTextToSpeech = () => {
   const playAudioFromBase64 = async (base64Audio: string) => {
     return new Promise<void>((resolve, reject) => {
       try {
+        console.log('Converting base64 to audio blob, length:', base64Audio.length);
+        
         // Convert base64 to blob URL
         const binaryString = atob(base64Audio);
         const bytes = new Uint8Array(binaryString.length);
@@ -54,6 +64,8 @@ export const useGeminiTextToSpeech = () => {
         
         const blob = new Blob([bytes], { type: 'audio/mp3' });
         const audioUrl = URL.createObjectURL(blob);
+        
+        console.log('Created audio URL:', audioUrl);
         
         const audio = new Audio(audioUrl);
         currentAudioRef.current = audio;
@@ -81,15 +93,28 @@ export const useGeminiTextToSpeech = () => {
         
         audio.onerror = (error) => {
           console.error('Audio playback error:', error);
+          console.error('Audio error details:', {
+            error: audio.error,
+            networkState: audio.networkState,
+            readyState: audio.readyState
+          });
           setIsSpeaking(false);
           URL.revokeObjectURL(audioUrl);
           currentAudioRef.current = null;
           reject(error);
         };
         
-        // Start playing
-        audio.play().catch(error => {
+        // Start playing with additional error handling
+        console.log('Attempting to play audio...');
+        audio.play().then(() => {
+          console.log('Audio.play() promise resolved successfully');
+        }).catch(error => {
           console.error('Failed to play audio:', error);
+          console.error('Play error details:', {
+            name: error.name,
+            message: error.message,
+            code: error.code
+          });
           setIsSpeaking(false);
           URL.revokeObjectURL(audioUrl);
           currentAudioRef.current = null;
@@ -105,6 +130,7 @@ export const useGeminiTextToSpeech = () => {
   };
 
   const cleanup = useCallback(() => {
+    console.log('Cleaning up TTS');
     if (currentAudioRef.current) {
       currentAudioRef.current.pause();
       currentAudioRef.current = null;
