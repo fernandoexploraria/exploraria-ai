@@ -1,4 +1,3 @@
-
 import React, { useRef, useCallback, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -102,7 +101,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ isOpen, onClose, onCaptur
         <DialogHeader className="p-4 pb-2">
           <DialogTitle className="flex items-center gap-2">
             <Camera className="h-5 w-5" />
-            Capture Landmark Photo
+            Capture Image
           </DialogTitle>
         </DialogHeader>
         
@@ -145,7 +144,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ isOpen, onClose, onCaptur
         
         <div className="p-4 pt-2">
           <p className="text-sm text-muted-foreground text-center">
-            Point your camera at a landmark and tap Capture to analyze it
+            Point your camera and tap Capture for image recognition
           </p>
         </div>
       </DialogContent>
