@@ -1,6 +1,5 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,8 +16,11 @@ serve(async (req) => {
     
     const googleAiApiKey = Deno.env.get('GOOGLE_AI_API_KEY')
     if (!googleAiApiKey) {
+      console.error('Google AI API key not found in environment')
       throw new Error('Google AI API key not configured')
     }
+
+    console.log('Google AI API key found, making request to Gemini...')
 
     // Create the request body for Gemini API
     const requestBody = {
@@ -61,6 +63,7 @@ serve(async (req) => {
     const data = await response.json()
     
     if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+      console.error('Invalid response structure from Gemini API:', data)
       throw new Error('Invalid response from Gemini API')
     }
 
