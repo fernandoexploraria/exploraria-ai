@@ -43,6 +43,57 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     return [...landmarks, ...topLandmarksConverted];
   }, [landmarks]);
 
+  // Function to handle text-to-speech using Google Cloud TTS
+  const handleTextToSpeech = React.useCallback(async (landmark: Landmark) => {
+    const landmarkId = landmark.id;
+    
+    if (playingAudio[landmarkId] || isSpeaking) {
+      return; // Already playing
+    }
+
+    try {
+      setPlayingAudio(prev => ({ ...prev, [landmarkId]: true }));
+      const text = `${landmark.name}. ${landmark.description}`;
+      await speakText(text);
+    } catch (error) {
+      console.error('Error with Google Cloud TTS:', error);
+    } finally {
+      setPlayingAudio(prev => ({ ...prev, [landmarkId]: false }));
+    }
+  }, [playingAudio, isSpeaking, speakText]);
+
+  const handleMarkerClick = React.useCallback(async (landmark: Landmark) => {
+    console.log('Marker clicked:', landmark.name);
+    
+    // Check current zoom level and zoom in if needed
+    const currentZoom = map.current?.getZoom() || 1.5;
+    if (currentZoom < 10) {
+      isZooming.current = true;
+      pendingPopupLandmark.current = landmark;
+      map.current?.flyTo({
+        center: landmark.coordinates,
+        zoom: 14,
+        speed: 0.7,
+        curve: 1,
+        easing: (t) => t,
+      });
+    } else {
+      // Show popup immediately for marker clicks when already zoomed
+      popupHandler.current?.showLandmarkPopup(landmark);
+    }
+    
+    // Call the landmark selection handler to update the selected landmark
+    onSelectLandmark(landmark);
+  }, [onSelectLandmark]);
+
+  // Use marker manager - MUST be called unconditionally
+  useMarkerManager({
+    map: map.current,
+    landmarks: allLandmarksWithTop,
+    selectedLandmark,
+    onMarkerClick: handleMarkerClick
+  });
+
   // Initialize map (runs once)
   useEffect(() => {
     if (!mapboxToken || !mapContainer.current || map.current) return;
@@ -106,7 +157,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
         isSpeaking
       );
     }
-  }, [map.current, fetchLandmarkImage, allLandmarksWithTop, isSpeaking]);
+  }, [fetchLandmarkImage, allLandmarksWithTop, isSpeaking]);
 
   // Update popup handler state
   useEffect(() => {
@@ -115,25 +166,6 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     }
   }, [playingAudio, isSpeaking]);
 
-  // Function to handle text-to-speech using Google Cloud TTS
-  const handleTextToSpeech = async (landmark: Landmark) => {
-    const landmarkId = landmark.id;
-    
-    if (playingAudio[landmarkId] || isSpeaking) {
-      return; // Already playing
-    }
-
-    try {
-      setPlayingAudio(prev => ({ ...prev, [landmarkId]: true }));
-      const text = `${landmark.name}. ${landmark.description}`;
-      await speakText(text);
-    } catch (error) {
-      console.error('Error with Google Cloud TTS:', error);
-    } finally {
-      setPlayingAudio(prev => ({ ...prev, [landmarkId]: false }));
-    }
-  };
-
   // Set up global handler for landmark text-to-speech
   useEffect(() => {
     (window as any).handleLandmarkTextToSpeech = handleTextToSpeech;
@@ -141,38 +173,6 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       delete (window as any).handleLandmarkTextToSpeech;
     };
   }, [handleTextToSpeech]);
-
-  const handleMarkerClick = async (landmark: Landmark) => {
-    console.log('Marker clicked:', landmark.name);
-    
-    // Check current zoom level and zoom in if needed
-    const currentZoom = map.current?.getZoom() || 1.5;
-    if (currentZoom < 10) {
-      isZooming.current = true;
-      pendingPopupLandmark.current = landmark;
-      map.current?.flyTo({
-        center: landmark.coordinates,
-        zoom: 14,
-        speed: 0.7,
-        curve: 1,
-        easing: (t) => t,
-      });
-    } else {
-      // Show popup immediately for marker clicks when already zoomed
-      popupHandler.current?.showLandmarkPopup(landmark);
-    }
-    
-    // Call the landmark selection handler to update the selected landmark
-    onSelectLandmark(landmark);
-  };
-
-  // Use marker manager
-  useMarkerManager({
-    map: map.current,
-    landmarks: allLandmarksWithTop,
-    selectedLandmark,
-    onMarkerClick: handleMarkerClick
-  });
 
   // Fly to selected landmark
   useEffect(() => {

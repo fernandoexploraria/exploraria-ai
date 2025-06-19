@@ -7,10 +7,8 @@ export const useGoogleTextToSpeech = () => {
 
   const speakText = useCallback(async (text: string) => {
     try {
-      console.log('=== TTS DEBUG START ===');
-      console.log('Speaking text:', text.substring(0, 50) + '...');
-      console.log('Speech synthesis available:', !!window.speechSynthesis);
-      console.log('Current isSpeaking state:', isSpeaking);
+      console.log('=== TTS ASSISTANT START ===');
+      console.log('Text to speak:', text.substring(0, 100) + '...');
       
       // Stop any current speech
       if (currentUtteranceRef.current) {
@@ -19,18 +17,22 @@ export const useGoogleTextToSpeech = () => {
         currentUtteranceRef.current = null;
       }
       
+      // Ensure speech synthesis is available
+      if (!window.speechSynthesis) {
+        throw new Error('Speech synthesis not supported');
+      }
+      
       setIsSpeaking(true);
-      console.log('Set isSpeaking to true');
       
       return new Promise<void>((resolve, reject) => {
         const speak = () => {
-          console.log('Creating utterance...');
+          console.log('Creating utterance for assistant...');
           const utterance = new SpeechSynthesisUtterance(text);
           currentUtteranceRef.current = utterance;
           
           // Get available voices
           const voices = speechSynthesis.getVoices();
-          console.log('Available voices:', voices.length);
+          console.log('Available voices count:', voices.length);
           
           // Try to find a good English voice
           const preferredVoice = voices.find(voice => 
@@ -45,81 +47,84 @@ export const useGoogleTextToSpeech = () => {
           
           if (preferredVoice) {
             utterance.voice = preferredVoice;
-            console.log('Using voice:', preferredVoice.name, preferredVoice.lang);
+            console.log('Using voice for assistant:', preferredVoice.name);
           } else {
             console.log('No preferred voice found, using default');
           }
           
-          // Configure speech parameters
+          // Configure speech parameters for assistant
           utterance.rate = 0.9;
           utterance.pitch = 1.0;
           utterance.volume = 1.0;
           
           utterance.onstart = () => {
-            console.log('TTS onstart event fired');
+            console.log('Assistant TTS started');
             setIsSpeaking(true);
           };
           
           utterance.onend = () => {
-            console.log('TTS onend event fired');
+            console.log('Assistant TTS ended');
             setIsSpeaking(false);
             currentUtteranceRef.current = null;
-            console.log('=== TTS DEBUG END (SUCCESS) ===');
+            console.log('=== TTS ASSISTANT END (SUCCESS) ===');
             resolve();
           };
           
           utterance.onerror = (error) => {
-            console.error('TTS onerror event fired:', error);
+            console.error('Assistant TTS error:', error);
             setIsSpeaking(false);
             currentUtteranceRef.current = null;
-            console.log('=== TTS DEBUG END (ERROR) ===');
-            reject(error);
+            console.log('=== TTS ASSISTANT END (ERROR) ===');
+            reject(new Error(`Speech synthesis error: ${error.error}`));
           };
           
-          // Ensure speech synthesis is not paused
+          // Make sure speech synthesis is ready
           if (speechSynthesis.paused) {
             console.log('Speech synthesis was paused, resuming...');
             speechSynthesis.resume();
           }
           
-          console.log('About to call speechSynthesis.speak()');
-          speechSynthesis.speak(utterance);
-          console.log('speechSynthesis.speak() called');
+          // Clear any pending speech
+          speechSynthesis.cancel();
+          
+          // Small delay to ensure clean state
+          setTimeout(() => {
+            console.log('Speaking with assistant TTS...');
+            speechSynthesis.speak(utterance);
+          }, 100);
         };
 
-        // Check if voices are loaded
+        // Ensure voices are loaded
         if (speechSynthesis.getVoices().length > 0) {
-          console.log('Voices already loaded, speaking immediately');
+          console.log('Voices already loaded for assistant');
           speak();
         } else {
-          console.log('Waiting for voices to load...');
-          // Wait for voices to be loaded
+          console.log('Waiting for voices to load for assistant...');
           const voicesChanged = () => {
-            console.log('Voices loaded via voiceschanged event');
+            console.log('Voices loaded for assistant');
             speechSynthesis.removeEventListener('voiceschanged', voicesChanged);
             speak();
           };
           speechSynthesis.addEventListener('voiceschanged', voicesChanged);
           
-          // Fallback timeout in case voices don't load
+          // Fallback timeout
           setTimeout(() => {
-            console.log('Timeout reached, attempting to speak anyway');
+            console.log('Timeout reached for assistant, attempting anyway');
             speechSynthesis.removeEventListener('voiceschanged', voicesChanged);
             speak();
-          }, 1000);
+          }, 2000);
         }
       });
       
     } catch (error) {
-      console.error('Error with text-to-speech:', error);
-      console.log('=== TTS DEBUG END (CATCH) ===');
+      console.error('Assistant TTS Error:', error);
       setIsSpeaking(false);
       throw error;
     }
   }, []);
 
   const cleanup = useCallback(() => {
-    console.log('TTS cleanup called');
+    console.log('Assistant TTS cleanup called');
     if (currentUtteranceRef.current) {
       speechSynthesis.cancel();
       currentUtteranceRef.current = null;
