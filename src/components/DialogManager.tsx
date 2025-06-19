@@ -1,39 +1,31 @@
 
 import React from 'react';
-import TourPlannerDialog from '@/components/TourPlannerDialog';
-import VoiceAssistant from '@/components/VoiceAssistant';
-import VoiceSearchDialog from '@/components/VoiceSearchDialog';
-import FavoritesDialog from '@/components/FavoritesDialog';
-import AuthDialog from '@/components/AuthDialog';
+import TourPlannerDialog from './TourPlannerDialog';
+import VoiceAssistant from './VoiceAssistant';
+import VoiceSearchDialog from './VoiceSearchDialog';
+import FavoritesDialog from './FavoritesDialog';
+import AuthDialog from './AuthDialog';
 import { Landmark } from '@/data/landmarks';
 
 interface DialogManagerProps {
-  // Tour Planner
   isTourPlannerOpen: boolean;
   onTourPlannerOpenChange: (open: boolean) => void;
-  onGenerateTour: (destination: string) => Promise<void>;
+  onGenerateTour: (destination: string) => void;
   onTourAuthRequired: (destination: string) => void;
   isTourLoading: boolean;
-  
-  // Voice Assistant
   isVoiceAssistantOpen: boolean;
   onVoiceAssistantOpenChange: (open: boolean) => void;
   currentDestination: string;
   plannedLandmarks: Landmark[];
   perplexityApiKey: string;
   elevenLabsApiKey: string;
-  
-  // Voice Search
   isVoiceSearchOpen: boolean;
   onVoiceSearchOpenChange: (open: boolean) => void;
-  
-  // Favorites
   isFavoritesOpen: boolean;
   onFavoritesOpenChange: (open: boolean) => void;
-  
-  // Auth
   isAuthDialogOpen: boolean;
   onAuthDialogOpenChange: (open: boolean) => void;
+  onAddLandmarks?: (newLandmarks: Landmark[]) => void;
 }
 
 const DialogManager: React.FC<DialogManagerProps> = ({
@@ -53,7 +45,8 @@ const DialogManager: React.FC<DialogManagerProps> = ({
   isFavoritesOpen,
   onFavoritesOpenChange,
   isAuthDialogOpen,
-  onAuthDialogOpenChange
+  onAuthDialogOpenChange,
+  onAddLandmarks
 }) => {
   return (
     <>
@@ -64,7 +57,7 @@ const DialogManager: React.FC<DialogManagerProps> = ({
         onAuthRequired={onTourAuthRequired}
         isLoading={isTourLoading}
       />
-      
+
       <VoiceAssistant
         open={isVoiceAssistantOpen}
         onOpenChange={onVoiceAssistantOpenChange}
@@ -72,18 +65,19 @@ const DialogManager: React.FC<DialogManagerProps> = ({
         landmarks={plannedLandmarks}
         perplexityApiKey={perplexityApiKey}
         elevenLabsApiKey={elevenLabsApiKey}
+        onAddLandmarks={onAddLandmarks}
       />
-      
+
       <VoiceSearchDialog
         open={isVoiceSearchOpen}
         onOpenChange={onVoiceSearchOpenChange}
       />
-      
+
       <FavoritesDialog
         open={isFavoritesOpen}
         onOpenChange={onFavoritesOpenChange}
       />
-      
+
       <AuthDialog
         open={isAuthDialogOpen}
         onOpenChange={onAuthDialogOpenChange}

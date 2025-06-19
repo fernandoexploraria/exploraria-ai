@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import Map from '@/components/Map';
 import SplashScreen from '@/components/SplashScreen';
@@ -31,12 +30,13 @@ const Index: React.FC = () => {
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [currentDestination, setCurrentDestination] = useState<string>('');
   const [pendingDestination, setPendingDestination] = useState<string>('');
+  const [additionalLandmarks, setAdditionalLandmarks] = useState<Landmark[]>([]);
   const { plannedLandmarks, isLoading: isTourLoading, generateTour } = useTourPlanner();
   const { user, signOut } = useAuth();
   
   const allLandmarks = useMemo(() => {
-    return [...staticLandmarks, ...plannedLandmarks];
-  }, [plannedLandmarks]);
+    return [...staticLandmarks, ...plannedLandmarks, ...additionalLandmarks];
+  }, [plannedLandmarks, additionalLandmarks]);
 
   // Handle post-authentication tour generation
   useEffect(() => {
@@ -124,6 +124,10 @@ const Index: React.FC = () => {
     setShowSplash(true);
   };
 
+  const handleAddLandmarks = useCallback((newLandmarks: Landmark[]) => {
+    setAdditionalLandmarks(prev => [...prev, ...newLandmarks]);
+  }, []);
+
   if (showSplash) {
     return <SplashScreen onDismiss={handleSplashDismiss} />;
   }
@@ -153,7 +157,7 @@ const Index: React.FC = () => {
         landmarks={allLandmarks}
         onSelectLandmark={handleSelectLandmark}
         selectedLandmark={selectedLandmark}
-        plannedLandmarks={plannedLandmarks}
+        plannedLandmarks={[...plannedLandmarks, ...additionalLandmarks]}
       />
 
       <DialogManager
@@ -174,6 +178,7 @@ const Index: React.FC = () => {
         onFavoritesOpenChange={setIsFavoritesOpen}
         isAuthDialogOpen={isAuthDialogOpen}
         onAuthDialogOpenChange={handleAuthDialogClose}
+        onAddLandmarks={handleAddLandmarks}
       />
     </div>
   );
