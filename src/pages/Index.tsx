@@ -5,10 +5,8 @@ import SplashScreen from '@/components/SplashScreen';
 import { landmarks as staticLandmarks, Landmark } from '@/data/landmarks';
 import { useTourPlanner } from '@/hooks/useTourPlanner';
 import { useAuth } from '@/components/AuthProvider';
-import { supabase } from '@/integrations/supabase/client';
 import TopControls from '@/components/TopControls';
 import UserControls from '@/components/UserControls';
-import CameraControls from '@/components/CameraControls';
 import DialogManager from '@/components/DialogManager';
 
 // IMPORTANT: Replace this with your own public Mapbox token!
@@ -31,15 +29,8 @@ const Index: React.FC = () => {
   const [isVoiceSearchOpen, setIsVoiceSearchOpen] = useState(false);
   const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [currentDestination, setCurrentDestination] = useState<string>('');
   const [pendingDestination, setPendingDestination] = useState<string>('');
-  const [analysisResult, setAnalysisResult] = useState<{
-    imageData: string;
-    analysis: string;
-    landmarkName: string;
-  } | null>(null);
-  const [isAnalysisResultOpen, setIsAnalysisResultOpen] = useState(false);
   const { plannedLandmarks, isLoading: isTourLoading, generateTour } = useTourPlanner();
   const { user, signOut } = useAuth();
   
@@ -101,45 +92,6 @@ const Index: React.FC = () => {
     // No need to check for pendingDestination here as OAuth redirects might not preserve state
   };
 
-  const handleImageCapture = async (imageData: string) => {
-    setIsAnalyzing(true);
-    
-    try {
-      const landmarkName = selectedLandmark ? selectedLandmark.name : 'Unknown location';
-      console.log('Sending image for analysis:', { landmarkName, imageDataLength: imageData.length });
-      
-      const { data, error } = await supabase.functions.invoke('analyze-landmark-image', {
-        body: { imageData, landmarkName }
-      });
-
-      if (error) {
-        console.error('Supabase function error:', error);
-        throw error;
-      }
-
-      if (!data || !data.analysis) {
-        throw new Error('No analysis data received');
-      }
-
-      console.log('AI Analysis:', data.analysis);
-      
-      // Store the result and show the analysis panel
-      setAnalysisResult({
-        imageData,
-        analysis: data.analysis,
-        landmarkName
-      });
-      setIsAnalysisResultOpen(true);
-
-    } catch (error) {
-      console.error('Error analyzing image:', error);
-      const errorMessage = error.message || 'Failed to analyze image. Please try again.';
-      alert(`Error: ${errorMessage}`);
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
   const handleVoiceAssistantOpen = () => {
     if (!user) {
       setIsAuthDialogOpen(true);
@@ -199,13 +151,6 @@ const Index: React.FC = () => {
         plannedLandmarks={plannedLandmarks}
       />
 
-      <CameraControls
-        currentDestination={currentDestination}
-        selectedLandmark={selectedLandmark}
-        onImageCapture={handleImageCapture}
-        isAnalyzing={isAnalyzing}
-      />
-
       <DialogManager
         isTourPlannerOpen={isTourPlannerOpen}
         onTourPlannerOpenChange={setIsTourPlannerOpen}
@@ -224,9 +169,6 @@ const Index: React.FC = () => {
         onFavoritesOpenChange={setIsFavoritesOpen}
         isAuthDialogOpen={isAuthDialogOpen}
         onAuthDialogOpenChange={handleAuthDialogClose}
-        isAnalysisResultOpen={isAnalysisResultOpen}
-        onAnalysisResultOpenChange={setIsAnalysisResultOpen}
-        analysisResult={analysisResult}
       />
     </div>
   );

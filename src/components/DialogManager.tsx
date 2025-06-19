@@ -5,7 +5,6 @@ import VoiceAssistant from '@/components/VoiceAssistant';
 import VoiceSearchDialog from '@/components/VoiceSearchDialog';
 import FavoritesDialog from '@/components/FavoritesDialog';
 import AuthDialog from '@/components/AuthDialog';
-import ImageAnalysisResult from '@/components/ImageAnalysisResult';
 import { Landmark } from '@/data/landmarks';
 
 interface DialogManagerProps {
@@ -35,15 +34,6 @@ interface DialogManagerProps {
   // Auth
   isAuthDialogOpen: boolean;
   onAuthDialogOpenChange: (open: boolean) => void;
-  
-  // Image Analysis
-  isAnalysisResultOpen: boolean;
-  onAnalysisResultOpenChange: (open: boolean) => void;
-  analysisResult: {
-    imageData: string;
-    analysis: string;
-    landmarkName: string;
-  } | null;
 }
 
 const DialogManager: React.FC<DialogManagerProps> = ({
@@ -63,21 +53,10 @@ const DialogManager: React.FC<DialogManagerProps> = ({
   isFavoritesOpen,
   onFavoritesOpenChange,
   isAuthDialogOpen,
-  onAuthDialogOpenChange,
-  isAnalysisResultOpen,
-  onAnalysisResultOpenChange,
-  analysisResult
+  onAuthDialogOpenChange
 }) => {
   return (
     <>
-      <ImageAnalysisResult
-        open={isAnalysisResultOpen}
-        onOpenChange={onAnalysisResultOpenChange}
-        imageData={analysisResult?.imageData || null}
-        analysis={analysisResult?.analysis || null}
-        landmarkName={analysisResult?.landmarkName}
-      />
-
       <TourPlannerDialog
         open={isTourPlannerOpen}
         onOpenChange={onTourPlannerOpenChange}
