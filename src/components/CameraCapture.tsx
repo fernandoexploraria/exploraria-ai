@@ -19,86 +19,50 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, isLoading
   const { toast } = useToast();
 
   const startCamera = async () => {
-    console.log('=== CAMERA START ATTEMPT ===');
-    console.log('Browser info:', {
-      userAgent: navigator.userAgent,
-      hasGetUserMedia: !!navigator.mediaDevices?.getUserMedia,
-      isSecureContext: window.isSecureContext,
-      protocol: window.location.protocol
-    });
-    
+    console.log('=== STARTING CAMERA ===');
     setIsStartingCamera(true);
     
     try {
-      // Check if we're in a secure context
-      if (!window.isSecureContext) {
-        throw new Error('Camera requires HTTPS or localhost');
-      }
-
       // Check if getUserMedia is supported
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('Camera access is not supported in this browser');
       }
 
-      console.log('Requesting camera permissions...');
+      console.log('Requesting camera access...');
       
-      // Request camera permissions with fallback constraints
-      let mediaStream;
-      try {
-        // Try with ideal constraints first
-        mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: { 
-            facingMode: 'environment',
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          }
-        });
-      } catch (idealError) {
-        console.log('Ideal constraints failed, trying basic constraints:', idealError);
-        // Fallback to basic video constraints
-        mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: true
-        });
-      }
-
-      console.log('Camera stream obtained successfully:', {
-        streamId: mediaStream.id,
-        tracks: mediaStream.getVideoTracks().length,
-        trackSettings: mediaStream.getVideoTracks()[0]?.getSettings()
+      // Request camera access
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { 
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
       });
-      
+
+      console.log('Camera stream obtained successfully');
       setStream(mediaStream);
       
+      // Show the camera overlay immediately
+      setIsOpen(true);
+      
+      // Set up video element
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        console.log('Video element updated with stream');
+        console.log('Video element configured');
         
-        // Set up video element event handlers
+        // Ensure video plays
         videoRef.current.onloadedmetadata = () => {
-          console.log('Video metadata loaded, opening camera view');
-          setIsOpen(true);
-          setIsStartingCamera(false);
+          console.log('Video metadata loaded, starting playback');
+          if (videoRef.current) {
+            videoRef.current.play().catch(console.error);
+          }
         };
-        
-        videoRef.current.onerror = (error) => {
-          console.error('Video element error:', error);
-          setIsStartingCamera(false);
-        };
-        
-        // Force video to play
-        try {
-          await videoRef.current.play();
-          console.log('Video playback started');
-        } catch (playError) {
-          console.error('Video play error:', playError);
-          // Continue anyway, some browsers don't need explicit play
-        }
-      } else {
-        console.error('Video ref is null');
-        setIsStartingCamera(false);
       }
+      
+      setIsStartingCamera(false);
+      
     } catch (error) {
-      console.error('=== CAMERA ERROR ===', error);
+      console.error('Camera error:', error);
       setIsStartingCamera(false);
       
       let errorMessage = 'Could not access camera.';
@@ -112,14 +76,9 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, isLoading
           errorMessage = 'Camera is not supported in this browser.';
         } else if (error.name === 'NotReadableError') {
           errorMessage = 'Camera is already in use by another application.';
-        } else if (error.message.includes('HTTPS')) {
-          errorMessage = 'Camera requires a secure connection (HTTPS).';
-        } else {
-          errorMessage = `Camera error: ${error.message}`;
         }
       }
       
-      console.log('Showing error toast:', errorMessage);
       toast({
         title: "Camera Error",
         description: errorMessage,
@@ -133,7 +92,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, isLoading
     if (stream) {
       stream.getTracks().forEach(track => {
         track.stop();
-        console.log('Camera track stopped:', track.kind);
+        console.log('Camera track stopped');
       });
       setStream(null);
     }
@@ -185,7 +144,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, isLoading
       
       // Convert to base64 image data
       const imageData = canvas.toDataURL('image/jpeg', 0.8);
-      console.log('Image captured successfully, data length:', imageData.length);
+      console.log('Image captured successfully');
       
       // Pass the image data to parent component
       onImageCapture(imageData);
@@ -198,10 +157,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, isLoading
         description: "Photo captured successfully!",
       });
     } else {
-      console.error('Video or canvas ref is null:', {
-        hasVideo: !!videoRef.current,
-        hasCanvas: !!canvasRef.current
-      });
+      console.error('Video or canvas ref is null');
       toast({
         title: "Capture Error",
         description: "Camera not ready for capture.",
@@ -213,7 +169,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, isLoading
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      console.log('File selected:', file.name, file.type, file.size);
+      console.log('File selected:', file.name);
       
       if (!file.type.startsWith('image/')) {
         toast({
@@ -227,7 +183,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, isLoading
       const reader = new FileReader();
       reader.onload = (e) => {
         const imageData = e.target?.result as string;
-        console.log('File loaded successfully, data length:', imageData.length);
+        console.log('File loaded successfully');
         onImageCapture(imageData);
         
         toast({
@@ -255,21 +211,22 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, isLoading
   // Camera view overlay
   if (isOpen) {
     return (
-      <div className="fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center">
-        <div className="relative w-full h-full max-w-md max-h-md">
+      <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center">
+        <div className="relative w-full h-full">
           <video
             ref={videoRef}
             autoPlay
             playsInline
             muted
-            className="w-full h-full object-cover rounded-lg"
+            className="w-full h-full object-cover"
           />
           <canvas ref={canvasRef} className="hidden" />
           
-          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-4">
+          {/* Controls overlay */}
+          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex items-center gap-6">
             <Button
               onClick={captureImage}
-              className="bg-white text-black hover:bg-gray-200 rounded-full w-16 h-16"
+              className="bg-white text-black hover:bg-gray-200 rounded-full w-20 h-20 p-0"
               disabled={isLoading}
             >
               <Camera className="w-8 h-8" />
@@ -277,9 +234,9 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, isLoading
             <Button
               onClick={stopCamera}
               variant="outline"
-              className="bg-red-500 text-white hover:bg-red-600 rounded-full w-16 h-16"
+              className="bg-red-500 border-red-500 text-white hover:bg-red-600 rounded-full w-16 h-16 p-0"
             >
-              <X className="w-8 h-8" />
+              <X className="w-6 h-6" />
             </Button>
           </div>
         </div>
