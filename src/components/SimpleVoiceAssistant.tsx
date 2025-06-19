@@ -80,7 +80,7 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
       toast({
         title: "Error",
         description: "Failed to initialize voice assistant",
-        variant: "descriptive"
+        variant: "destructive"
       });
     }
   };
