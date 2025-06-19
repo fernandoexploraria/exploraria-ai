@@ -31,20 +31,14 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
 
   const connectToOpenAI = async () => {
     try {
-      console.log('Connecting directly to OpenAI Realtime API...');
+      console.log('Connecting to OpenAI Realtime API...');
       
-      // Get OpenAI API key from environment or prompt user
-      const apiKey = 'sk-your-api-key-here'; // This should be replaced with actual API key
+      // Get OpenAI API key from environment or use placeholder
+      const apiKey = import.meta.env.VITE_OPENAI_API_KEY || 'your-api-key-here';
       
+      // Connect to WebSocket with API key in URL parameter
       const ws = new WebSocket(
-        `wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17`,
-        [],
-        {
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'OpenAI-Beta': 'realtime=v1'
-          }
-        }
+        `wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17&api_key=${apiKey}`
       );
 
       ws.onopen = () => {
