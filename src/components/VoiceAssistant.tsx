@@ -12,7 +12,7 @@ import VoiceStatus from './voice-assistant/VoiceStatus';
 import VoiceControls from './voice-assistant/VoiceControls';
 import { useAudioContext } from './voice-assistant/useAudioContext';
 import { useGoogleSpeechRecognition } from './voice-assistant/useGoogleSpeechRecognition';
-import { useGoogleTextToSpeech } from './voice-assistant/useGoogleTextToSpeech';
+import { useGeminiTextToSpeech } from './voice-assistant/useGeminiTextToSpeech';
 import { useGeminiAPI } from '@/hooks/useGeminiAPI';
 
 interface VoiceAssistantProps {
@@ -20,8 +20,6 @@ interface VoiceAssistantProps {
   onOpenChange: (open: boolean) => void;
   destination: string;
   landmarks: Landmark[];
-  perplexityApiKey: string;
-  elevenLabsApiKey: string;
   onAddLandmarks?: (newLandmarks: Landmark[]) => void;
 }
 
@@ -58,7 +56,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     forceStopListening,
     cleanup: cleanupRecognition 
   } = useGoogleSpeechRecognition();
-  const { isSpeaking, speakText, cleanup: cleanupTTS } = useGoogleTextToSpeech();
+  const { isSpeaking, speakText, cleanup: cleanupTTS } = useGeminiTextToSpeech();
 
   // Stop speech recognition when TTS starts
   useEffect(() => {
