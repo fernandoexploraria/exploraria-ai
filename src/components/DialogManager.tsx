@@ -10,7 +10,7 @@ import { Landmark } from '@/data/landmarks';
 interface DialogManagerProps {
   isTourPlannerOpen: boolean;
   onTourPlannerOpenChange: (open: boolean) => void;
-  onGenerateTour: (destination: string) => void;
+  onGenerateTour: (destination: string) => Promise<void>;
   onTourAuthRequired: (destination: string) => void;
   isTourLoading: boolean;
   isVoiceAssistantOpen: boolean;
