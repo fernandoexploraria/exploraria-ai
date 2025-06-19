@@ -19,50 +19,107 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, isLoading
   const { toast } = useToast();
 
   const startCamera = async () => {
-    console.log('Starting camera...');
+    console.log('=== CAMERA START ATTEMPT ===');
+    console.log('Browser info:', {
+      userAgent: navigator.userAgent,
+      hasGetUserMedia: !!navigator.mediaDevices?.getUserMedia,
+      isSecureContext: window.isSecureContext,
+      protocol: window.location.protocol
+    });
+    
     setIsStartingCamera(true);
     
     try {
+      // Check if we're in a secure context
+      if (!window.isSecureContext) {
+        throw new Error('Camera requires HTTPS or localhost');
+      }
+
       // Check if getUserMedia is supported
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('Camera access is not supported in this browser');
       }
 
-      // Request camera permissions
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: 'environment', // Use back camera on mobile
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
-      });
+      console.log('Requesting camera permissions...');
+      
+      // Request camera permissions with fallback constraints
+      let mediaStream;
+      try {
+        // Try with ideal constraints first
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { 
+            facingMode: 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        });
+      } catch (idealError) {
+        console.log('Ideal constraints failed, trying basic constraints:', idealError);
+        // Fallback to basic video constraints
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: true
+        });
+      }
 
-      console.log('Camera stream obtained successfully');
+      console.log('Camera stream obtained successfully:', {
+        streamId: mediaStream.id,
+        tracks: mediaStream.getVideoTracks().length,
+        trackSettings: mediaStream.getVideoTracks()[0]?.getSettings()
+      });
+      
       setStream(mediaStream);
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        // Wait for video to be ready
+        console.log('Video element updated with stream');
+        
+        // Set up video element event handlers
         videoRef.current.onloadedmetadata = () => {
-          console.log('Video metadata loaded');
+          console.log('Video metadata loaded, opening camera view');
           setIsOpen(true);
           setIsStartingCamera(false);
         };
+        
+        videoRef.current.onerror = (error) => {
+          console.error('Video element error:', error);
+          setIsStartingCamera(false);
+        };
+        
+        // Force video to play
+        try {
+          await videoRef.current.play();
+          console.log('Video playback started');
+        } catch (playError) {
+          console.error('Video play error:', playError);
+          // Continue anyway, some browsers don't need explicit play
+        }
+      } else {
+        console.error('Video ref is null');
+        setIsStartingCamera(false);
       }
     } catch (error) {
-      console.error('Error accessing camera:', error);
+      console.error('=== CAMERA ERROR ===', error);
       setIsStartingCamera(false);
       
       let errorMessage = 'Could not access camera.';
       
-      if (error.name === 'NotAllowedError') {
-        errorMessage = 'Camera permission denied. Please allow camera access and try again.';
-      } else if (error.name === 'NotFoundError') {
-        errorMessage = 'No camera found on this device.';
-      } else if (error.name === 'NotSupportedError') {
-        errorMessage = 'Camera is not supported in this browser.';
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') {
+          errorMessage = 'Camera permission denied. Please allow camera access and try again.';
+        } else if (error.name === 'NotFoundError') {
+          errorMessage = 'No camera found on this device.';
+        } else if (error.name === 'NotSupportedError') {
+          errorMessage = 'Camera is not supported in this browser.';
+        } else if (error.name === 'NotReadableError') {
+          errorMessage = 'Camera is already in use by another application.';
+        } else if (error.message.includes('HTTPS')) {
+          errorMessage = 'Camera requires a secure connection (HTTPS).';
+        } else {
+          errorMessage = `Camera error: ${error.message}`;
+        }
       }
       
+      console.log('Showing error toast:', errorMessage);
       toast({
         title: "Camera Error",
         description: errorMessage,
@@ -72,19 +129,22 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, isLoading
   };
 
   const stopCamera = () => {
-    console.log('Stopping camera...');
+    console.log('=== STOPPING CAMERA ===');
     if (stream) {
       stream.getTracks().forEach(track => {
         track.stop();
-        console.log('Camera track stopped');
+        console.log('Camera track stopped:', track.kind);
       });
       setStream(null);
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
     }
     setIsOpen(false);
   };
 
   const captureImage = () => {
-    console.log('Capturing image...');
+    console.log('=== CAPTURING IMAGE ===');
     
     if (videoRef.current && canvasRef.current) {
       const canvas = canvasRef.current;
@@ -92,6 +152,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, isLoading
       const context = canvas.getContext('2d');
       
       if (!context) {
+        console.error('Could not get canvas context');
         toast({
           title: "Capture Error",
           description: "Could not initialize canvas for image capture.",
@@ -101,17 +162,30 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, isLoading
       }
       
       // Set canvas dimensions to match video
-      canvas.width = video.videoWidth || video.clientWidth;
-      canvas.height = video.videoHeight || video.clientHeight;
+      const videoWidth = video.videoWidth || video.clientWidth;
+      const videoHeight = video.videoHeight || video.clientHeight;
       
-      console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
+      console.log('Video dimensions:', { videoWidth, videoHeight });
+      
+      if (videoWidth === 0 || videoHeight === 0) {
+        console.error('Invalid video dimensions');
+        toast({
+          title: "Capture Error",
+          description: "Camera not ready. Please wait a moment and try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      canvas.width = videoWidth;
+      canvas.height = videoHeight;
       
       // Draw the video frame to canvas
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
       
       // Convert to base64 image data
       const imageData = canvas.toDataURL('image/jpeg', 0.8);
-      console.log('Image captured, data length:', imageData.length);
+      console.log('Image captured successfully, data length:', imageData.length);
       
       // Pass the image data to parent component
       onImageCapture(imageData);
@@ -124,6 +198,10 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, isLoading
         description: "Photo captured successfully!",
       });
     } else {
+      console.error('Video or canvas ref is null:', {
+        hasVideo: !!videoRef.current,
+        hasCanvas: !!canvasRef.current
+      });
       toast({
         title: "Capture Error",
         description: "Camera not ready for capture.",
@@ -135,7 +213,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, isLoading
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      console.log('File selected:', file.name, file.type);
+      console.log('File selected:', file.name, file.type, file.size);
       
       if (!file.type.startsWith('image/')) {
         toast({
@@ -149,7 +227,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, isLoading
       const reader = new FileReader();
       reader.onload = (e) => {
         const imageData = e.target?.result as string;
-        console.log('File loaded, data length:', imageData.length);
+        console.log('File loaded successfully, data length:', imageData.length);
         onImageCapture(imageData);
         
         toast({
@@ -158,6 +236,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, isLoading
         });
       };
       reader.onerror = () => {
+        console.error('FileReader error');
         toast({
           title: "Upload Error",
           description: "Failed to read the selected file.",
@@ -166,8 +245,14 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, isLoading
       };
       reader.readAsDataURL(file);
     }
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
+  // Camera view overlay
   if (isOpen) {
     return (
       <div className="fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center">
@@ -202,6 +287,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, isLoading
     );
   }
 
+  // Camera and upload buttons
   return (
     <div className="flex gap-2">
       <Button
@@ -215,7 +301,10 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCapture, isLoading
         {isStartingCamera ? 'Starting...' : 'Camera'}
       </Button>
       <Button
-        onClick={() => fileInputRef.current?.click()}
+        onClick={() => {
+          console.log('Upload button clicked');
+          fileInputRef.current?.click();
+        }}
         variant="outline"
         size="sm"
         className="text-xs"
