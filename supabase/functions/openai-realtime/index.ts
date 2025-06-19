@@ -1,5 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.0";
 
 serve(async (req) => {
   const { headers } = req;
@@ -13,6 +14,34 @@ serve(async (req) => {
   if (upgradeHeader.toLowerCase() !== "websocket") {
     console.log("Not a WebSocket request, returning 400");
     return new Response("Expected WebSocket connection", { status: 400 });
+  }
+
+  // Extract token from URL query parameters
+  const url = new URL(req.url);
+  const token = url.searchParams.get('token');
+  
+  if (!token) {
+    console.log("No token provided in query parameters");
+    return new Response("Authentication token required", { status: 401 });
+  }
+
+  // Verify the token using Supabase
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    
+    if (error || !user) {
+      console.log("Invalid token:", error?.message);
+      return new Response("Invalid authentication token", { status: 401 });
+    }
+
+    console.log("User authenticated:", user.id);
+  } catch (authError) {
+    console.error("Authentication error:", authError);
+    return new Response("Authentication failed", { status: 401 });
   }
 
   // Check for OpenAI API key
