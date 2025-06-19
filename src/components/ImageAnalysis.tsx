@@ -90,8 +90,8 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
         ) : (
           <Camera className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
         )}
-        <span className="lg:hidden">Scan</span>
-        <span className="hidden lg:inline">Scan Landmark</span>
+        <span className="lg:hidden">Image Recognition</span>
+        <span className="hidden lg:inline">Image Recognition</span>
       </Button>
 
       <CameraCapture
