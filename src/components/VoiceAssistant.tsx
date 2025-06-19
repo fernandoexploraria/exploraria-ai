@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -9,7 +8,7 @@ import AuthDialog from './AuthDialog';
 import VoiceStatus from './voice-assistant/VoiceStatus';
 import VoiceControls from './voice-assistant/VoiceControls';
 import { useAudioContext } from './voice-assistant/useAudioContext';
-import { useSpeechRecognition } from './voice-assistant/useSpeechRecognition';
+import { useGoogleSpeechRecognition } from './voice-assistant/useGoogleSpeechRecognition';
 import { useGoogleTextToSpeech } from './voice-assistant/useGoogleTextToSpeech';
 import { useConversationHandler } from './voice-assistant/useConversationHandler';
 
@@ -44,7 +43,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     startListening, 
     stopListening, 
     cleanup: cleanupRecognition 
-  } = useSpeechRecognition();
+  } = useGoogleSpeechRecognition();
   const { isSpeaking, speakText, cleanup: cleanupTTS } = useGoogleTextToSpeech();
 
   const {
@@ -101,15 +100,6 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   }, [open, cleanupTTS, cleanupRecognition]);
 
   const handleStartListening = async () => {
-    if (!isSpeechRecognitionSupported) {
-      toast({
-        title: "Not Supported",
-        description: "Speech recognition is not supported in this browser. Please try Chrome, Edge, or Safari.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     try {
       if (!audioContextInitialized) {
         await initializeAudioContext();
