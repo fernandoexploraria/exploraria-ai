@@ -25,16 +25,21 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [isConnected, setIsConnected] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   // Initialize connection when dialog opens
   useEffect(() => {
     if (open && !realtimeChat) {
       console.log('Dialog opened, initializing OpenAI Realtime connection...');
+      setConnectionError(null);
       
       const chat = new OpenAIRealtimeChat(
         (connected) => {
           console.log('Connection status changed:', connected);
           setIsConnected(connected);
+          if (!connected) {
+            setConnectionError('Connection lost');
+          }
         },
         (listening) => {
           console.log('Listening status changed:', listening);
@@ -51,6 +56,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       chat.connect()
         .then(() => {
           console.log('Connected successfully, sending initial greeting...');
+          setConnectionError(null);
           // Send initial greeting after connection
           setTimeout(() => {
             chat.sendInitialGreeting();
@@ -58,6 +64,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         })
         .catch((error) => {
           console.error('Failed to connect:', error);
+          setConnectionError(error.message);
           toast({
             title: "Connection Error",
             description: `Could not connect to voice assistant: ${error.message}`,
@@ -141,10 +148,28 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
             )}
           </Button>
           
-          {!isConnected && (
+          {!isConnected && !connectionError && (
             <p className="mt-4 text-sm text-muted-foreground text-center">
               Connecting to assistant...
             </p>
+          )}
+
+          {connectionError && (
+            <div className="mt-4 text-center">
+              <p className="text-sm text-red-500 mb-2">
+                Connection failed: {connectionError}
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  setRealtimeChat(null);
+                  setConnectionError(null);
+                }}
+              >
+                Try Again
+              </Button>
+            </div>
           )}
           
           {isConnected && isListening && (

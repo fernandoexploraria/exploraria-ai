@@ -199,8 +199,18 @@ export class OpenAIRealtimeChat {
       
       this.ws = new WebSocket(wsUrl);
 
+      // Add timeout for connection
+      const connectionTimeout = setTimeout(() => {
+        console.error('WebSocket connection timeout');
+        if (this.ws && this.ws.readyState !== WebSocket.OPEN) {
+          this.ws.close();
+          throw new Error('Connection timeout');
+        }
+      }, 10000); // 10 second timeout
+
       this.ws.onopen = () => {
         console.log('WebSocket connected successfully');
+        clearTimeout(connectionTimeout);
         this.isConnected = true;
         this.onConnectionChange(true);
       };
@@ -226,6 +236,8 @@ export class OpenAIRealtimeChat {
             this.onSpeakingChange(false);
           } else if (data.type === 'error') {
             console.error('OpenAI API error:', data);
+          } else if (data.type === 'session.created') {
+            console.log('Session created, sending session update...');
           }
         } catch (error) {
           console.error('Error processing WebSocket message:', error);
@@ -234,6 +246,7 @@ export class OpenAIRealtimeChat {
 
       this.ws.onclose = (event) => {
         console.log('WebSocket connection closed:', event.code, event.reason);
+        clearTimeout(connectionTimeout);
         this.isConnected = false;
         this.onConnectionChange(false);
         this.cleanup();
@@ -241,9 +254,24 @@ export class OpenAIRealtimeChat {
 
       this.ws.onerror = (error) => {
         console.error('WebSocket error:', error);
+        clearTimeout(connectionTimeout);
         this.isConnected = false;
         this.onConnectionChange(false);
       };
+
+      // Wait for connection to be established
+      await new Promise((resolve, reject) => {
+        const checkConnection = () => {
+          if (this.ws?.readyState === WebSocket.OPEN) {
+            resolve(true);
+          } else if (this.ws?.readyState === WebSocket.CLOSED) {
+            reject(new Error('WebSocket connection failed'));
+          } else {
+            setTimeout(checkConnection, 100);
+          }
+        };
+        checkConnection();
+      });
 
     } catch (error) {
       console.error('Error connecting to OpenAI Realtime API:', error);
