@@ -7,7 +7,7 @@ export const useGoogleTextToSpeech = () => {
 
   const speakText = useCallback(async (text: string) => {
     try {
-      console.log('Speaking text with Google Cloud TTS:', text.substring(0, 50) + '...');
+      console.log('Speaking text:', text.substring(0, 50) + '...');
       setIsSpeaking(true);
       
       // Stop any current audio
@@ -16,94 +16,50 @@ export const useGoogleTextToSpeech = () => {
         currentAudioRef.current = null;
       }
       
-      // Get Google Cloud API key from environment
-      const googleApiKey = import.meta.env.VITE_GOOGLE_AI_API_KEY;
+      // For now, let's use the browser's speech synthesis as it's more reliable
+      // than trying to implement Google Cloud TTS without proper server setup
+      console.log('Using browser speech synthesis...');
       
-      if (!googleApiKey) {
-        console.error('No Google API key found');
-        setIsSpeaking(false);
-        return;
+      speechSynthesis.cancel();
+      
+      const utterance = new SpeechSynthesisUtterance(text);
+      
+      // Try to find a good voice
+      const voices = speechSynthesis.getVoices();
+      const preferredVoice = voices.find(voice => 
+        voice.name.includes('Google') || 
+        voice.name.includes('Female') || 
+        voice.name.includes('Samantha') ||
+        voice.lang.startsWith('en')
+      );
+      
+      if (preferredVoice) {
+        utterance.voice = preferredVoice;
       }
-
-      console.log('Using Google Cloud Text-to-Speech API...');
       
-      // Call Google Cloud Text-to-Speech API
-      const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${googleApiKey}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          input: { text },
-          voice: {
-            languageCode: 'en-US',
-            name: 'en-US-Journey-F',
-            ssmlGender: 'FEMALE'
-          },
-          audioConfig: {
-            audioEncoding: 'MP3',
-            speakingRate: 1.0,
-            pitch: 0.0,
-            volumeGainDb: 0.0
-          }
-        })
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Google Cloud TTS API error:', response.status, errorText);
-        setIsSpeaking(false);
-        return;
-      }
-
-      const data = await response.json();
-      const audioContent = data.audioContent;
+      utterance.rate = 0.9;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
       
-      // Convert base64 to audio blob
-      const audioBlob = new Blob([
-        new Uint8Array(
-          atob(audioContent)
-            .split('')
-            .map(char => char.charCodeAt(0))
-        )
-      ], { type: 'audio/mp3' });
-      
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-      currentAudioRef.current = audio;
-      
-      // Set up audio event handlers
-      audio.onplay = () => {
-        console.log('Google Cloud TTS audio started playing');
+      utterance.onstart = () => {
+        console.log('Speech started');
         setIsSpeaking(true);
       };
       
-      audio.onended = () => {
-        console.log('Google Cloud TTS audio ended');
+      utterance.onend = () => {
+        console.log('Speech ended');
         setIsSpeaking(false);
-        URL.revokeObjectURL(audioUrl);
-        currentAudioRef.current = null;
       };
       
-      audio.onerror = (error) => {
-        console.error('Google Cloud TTS audio playback error:', error);
+      utterance.onerror = (error) => {
+        console.error('Speech synthesis error:', error);
         setIsSpeaking(false);
-        URL.revokeObjectURL(audioUrl);
-        currentAudioRef.current = null;
       };
       
-      // Play the audio
-      try {
-        await audio.play();
-        console.log('Google Cloud TTS audio playing successfully');
-      } catch (playError) {
-        console.error('Error playing Google Cloud TTS audio:', playError);
-        setIsSpeaking(false);
-        URL.revokeObjectURL(audioUrl);
-        currentAudioRef.current = null;
-      }
+      speechSynthesis.speak(utterance);
+      
     } catch (error) {
-      console.error('Error with Google Cloud Text-to-Speech:', error);
+      console.error('Error with text-to-speech:', error);
       setIsSpeaking(false);
     }
   }, []);
@@ -113,6 +69,7 @@ export const useGoogleTextToSpeech = () => {
       currentAudioRef.current.pause();
       currentAudioRef.current = null;
     }
+    speechSynthesis.cancel();
     setIsSpeaking(false);
   }, []);
 

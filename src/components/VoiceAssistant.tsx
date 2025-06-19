@@ -125,7 +125,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     
     await initializeAudioContext();
     
-    const welcomeMessage = `Welcome to your ${destination} tour! I'm your voice assistant powered by Google's advanced text-to-speech. You can ask me about any of the landmarks we've planned for you. What would you like to know?`;
+    const welcomeMessage = `Welcome to your ${destination} tour! I'm your voice assistant powered by Google Gemini. You can ask me about any of the landmarks we've planned for you. What would you like to know?`;
     console.log('Playing welcome message:', welcomeMessage);
     
     try {
