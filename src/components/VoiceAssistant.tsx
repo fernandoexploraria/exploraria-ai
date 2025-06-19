@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Send } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -10,6 +12,7 @@ import VoiceStatus from './voice-assistant/VoiceStatus';
 import VoiceControls from './voice-assistant/VoiceControls';
 import { useAudioContext } from './voice-assistant/useAudioContext';
 import { useGoogleSpeechRecognition } from './voice-assistant/useGoogleSpeechRecognition';
+import { useGoogleTextToSpeech } from './voice-assistant/useGoogleTextToSpeech';
 import { useGeminiAPI } from '@/hooks/useGeminiAPI';
 
 interface VoiceAssistantProps {
@@ -39,7 +42,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [suggestedLandmarks, setSuggestedLandmarks] = useState<LandmarkSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [textInput, setTextInput] = useState('');
   const { toast } = useToast();
   const { user, session } = useAuth();
   const { callGemini } = useGeminiAPI();
@@ -55,6 +58,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     forceStopListening,
     cleanup: cleanupRecognition 
   } = useGoogleSpeechRecognition();
+  const { isSpeaking, speakText, cleanup: cleanupTTS } = useGoogleTextToSpeech();
 
   // Stop speech recognition when TTS starts
   useEffect(() => {
@@ -91,85 +95,19 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     return () => {
       console.log('VoiceAssistant cleanup');
       cleanupRecognition();
-      setIsSpeaking(false);
+      cleanupTTS();
     };
-  }, [open, isSpeechRecognitionSupported, setupRecognition, cleanupRecognition]);
+  }, [open, isSpeechRecognitionSupported, setupRecognition, cleanupRecognition, cleanupTTS]);
 
   // Reset state when dialog closes
   useEffect(() => {
     if (!open) {
       setHasUserInteracted(false);
-      setIsSpeaking(false);
+      setTextInput('');
+      cleanupTTS();
       cleanupRecognition();
     }
-  }, [open, cleanupRecognition]);
-
-  const speakText = async (text: string) => {
-    try {
-      console.log('Speaking text with Gemini TTS:', text.substring(0, 50) + '...');
-      setIsSpeaking(true);
-
-      const { data, error } = await supabase.functions.invoke('gemini-tts', {
-        body: { text }
-      });
-
-      if (error) {
-        console.error('Gemini TTS error:', error);
-        setIsSpeaking(false);
-        return;
-      }
-
-      const audioContent = data?.audioContent;
-      if (!audioContent) {
-        console.error('No audio content received from Gemini TTS');
-        setIsSpeaking(false);
-        return;
-      }
-
-      // Convert base64 to audio blob
-      const audioBlob = new Blob([
-        new Uint8Array(
-          atob(audioContent)
-            .split('')
-            .map(char => char.charCodeAt(0))
-        )
-      ], { type: 'audio/mp3' });
-      
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-      
-      // Set up audio event handlers
-      audio.onplay = () => {
-        console.log('Gemini TTS audio started playing');
-        setIsSpeaking(true);
-      };
-      
-      audio.onended = () => {
-        console.log('Gemini TTS audio ended');
-        setIsSpeaking(false);
-        URL.revokeObjectURL(audioUrl);
-      };
-      
-      audio.onerror = (error) => {
-        console.error('Gemini TTS audio playback error:', error);
-        setIsSpeaking(false);
-        URL.revokeObjectURL(audioUrl);
-      };
-      
-      // Play the audio
-      try {
-        await audio.play();
-        console.log('Gemini TTS audio playing successfully');
-      } catch (playError) {
-        console.error('Error playing Gemini TTS audio:', playError);
-        setIsSpeaking(false);
-        URL.revokeObjectURL(audioUrl);
-      }
-    } catch (error) {
-      console.error('Error with Gemini Text-to-Speech:', error);
-      setIsSpeaking(false);
-    }
-  };
+  }, [open, cleanupTTS, cleanupRecognition]);
 
   const extractLandmarkSuggestions = (aiResponse: string): LandmarkSuggestion[] => {
     // Look for JSON-formatted landmark suggestions in the response
@@ -325,6 +263,15 @@ Keep your main response conversational and under 200 words, then add the JSON su
     }
   };
 
+  const handleTextSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (textInput.trim()) {
+      console.log('Processing text input:', textInput);
+      await handleUserInput(textInput.trim());
+      setTextInput('');
+    }
+  };
+
   const handleAddSuggestedLandmarks = async () => {
     if (!onAddLandmarks || suggestedLandmarks.length === 0) return;
     
@@ -359,7 +306,7 @@ Keep your main response conversational and under 200 words, then add the JSON su
     
     await initializeAudioContext();
     
-    const welcomeMessage = `Welcome to your ${destination} tour! I'm your AI-powered voice assistant using advanced text-to-speech technology. You can hold the microphone button to ask me about any of the landmarks we've planned for you, and I'll share fascinating stories, local insights, and hidden gems. What would you like to know?`;
+    const welcomeMessage = `Welcome to your ${destination} tour! I'm your AI-powered voice assistant using advanced text-to-speech technology. You can hold the microphone button to ask me about any of the landmarks we've planned for you, or type your questions in the chat box below. I'll share fascinating stories, local insights, and hidden gems. What would you like to know?`;
     console.log('Playing welcome message:', welcomeMessage);
     
     try {
@@ -394,7 +341,7 @@ Keep your main response conversational and under 200 words, then add the JSON su
           <DialogHeader>
             <DialogTitle>Voice Tour Guide</DialogTitle>
             <DialogDescription>
-              Hold the microphone button to ask me anything about your {destination} tour! I'll share stories, tips, and suggest additional places you might love.
+              Hold the microphone button or type your questions to ask me anything about your {destination} tour! I'll share stories, tips, and suggest additional places you might love.
             </DialogDescription>
           </DialogHeader>
           
@@ -409,7 +356,7 @@ Keep your main response conversational and under 200 words, then add the JSON su
               <p className="text-center text-sm font-medium">
                 {isSpeaking ? 'Speaking...' : 
                  isListening ? 'Listening... (release to send)' : 
-                 hasUserInteracted ? 'Hold to speak' : 'Ready to start'}
+                 hasUserInteracted ? 'Hold to speak or type below' : 'Ready to start'}
               </p>
 
               <VoiceControls
@@ -429,6 +376,29 @@ Keep your main response conversational and under 200 words, then add the JSON su
                 </div>
               )}
             </div>
+
+            {/* Text Chat Input */}
+            {hasUserInteracted && (
+              <div className="w-full max-w-sm space-y-2">
+                <p className="text-xs text-muted-foreground text-center">Or type your question:</p>
+                <form onSubmit={handleTextSubmit} className="flex gap-2">
+                  <Input
+                    value={textInput}
+                    onChange={(e) => setTextInput(e.target.value)}
+                    placeholder="Ask me about landmarks..."
+                    disabled={isSpeaking}
+                    className="flex-1"
+                  />
+                  <Button 
+                    type="submit" 
+                    size="sm" 
+                    disabled={!textInput.trim() || isSpeaking}
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </form>
+              </div>
+            )}
 
             {showSuggestions && suggestedLandmarks.length > 0 && (
               <div className="w-full space-y-3 border-t pt-4">
@@ -464,7 +434,7 @@ Keep your main response conversational and under 200 words, then add the JSON su
             <div className="text-center">
               <p className="text-xs text-muted-foreground">
                 {hasUserInteracted 
-                  ? "Hold the microphone button and ask me about landmarks, local tips, or hidden gems!"
+                  ? "Hold the microphone button, type your questions, or ask me about landmarks, local tips, and hidden gems!"
                   : "Click 'Start Tour Guide' to begin your interactive tour experience"
                 }
               </p>
