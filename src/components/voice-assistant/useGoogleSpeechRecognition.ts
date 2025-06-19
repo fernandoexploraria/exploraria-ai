@@ -9,13 +9,12 @@ export const useGoogleSpeechRecognition = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+  const resultHandlerRef = useRef<((transcript: string) => void) | null>(null);
   const { toast } = useToast();
 
   const setupRecognition = useCallback((onResult: (transcript: string) => void) => {
     console.log('Setting up Google Speech Recognition...');
-    
-    // Store the result handler for later use
-    (window as any).googleSpeechOnResult = onResult;
+    resultHandlerRef.current = onResult;
   }, []);
 
   const startListening = useCallback(async () => {
@@ -41,68 +40,90 @@ export const useGoogleSpeechRecognition = () => {
       
       streamRef.current = stream;
       
-      mediaRecorderRef.current = new MediaRecorder(stream, {
+      const mediaRecorder = new MediaRecorder(stream, {
         mimeType: 'audio/webm;codecs=opus'
       });
+      mediaRecorderRef.current = mediaRecorder;
       
-      mediaRecorderRef.current.ondataavailable = (event) => {
+      mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data);
+          console.log('Audio chunk received:', event.data.size, 'bytes');
         }
       };
       
-      mediaRecorderRef.current.onstop = async () => {
+      mediaRecorder.onstop = async () => {
         console.log('Recording stopped, processing audio...');
         
         if (audioChunksRef.current.length === 0) {
           console.log('No audio data recorded');
-          setIsListening(false);
           return;
         }
         
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        console.log('Audio blob size:', audioBlob.size);
         
-        // Convert to base64
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-          try {
-            const base64Audio = (reader.result as string).split(',')[1];
-            
-            const { data, error } = await supabase.functions.invoke('google-speech-to-text', {
-              body: { audio: base64Audio }
-            });
+        try {
+          const reader = new FileReader();
+          reader.onloadend = async () => {
+            try {
+              const base64Audio = (reader.result as string).split(',')[1];
+              console.log('Sending audio to Google Speech API...');
+              
+              const { data, error } = await supabase.functions.invoke('google-speech-to-text', {
+                body: { audio: base64Audio }
+              });
 
-            if (error) {
-              console.error('Google Speech-to-Text error:', error);
+              if (error) {
+                console.error('Google Speech-to-Text error:', error);
+                toast({
+                  title: "Speech Recognition Error",
+                  description: "Failed to process speech. Please try again.",
+                  variant: "destructive"
+                });
+                return;
+              }
+
+              if (data && data.text) {
+                console.log('Google Speech Recognition result:', data.text);
+                setTranscript(data.text);
+                
+                if (resultHandlerRef.current) {
+                  resultHandlerRef.current(data.text);
+                }
+              } else {
+                console.log('No text received from Google Speech API');
+                toast({
+                  title: "No Speech Detected",
+                  description: "Please speak clearly and try again.",
+                  variant: "default"
+                });
+              }
+            } catch (error) {
+              console.error('Error processing speech:', error);
               toast({
-                title: "Speech Recognition Error",
-                description: "Failed to process speech. Please try again.",
+                title: "Processing Error",
+                description: "Failed to process your speech. Please try again.",
                 variant: "destructive"
               });
-              return;
             }
-
-            if (data && data.text) {
-              console.log('Google Speech Recognition result:', data.text);
-              setTranscript(data.text);
-              
-              if ((window as any).googleSpeechOnResult) {
-                (window as any).googleSpeechOnResult(data.text);
-              }
-            }
-          } catch (error) {
-            console.error('Error processing speech:', error);
-            toast({
-              title: "Processing Error",
-              description: "Failed to process your speech. Please try again.",
-              variant: "destructive"
-            });
-          }
-        };
-        reader.readAsDataURL(audioBlob);
+          };
+          reader.readAsDataURL(audioBlob);
+        } catch (error) {
+          console.error('Error reading audio blob:', error);
+        }
       };
       
-      mediaRecorderRef.current.start();
+      mediaRecorder.onerror = (event) => {
+        console.error('MediaRecorder error:', event);
+        toast({
+          title: "Recording Error",
+          description: "Failed to record audio. Please try again.",
+          variant: "destructive"
+        });
+      };
+      
+      mediaRecorder.start();
       console.log('Recording started');
       
     } catch (error) {
@@ -145,9 +166,7 @@ export const useGoogleSpeechRecognition = () => {
     
     setIsListening(false);
     setTranscript('');
-    
-    // Clear the result handler
-    delete (window as any).googleSpeechOnResult;
+    resultHandlerRef.current = null;
   }, []);
 
   return {

@@ -29,25 +29,21 @@ export const useMarkerManager = ({ map, landmarks, selectedLandmark, onMarkerCli
 
     // Add new markers
     landmarks.forEach(landmark => {
-      // Ensure coordinates are valid and in [lng, lat] format
+      // Ensure coordinates are valid arrays with exactly 2 numbers
       let coords = landmark.coordinates;
-      if (!coords || coords.length !== 2 || 
+      if (!Array.isArray(coords) || coords.length !== 2 || 
           typeof coords[0] !== 'number' || typeof coords[1] !== 'number') {
         console.warn(`Invalid coordinates for ${landmark.name}:`, coords);
         return;
       }
 
-      // Check if coordinates might be in [lat, lng] format and swap if needed
-      // Latitude should be between -90 and 90, longitude between -180 and 180
-      if (Math.abs(coords[0]) <= 90 && Math.abs(coords[1]) > 90) {
-        // Likely [lat, lng] format, swap to [lng, lat]
-        coords = [coords[1], coords[0]];
-        console.log(`Swapped coordinates for ${landmark.name}:`, coords);
-      }
+      // Mapbox expects [longitude, latitude] format
+      // Longitude: -180 to 180, Latitude: -90 to 90
+      let [lng, lat] = coords;
 
-      // Final validation
-      if (Math.abs(coords[0]) > 180 || Math.abs(coords[1]) > 90) {
-        console.warn(`Invalid coordinates for ${landmark.name}:`, coords);
+      // Validate coordinate ranges
+      if (Math.abs(lng) > 180 || Math.abs(lat) > 90) {
+        console.warn(`Coordinates out of range for ${landmark.name}:`, [lng, lat]);
         return;
       }
 
@@ -60,17 +56,17 @@ export const useMarkerManager = ({ map, landmarks, selectedLandmark, onMarkerCli
       
       try {
         const marker = new mapboxgl.Marker(el)
-          .setLngLat([coords[0], coords[1]]) // Ensure [lng, lat] format
+          .setLngLat([lng, lat])
           .addTo(map);
 
         el.addEventListener('click', (e) => {
           e.stopPropagation();
-          console.log('Marker clicked:', landmark.name, 'at coordinates:', coords);
+          console.log('Marker clicked:', landmark.name, 'at coordinates:', [lng, lat]);
           onMarkerClick(landmark);
         });
 
         markersRef.current[landmark.id] = marker;
-        console.log('Added marker for:', landmark.name, 'at', coords);
+        console.log('Added marker for:', landmark.name, 'at', [lng, lat]);
       } catch (error) {
         console.error('Error adding marker for', landmark.name, error);
       }

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,8 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const { user, session } = useAuth();
 
   const { audioContextInitialized, initializeAudioContext } = useAudioContext();
+  
+  // Use Google services
   const { 
     isListening, 
     transcript, 
@@ -44,6 +47,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     stopListening, 
     cleanup: cleanupRecognition 
   } = useGoogleSpeechRecognition();
+  
   const { isSpeaking, speakText, cleanup: cleanupTTS } = useGoogleTextToSpeech();
 
   const {
