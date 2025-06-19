@@ -71,8 +71,6 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       open,
       destination,
       landmarksCount: landmarks.length,
-      hasPerplexityKey: !!perplexityApiKey,
-      hasElevenLabsKey: !!elevenLabsApiKey,
       speechRecognitionSupported: isSpeechRecognitionSupported,
       userAuthenticated: !!user,
       sessionExists: !!session
