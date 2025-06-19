@@ -269,7 +269,7 @@ Please provide a helpful, conversational response about the destination or landm
               <p className="text-center text-sm font-medium">
                 {isSpeaking ? 'Speaking...' : 
                  isListening ? 'Listening...' : 
-                 hasUserInteracted ? 'Click to speak' : 'Click welcome first'}
+                 hasUserInteracted ? 'Click to speak' : 'Ready to start'}
               </p>
 
               <VoiceControls
