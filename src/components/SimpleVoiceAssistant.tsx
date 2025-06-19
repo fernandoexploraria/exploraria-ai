@@ -34,7 +34,7 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
       console.log('Connecting to OpenAI Realtime API via Supabase...');
       
       // Connect to our Supabase edge function which acts as a proxy
-      const ws = new WebSocket(`wss://gptengineer.app/supabase/functions/v1/openai-realtime`);
+      const ws = new WebSocket(`wss://ejqgdmbuabrcjxbhpxup.functions.supabase.co/openai-realtime`);
 
       ws.onopen = () => {
         console.log('Connected to OpenAI Realtime API');
