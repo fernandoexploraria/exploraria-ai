@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -19,7 +20,6 @@ interface MapProps {
 const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, selectedLandmark, plannedLandmarks }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
-  const [mapLoaded, setMapLoaded] = useState(false);
   const [playingAudio, setPlayingAudio] = useState<{ [key: string]: boolean }>({});
   const pendingPopupLandmark = useRef<Landmark | null>(null);
   const isZooming = useRef<boolean>(false);
@@ -43,63 +43,10 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     return [...landmarks, ...topLandmarksConverted];
   }, [landmarks]);
 
-  const handleMarkerClick = React.useCallback(async (landmark: Landmark) => {
-    console.log('Marker clicked:', landmark.name);
-    
-    // Check current zoom level and zoom in if needed
-    const currentZoom = map.current?.getZoom() || 1.5;
-    if (currentZoom < 10) {
-      isZooming.current = true;
-      pendingPopupLandmark.current = landmark;
-      map.current?.flyTo({
-        center: landmark.coordinates,
-        zoom: 14,
-        speed: 0.7,
-        curve: 1,
-        easing: (t) => t,
-      });
-    } else {
-      // Show popup immediately for marker clicks when already zoomed
-      popupHandler.current?.showLandmarkPopup(landmark);
-    }
-    
-    // Call the landmark selection handler to update the selected landmark
-    onSelectLandmark(landmark);
-  }, [onSelectLandmark]);
-
-  // Use marker manager - only when map is loaded
-  useMarkerManager({
-    map: mapLoaded ? map.current : null,
-    landmarks: allLandmarksWithTop,
-    selectedLandmark,
-    onMarkerClick: handleMarkerClick
-  });
-
-  // Function to handle text-to-speech using Google Cloud TTS
-  const handleTextToSpeech = React.useCallback(async (landmark: Landmark) => {
-    const landmarkId = landmark.id;
-    
-    if (playingAudio[landmarkId] || isSpeaking) {
-      return; // Already playing
-    }
-
-    try {
-      setPlayingAudio(prev => ({ ...prev, [landmarkId]: true }));
-      const text = `${landmark.name}. ${landmark.description}`;
-      await speakText(text);
-    } catch (error) {
-      console.error('Error with Google Cloud TTS:', error);
-    } finally {
-      setPlayingAudio(prev => ({ ...prev, [landmarkId]: false }));
-    }
-  }, [playingAudio, isSpeaking, speakText]);
-
   // Initialize map (runs once)
   useEffect(() => {
     if (!mapboxToken || !mapContainer.current || map.current) return;
 
-    console.log('Initializing map with token:', mapboxToken.substring(0, 20) + '...');
-    
     mapboxgl.accessToken = mapboxToken;
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
@@ -110,13 +57,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     });
 
     map.current.on('style.load', () => {
-      console.log('Map style loaded');
       map.current?.setFog({}); // Add a sky layer and atmosphere
-    });
-
-    map.current.on('load', () => {
-      console.log('Map fully loaded');
-      setMapLoaded(true);
     });
 
     // Close all popups when clicking on the map
@@ -150,10 +91,8 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     });
 
     return () => {
-      console.log('Cleaning up map');
       map.current?.remove();
       map.current = null;
-      setMapLoaded(false);
     };
   }, [mapboxToken]);
 
@@ -167,7 +106,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
         isSpeaking
       );
     }
-  }, [fetchLandmarkImage, allLandmarksWithTop, isSpeaking]);
+  }, [map.current, fetchLandmarkImage, allLandmarksWithTop, isSpeaking]);
 
   // Update popup handler state
   useEffect(() => {
@@ -176,6 +115,25 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     }
   }, [playingAudio, isSpeaking]);
 
+  // Function to handle text-to-speech using Google Cloud TTS
+  const handleTextToSpeech = async (landmark: Landmark) => {
+    const landmarkId = landmark.id;
+    
+    if (playingAudio[landmarkId] || isSpeaking) {
+      return; // Already playing
+    }
+
+    try {
+      setPlayingAudio(prev => ({ ...prev, [landmarkId]: true }));
+      const text = `${landmark.name}. ${landmark.description}`;
+      await speakText(text);
+    } catch (error) {
+      console.error('Error with Google Cloud TTS:', error);
+    } finally {
+      setPlayingAudio(prev => ({ ...prev, [landmarkId]: false }));
+    }
+  };
+
   // Set up global handler for landmark text-to-speech
   useEffect(() => {
     (window as any).handleLandmarkTextToSpeech = handleTextToSpeech;
@@ -183,6 +141,38 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       delete (window as any).handleLandmarkTextToSpeech;
     };
   }, [handleTextToSpeech]);
+
+  const handleMarkerClick = async (landmark: Landmark) => {
+    console.log('Marker clicked:', landmark.name);
+    
+    // Check current zoom level and zoom in if needed
+    const currentZoom = map.current?.getZoom() || 1.5;
+    if (currentZoom < 10) {
+      isZooming.current = true;
+      pendingPopupLandmark.current = landmark;
+      map.current?.flyTo({
+        center: landmark.coordinates,
+        zoom: 14,
+        speed: 0.7,
+        curve: 1,
+        easing: (t) => t,
+      });
+    } else {
+      // Show popup immediately for marker clicks when already zoomed
+      popupHandler.current?.showLandmarkPopup(landmark);
+    }
+    
+    // Call the landmark selection handler to update the selected landmark
+    onSelectLandmark(landmark);
+  };
+
+  // Use marker manager
+  useMarkerManager({
+    map: map.current,
+    landmarks: allLandmarksWithTop,
+    selectedLandmark,
+    onMarkerClick: handleMarkerClick
+  });
 
   // Fly to selected landmark
   useEffect(() => {

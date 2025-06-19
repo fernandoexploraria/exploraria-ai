@@ -1,5 +1,5 @@
 
-import { useEffect, useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { Landmark } from '@/data/landmarks';
 
@@ -10,91 +10,71 @@ interface UseMarkerManagerProps {
   onMarkerClick: (landmark: Landmark) => void;
 }
 
-export const useMarkerManager = ({ map, landmarks, selectedLandmark, onMarkerClick }: UseMarkerManagerProps) => {
-  const markersRef = useRef<{ [key: string]: mapboxgl.Marker }>({});
+export const useMarkerManager = ({
+  map,
+  landmarks,
+  selectedLandmark,
+  onMarkerClick
+}: UseMarkerManagerProps) => {
+  const markers = useRef<{ [key: string]: mapboxgl.Marker }>({});
 
+  // Update markers when landmarks change
   useEffect(() => {
-    if (!map || !map.loaded()) {
-      console.log('Map not ready for markers');
-      return;
-    }
+    if (!map) return;
 
-    console.log('Adding markers to map, landmarks count:', landmarks.length);
+    const landmarkIds = new Set(landmarks.map(l => l.id));
 
-    // Clear existing markers
-    Object.values(markersRef.current).forEach(marker => {
-      marker.remove();
+    // Remove markers that are no longer in the landmarks list
+    Object.keys(markers.current).forEach(markerId => {
+      if (!landmarkIds.has(markerId)) {
+        markers.current[markerId].remove();
+        delete markers.current[markerId];
+      }
     });
-    markersRef.current = {};
 
     // Add new markers
-    landmarks.forEach(landmark => {
-      // Ensure coordinates are valid arrays with exactly 2 numbers
-      let coords = landmark.coordinates;
-      if (!Array.isArray(coords) || coords.length !== 2 || 
-          typeof coords[0] !== 'number' || typeof coords[1] !== 'number') {
-        console.warn(`Invalid coordinates for ${landmark.name}:`, coords);
-        return;
-      }
-
-      // Mapbox expects [longitude, latitude] format
-      // Longitude: -180 to 180, Latitude: -90 to 90
-      let [lng, lat] = coords;
-
-      // Validate coordinate ranges
-      if (Math.abs(lng) > 180 || Math.abs(lat) > 90) {
-        console.warn(`Coordinates out of range for ${landmark.name}:`, [lng, lat]);
-        return;
-      }
-
-      const el = document.createElement('div');
-      el.className = `w-4 h-4 rounded-full cursor-pointer transition-all duration-200 ${
-        selectedLandmark?.id === landmark.id 
-          ? 'bg-yellow-400 ring-4 ring-yellow-200 scale-125' 
-          : 'bg-red-500 hover:bg-red-600 hover:scale-110'
-      }`;
-      
-      try {
+    landmarks.forEach((landmark) => {
+      if (!markers.current[landmark.id]) {
+        const el = document.createElement('div');
+        
+        // Different styling for top landmarks vs user landmarks
+        const isTopLandmark = landmark.id.startsWith('top-landmark-');
+        const markerColor = isTopLandmark ? 'bg-yellow-400' : 'bg-cyan-400';
+        
+        el.className = `w-4 h-4 rounded-full ${markerColor} border-2 border-white shadow-lg cursor-pointer transition-transform duration-300 hover:scale-125`;
+        el.style.transition = 'background-color 0.3s, transform 0.3s';
+        
         const marker = new mapboxgl.Marker(el)
-          .setLngLat([lng, lat])
+          .setLngLat(landmark.coordinates)
           .addTo(map);
 
-        el.addEventListener('click', (e) => {
+        marker.getElement().addEventListener('click', (e) => {
           e.stopPropagation();
-          console.log('Marker clicked:', landmark.name, 'at coordinates:', [lng, lat]);
           onMarkerClick(landmark);
         });
 
-        markersRef.current[landmark.id] = marker;
-        console.log('Added marker for:', landmark.name, 'at', [lng, lat]);
-      } catch (error) {
-        console.error('Error adding marker for', landmark.name, error);
+        markers.current[landmark.id] = marker;
       }
     });
 
-    console.log('Markers added successfully, total:', Object.keys(markersRef.current).length);
+  }, [map, landmarks, onMarkerClick]);
 
-    return () => {
-      Object.values(markersRef.current).forEach(marker => {
-        marker.remove();
-      });
-      markersRef.current = {};
-    };
-  }, [map, landmarks, selectedLandmark, onMarkerClick]);
-
-  // Update marker styles when selected landmark changes
+  // Update marker styles based on selection
   useEffect(() => {
-    if (!map || !map.loaded()) return;
-
-    Object.entries(markersRef.current).forEach(([landmarkId, marker]) => {
-      const el = marker.getElement();
-      const isSelected = selectedLandmark?.id === landmarkId;
+    Object.entries(markers.current).forEach(([id, marker]) => {
+      const element = marker.getElement();
+      const isSelected = id === selectedLandmark?.id;
+      const isTopLandmark = id.startsWith('top-landmark-');
       
-      el.className = `w-4 h-4 rounded-full cursor-pointer transition-all duration-200 ${
-        isSelected 
-          ? 'bg-yellow-400 ring-4 ring-yellow-200 scale-125' 
-          : 'bg-red-500 hover:bg-red-600 hover:scale-110'
-      }`;
+      if (isSelected) {
+        element.style.backgroundColor = '#f87171'; // red-400
+        element.style.transform = 'scale(1.5)';
+      } else {
+        element.style.backgroundColor = isTopLandmark ? '#facc15' : '#22d3ee'; // yellow-400 or cyan-400
+        element.style.transform = 'scale(1)';
+      }
     });
-  }, [selectedLandmark, map]);
+  }, [selectedLandmark]);
+
+  return { markers: markers.current };
 };

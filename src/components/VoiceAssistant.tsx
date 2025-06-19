@@ -9,7 +9,7 @@ import AuthDialog from './AuthDialog';
 import VoiceStatus from './voice-assistant/VoiceStatus';
 import VoiceControls from './voice-assistant/VoiceControls';
 import { useAudioContext } from './voice-assistant/useAudioContext';
-import { useGoogleSpeechRecognition } from './voice-assistant/useGoogleSpeechRecognition';
+import { useSpeechRecognition } from './voice-assistant/useSpeechRecognition';
 import { useGoogleTextToSpeech } from './voice-assistant/useGoogleTextToSpeech';
 import { useConversationHandler } from './voice-assistant/useConversationHandler';
 
@@ -36,8 +36,6 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const { user, session } = useAuth();
 
   const { audioContextInitialized, initializeAudioContext } = useAudioContext();
-  
-  // Use Google services
   const { 
     isListening, 
     transcript, 
@@ -46,8 +44,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     startListening, 
     stopListening, 
     cleanup: cleanupRecognition 
-  } = useGoogleSpeechRecognition();
-  
+  } = useSpeechRecognition();
   const { isSpeaking, speakText, cleanup: cleanupTTS } = useGoogleTextToSpeech();
 
   const {
@@ -104,22 +101,21 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   }, [open, cleanupTTS, cleanupRecognition]);
 
   const handleStartListening = async () => {
-    try {
-      if (!audioContextInitialized) {
-        await initializeAudioContext();
-      }
-
-      if (!isSpeaking) {
-        console.log('Starting speech recognition from voice assistant');
-        await startListening();
-      }
-    } catch (error) {
-      console.error('Error starting speech recognition:', error);
+    if (!isSpeechRecognitionSupported) {
       toast({
-        title: "Microphone Error",
-        description: "Please allow microphone access and try again.",
+        title: "Not Supported",
+        description: "Speech recognition is not supported in this browser.",
         variant: "destructive"
       });
+      return;
+    }
+
+    if (!audioContextInitialized) {
+      await initializeAudioContext();
+    }
+
+    if (!isSpeaking) {
+      startListening();
     }
   };
 
@@ -127,21 +123,16 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     console.log('Welcome button clicked');
     setHasUserInteracted(true);
     
+    await initializeAudioContext();
+    
+    const welcomeMessage = `Welcome to your ${destination} tour! I'm your voice assistant powered by Google's advanced text-to-speech. You can ask me about any of the landmarks we've planned for you. What would you like to know?`;
+    console.log('Playing welcome message:', welcomeMessage);
+    
     try {
-      await initializeAudioContext();
-      
-      const welcomeMessage = `Welcome to your ${destination} tour! I'm your voice assistant powered by Google AI. You can ask me about any of the landmarks we've planned for you. What would you like to know?`;
-      console.log('Playing welcome message:', welcomeMessage);
-      
       await speakText(welcomeMessage);
       console.log('Welcome message completed');
     } catch (error) {
       console.error('Error playing welcome message:', error);
-      toast({
-        title: "Audio Error",
-        description: "There was an issue with audio playback. Please try again.",
-        variant: "destructive"
-      });
     }
   };
 
@@ -169,7 +160,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           <DialogHeader>
             <DialogTitle>Voice Tour Guide</DialogTitle>
             <DialogDescription>
-              Ask me anything about your {destination} tour! I'm powered by Google AI and I'll share stories, tips, and suggest additional places you might love.
+              Ask me anything about your {destination} tour! I'll share stories, tips, and suggest additional places you might love.
             </DialogDescription>
           </DialogHeader>
           
