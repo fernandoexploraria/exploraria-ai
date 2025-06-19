@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Sparkles, Search, Star, Bookmark, ChevronDown, ChevronUp, Menu } from 'lucide-react';
 import SearchControl from '@/components/SearchControl';
 import FreeTourCounter from '@/components/FreeTourCounter';
+import ImageAnalysis from '@/components/ImageAnalysis';
 import { Landmark } from '@/data/landmarks';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -79,6 +80,9 @@ const TopControls: React.FC<TopControlsProps> = ({
               <span className="lg:hidden">Plan Tour</span>
               <span className="hidden lg:inline">Plan a Tour</span>
             </Button>
+            
+            {/* Image Analysis Button */}
+            <ImageAnalysis plannedLandmarks={plannedLandmarks} />
             
             {user && (
               <>
