@@ -13,6 +13,7 @@ export const useGeminiTextToSpeech = () => {
       
       // Stop any current audio
       if (currentAudioRef.current) {
+        console.log('Stopping previous audio');
         currentAudioRef.current.pause();
         currentAudioRef.current = null;
       }
@@ -32,15 +33,16 @@ export const useGeminiTextToSpeech = () => {
       console.log('TTS response received:', { 
         hasAudioContent: !!data?.audioContent, 
         fallbackToBrowser: data?.fallbackToBrowser,
-        dataKeys: Object.keys(data || {})
+        dataKeys: Object.keys(data || {}),
+        audioContentLength: data?.audioContent?.length || 0
       });
 
       if (data?.audioContent && !data.fallbackToBrowser) {
-        console.log('Playing audio from Gemini TTS');
+        console.log('Playing audio from Gemini TTS, audio length:', data.audioContent.length);
         // Play the audio from Google TTS directly
         await playAudioFromBase64(data.audioContent);
       } else {
-        console.log('No audio content received or fallback requested');
+        console.log('No audio content received or fallback requested, data:', data);
         setIsSpeaking(false);
       }
       
@@ -57,14 +59,19 @@ export const useGeminiTextToSpeech = () => {
         
         // Convert base64 to blob URL
         const binaryString = atob(base64Audio);
+        console.log('Decoded binary string length:', binaryString.length);
+        
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
           bytes[i] = binaryString.charCodeAt(i);
         }
         
-        const blob = new Blob([bytes], { type: 'audio/mp3' });
-        const audioUrl = URL.createObjectURL(blob);
+        console.log('Created bytes array, length:', bytes.length);
         
+        const blob = new Blob([bytes], { type: 'audio/mp3' });
+        console.log('Created blob, size:', blob.size, 'type:', blob.type);
+        
+        const audioUrl = URL.createObjectURL(blob);
         console.log('Created audio URL:', audioUrl);
         
         const audio = new Audio(audioUrl);
@@ -78,9 +85,29 @@ export const useGeminiTextToSpeech = () => {
           console.log('Audio can start playing');
         };
         
+        audio.oncanplaythrough = () => {
+          console.log('Audio can play through without buffering');
+        };
+        
+        audio.onloadeddata = () => {
+          console.log('Audio data loaded');
+        };
+        
+        audio.onloadedmetadata = () => {
+          console.log('Audio metadata loaded, duration:', audio.duration);
+        };
+        
         audio.onplay = () => {
           console.log('Audio playback started');
           setIsSpeaking(true);
+        };
+        
+        audio.onplaying = () => {
+          console.log('Audio is actually playing');
+        };
+        
+        audio.onpause = () => {
+          console.log('Audio paused');
         };
         
         audio.onended = () => {
@@ -95,8 +122,11 @@ export const useGeminiTextToSpeech = () => {
           console.error('Audio playback error:', error);
           console.error('Audio error details:', {
             error: audio.error,
+            code: audio.error?.code,
+            message: audio.error?.message,
             networkState: audio.networkState,
-            readyState: audio.readyState
+            readyState: audio.readyState,
+            src: audio.src
           });
           setIsSpeaking(false);
           URL.revokeObjectURL(audioUrl);
@@ -104,8 +134,40 @@ export const useGeminiTextToSpeech = () => {
           reject(error);
         };
         
+        // Additional event listeners for debugging
+        audio.onstalled = () => {
+          console.log('Audio stalled');
+        };
+        
+        audio.onsuspend = () => {
+          console.log('Audio suspended');
+        };
+        
+        audio.onwaiting = () => {
+          console.log('Audio waiting for data');
+        };
+        
+        audio.onabort = () => {
+          console.log('Audio aborted');
+        };
+        
+        // Check if audio context is allowed (for iOS/mobile)
+        if (typeof window !== 'undefined' && 'webkitAudioContext' in window) {
+          console.log('WebKit audio context available');
+        }
+        
         // Start playing with additional error handling
         console.log('Attempting to play audio...');
+        console.log('Audio properties before play:', {
+          src: audio.src,
+          readyState: audio.readyState,
+          networkState: audio.networkState,
+          paused: audio.paused,
+          ended: audio.ended,
+          muted: audio.muted,
+          volume: audio.volume
+        });
+        
         audio.play().then(() => {
           console.log('Audio.play() promise resolved successfully');
         }).catch(error => {
@@ -113,7 +175,13 @@ export const useGeminiTextToSpeech = () => {
           console.error('Play error details:', {
             name: error.name,
             message: error.message,
-            code: error.code
+            code: error.code,
+            audioState: {
+              src: audio.src,
+              readyState: audio.readyState,
+              networkState: audio.networkState,
+              error: audio.error
+            }
           });
           setIsSpeaking(false);
           URL.revokeObjectURL(audioUrl);
