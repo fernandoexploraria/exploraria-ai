@@ -2,9 +2,10 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Mic } from 'lucide-react';
+import { Mic, MicOff } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
 import { useGeminiAPI } from '@/hooks/useGeminiAPI';
+import { useGoogleSpeechRecognition } from './voice-assistant/useGoogleSpeechRecognition';
 
 interface VoiceAssistantProps {
   open: boolean;
@@ -20,16 +21,43 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   destination
 }) => {
   const { callGemini, isLoading } = useGeminiAPI();
+  const { isListening, startListening, stopListening } = useGoogleSpeechRecognition();
 
   const handleMicClick = async () => {
-    console.log('Mic button clicked, sending Hi message');
+    if (isListening) {
+      // Stop listening and process the speech
+      console.log('Stopping speech recognition...');
+      await stopListening(handleSpeechResult);
+    } else {
+      // Start with greeting first
+      console.log('Mic button clicked, sending Hi message');
+      
+      const systemInstruction = `You are a friendly tour guide assistant for ${destination}. Provide helpful information about landmarks, attractions, and travel tips. Keep responses conversational and engaging.`;
+      
+      const greeting = await callGemini("Hi", systemInstruction);
+      
+      if (greeting) {
+        console.log('Assistant greeting:', greeting);
+        
+        // After greeting, start listening
+        console.log('Starting speech recognition...');
+        await startListening();
+      }
+    }
+  };
+
+  const handleSpeechResult = async (transcript: string) => {
+    console.log('Speech recognized:', transcript);
     
-    const systemInstruction = `You are a friendly tour guide assistant for ${destination}. Provide helpful information about landmarks, attractions, and travel tips. Keep responses conversational and engaging.`;
-    
-    const greeting = await callGemini("Hi", systemInstruction);
-    
-    if (greeting) {
-      console.log('Assistant greeting:', greeting);
+    if (transcript.trim()) {
+      const systemInstruction = `You are a friendly tour guide assistant for ${destination}. Provide helpful information about landmarks, attractions, and travel tips. Keep responses conversational and engaging.`;
+      
+      console.log('Sending user speech to assistant:', transcript);
+      const response = await callGemini(transcript, systemInstruction);
+      
+      if (response) {
+        console.log('Assistant response:', response);
+      }
     }
   };
 
@@ -45,12 +73,26 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         <div className="flex flex-col items-center justify-center py-16">
           <Button
             size="lg"
-            className="w-24 h-24 rounded-full bg-primary hover:bg-primary/90 transition-all duration-200 hover:scale-105"
+            className={`w-24 h-24 rounded-full transition-all duration-200 hover:scale-105 ${
+              isListening 
+                ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
+                : 'bg-primary hover:bg-primary/90'
+            }`}
             onClick={handleMicClick}
             disabled={isLoading}
           >
-            <Mic className="w-12 h-12" />
+            {isListening ? (
+              <MicOff className="w-12 h-12" />
+            ) : (
+              <Mic className="w-12 h-12" />
+            )}
           </Button>
+          
+          {isListening && (
+            <p className="mt-4 text-sm text-muted-foreground text-center">
+              Listening... Click to stop and send message
+            </p>
+          )}
         </div>
       </DialogContent>
     </Dialog>
