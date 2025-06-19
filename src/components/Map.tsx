@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -20,6 +19,7 @@ interface MapProps {
 const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, selectedLandmark, plannedLandmarks }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
   const [playingAudio, setPlayingAudio] = useState<{ [key: string]: boolean }>({});
   const pendingPopupLandmark = useRef<Landmark | null>(null);
   const isZooming = useRef<boolean>(false);
@@ -67,9 +67,9 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     onSelectLandmark(landmark);
   }, [onSelectLandmark]);
 
-  // CRITICAL: Use marker manager UNCONDITIONALLY - must be called on every render
+  // Use marker manager - only when map is loaded
   useMarkerManager({
-    map: map.current,
+    map: mapLoaded ? map.current : null,
     landmarks: allLandmarksWithTop,
     selectedLandmark,
     onMarkerClick: handleMarkerClick
@@ -116,6 +116,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
 
     map.current.on('load', () => {
       console.log('Map fully loaded');
+      setMapLoaded(true);
     });
 
     // Close all popups when clicking on the map
@@ -152,6 +153,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       console.log('Cleaning up map');
       map.current?.remove();
       map.current = null;
+      setMapLoaded(false);
     };
   }, [mapboxToken]);
 
