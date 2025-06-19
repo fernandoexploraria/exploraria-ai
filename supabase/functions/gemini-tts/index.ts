@@ -26,8 +26,8 @@ serve(async (req) => {
 
     console.log('Using Google AI API for text-to-speech...')
     
-    // Use Google AI's text-to-speech via Gemini API
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${googleApiKey}`, {
+    // Use the correct model name for Gemini API
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${googleApiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -35,12 +35,12 @@ serve(async (req) => {
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `Convert this text to audio format: "${text}". Return only a base64 encoded MP3 audio file.`
+            text: `Please provide a natural, conversational audio description for: "${text}". Make it sound like a friendly tour guide speaking to visitors. Keep it under 30 seconds when spoken aloud.`
           }]
         }],
         generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 1000
+          temperature: 0.7,
+          maxOutputTokens: 200
         }
       })
     })
@@ -52,17 +52,25 @@ serve(async (req) => {
     }
 
     const data = await response.json()
+    console.log('Gemini API response received for TTS')
     
-    // For now, we'll fallback to a simple audio generation
-    // Since Gemini doesn't directly support TTS, we'll use a placeholder
-    const audioContent = "UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=" // Empty WAV file
-    
-    return new Response(
-      JSON.stringify({ audioContent }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    )
+    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+      const generatedText = data.candidates[0].content.parts[0].text
+      
+      // Since Gemini doesn't provide actual audio, we'll return the enhanced text
+      // The frontend will use browser TTS with this enhanced description
+      return new Response(
+        JSON.stringify({ 
+          enhancedText: generatedText,
+          originalText: text 
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      )
+    } else {
+      throw new Error('No valid response from Gemini API')
+    }
   } catch (error) {
     console.error('Error in gemini-tts function:', error)
     return new Response(

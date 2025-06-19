@@ -4,85 +4,85 @@ import { supabase } from '@/integrations/supabase/client';
 
 export const useGeminiTextToSpeech = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   const speakText = useCallback(async (text: string) => {
     try {
-      console.log('Speaking text with Gemini TTS:', text.substring(0, 50) + '...');
+      console.log('Enhancing text with Gemini for TTS:', text.substring(0, 50) + '...');
       setIsSpeaking(true);
       
-      // Stop any current audio
-      if (currentAudioRef.current) {
-        currentAudioRef.current.pause();
-        currentAudioRef.current = null;
+      // Stop any current speech
+      if (currentUtteranceRef.current) {
+        speechSynthesis.cancel();
+        currentUtteranceRef.current = null;
       }
       
-      // Call Supabase edge function for TTS
+      // Call Supabase edge function to enhance text with Gemini
       const { data, error } = await supabase.functions.invoke('gemini-tts', {
         body: { text }
       });
 
       if (error) {
         console.error('Gemini TTS error:', error);
-        setIsSpeaking(false);
+        // Fallback to original text if Gemini fails
+        await speakWithBrowser(text);
         return;
       }
 
-      if (data && data.audioContent) {
-        // Convert base64 to audio blob
-        const audioBlob = new Blob([
-          new Uint8Array(
-            atob(data.audioContent)
-              .split('')
-              .map(char => char.charCodeAt(0))
-          )
-        ], { type: 'audio/mp3' });
-        
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const audio = new Audio(audioUrl);
-        currentAudioRef.current = audio;
-        
-        // Set up audio event handlers
-        audio.onplay = () => {
-          console.log('Gemini TTS audio started playing');
-          setIsSpeaking(true);
-        };
-        
-        audio.onended = () => {
-          console.log('Gemini TTS audio ended');
-          setIsSpeaking(false);
-          URL.revokeObjectURL(audioUrl);
-          currentAudioRef.current = null;
-        };
-        
-        audio.onerror = (error) => {
-          console.error('Gemini TTS audio playback error:', error);
-          setIsSpeaking(false);
-          URL.revokeObjectURL(audioUrl);
-          currentAudioRef.current = null;
-        };
-        
-        // Play the audio
-        try {
-          await audio.play();
-          console.log('Gemini TTS audio playing successfully');
-        } catch (playError) {
-          console.error('Error playing Gemini TTS audio:', playError);
-          setIsSpeaking(false);
-          URL.revokeObjectURL(audioUrl);
-          currentAudioRef.current = null;
-        }
-      }
+      const textToSpeak = data?.enhancedText || text;
+      await speakWithBrowser(textToSpeak);
+      
     } catch (error) {
-      console.error('Error with Gemini Text-to-Speech:', error);
-      setIsSpeaking(false);
+      console.error('Error with Gemini-enhanced TTS:', error);
+      // Fallback to original text
+      await speakWithBrowser(text);
     }
   }, []);
 
+  const speakWithBrowser = async (text: string) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!('speechSynthesis' in window)) {
+        console.error('Speech synthesis not supported');
+        setIsSpeaking(false);
+        reject(new Error('Speech synthesis not supported'));
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      currentUtteranceRef.current = utterance;
+      
+      // Configure speech settings
+      utterance.rate = 0.9;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+      
+      utterance.onstart = () => {
+        console.log('Gemini-enhanced TTS started');
+        setIsSpeaking(true);
+      };
+      
+      utterance.onend = () => {
+        console.log('Gemini-enhanced TTS ended');
+        setIsSpeaking(false);
+        currentUtteranceRef.current = null;
+        resolve();
+      };
+      
+      utterance.onerror = (error) => {
+        console.error('TTS error:', error);
+        setIsSpeaking(false);
+        currentUtteranceRef.current = null;
+        reject(error);
+      };
+      
+      speechSynthesis.speak(utterance);
+    });
+  };
+
   const cleanup = useCallback(() => {
-    if (currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      currentAudioRef.current = null;
+    if (currentUtteranceRef.current) {
+      speechSynthesis.cancel();
+      currentUtteranceRef.current = null;
     }
     setIsSpeaking(false);
   }, []);
