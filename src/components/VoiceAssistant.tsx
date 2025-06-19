@@ -106,7 +106,8 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       }
 
       if (!isSpeaking) {
-        startListening();
+        console.log('Starting speech recognition from voice assistant');
+        await startListening();
       }
     } catch (error) {
       console.error('Error starting speech recognition:', error);
@@ -125,7 +126,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     try {
       await initializeAudioContext();
       
-      const welcomeMessage = `Welcome to your ${destination} tour! I'm your voice assistant powered by Google Gemini. You can ask me about any of the landmarks we've planned for you. What would you like to know?`;
+      const welcomeMessage = `Welcome to your ${destination} tour! I'm your voice assistant powered by Google AI. You can ask me about any of the landmarks we've planned for you. What would you like to know?`;
       console.log('Playing welcome message:', welcomeMessage);
       
       await speakText(welcomeMessage);
@@ -164,7 +165,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           <DialogHeader>
             <DialogTitle>Voice Tour Guide</DialogTitle>
             <DialogDescription>
-              Ask me anything about your {destination} tour! I'm powered by Google Gemini and I'll share stories, tips, and suggest additional places you might love.
+              Ask me anything about your {destination} tour! I'm powered by Google AI and I'll share stories, tips, and suggest additional places you might love.
             </DialogDescription>
           </DialogHeader>
           

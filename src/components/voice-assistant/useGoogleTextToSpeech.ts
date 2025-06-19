@@ -6,6 +6,11 @@ export const useGoogleTextToSpeech = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   const speakText = useCallback(async (text: string) => {
+    if (isSpeaking) {
+      console.log('Already speaking, skipping');
+      return;
+    }
+
     try {
       console.log('Starting Google TTS for text:', text.substring(0, 50) + '...');
       setIsSpeaking(true);
@@ -20,11 +25,16 @@ export const useGoogleTextToSpeech = () => {
       }
 
       if (data && data.audioContent) {
-        // Convert base64 to audio and play
-        const audioBlob = new Blob([
-          Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0))
-        ], { type: 'audio/mp3' });
+        console.log('Received audio content, playing...');
         
+        // Convert base64 to audio blob
+        const binaryString = atob(data.audioContent);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        const audioBlob = new Blob([bytes], { type: 'audio/mp3' });
         const audioUrl = URL.createObjectURL(audioBlob);
         const audio = new Audio(audioUrl);
         
@@ -48,7 +58,7 @@ export const useGoogleTextToSpeech = () => {
       console.error('Google TTS Error:', error);
       setIsSpeaking(false);
     }
-  }, []);
+  }, [isSpeaking]);
 
   const cleanup = useCallback(() => {
     console.log('Google TTS cleanup');

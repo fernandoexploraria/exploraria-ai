@@ -8,6 +8,7 @@ export const useGoogleSpeechRecognition = () => {
   const [transcript, setTranscript] = useState('');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
   const { toast } = useToast();
 
   const setupRecognition = useCallback((onResult: (transcript: string) => void) => {
@@ -29,7 +30,16 @@ export const useGoogleSpeechRecognition = () => {
       setTranscript('');
       audioChunksRef.current = [];
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          sampleRate: 48000,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true
+        } 
+      });
+      
+      streamRef.current = stream;
       
       mediaRecorderRef.current = new MediaRecorder(stream, {
         mimeType: 'audio/webm;codecs=opus'
@@ -43,14 +53,21 @@ export const useGoogleSpeechRecognition = () => {
       
       mediaRecorderRef.current.onstop = async () => {
         console.log('Recording stopped, processing audio...');
+        
+        if (audioChunksRef.current.length === 0) {
+          console.log('No audio data recorded');
+          setIsListening(false);
+          return;
+        }
+        
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         
         // Convert to base64
         const reader = new FileReader();
         reader.onloadend = async () => {
-          const base64Audio = (reader.result as string).split(',')[1];
-          
           try {
+            const base64Audio = (reader.result as string).split(',')[1];
+            
             const { data, error } = await supabase.functions.invoke('google-speech-to-text', {
               body: { audio: base64Audio }
             });
@@ -83,9 +100,6 @@ export const useGoogleSpeechRecognition = () => {
           }
         };
         reader.readAsDataURL(audioBlob);
-        
-        // Clean up stream
-        stream.getTracks().forEach(track => track.stop());
       };
       
       mediaRecorderRef.current.start();
@@ -103,20 +117,37 @@ export const useGoogleSpeechRecognition = () => {
   }, [isListening, toast]);
 
   const stopListening = useCallback(() => {
+    console.log('Stopping Google Speech Recognition...');
+    
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      console.log('Stopping Google Speech Recognition...');
       mediaRecorderRef.current.stop();
-      setIsListening(false);
     }
+    
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    
+    setIsListening(false);
   }, []);
 
   const cleanup = useCallback(() => {
     console.log('Google Speech Recognition cleanup');
+    
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop();
     }
+    
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    
     setIsListening(false);
     setTranscript('');
+    
+    // Clear the result handler
+    delete (window as any).googleSpeechOnResult;
   }, []);
 
   return {

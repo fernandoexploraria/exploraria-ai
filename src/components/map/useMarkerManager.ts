@@ -30,10 +30,23 @@ export const useMarkerManager = ({ map, landmarks, selectedLandmark, onMarkerCli
     // Add new markers
     landmarks.forEach(landmark => {
       // Ensure coordinates are valid and in [lng, lat] format
-      const coords = landmark.coordinates;
+      let coords = landmark.coordinates;
       if (!coords || coords.length !== 2 || 
-          typeof coords[0] !== 'number' || typeof coords[1] !== 'number' ||
-          Math.abs(coords[0]) > 180 || Math.abs(coords[1]) > 90) {
+          typeof coords[0] !== 'number' || typeof coords[1] !== 'number') {
+        console.warn(`Invalid coordinates for ${landmark.name}:`, coords);
+        return;
+      }
+
+      // Check if coordinates might be in [lat, lng] format and swap if needed
+      // Latitude should be between -90 and 90, longitude between -180 and 180
+      if (Math.abs(coords[0]) <= 90 && Math.abs(coords[1]) > 90) {
+        // Likely [lat, lng] format, swap to [lng, lat]
+        coords = [coords[1], coords[0]];
+        console.log(`Swapped coordinates for ${landmark.name}:`, coords);
+      }
+
+      // Final validation
+      if (Math.abs(coords[0]) > 180 || Math.abs(coords[1]) > 90) {
         console.warn(`Invalid coordinates for ${landmark.name}:`, coords);
         return;
       }
