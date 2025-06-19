@@ -23,25 +23,44 @@ const VoiceControls: React.FC<VoiceControlsProps> = ({
   onWelcomeClick
 }) => {
   const handleMouseDown = () => {
+    console.log('Mouse down - starting recording');
     if (!isSpeaking && hasUserInteracted && isSpeechRecognitionSupported && !isListening) {
       onStartListening();
     }
   };
 
   const handleMouseUp = () => {
+    console.log('Mouse up - stopping recording');
     if (isListening) {
       onStopListening();
     }
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    console.log('Touch start - starting recording');
     e.preventDefault();
-    handleMouseDown();
+    e.stopPropagation();
+    if (!isSpeaking && hasUserInteracted && isSpeechRecognitionSupported && !isListening) {
+      onStartListening();
+    }
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
+    console.log('Touch end - stopping recording');
     e.preventDefault();
-    handleMouseUp();
+    e.stopPropagation();
+    if (isListening) {
+      onStopListening();
+    }
+  };
+
+  const handleTouchCancel = (e: React.TouchEvent) => {
+    console.log('Touch cancelled - stopping recording');
+    e.preventDefault();
+    e.stopPropagation();
+    if (isListening) {
+      onStopListening();
+    }
   };
 
   return (
@@ -67,9 +86,15 @@ const VoiceControls: React.FC<VoiceControlsProps> = ({
         onMouseLeave={handleMouseUp} // Stop if mouse leaves button while pressed
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchCancel} // Handle touch cancellation on iOS
         disabled={isSpeaking || !hasUserInteracted || !isSpeechRecognitionSupported}
-        className="rounded-full w-16 h-16 select-none"
-        style={{ userSelect: 'none' }}
+        className="rounded-full w-16 h-16 select-none touch-none"
+        style={{ 
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          WebkitTouchCallout: 'none',
+          touchAction: 'none'
+        }}
       >
         {isListening ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
       </Button>
