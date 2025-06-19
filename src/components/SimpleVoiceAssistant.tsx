@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -34,7 +33,7 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
       console.log('Connecting to OpenAI Realtime API via Supabase...');
       
       // Connect to our Supabase edge function which acts as a proxy
-      const ws = new WebSocket(`wss://ejqgdmbuabrcjxbhpxup.functions.supabase.co/openai-realtime`);
+      const ws = new WebSocket(`wss://ejqgdmbuabrcjxbhpxup.functions.supabase.co/functions/v1/openai-realtime`);
 
       ws.onopen = () => {
         console.log('Connected to OpenAI Realtime API');
@@ -81,7 +80,7 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
       toast({
         title: "Error",
         description: "Failed to initialize voice assistant",
-        variant: "destructive"
+        variant: "descriptive"
       });
     }
   };
