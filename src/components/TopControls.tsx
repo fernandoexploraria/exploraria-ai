@@ -3,7 +3,7 @@ import React from 'react';
 import { Landmark } from '@/data/landmarks';
 import SearchControl from './SearchControl';
 import { Button } from './ui/button';
-import { MapPin, Heart, Mic, Bot } from 'lucide-react';
+import { MapPin, Heart, Mic, Bot, Camera } from 'lucide-react';
 import ImageAnalysis from './ImageAnalysis';
 
 interface TopControlsProps {
@@ -82,6 +82,14 @@ const TopControls: React.FC<TopControlsProps> = ({
             <Bot className="h-4 w-4" />
           </Button>
         )}
+
+        {/* Test Camera Button - Always Visible */}
+        <div className="bg-white/90 backdrop-blur-sm rounded-md p-1">
+          <ImageAnalysis 
+            landmarks={plannedLandmarks.length > 0 ? plannedLandmarks : allLandmarks}
+            destination={plannedLandmarks.length > 0 ? plannedLandmarks[0]?.name?.split(',')[0] || 'Test Location' : 'Test Location'}
+          />
+        </div>
 
         {hasTour && (
           <div className="bg-white/90 backdrop-blur-sm rounded-md p-1">
