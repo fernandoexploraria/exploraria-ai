@@ -78,9 +78,22 @@ export const useSpeechRecognition = () => {
   }, [toast]);
 
   const stopListening = useCallback(() => {
-    if (recognitionRef.current) {
+    if (recognitionRef.current && isListening) {
       console.log('Stopping speech recognition...');
       recognitionRef.current.stop();
+    }
+  }, [isListening]);
+
+  // Force stop recognition (for TTS interference prevention)
+  const forceStopListening = useCallback(() => {
+    if (recognitionRef.current) {
+      try {
+        console.log('Force stopping speech recognition for TTS...');
+        recognitionRef.current.abort();
+        setIsListening(false);
+      } catch (error) {
+        console.error('Error force stopping recognition:', error);
+      }
     }
   }, []);
 
@@ -101,6 +114,7 @@ export const useSpeechRecognition = () => {
     setupRecognition,
     startListening,
     stopListening,
+    forceStopListening,
     cleanup
   };
 };

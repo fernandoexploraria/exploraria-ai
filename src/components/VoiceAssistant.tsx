@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -52,10 +51,19 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     isSpeechRecognitionSupported, 
     setupRecognition, 
     startListening, 
-    stopListening, 
+    stopListening,
+    forceStopListening,
     cleanup: cleanupRecognition 
   } = useSpeechRecognition();
   const { isSpeaking, speakText, cleanup: cleanupTTS } = useGeminiTextToSpeech();
+
+  // Stop speech recognition when TTS starts
+  useEffect(() => {
+    if (isSpeaking && isListening) {
+      console.log('TTS started, stopping speech recognition to prevent interference');
+      forceStopListening();
+    }
+  }, [isSpeaking, isListening, forceStopListening]);
 
   // Check authentication when dialog opens
   useEffect(() => {
@@ -230,9 +238,9 @@ Keep your main response conversational and under 200 words, then add the JSON su
         cleanResponse = aiResponse.replace(/\[[\s\S]*?\]/, '').trim();
       }
       
-      // Ensure we have content to speak
+      // Ensure we have content to speak - if cleaning resulted in empty content, use original
       if (!cleanResponse || cleanResponse.length === 0) {
-        cleanResponse = aiResponse; // Use the full response if cleaning resulted in empty content
+        cleanResponse = aiResponse;
       }
       
       console.log('Speaking AI response:', cleanResponse.substring(0, 100) + '...');
