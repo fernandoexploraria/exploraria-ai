@@ -5,7 +5,6 @@ import { Volume2, VolumeX } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { supabase } from '@/integrations/supabase/client';
-import { useGoogleTextToSpeech } from './voice-assistant/useGoogleTextToSpeech';
 
 interface MapProps {
   mapboxToken: string;
@@ -27,9 +26,6 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
   const [playingAudio, setPlayingAudio] = useState<{ [key: string]: boolean }>({});
   const pendingPopupLandmark = useRef<Landmark | null>(null);
   const isZooming = useRef<boolean>(false);
-
-  // Use Google Cloud TTS hook for map markers
-  const { isSpeaking, speakText } = useGoogleTextToSpeech();
 
   // Convert top landmarks to Landmark format
   const allLandmarksWithTop = React.useMemo(() => {
@@ -101,23 +97,85 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     };
   }, [mapboxToken]);
 
-  // Function to handle text-to-speech using Google Cloud TTS
+  // Function to handle text-to-speech using Google Cloud TTS via edge function
   const handleTextToSpeech = async (landmark: Landmark) => {
     const landmarkId = landmark.id;
     
-    if (playingAudio[landmarkId] || isSpeaking) {
+    if (playingAudio[landmarkId]) {
       return; // Already playing
     }
 
     try {
       setPlayingAudio(prev => ({ ...prev, [landmarkId]: true }));
       const text = `${landmark.name}. ${landmark.description}`;
-      await speakText(text);
+      
+      console.log('Calling Google Cloud TTS via edge function for map marker:', text.substring(0, 50) + '...');
+      
+      // Call the same edge function used by the voice assistant
+      const { data, error } = await supabase.functions.invoke('gemini-tts', {
+        body: { text }
+      });
+
+      if (error) {
+        console.error('Google Cloud TTS error:', error);
+        return;
+      }
+
+      if (data?.audioContent && !data.fallbackToBrowser) {
+        console.log('Playing audio from Google Cloud TTS for map marker');
+        await playAudioFromBase64(data.audioContent);
+      } else {
+        console.log('No audio content received for map marker');
+      }
+      
     } catch (error) {
-      console.error('Error with Google Cloud TTS:', error);
+      console.error('Error with Google Cloud TTS for map marker:', error);
     } finally {
       setPlayingAudio(prev => ({ ...prev, [landmarkId]: false }));
     }
+  };
+
+  // Function to play audio from base64
+  const playAudioFromBase64 = async (base64Audio: string) => {
+    return new Promise<void>((resolve, reject) => {
+      try {
+        console.log('Converting base64 to audio blob for map marker');
+        
+        const binaryString = atob(base64Audio);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        const blob = new Blob([bytes], { type: 'audio/mp3' });
+        const audioUrl = URL.createObjectURL(blob);
+        const audio = new Audio(audioUrl);
+        
+        audio.onended = () => {
+          console.log('Map marker audio playback ended');
+          URL.revokeObjectURL(audioUrl);
+          resolve();
+        };
+        
+        audio.onerror = (error) => {
+          console.error('Map marker audio playback error:', error);
+          URL.revokeObjectURL(audioUrl);
+          reject(error);
+        };
+        
+        audio.play().then(() => {
+          console.log('Map marker audio playing successfully');
+        }).catch(error => {
+          console.error('Failed to play map marker audio:', error);
+          URL.revokeObjectURL(audioUrl);
+          reject(error);
+        });
+        
+      } catch (error) {
+        console.error('Error creating audio from base64 for map marker:', error);
+        reject(error);
+      }
+    });
   };
 
   // Function to fetch landmark image using Supabase edge function
@@ -230,7 +288,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     // Fetch and display image with listen button
     try {
       const imageUrl = await fetchLandmarkImage(landmark);
-      const isPlaying = playingAudio[landmark.id] || isSpeaking;
+      const isPlaying = playingAudio[landmark.id] || false;
       
       photoPopup.setHTML(`
         <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
