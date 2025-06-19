@@ -31,38 +31,19 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
 
   const connectToOpenAI = async () => {
     try {
-      console.log('Connecting to OpenAI Realtime API...');
+      console.log('Connecting to OpenAI Realtime API via Supabase...');
       
-      // Get OpenAI API key from environment or use placeholder
-      const apiKey = import.meta.env.VITE_OPENAI_API_KEY || 'your-api-key-here';
-      
-      // Connect to WebSocket with API key in URL parameter
-      const ws = new WebSocket(
-        `wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17&api_key=${apiKey}`
-      );
+      // Connect to our Supabase edge function which acts as a proxy
+      const ws = new WebSocket(`wss://gptengineer.app/supabase/functions/v1/openai-realtime`);
 
       ws.onopen = () => {
         console.log('Connected to OpenAI Realtime API');
         setIsConnected(true);
         
-        // Send session configuration
-        ws.send(JSON.stringify({
-          type: 'session.update',
-          session: {
-            modalities: ['text', 'audio'],
-            instructions: 'You are an expert in Rome. Provide helpful information about Roman history, attractions, culture, and travel tips. Keep responses conversational and engaging.',
-            voice: 'alloy',
-            input_audio_format: 'pcm16',
-            output_audio_format: 'pcm16',
-            turn_detection: {
-              type: 'server_vad',
-              threshold: 0.5,
-              prefix_padding_ms: 300,
-              silence_duration_ms: 1000
-            },
-            temperature: 0.8
-          }
-        }));
+        toast({
+          title: "Connected",
+          description: "Rome expert is ready to help",
+        });
       };
 
       ws.onmessage = (event) => {
