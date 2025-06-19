@@ -114,6 +114,10 @@ export type Database = {
         Args: { "": string } | { "": unknown }
         Returns: unknown
       }
+      cleanup_all_data: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       halfvec_avg: {
         Args: { "": number[] }
         Returns: unknown
