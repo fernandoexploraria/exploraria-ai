@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -32,8 +33,8 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
     try {
       console.log('Connecting to OpenAI Realtime API via Supabase...');
       
-      // Connect to our Supabase edge function which acts as a proxy
-      const ws = new WebSocket(`wss://ejqgdmbuabrcjxbhpxup.functions.supabase.co/functions/v1/openai-realtime`);
+      // Fixed URL format for Supabase edge functions
+      const ws = new WebSocket(`wss://ejqgdmbuabrcjxbhpxup.supabase.co/functions/v1/openai-realtime`);
 
       ws.onopen = () => {
         console.log('Connected to OpenAI Realtime API');
