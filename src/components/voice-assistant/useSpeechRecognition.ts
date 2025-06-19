@@ -6,6 +6,7 @@ export const useSpeechRecognition = () => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const recognitionRef = useRef<any>(null);
+  const isSetupRef = useRef(false);
   const { toast } = useToast();
 
   const isSpeechRecognitionSupported = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
@@ -13,6 +14,11 @@ export const useSpeechRecognition = () => {
   const setupRecognition = useCallback((onResult: (transcript: string) => void) => {
     if (!isSpeechRecognitionSupported) {
       console.warn('Speech recognition not supported');
+      return;
+    }
+
+    if (isSetupRef.current) {
+      console.log('Recognition already setup');
       return;
     }
 
@@ -33,7 +39,7 @@ export const useSpeechRecognition = () => {
       };
 
       recognitionRef.current.onresult = (event: any) => {
-        console.log('Speech recognition result:', event);
+        console.log('Speech recognition result received');
         
         if (event.results && event.results.length > 0) {
           const result = event.results[0];
@@ -43,7 +49,6 @@ export const useSpeechRecognition = () => {
             
             if (finalTranscript) {
               setTranscript(finalTranscript);
-              setIsListening(false);
               onResult(finalTranscript);
             }
           }
@@ -59,33 +64,31 @@ export const useSpeechRecognition = () => {
         console.error('Speech recognition error:', event.error);
         setIsListening(false);
         
-        let errorMessage = 'Speech recognition failed.';
-        
-        switch (event.error) {
-          case 'not-allowed':
-            errorMessage = 'Microphone access denied. Please allow microphone permissions and try again.';
-            break;
-          case 'no-speech':
-            errorMessage = 'No speech detected. Please try speaking again.';
-            break;
-          case 'audio-capture':
-            errorMessage = 'Microphone not available. Please check your microphone.';
-            break;
-          case 'network':
-            errorMessage = 'Network error. Please check your connection.';
-            break;
-          case 'aborted':
-            // Don't show error for aborted recognition
-            return;
+        // Only show error toast for significant errors
+        if (event.error !== 'aborted' && event.error !== 'no-speech') {
+          let errorMessage = 'Speech recognition failed.';
+          
+          switch (event.error) {
+            case 'not-allowed':
+              errorMessage = 'Microphone access denied. Please allow microphone permissions.';
+              break;
+            case 'audio-capture':
+              errorMessage = 'Microphone not available. Please check your microphone.';
+              break;
+            case 'network':
+              errorMessage = 'Network error. Please check your connection.';
+              break;
+          }
+          
+          toast({
+            title: "Speech Recognition Error",
+            description: errorMessage,
+            variant: "destructive"
+          });
         }
-        
-        toast({
-          title: "Speech Recognition Error",
-          description: errorMessage,
-          variant: "destructive"
-        });
       };
       
+      isSetupRef.current = true;
       console.log('Speech recognition setup complete');
     } catch (error) {
       console.error('Error setting up speech recognition:', error);
@@ -104,7 +107,7 @@ export const useSpeechRecognition = () => {
     }
     
     if (isListening) {
-      console.log('Already listening');
+      console.log('Already listening, ignoring start request');
       return;
     }
 
@@ -140,6 +143,7 @@ export const useSpeechRecognition = () => {
       try {
         recognitionRef.current.stop();
         recognitionRef.current = null;
+        isSetupRef.current = false;
       } catch (error) {
         console.error('Error during recognition cleanup:', error);
       }

@@ -43,25 +43,6 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     return [...landmarks, ...topLandmarksConverted];
   }, [landmarks]);
 
-  // Function to handle text-to-speech using Google Cloud TTS
-  const handleTextToSpeech = React.useCallback(async (landmark: Landmark) => {
-    const landmarkId = landmark.id;
-    
-    if (playingAudio[landmarkId] || isSpeaking) {
-      return; // Already playing
-    }
-
-    try {
-      setPlayingAudio(prev => ({ ...prev, [landmarkId]: true }));
-      const text = `${landmark.name}. ${landmark.description}`;
-      await speakText(text);
-    } catch (error) {
-      console.error('Error with Google Cloud TTS:', error);
-    } finally {
-      setPlayingAudio(prev => ({ ...prev, [landmarkId]: false }));
-    }
-  }, [playingAudio, isSpeaking, speakText]);
-
   const handleMarkerClick = React.useCallback(async (landmark: Landmark) => {
     console.log('Marker clicked:', landmark.name);
     
@@ -86,7 +67,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     onSelectLandmark(landmark);
   }, [onSelectLandmark]);
 
-  // Use marker manager - MUST be called unconditionally
+  // CRITICAL: Use marker manager UNCONDITIONALLY - must be called on every render
   useMarkerManager({
     map: map.current,
     landmarks: allLandmarksWithTop,
@@ -94,10 +75,31 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     onMarkerClick: handleMarkerClick
   });
 
+  // Function to handle text-to-speech using Google Cloud TTS
+  const handleTextToSpeech = React.useCallback(async (landmark: Landmark) => {
+    const landmarkId = landmark.id;
+    
+    if (playingAudio[landmarkId] || isSpeaking) {
+      return; // Already playing
+    }
+
+    try {
+      setPlayingAudio(prev => ({ ...prev, [landmarkId]: true }));
+      const text = `${landmark.name}. ${landmark.description}`;
+      await speakText(text);
+    } catch (error) {
+      console.error('Error with Google Cloud TTS:', error);
+    } finally {
+      setPlayingAudio(prev => ({ ...prev, [landmarkId]: false }));
+    }
+  }, [playingAudio, isSpeaking, speakText]);
+
   // Initialize map (runs once)
   useEffect(() => {
     if (!mapboxToken || !mapContainer.current || map.current) return;
 
+    console.log('Initializing map with token:', mapboxToken.substring(0, 20) + '...');
+    
     mapboxgl.accessToken = mapboxToken;
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
@@ -108,7 +110,12 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     });
 
     map.current.on('style.load', () => {
+      console.log('Map style loaded');
       map.current?.setFog({}); // Add a sky layer and atmosphere
+    });
+
+    map.current.on('load', () => {
+      console.log('Map fully loaded');
     });
 
     // Close all popups when clicking on the map
@@ -142,6 +149,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     });
 
     return () => {
+      console.log('Cleaning up map');
       map.current?.remove();
       map.current = null;
     };
