@@ -28,6 +28,11 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
   const [isResultOpen, setIsResultOpen] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
 
+  // Don't render the button if there are no planned landmarks
+  if (plannedLandmarks.length === 0) {
+    return null;
+  }
+
   const handleCapture = async (imageData: string) => {
     setCapturedImage(imageData);
     setIsAnalyzing(true);
