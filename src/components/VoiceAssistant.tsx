@@ -293,7 +293,7 @@ Keep your main response conversational and under 200 words, then add the JSON su
     
     await initializeAudioContext();
     
-    const welcomeMessage = `Welcome to your ${destination} tour! I'm your AI-powered voice assistant using advanced text-to-speech technology. You can ask me about any of the landmarks we've planned for you, and I'll share fascinating stories, local insights, and hidden gems. What would you like to know?`;
+    const welcomeMessage = `Welcome to your ${destination} tour! I'm your AI-powered voice assistant using advanced text-to-speech technology. You can hold the microphone button to ask me about any of the landmarks we've planned for you, and I'll share fascinating stories, local insights, and hidden gems. What would you like to know?`;
     console.log('Playing welcome message:', welcomeMessage);
     
     try {
@@ -328,7 +328,7 @@ Keep your main response conversational and under 200 words, then add the JSON su
           <DialogHeader>
             <DialogTitle>Voice Tour Guide</DialogTitle>
             <DialogDescription>
-              Ask me anything about your {destination} tour! I'll share stories, tips, and suggest additional places you might love.
+              Hold the microphone button to ask me anything about your {destination} tour! I'll share stories, tips, and suggest additional places you might love.
             </DialogDescription>
           </DialogHeader>
           
@@ -342,8 +342,8 @@ Keep your main response conversational and under 200 words, then add the JSON su
 
               <p className="text-center text-sm font-medium">
                 {isSpeaking ? 'Speaking...' : 
-                 isListening ? 'Listening... (tap to stop)' : 
-                 hasUserInteracted ? 'Tap to speak' : 'Ready to start'}
+                 isListening ? 'Listening... (release to send)' : 
+                 hasUserInteracted ? 'Hold to speak' : 'Ready to start'}
               </p>
 
               <VoiceControls
@@ -398,7 +398,7 @@ Keep your main response conversational and under 200 words, then add the JSON su
             <div className="text-center">
               <p className="text-xs text-muted-foreground">
                 {hasUserInteracted 
-                  ? "Ask me about landmarks, local tips, or hidden gems!"
+                  ? "Hold the microphone button and ask me about landmarks, local tips, or hidden gems!"
                   : "Click 'Start Tour Guide' to begin your interactive tour experience"
                 }
               </p>

@@ -22,6 +22,28 @@ const VoiceControls: React.FC<VoiceControlsProps> = ({
   onStopListening,
   onWelcomeClick
 }) => {
+  const handleMouseDown = () => {
+    if (!isSpeaking && hasUserInteracted && isSpeechRecognitionSupported && !isListening) {
+      onStartListening();
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (isListening) {
+      onStopListening();
+    }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault();
+    handleMouseDown();
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    e.preventDefault();
+    handleMouseUp();
+  };
+
   return (
     <div className="flex flex-col items-center space-y-4">
       {/* Welcome button (only show if user hasn't interacted) */}
@@ -36,16 +58,32 @@ const VoiceControls: React.FC<VoiceControlsProps> = ({
         </Button>
       )}
 
-      {/* Microphone button */}
+      {/* Push-to-talk microphone button */}
       <Button
         size="lg"
         variant={isListening ? "destructive" : "default"}
-        onClick={isListening ? onStopListening : onStartListening}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp} // Stop if mouse leaves button while pressed
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
         disabled={isSpeaking || !hasUserInteracted || !isSpeechRecognitionSupported}
-        className="rounded-full w-16 h-16"
+        className="rounded-full w-16 h-16 select-none"
+        style={{ userSelect: 'none' }}
       >
         {isListening ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
       </Button>
+
+      {/* Instructions */}
+      <div className="text-center text-xs text-muted-foreground max-w-sm">
+        {!hasUserInteracted ? (
+          "Click 'Start Tour Guide' to begin"
+        ) : isListening ? (
+          "Release to send your message"
+        ) : (
+          "Hold the microphone button to speak"
+        )}
+      </div>
 
       {/* Browser support warning */}
       {!isSpeechRecognitionSupported && (
