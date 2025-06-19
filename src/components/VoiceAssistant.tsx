@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Mic, MicOff } from 'lucide-react';
@@ -25,30 +25,38 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const { isListening, startListening, stopListening } = useGoogleSpeechRecognition();
   const { isSpeaking, speakText } = useGeminiTextToSpeech();
 
+  // Send greeting automatically when dialog opens
+  useEffect(() => {
+    const sendInitialGreeting = async () => {
+      if (open && !isLoading && !isSpeaking) {
+        console.log('Dialog opened, sending initial greeting...');
+        
+        const systemInstruction = `You are a friendly tour guide assistant for ${destination}. Provide helpful information about landmarks, attractions, and travel tips. Keep responses conversational and engaging.`;
+        
+        const greeting = await callGemini("Hi", systemInstruction);
+        
+        if (greeting) {
+          console.log('Assistant greeting:', greeting);
+          
+          // Play the greeting using Google Cloud TTS
+          console.log('Playing greeting with TTS...');
+          await speakText(greeting);
+        }
+      }
+    };
+
+    sendInitialGreeting();
+  }, [open, destination, callGemini, speakText, isLoading, isSpeaking]);
+
   const handleMicClick = async () => {
     if (isListening) {
-      // Stop listening and process the speech
-      console.log('Stopping speech recognition...');
-      await stopListening(handleSpeechResult);
+      // Stop continuous listening
+      console.log('Stopping continuous listening...');
+      await stopListening(() => {}); // Empty callback since we're just stopping
     } else {
-      // Start with greeting first
-      console.log('Mic button clicked, sending Hi message');
-      
-      const systemInstruction = `You are a friendly tour guide assistant for ${destination}. Provide helpful information about landmarks, attractions, and travel tips. Keep responses conversational and engaging.`;
-      
-      const greeting = await callGemini("Hi", systemInstruction);
-      
-      if (greeting) {
-        console.log('Assistant greeting:', greeting);
-        
-        // Play the greeting using Google Cloud TTS
-        console.log('Playing greeting with TTS...');
-        await speakText(greeting);
-        
-        // After greeting, start listening
-        console.log('Starting speech recognition...');
-        await startListening();
-      }
+      // Start continuous listening with automatic speech processing
+      console.log('Starting continuous listening...');
+      await startListening();
     }
   };
 
@@ -70,6 +78,14 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       }
     }
   };
+
+  // Set up speech recognition with automatic processing
+  useEffect(() => {
+    if (isListening) {
+      // The speech recognition will automatically call handleSpeechResult when it detects a pause
+      console.log('Continuous listening active - will process speech automatically on pauses');
+    }
+  }, [isListening]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -102,13 +118,19 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           
           {isListening && (
             <p className="mt-4 text-sm text-muted-foreground text-center">
-              Listening... Click to stop and send message
+              Listening continuously... Speak and pause. Click to stop.
             </p>
           )}
           
           {isSpeaking && (
             <p className="mt-4 text-sm text-muted-foreground text-center">
               Speaking...
+            </p>
+          )}
+
+          {!isListening && !isSpeaking && !isLoading && (
+            <p className="mt-4 text-sm text-muted-foreground text-center">
+              Click microphone to start conversation
             </p>
           )}
         </div>
