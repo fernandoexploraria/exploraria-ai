@@ -209,6 +209,7 @@ Please provide a helpful, conversational response about the destination or landm
     await initializeAudioContext();
     
     const welcomeMessage = `Welcome to your ${destination} tour! I'm your voice assistant. You can ask me about any of the landmarks we've planned for you. What would you like to know?`;
+    console.log('Playing welcome message:', welcomeMessage);
     await speakText(welcomeMessage);
   };
 
