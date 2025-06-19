@@ -8,7 +8,6 @@ export const useGoogleTextToSpeech = () => {
   const speakText = useCallback(async (text: string) => {
     try {
       console.log('Speaking text:', text.substring(0, 50) + '...');
-      setIsSpeaking(true);
       
       // Stop any current speech
       if (currentUtteranceRef.current) {
@@ -16,32 +15,36 @@ export const useGoogleTextToSpeech = () => {
         currentUtteranceRef.current = null;
       }
       
-      console.log('Using browser speech synthesis...');
+      setIsSpeaking(true);
       
-      // Wait for voices to be loaded
       return new Promise<void>((resolve, reject) => {
         const speak = () => {
           const utterance = new SpeechSynthesisUtterance(text);
           currentUtteranceRef.current = utterance;
           
-          // Try to find a good voice
+          // Get available voices
           const voices = speechSynthesis.getVoices();
           console.log('Available voices:', voices.length);
           
+          // Try to find a good English voice
           const preferredVoice = voices.find(voice => 
             voice.lang.startsWith('en') && (
               voice.name.includes('Google') || 
-              voice.name.includes('Female') || 
-              voice.name.includes('Samantha') ||
-              voice.name.includes('Natural')
+              voice.name.includes('Natural') ||
+              voice.name.includes('Enhanced') ||
+              voice.name.includes('Premium')
             )
-          ) || voices.find(voice => voice.lang.startsWith('en'));
+          ) || voices.find(voice => voice.lang.startsWith('en-US')) 
+            || voices.find(voice => voice.lang.startsWith('en'));
           
           if (preferredVoice) {
             utterance.voice = preferredVoice;
-            console.log('Using voice:', preferredVoice.name);
+            console.log('Using voice:', preferredVoice.name, preferredVoice.lang);
+          } else {
+            console.log('No preferred voice found, using default');
           }
           
+          // Configure speech parameters
           utterance.rate = 0.9;
           utterance.pitch = 1.0;
           utterance.volume = 1.0;
@@ -65,21 +68,26 @@ export const useGoogleTextToSpeech = () => {
             reject(error);
           };
           
+          // Ensure speech synthesis is not paused
+          if (speechSynthesis.paused) {
+            speechSynthesis.resume();
+          }
+          
           speechSynthesis.speak(utterance);
         };
 
-        // Check if voices are already loaded
+        // Check if voices are loaded
         if (speechSynthesis.getVoices().length > 0) {
           speak();
         } else {
-          // Wait for voices to load
+          // Wait for voices to be loaded
           const voicesChanged = () => {
             speechSynthesis.removeEventListener('voiceschanged', voicesChanged);
             speak();
           };
           speechSynthesis.addEventListener('voiceschanged', voicesChanged);
           
-          // Fallback timeout
+          // Fallback timeout in case voices don't load
           setTimeout(() => {
             speechSynthesis.removeEventListener('voiceschanged', voicesChanged);
             speak();
