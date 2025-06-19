@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Sparkles, Search, Star, Bookmark, ChevronDown, ChevronUp, Menu } from 'lucide-react';
 import SearchControl from '@/components/SearchControl';
 import FreeTourCounter from '@/components/FreeTourCounter';
-import ImageAnalysis from '@/components/ImageAnalysis';
 import { Landmark } from '@/data/landmarks';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -106,19 +105,15 @@ const TopControls: React.FC<TopControlsProps> = ({
             )}
             
             {plannedLandmarks.length > 0 && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
-                  onClick={onVoiceAssistantOpen}
-                >
-                  <Sparkles className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
-                  Voice Guide
-                </Button>
-                
-                <ImageAnalysis landmarks={plannedLandmarks} />
-              </>
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
+                onClick={onVoiceAssistantOpen}
+              >
+                <Sparkles className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+                Voice Guide
+              </Button>
             )}
             
             {user && <FreeTourCounter />}
