@@ -6,6 +6,7 @@ import { Mic, MicOff } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
 import { useGeminiAPI } from '@/hooks/useGeminiAPI';
 import { useGoogleSpeechRecognition } from './voice-assistant/useGoogleSpeechRecognition';
+import { useGeminiTextToSpeech } from './voice-assistant/useGeminiTextToSpeech';
 
 interface VoiceAssistantProps {
   open: boolean;
@@ -22,6 +23,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 }) => {
   const { callGemini, isLoading } = useGeminiAPI();
   const { isListening, startListening, stopListening } = useGoogleSpeechRecognition();
+  const { isSpeaking, speakText } = useGeminiTextToSpeech();
 
   const handleMicClick = async () => {
     if (isListening) {
@@ -38,6 +40,10 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       
       if (greeting) {
         console.log('Assistant greeting:', greeting);
+        
+        // Play the greeting using Google Cloud TTS
+        console.log('Playing greeting with TTS...');
+        await speakText(greeting);
         
         // After greeting, start listening
         console.log('Starting speech recognition...');
@@ -57,6 +63,10 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       
       if (response) {
         console.log('Assistant response:', response);
+        
+        // Play the response using Google Cloud TTS
+        console.log('Playing response with TTS...');
+        await speakText(response);
       }
     }
   };
@@ -76,10 +86,12 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
             className={`w-24 h-24 rounded-full transition-all duration-200 hover:scale-105 ${
               isListening 
                 ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
+                : isSpeaking
+                ? 'bg-green-500 hover:bg-green-600 animate-pulse'
                 : 'bg-primary hover:bg-primary/90'
             }`}
             onClick={handleMicClick}
-            disabled={isLoading}
+            disabled={isLoading || isSpeaking}
           >
             {isListening ? (
               <MicOff className="w-12 h-12" />
@@ -91,6 +103,12 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           {isListening && (
             <p className="mt-4 text-sm text-muted-foreground text-center">
               Listening... Click to stop and send message
+            </p>
+          )}
+          
+          {isSpeaking && (
+            <p className="mt-4 text-sm text-muted-foreground text-center">
+              Speaking...
             </p>
           )}
         </div>
