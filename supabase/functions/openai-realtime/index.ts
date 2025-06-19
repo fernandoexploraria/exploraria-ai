@@ -5,7 +5,10 @@ serve(async (req) => {
   const { headers } = req;
   const upgradeHeader = headers.get("upgrade") || "";
 
+  console.log("OpenAI Realtime function called with upgrade header:", upgradeHeader);
+
   if (upgradeHeader.toLowerCase() !== "websocket") {
+    console.log("Not a WebSocket request, returning 400");
     return new Response("Expected WebSocket connection", { status: 400 });
   }
 
@@ -25,6 +28,7 @@ serve(async (req) => {
     }
 
     const openAIUrl = `wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17`;
+    console.log("Connecting to OpenAI:", openAIUrl);
     
     openAISocket = new WebSocket(openAIUrl, [], {
       headers: {
@@ -84,6 +88,7 @@ serve(async (req) => {
   };
 
   socket.onmessage = (event) => {
+    console.log("Received message from client:", event.data);
     // Forward client messages to OpenAI
     if (openAISocket && openAISocket.readyState === WebSocket.OPEN) {
       openAISocket.send(event.data);
