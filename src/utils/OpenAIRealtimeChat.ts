@@ -9,6 +9,7 @@ export class AudioRecorder {
 
   async start() {
     try {
+      console.log('Starting audio recorder...');
       this.stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           sampleRate: 24000,
@@ -33,6 +34,7 @@ export class AudioRecorder {
       
       this.source.connect(this.processor);
       this.processor.connect(this.audioContext.destination);
+      console.log('Audio recorder started successfully');
     } catch (error) {
       console.error('Error accessing microphone:', error);
       throw error;
@@ -40,6 +42,7 @@ export class AudioRecorder {
   }
 
   stop() {
+    console.log('Stopping audio recorder...');
     if (this.source) {
       this.source.disconnect();
       this.source = null;
@@ -56,6 +59,7 @@ export class AudioRecorder {
       this.audioContext.close();
       this.audioContext = null;
     }
+    console.log('Audio recorder stopped');
   }
 }
 
@@ -130,6 +134,7 @@ class AudioQueue {
   }
 
   async addToQueue(audioData: Uint8Array) {
+    console.log('Adding audio data to queue, size:', audioData.length);
     this.queue.push(audioData);
     if (!this.isPlaying) {
       await this.playNext();
@@ -139,11 +144,13 @@ class AudioQueue {
   private async playNext() {
     if (this.queue.length === 0) {
       this.isPlaying = false;
+      console.log('Audio queue finished');
       return;
     }
 
     this.isPlaying = true;
     const audioData = this.queue.shift()!;
+    console.log('Playing audio chunk, size:', audioData.length);
 
     try {
       const wavData = createWavFromPCM(audioData);
@@ -153,7 +160,10 @@ class AudioQueue {
       source.buffer = audioBuffer;
       source.connect(this.audioContext.destination);
       
-      source.onended = () => this.playNext();
+      source.onended = () => {
+        console.log('Audio chunk finished playing');
+        this.playNext();
+      };
       source.start(0);
     } catch (error) {
       console.error('Error playing audio:', error);
@@ -183,34 +193,47 @@ export class OpenAIRealtimeChat {
       this.audioContext = new AudioContext({ sampleRate: 24000 });
       this.audioQueue = new AudioQueue(this.audioContext);
       
-      const supabaseUrl = 'https://ejqgdmbuabrcjxbhpxup.supabase.co';
-      this.ws = new WebSocket(`wss://ejqgdmbuabrcjxbhpxup.functions.supabase.co/openai-realtime`);
+      // Use the correct WebSocket URL for your Supabase project
+      const wsUrl = 'wss://ejqgdmbuabrcjxbhpxup.functions.supabase.co/openai-realtime';
+      console.log('Connecting to WebSocket:', wsUrl);
+      
+      this.ws = new WebSocket(wsUrl);
 
       this.ws.onopen = () => {
-        console.log('Connected to realtime chat');
+        console.log('WebSocket connected successfully');
         this.isConnected = true;
         this.onConnectionChange(true);
       };
 
       this.ws.onmessage = async (event) => {
-        const data = JSON.parse(event.data);
-        console.log('Received message:', data.type);
+        try {
+          const data = JSON.parse(event.data);
+          console.log('Received WebSocket message:', data.type, data);
 
-        if (data.type === 'response.audio.delta') {
-          const binaryString = atob(data.delta);
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
+          if (data.type === 'response.audio.delta') {
+            console.log('Received audio delta, length:', data.delta?.length);
+            if (data.delta) {
+              const binaryString = atob(data.delta);
+              const bytes = new Uint8Array(binaryString.length);
+              for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+              }
+              await this.audioQueue?.addToQueue(bytes);
+              this.onSpeakingChange(true);
+            }
+          } else if (data.type === 'response.audio.done') {
+            console.log('Audio response completed');
+            this.onSpeakingChange(false);
+          } else if (data.type === 'error') {
+            console.error('OpenAI API error:', data);
           }
-          await this.audioQueue?.addToQueue(bytes);
-          this.onSpeakingChange(true);
-        } else if (data.type === 'response.audio.done') {
-          this.onSpeakingChange(false);
+        } catch (error) {
+          console.error('Error processing WebSocket message:', error);
         }
       };
 
-      this.ws.onclose = () => {
-        console.log('WebSocket connection closed');
+      this.ws.onclose = (event) => {
+        console.log('WebSocket connection closed:', event.code, event.reason);
         this.isConnected = false;
         this.onConnectionChange(false);
         this.cleanup();
@@ -223,13 +246,16 @@ export class OpenAIRealtimeChat {
       };
 
     } catch (error) {
-      console.error('Error connecting:', error);
+      console.error('Error connecting to OpenAI Realtime API:', error);
       throw error;
     }
   }
 
   async startListening() {
-    if (!this.isConnected || this.isListening) return;
+    if (!this.isConnected || this.isListening) {
+      console.log('Cannot start listening - not connected or already listening');
+      return;
+    }
 
     try {
       console.log('Starting to listen...');
@@ -247,6 +273,7 @@ export class OpenAIRealtimeChat {
       await this.audioRecorder.start();
       this.isListening = true;
       this.onListeningChange(true);
+      console.log('Started listening successfully');
       
     } catch (error) {
       console.error('Error starting audio recording:', error);
@@ -255,18 +282,26 @@ export class OpenAIRealtimeChat {
   }
 
   stopListening() {
-    if (!this.isListening) return;
+    if (!this.isListening) {
+      console.log('Not currently listening');
+      return;
+    }
 
     console.log('Stopping listening...');
     this.audioRecorder?.stop();
     this.audioRecorder = null;
     this.isListening = false;
     this.onListeningChange(false);
+    console.log('Stopped listening successfully');
   }
 
   async sendInitialGreeting() {
-    if (!this.isConnected) return;
+    if (!this.isConnected) {
+      console.log('Cannot send initial greeting - not connected');
+      return;
+    }
 
+    console.log('Sending initial greeting...');
     const greetingEvent = {
       type: 'conversation.item.create',
       item: {
@@ -283,21 +318,27 @@ export class OpenAIRealtimeChat {
 
     this.ws?.send(JSON.stringify(greetingEvent));
     this.ws?.send(JSON.stringify({ type: 'response.create' }));
+    console.log('Initial greeting sent');
   }
 
   disconnect() {
-    console.log('Disconnecting...');
+    console.log('Disconnecting from OpenAI Realtime API...');
     this.cleanup();
   }
 
   private cleanup() {
     this.stopListening();
-    this.ws?.close();
-    this.ws = null;
-    this.audioContext?.close();
-    this.audioContext = null;
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+    if (this.audioContext) {
+      this.audioContext.close();
+      this.audioContext = null;
+    }
     this.audioQueue = null;
     this.isConnected = false;
     this.onConnectionChange(false);
+    console.log('Cleanup completed');
   }
 }

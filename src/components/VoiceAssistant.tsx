@@ -32,9 +32,18 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       console.log('Dialog opened, initializing OpenAI Realtime connection...');
       
       const chat = new OpenAIRealtimeChat(
-        setIsConnected,
-        setIsListening,
-        setIsSpeaking
+        (connected) => {
+          console.log('Connection status changed:', connected);
+          setIsConnected(connected);
+        },
+        (listening) => {
+          console.log('Listening status changed:', listening);
+          setIsListening(listening);
+        },
+        (speaking) => {
+          console.log('Speaking status changed:', speaking);
+          setIsSpeaking(speaking);
+        }
       );
       
       setRealtimeChat(chat);
@@ -51,7 +60,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           console.error('Failed to connect:', error);
           toast({
             title: "Connection Error",
-            description: "Could not connect to voice assistant. Please try again.",
+            description: `Could not connect to voice assistant: ${error.message}`,
             variant: "destructive"
           });
         });
@@ -71,7 +80,10 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   }, [open, realtimeChat]);
 
   const handleMicClick = async () => {
+    console.log('Mic button clicked, current states:', { isConnected, isListening, isSpeaking });
+    
     if (!realtimeChat || !isConnected) {
+      console.log('Not ready to handle mic click');
       toast({
         title: "Not Connected",
         description: "Please wait for the connection to be established.",
