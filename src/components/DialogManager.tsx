@@ -17,8 +17,6 @@ interface DialogManagerProps {
   onVoiceAssistantOpenChange: (open: boolean) => void;
   currentDestination: string;
   plannedLandmarks: Landmark[];
-  perplexityApiKey: string;
-  elevenLabsApiKey: string;
   isVoiceSearchOpen: boolean;
   onVoiceSearchOpenChange: (open: boolean) => void;
   isFavoritesOpen: boolean;
@@ -38,8 +36,6 @@ const DialogManager: React.FC<DialogManagerProps> = ({
   onVoiceAssistantOpenChange,
   currentDestination,
   plannedLandmarks,
-  perplexityApiKey,
-  elevenLabsApiKey,
   isVoiceSearchOpen,
   onVoiceSearchOpenChange,
   isFavoritesOpen,
@@ -63,8 +59,6 @@ const DialogManager: React.FC<DialogManagerProps> = ({
         onOpenChange={onVoiceAssistantOpenChange}
         destination={currentDestination}
         landmarks={plannedLandmarks}
-        perplexityApiKey={perplexityApiKey}
-        elevenLabsApiKey={elevenLabsApiKey}
         onAddLandmarks={onAddLandmarks}
       />
 

@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import Map from '@/components/Map';
 import SplashScreen from '@/components/SplashScreen';
@@ -160,8 +159,6 @@ const Index: React.FC = () => {
         onVoiceAssistantOpenChange={setIsVoiceAssistantOpen}
         currentDestination={currentDestination}
         plannedLandmarks={plannedLandmarks}
-        perplexityApiKey=""
-        elevenLabsApiKey=""
         isVoiceSearchOpen={isVoiceSearchOpen}
         onVoiceSearchOpenChange={setIsVoiceSearchOpen}
         isFavoritesOpen={isFavoritesOpen}
