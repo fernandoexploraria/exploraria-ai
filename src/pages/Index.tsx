@@ -120,6 +120,10 @@ const Index: React.FC = () => {
     setShowSplash(false);
   };
 
+  const handleLogoClick = () => {
+    setShowSplash(true);
+  };
+
   if (showSplash) {
     return <SplashScreen onDismiss={handleSplashDismiss} />;
   }
@@ -133,6 +137,7 @@ const Index: React.FC = () => {
         onFavoritesOpen={handleFavoritesOpen}
         onVoiceSearchOpen={handleVoiceSearchOpen}
         onVoiceAssistantOpen={handleVoiceAssistantOpen}
+        onLogoClick={handleLogoClick}
         user={user}
         plannedLandmarks={plannedLandmarks}
       />

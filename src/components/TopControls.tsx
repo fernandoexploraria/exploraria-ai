@@ -7,7 +7,6 @@ import FreeTourCounter from '@/components/FreeTourCounter';
 import ImageAnalysis from '@/components/ImageAnalysis';
 import { Landmark } from '@/data/landmarks';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useNavigate } from 'react-router-dom';
 
 interface TopControlsProps {
   allLandmarks: Landmark[];
@@ -16,6 +15,7 @@ interface TopControlsProps {
   onFavoritesOpen: () => void;
   onVoiceSearchOpen: () => void;
   onVoiceAssistantOpen: () => void;
+  onLogoClick: () => void;
   user: any;
   plannedLandmarks: Landmark[];
 }
@@ -27,19 +27,15 @@ const TopControls: React.FC<TopControlsProps> = ({
   onFavoritesOpen,
   onVoiceSearchOpen,
   onVoiceAssistantOpen,
+  onLogoClick,
   user,
   plannedLandmarks
 }) => {
   const isMobile = useIsMobile();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const navigate = useNavigate();
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
-  };
-
-  const handleLogoClick = () => {
-    navigate('/');
   };
 
   return (
@@ -51,7 +47,7 @@ const TopControls: React.FC<TopControlsProps> = ({
           src="/lovable-uploads/ac9cbebd-b083-4d3d-a85e-782e03045422.png" 
           alt="Exploraria Logo" 
           className="h-16 w-auto bg-yellow-400 rounded-lg p-1 flex-shrink-0 lg:h-20 cursor-pointer hover:bg-yellow-300 transition-colors"
-          onClick={handleLogoClick}
+          onClick={onLogoClick}
         />
         
         {/* Search Control */}
