@@ -11,6 +11,7 @@ import VoiceControls from './voice-assistant/VoiceControls';
 import { useAudioContext } from './voice-assistant/useAudioContext';
 import { useSpeechRecognition } from './voice-assistant/useSpeechRecognition';
 import { useGoogleTextToSpeech } from './voice-assistant/useGoogleTextToSpeech';
+import { useGeminiAPI } from '@/hooks/useGeminiAPI';
 
 interface VoiceAssistantProps {
   open: boolean;
@@ -33,8 +34,6 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   onOpenChange,
   destination,
   landmarks,
-  perplexityApiKey,
-  elevenLabsApiKey,
   onAddLandmarks
 }) => {
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
@@ -43,6 +42,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const { toast } = useToast();
   const { user, session } = useAuth();
+  const { callGemini } = useGeminiAPI();
 
   const { audioContextInitialized, initializeAudioContext } = useAudioContext();
   const { 
@@ -183,17 +183,13 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
   const handleUserInput = async (input: string) => {
     console.log('Processing user input:', input);
-    
-    if (!perplexityApiKey || perplexityApiKey.includes('YOUR_')) {
-      const response = "I'm sorry, but I need a Perplexity API key to answer your questions.";
-      await speakText(response);
-      await storeInteraction(input, response);
-      return;
-    }
 
     try {
       const landmarkNames = landmarks.map(l => l.name).join(', ');
-      const prompt = `You are an enthusiastic, knowledgeable tour guide for ${destination}. The user is asking: "${input}". 
+      
+      const systemInstruction = `You are an enthusiastic, knowledgeable tour guide for ${destination}. Always provide engaging, conversational responses with follow-up questions.`;
+      
+      const prompt = `The user is asking: "${input}". 
 
 Available landmarks in their current tour: ${landmarkNames}
 
@@ -207,55 +203,38 @@ As an engaging tour guide, you should:
 
 Keep your main response conversational and under 200 words, then add the JSON suggestions if any. Speak as if you're a passionate local who loves sharing hidden gems and stories about ${destination}.`;
 
-      console.log('Calling Perplexity API...');
+      console.log('Calling Gemini API...');
       
-      const response = await fetch('https://api.perplexity.ai/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${perplexityApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'llama-3.1-sonar-small-128k-online',
-          messages: [
-            { role: 'system', content: 'You are an enthusiastic, knowledgeable tour guide who loves sharing stories, practical tips, and hidden gems. Always provide engaging, conversational responses with follow-up questions.' },
-            { role: 'user', content: prompt }
-          ],
-          temperature: 0.8,
-          max_tokens: 300
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const aiResponse = data.choices[0].message.content;
-        console.log('Got AI response:', aiResponse);
-        
-        // Extract landmark suggestions
-        const suggestions = extractLandmarkSuggestions(aiResponse);
-        if (suggestions.length > 0) {
-          setSuggestedLandmarks(suggestions);
-          setShowSuggestions(true);
-        }
-        
-        // Clean response for speech (remove JSON part)
-        const cleanResponse = aiResponse.replace(/\[[\s\S]*?\]/, '').trim();
-        
-        await speakText(cleanResponse);
-        await storeInteraction(input, aiResponse);
-        
-        // Ask if they want to add suggestions after speaking
-        if (suggestions.length > 0) {
-          setTimeout(async () => {
-            const addQuestion = `I found ${suggestions.length} additional interesting spots. Would you like me to add them to your map?`;
-            await speakText(addQuestion);
-          }, 1000);
-        }
-      } else {
-        console.error('Perplexity API error:', response.status, await response.text());
+      const aiResponse = await callGemini(prompt, systemInstruction);
+      
+      if (!aiResponse) {
         const errorResponse = "I'm sorry, I couldn't process your question right now. Please try again.";
         await speakText(errorResponse);
         await storeInteraction(input, errorResponse);
+        return;
+      }
+
+      console.log('Got AI response:', aiResponse);
+      
+      // Extract landmark suggestions
+      const suggestions = extractLandmarkSuggestions(aiResponse);
+      if (suggestions.length > 0) {
+        setSuggestedLandmarks(suggestions);
+        setShowSuggestions(true);
+      }
+      
+      // Clean response for speech (remove JSON part)
+      const cleanResponse = aiResponse.replace(/\[[\s\S]*?\]/, '').trim();
+      
+      await speakText(cleanResponse);
+      await storeInteraction(input, aiResponse);
+      
+      // Ask if they want to add suggestions after speaking
+      if (suggestions.length > 0) {
+        setTimeout(async () => {
+          const addQuestion = `I found ${suggestions.length} additional interesting spots. Would you like me to add them to your map?`;
+          await speakText(addQuestion);
+        }, 1000);
       }
     } catch (error) {
       console.error('Error getting AI response:', error);

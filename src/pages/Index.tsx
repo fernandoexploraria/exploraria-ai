@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import Map from '@/components/Map';
 import SplashScreen from '@/components/SplashScreen';
@@ -11,9 +12,6 @@ import DialogManager from '@/components/DialogManager';
 // IMPORTANT: Replace this with your own public Mapbox token!
 // You can get one from your Mapbox account: https://www.mapbox.com/
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiZm9icmVnb25hIiwiYSI6ImNtMGlnYzFlYTBtYnUybG9tMGRuczNoMzkifQ.n_n-sCR4Zm-dCV5ijeXiDg';
-
-// Your Perplexity API key.
-const PERPLEXITY_API_KEY = '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';
 
 const PENDING_DESTINATION_KEY = 'pendingTourDestination';
 
@@ -59,13 +57,8 @@ const Index: React.FC = () => {
   }, []);
 
   const handleGenerateTour = async (destination: string) => {
-    if (!PERPLEXITY_API_KEY || PERPLEXITY_API_KEY.includes('YOUR_')) {
-        alert("Please provide a valid Perplexity API key in src/pages/Index.tsx");
-        return;
-    }
-    
     setCurrentDestination(destination);
-    await generateTour(destination, PERPLEXITY_API_KEY);
+    await generateTour(destination);
     
     // Close tour planner and show voice assistant after tour is generated
     setTimeout(() => {
@@ -167,7 +160,7 @@ const Index: React.FC = () => {
         onVoiceAssistantOpenChange={setIsVoiceAssistantOpen}
         currentDestination={currentDestination}
         plannedLandmarks={plannedLandmarks}
-        perplexityApiKey={PERPLEXITY_API_KEY}
+        perplexityApiKey=""
         elevenLabsApiKey=""
         isVoiceSearchOpen={isVoiceSearchOpen}
         onVoiceSearchOpenChange={setIsVoiceSearchOpen}

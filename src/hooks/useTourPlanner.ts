@@ -1,9 +1,11 @@
+
 import { useState } from 'react';
 import { Landmark } from '@/data/landmarks';
 import { toast } from "sonner";
 import { supabase } from '@/integrations/supabase/client';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useTourStats } from '@/hooks/useTourStats';
+import { useGeminiAPI } from '@/hooks/useGeminiAPI';
 
 export const useTourPlanner = () => {
   const [plannedLandmarks, setPlannedLandmarks] = useState<Landmark[]>([]);
@@ -11,13 +13,9 @@ export const useTourPlanner = () => {
   const [error, setError] = useState<string | null>(null);
   const { subscriptionData } = useSubscription();
   const { tourStats, forceRefresh } = useTourStats();
+  const { callGemini } = useGeminiAPI();
 
-  const generateTour = async (destination: string, apiKey: string) => {
-    if (!apiKey) {
-      toast.error("Please provide a Perplexity API key.");
-      return;
-    }
-
+  const generateTour = async (destination: string) => {
     // Check current user
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -44,15 +42,17 @@ export const useTourPlanner = () => {
     setPlannedLandmarks([]); // Clear previous results
 
     try {
-      const prompt = `You are an expert tour planner. Provide a list of the top 10 most famous landmarks in ${destination}.
-      For each landmark, provide its name, a short description (2-3 sentences), and its geographic coordinates (latitude and longitude).
-      VERY IMPORTANT: Your response MUST be a valid JSON array of objects. Do not include any text before or after the JSON array.
+      const systemInstruction = `You are an expert tour planner. Your response MUST be a valid JSON array of objects. Do not include any text before or after the JSON array.
       Each object in the array should have the following structure:
       {
         "name": "Landmark Name",
         "coordinates": [longitude, latitude],
         "description": "A short description of the landmark."
-      }
+      }`;
+
+      const prompt = `Provide a list of the top 10 most famous landmarks in ${destination}.
+      For each landmark, provide its name, a short description (2-3 sentences), and its geographic coordinates (latitude and longitude).
+      
       Example for Paris:
       [
         {
@@ -60,32 +60,18 @@ export const useTourPlanner = () => {
           "coordinates": [2.2945, 48.8584],
           "description": "The Eiffel Tower is a wrought-iron lattice tower on the Champ de Mars in Paris, France. It's a global cultural icon."
         }
-      ]
-      `;
+      ]`;
       
-      const response = await fetch('https://api.perplexity.ai/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'llama-3.1-sonar-small-128k-online',
-          messages: [
-            { role: 'system', content: 'You are an expert tour planner that only responds with valid JSON.' },
-            { role: 'user', content: prompt }
-          ],
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail?.message || "Failed to fetch tour plan from Perplexity.");
+      console.log('Calling Gemini API for tour generation...');
+      
+      const responseText = await callGemini(prompt, systemInstruction);
+      
+      if (!responseText) {
+        throw new Error("Failed to get response from AI service.");
       }
 
-      const data = await response.json();
-      const responseText = data.choices[0].message.content;
-
+      console.log('Got Gemini response:', responseText);
+      
       // Sometimes the model wraps the JSON in markdown, let's clean it.
       const cleanedJson = responseText.replace(/```json\n|```/g, '').trim();
       
