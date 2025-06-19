@@ -40,7 +40,6 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [suggestedLandmarks, setSuggestedLandmarks] = useState<LandmarkSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [currentOnResult, setCurrentOnResult] = useState<((transcript: string) => void) | null>(null);
   const { toast } = useToast();
   const { user, session } = useAuth();
   const { callGemini } = useGeminiAPI();
@@ -88,7 +87,6 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
     if (open && isSpeechRecognitionSupported) {
       setupRecognition(handleUserInput);
-      setCurrentOnResult(() => handleUserInput);
     }
 
     return () => {
@@ -177,14 +175,12 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     }
 
     if (!isSpeaking) {
-      startListening();
+      await startListening();
     }
   };
 
   const handleStopListening = async () => {
-    if (currentOnResult) {
-      await stopListening(currentOnResult);
-    }
+    await stopListening(handleUserInput);
   };
 
   const handleUserInput = async (input: string) => {
@@ -346,8 +342,8 @@ Keep your main response conversational and under 200 words, then add the JSON su
 
               <p className="text-center text-sm font-medium">
                 {isSpeaking ? 'Speaking...' : 
-                 isListening ? 'Listening...' : 
-                 hasUserInteracted ? 'Click to speak' : 'Ready to start'}
+                 isListening ? 'Listening... (tap to stop)' : 
+                 hasUserInteracted ? 'Tap to speak' : 'Ready to start'}
               </p>
 
               <VoiceControls

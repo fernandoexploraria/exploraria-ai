@@ -8,44 +8,8 @@ export const useAudioRecorder = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
   const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
-
-  const detectSilence = useCallback(() => {
-    if (!analyserRef.current) return;
-
-    const bufferLength = analyserRef.current.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-    
-    analyserRef.current.getByteFrequencyData(dataArray);
-    
-    // Calculate average volume
-    const average = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength;
-    const threshold = 10; // Silence threshold
-    
-    if (average < threshold) {
-      // Start silence timer if not already started
-      if (!silenceTimeoutRef.current) {
-        silenceTimeoutRef.current = setTimeout(() => {
-          console.log('Silence detected, stopping recording');
-          stopRecording();
-        }, 2000); // Stop after 2 seconds of silence
-      }
-    } else {
-      // Clear silence timer if user is speaking
-      if (silenceTimeoutRef.current) {
-        clearTimeout(silenceTimeoutRef.current);
-        silenceTimeoutRef.current = null;
-      }
-    }
-
-    // Continue monitoring if still recording
-    if (isRecording) {
-      requestAnimationFrame(detectSilence);
-    }
-  }, [isRecording]);
 
   const startRecording = useCallback(async () => {
     try {
@@ -61,13 +25,6 @@ export const useAudioRecorder = () => {
       });
 
       streamRef.current = stream;
-
-      // Set up audio context for silence detection
-      audioContextRef.current = new AudioContext();
-      const source = audioContextRef.current.createMediaStreamSource(stream);
-      analyserRef.current = audioContextRef.current.createAnalyser();
-      analyserRef.current.fftSize = 256;
-      source.connect(analyserRef.current);
 
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: 'audio/webm;codecs=opus'
@@ -85,19 +42,23 @@ export const useAudioRecorder = () => {
       mediaRecorder.onstart = () => {
         console.log('Recording started');
         setIsRecording(true);
-        // Start silence detection
-        detectSilence();
+        
+        // Auto-stop after 10 seconds max
+        silenceTimeoutRef.current = setTimeout(() => {
+          console.log('Auto-stopping recording after 10 seconds');
+          if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop();
+          }
+        }, 10000);
       };
 
       mediaRecorder.onstop = () => {
         console.log('Recording stopped');
         setIsRecording(false);
+        
         // Clean up
         if (streamRef.current) {
           streamRef.current.getTracks().forEach(track => track.stop());
-        }
-        if (audioContextRef.current) {
-          audioContextRef.current.close();
         }
         if (silenceTimeoutRef.current) {
           clearTimeout(silenceTimeoutRef.current);
@@ -116,11 +77,11 @@ export const useAudioRecorder = () => {
         variant: "destructive"
       });
     }
-  }, [toast, detectSilence]);
+  }, [toast]);
 
   const stopRecording = useCallback((): Promise<string> => {
     return new Promise((resolve, reject) => {
-      if (!mediaRecorderRef.current || !isRecording) {
+      if (!mediaRecorderRef.current) {
         reject(new Error('No active recording'));
         return;
       }
@@ -132,6 +93,10 @@ export const useAudioRecorder = () => {
         try {
           const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm;codecs=opus' });
           console.log('Audio blob created, size:', audioBlob.size);
+          
+          if (audioBlob.size === 0) {
+            throw new Error('No audio data recorded');
+          }
           
           // Convert blob to base64
           const reader = new FileReader();
@@ -154,19 +119,26 @@ export const useAudioRecorder = () => {
         }
       };
 
-      mediaRecorderRef.current.stop();
+      if (mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      } else {
+        // Already stopped, process immediately
+        mediaRecorderRef.current.onstop(new Event('stop'));
+      }
     });
-  }, [isRecording]);
+  }, []);
 
   const cleanup = useCallback(() => {
-    if (mediaRecorderRef.current && isRecording) {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop();
     }
     if (silenceTimeoutRef.current) {
       clearTimeout(silenceTimeoutRef.current);
       silenceTimeoutRef.current = null;
     }
-  }, [isRecording]);
+    setIsRecording(false);
+    setIsProcessing(false);
+  }, []);
 
   return {
     isRecording,
