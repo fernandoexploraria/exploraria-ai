@@ -193,8 +193,8 @@ export class OpenAIRealtimeChat {
       this.audioContext = new AudioContext({ sampleRate: 24000 });
       this.audioQueue = new AudioQueue(this.audioContext);
       
-      // Use the correct WebSocket URL for your Supabase project
-      const wsUrl = 'wss://ejqgdmbuabrcjxbhpxup.functions.supabase.co/openai-realtime';
+      // Use the correct WebSocket URL for Supabase Edge Functions
+      const wsUrl = 'wss://ejqgdmbuabrcjxbhpxup.functions.supabase.co/functions/v1/openai-realtime';
       console.log('Connecting to WebSocket:', wsUrl);
       
       this.ws = new WebSocket(wsUrl);
