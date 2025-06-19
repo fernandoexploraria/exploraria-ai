@@ -10,7 +10,7 @@ import VoiceStatus from './voice-assistant/VoiceStatus';
 import VoiceControls from './voice-assistant/VoiceControls';
 import { useAudioContext } from './voice-assistant/useAudioContext';
 import { useSpeechRecognition } from './voice-assistant/useSpeechRecognition';
-import { useSimpleTextToSpeech } from './voice-assistant/useSimpleTextToSpeech';
+import { useGeminiTextToSpeech } from './voice-assistant/useGeminiTextToSpeech';
 import { useGeminiAPI } from '@/hooks/useGeminiAPI';
 
 interface VoiceAssistantProps {
@@ -54,7 +54,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     stopListening, 
     cleanup: cleanupRecognition 
   } = useSpeechRecognition();
-  const { isSpeaking, speakText, cleanup: cleanupTTS } = useSimpleTextToSpeech();
+  const { isSpeaking, speakText, cleanup: cleanupTTS } = useGeminiTextToSpeech();
 
   // Check authentication when dialog opens
   useEffect(() => {
@@ -276,7 +276,7 @@ Keep your main response conversational and under 200 words, then add the JSON su
     
     await initializeAudioContext();
     
-    const welcomeMessage = `Welcome to your ${destination} tour! I'm your voice assistant using browser text-to-speech. You can ask me about any of the landmarks we've planned for you. What would you like to know?`;
+    const welcomeMessage = `Welcome to your ${destination} tour! I'm your AI-powered voice assistant using advanced text-to-speech technology. You can ask me about any of the landmarks we've planned for you, and I'll share fascinating stories, local insights, and hidden gems. What would you like to know?`;
     console.log('Playing welcome message:', welcomeMessage);
     
     try {
