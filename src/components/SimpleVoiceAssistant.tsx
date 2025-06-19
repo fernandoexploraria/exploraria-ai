@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -34,7 +33,7 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
     try {
       console.log('Connecting to OpenAI Realtime API via Supabase...');
       
-      // Get the session to include auth headers
+      // Get the session to include auth token in URL
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       
@@ -47,15 +46,11 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
         return;
       }
 
-      // Create WebSocket connection with auth
-      const wsUrl = `wss://ejqgdmbuabrcjxbhpxup.supabase.co/functions/v1/openai-realtime`;
+      // Create WebSocket connection with auth token as query parameter
+      const wsUrl = `wss://ejqgdmbuabrcjxbhpxup.supabase.co/functions/v1/openai-realtime?token=${encodeURIComponent(token)}`;
       console.log('Connecting to:', wsUrl);
       
-      const ws = new WebSocket(wsUrl, [], {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        }
-      });
+      const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
         console.log('Connected to OpenAI Realtime API');
