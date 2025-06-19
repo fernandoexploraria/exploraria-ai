@@ -5,7 +5,7 @@ import { Volume2, VolumeX } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { supabase } from '@/integrations/supabase/client';
-import { useGeminiTextToSpeech } from './voice-assistant/useGeminiTextToSpeech';
+import { useGoogleTextToSpeech } from './voice-assistant/useGoogleTextToSpeech';
 
 interface MapProps {
   mapboxToken: string;
@@ -28,8 +28,8 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
   const pendingPopupLandmark = useRef<Landmark | null>(null);
   const isZooming = useRef<boolean>(false);
 
-  // Use Gemini TTS hook for map markers
-  const { isSpeaking, speakText } = useGeminiTextToSpeech();
+  // Use Google Cloud TTS hook for map markers
+  const { isSpeaking, speakText } = useGoogleTextToSpeech();
 
   // Convert top landmarks to Landmark format
   const allLandmarksWithTop = React.useMemo(() => {
@@ -101,7 +101,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     };
   }, [mapboxToken]);
 
-  // Function to handle text-to-speech using Gemini API
+  // Function to handle text-to-speech using Google Cloud TTS
   const handleTextToSpeech = async (landmark: Landmark) => {
     const landmarkId = landmark.id;
     
@@ -114,7 +114,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       const text = `${landmark.name}. ${landmark.description}`;
       await speakText(text);
     } catch (error) {
-      console.error('Error with Gemini TTS:', error);
+      console.error('Error with Google Cloud TTS:', error);
     } finally {
       setPlayingAudio(prev => ({ ...prev, [landmarkId]: false }));
     }
