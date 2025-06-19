@@ -105,7 +105,7 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Camera className="h-5 w-5" />
-              Landmark Analysis
+              Image Recognition
             </DialogTitle>
           </DialogHeader>
           
@@ -114,35 +114,29 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
               <img 
                 src={capturedImage} 
                 alt="Captured landmark" 
-                className="w-full h-32 object-cover rounded-lg"
+                className="w-full h-48 object-cover rounded-lg"
               />
             </div>
           )}
           
           {analysisResult && (
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <MapPin className="h-5 w-5 mt-0.5 text-primary" />
-                <div className="flex-1">
-                  <h3 className="font-semibold text-lg">{analysisResult.landmark_name}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant={analysisResult.is_from_tour ? "default" : "secondary"}>
-                      {analysisResult.is_from_tour ? "From Your Tour" : "Other Landmark"}
-                    </Badge>
-                    <Badge variant="outline">
-                      {Math.round(analysisResult.confidence * 100)}% confidence
-                    </Badge>
-                  </div>
+            <div className="space-y-3">
+              <div>
+                <h3 className="font-semibold text-lg mb-2">{analysisResult.landmark_name}</h3>
+                <div className="flex items-center gap-2 mb-3">
+                  <Badge variant={analysisResult.is_from_tour ? "default" : "secondary"}>
+                    {analysisResult.is_from_tour ? "From Your Tour" : "Other Landmark"}
+                  </Badge>
+                  <Badge variant="outline">
+                    {Math.round(analysisResult.confidence * 100)}% confidence
+                  </Badge>
                 </div>
               </div>
               
               <div className="bg-muted/50 p-3 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <Info className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    {analysisResult.description}
-                  </p>
-                </div>
+                <p className="text-sm text-muted-foreground">
+                  {analysisResult.description}
+                </p>
               </div>
               
               {analysisResult.additional_info && (
