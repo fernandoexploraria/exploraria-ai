@@ -30,15 +30,6 @@ interface InteractionCarouselProps {
   onLocationSelect?: (coordinates: [number, number]) => void;
 }
 
-// Audio State Machine
-type AudioState = 'not_playing' | 'playing';
-
-interface AudioStateMachine {
-  state: AudioState;
-  playingInteractionId: string | null;
-  currentAudio: HTMLAudioElement | null;
-}
-
 const InteractionCarousel: React.FC<InteractionCarouselProps> = ({ 
   open, 
   onOpenChange,
@@ -52,13 +43,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   const [showingSearchResults, setShowingSearchResults] = useState(false);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
-  
-  // Audio State Machine
-  const [audioState, setAudioState] = useState<AudioStateMachine>({
-    state: 'not_playing',
-    playingInteractionId: null,
-    currentAudio: null
-  });
+  const [isPlayingTTS, setIsPlayingTTS] = useState(false);
   
   const { toast } = useToast();
   const { user } = useAuth();
@@ -70,7 +55,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
   }, [open, user]);
 
-  // Handle carousel slide changes - trigger state transition to not_playing
+  // Handle carousel slide changes
   useEffect(() => {
     if (!carouselApi) {
       return;
@@ -79,11 +64,6 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     const updateCurrentSlide = () => {
       const newSlide = carouselApi.selectedScrollSnap();
       setCurrentSlide(newSlide);
-      
-      // If audio is playing, transition to not_playing state when swiping
-      if (audioState.state === 'playing') {
-        transitionToNotPlaying();
-      }
     };
 
     carouselApi.on("select", updateCurrentSlide);
@@ -92,35 +72,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     return () => {
       carouselApi.off("select", updateCurrentSlide);
     };
-  }, [carouselApi, audioState.state]);
-
-  // State machine transitions
-  const transitionToPlaying = (interactionId: string, audio: HTMLAudioElement) => {
-    setAudioState({
-      state: 'playing',
-      playingInteractionId: interactionId,
-      currentAudio: audio
-    });
-  };
-
-  const transitionToNotPlaying = () => {
-    // Stop current audio if playing
-    if (audioState.currentAudio) {
-      audioState.currentAudio.pause();
-      audioState.currentAudio.currentTime = 0;
-    }
-    
-    // Stop browser TTS
-    if (speechSynthesis.speaking) {
-      speechSynthesis.cancel();
-    }
-    
-    setAudioState({
-      state: 'not_playing',
-      playingInteractionId: null,
-      currentAudio: null
-    });
-  };
+  }, [carouselApi]);
 
   const loadAllInteractions = async () => {
     setIsLoading(true);
@@ -304,27 +256,47 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
   };
 
-  // Main TTS handler - implements state machine logic
-  const handleTTSClick = async (text: string, interactionId: string, isVoiceTranscript = false) => {
+  // Handle TTS for the currently visible card
+  const handleTTSClick = async () => {
+    if (isPlayingTTS) {
+      // Stop current playback
+      setIsPlayingTTS(false);
+      if (speechSynthesis.speaking) {
+        speechSynthesis.cancel();
+      }
+      return;
+    }
+
+    const currentInteractions = showingSearchResults ? searchResults : interactions;
+    const currentInteraction = currentInteractions[currentSlide];
+    
+    if (!currentInteraction) return;
+
+    setIsPlayingTTS(true);
+
     try {
-      // State machine logic
-      if (audioState.state === 'playing' && audioState.playingInteractionId === interactionId) {
-        // Event: click on green icon -> transition to not_playing
-        transitionToNotPlaying();
-        return;
-      }
-
-      // Event: click on white icon -> transition to playing
-      // First stop any currently playing audio
-      if (audioState.state === 'playing') {
-        transitionToNotPlaying();
-      }
-
-      if (isVoiceTranscript) {
+      if (currentInteraction.interaction_type === 'voice' && currentInteraction.full_transcript) {
         // For voice transcripts, create a memory-style narration using Gemini + Google TTS
+        const transcript = currentInteraction.full_transcript;
+        let transcriptText = '';
+        
+        if (transcript && Array.isArray(transcript)) {
+          transcriptText = transcript
+            .filter((entry: any) => entry.message && (entry.role === 'user' || entry.role === 'agent'))
+            .map((entry: any) => {
+              const speaker = entry.role === 'user' ? 'User' : 'Assistant';
+              const message = entry.message;
+              const interrupted = entry.role === 'agent' && entry.interrupted ? ' (interrupted)' : '';
+              return `${speaker}: ${message}${interrupted}`;
+            })
+            .join('. ');
+        } else {
+          transcriptText = `User: ${currentInteraction.user_input}. Assistant: ${currentInteraction.assistant_response}`;
+        }
+
         const { data, error } = await supabase.functions.invoke('gemini-tts', {
           body: { 
-            text: text,
+            text: transcriptText,
             isMemoryNarration: true
           }
         });
@@ -336,6 +308,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
             description: "Could not generate memory narration.",
             variant: "destructive"
           });
+          setIsPlayingTTS(false);
           return;
         }
 
@@ -346,74 +319,64 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
           const audio = new Audio(audioUrl);
           
           audio.onended = () => {
-            transitionToNotPlaying();
+            setIsPlayingTTS(false);
             URL.revokeObjectURL(audioUrl);
           };
           
           audio.onerror = () => {
-            transitionToNotPlaying();
+            setIsPlayingTTS(false);
             URL.revokeObjectURL(audioUrl);
           };
           
-          // Transition to playing state
-          transitionToPlaying(interactionId, audio);
           audio.play();
         } else if (data.fallbackToBrowser && data.enhancedText) {
-          // Use browser TTS with enhanced text - no audio object to track
+          // Use browser TTS with enhanced text
           const utterance = new SpeechSynthesisUtterance(data.enhancedText);
-          utterance.onend = () => transitionToNotPlaying();
-          utterance.onerror = () => transitionToNotPlaying();
-          
-          // Transition to playing state (no audio object for browser TTS)
-          transitionToPlaying(interactionId, null as any);
+          utterance.onend = () => setIsPlayingTTS(false);
+          utterance.onerror = () => setIsPlayingTTS(false);
           speechSynthesis.speak(utterance);
         }
-        return;
-      }
-
-      // For non-voice interactions, use the enhanced TTS
-      const { data, error } = await supabase.functions.invoke('gemini-tts', {
-        body: { text }
-      });
-
-      if (error) {
-        console.error('TTS error:', error);
-        toast({
-          title: "Audio generation failed",
-          description: "Could not generate audio for this text.",
-          variant: "destructive"
+      } else {
+        // For non-voice interactions, use the enhanced TTS
+        const { data, error } = await supabase.functions.invoke('gemini-tts', {
+          body: { text: currentInteraction.assistant_response }
         });
-        return;
-      }
 
-      if (data.audioContent) {
-        // Play the audio
-        const audioBlob = new Blob([Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0))], { type: 'audio/mp3' });
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const audio = new Audio(audioUrl);
-        
-        audio.onended = () => {
-          transitionToNotPlaying();
-          URL.revokeObjectURL(audioUrl);
-        };
-        
-        audio.onerror = () => {
-          transitionToNotPlaying();
-          URL.revokeObjectURL(audioUrl);
-        };
-        
-        // Transition to playing state
-        transitionToPlaying(interactionId, audio);
-        audio.play();
-      } else if (data.fallbackToBrowser && data.enhancedText) {
-        // Use browser TTS as fallback
-        const utterance = new SpeechSynthesisUtterance(data.enhancedText);
-        utterance.onend = () => transitionToNotPlaying();
-        utterance.onerror = () => transitionToNotPlaying();
-        
-        // Transition to playing state
-        transitionToPlaying(interactionId, null as any);
-        speechSynthesis.speak(utterance);
+        if (error) {
+          console.error('TTS error:', error);
+          toast({
+            title: "Audio generation failed",
+            description: "Could not generate audio for this text.",
+            variant: "destructive"
+          });
+          setIsPlayingTTS(false);
+          return;
+        }
+
+        if (data.audioContent) {
+          // Play the audio
+          const audioBlob = new Blob([Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0))], { type: 'audio/mp3' });
+          const audioUrl = URL.createObjectURL(audioBlob);
+          const audio = new Audio(audioUrl);
+          
+          audio.onended = () => {
+            setIsPlayingTTS(false);
+            URL.revokeObjectURL(audioUrl);
+          };
+          
+          audio.onerror = () => {
+            setIsPlayingTTS(false);
+            URL.revokeObjectURL(audioUrl);
+          };
+          
+          audio.play();
+        } else if (data.fallbackToBrowser && data.enhancedText) {
+          // Use browser TTS as fallback
+          const utterance = new SpeechSynthesisUtterance(data.enhancedText);
+          utterance.onend = () => setIsPlayingTTS(false);
+          utterance.onerror = () => setIsPlayingTTS(false);
+          speechSynthesis.speak(utterance);
+        }
       }
     } catch (error) {
       console.error('TTS error:', error);
@@ -422,6 +385,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
         description: "Could not generate audio for this text.",
         variant: "destructive"
       });
+      setIsPlayingTTS(false);
     }
   };
 
@@ -455,26 +419,6 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
       iconColor = 'text-blue-400';
     }
     
-    // Create a readable transcript text for TTS
-    const createTranscriptText = () => {
-      if (transcript && Array.isArray(transcript)) {
-        return transcript
-          .filter((entry: any) => entry.message && (entry.role === 'user' || entry.role === 'agent'))
-          .map((entry: any) => {
-            const speaker = entry.role === 'user' ? 'User' : 'Assistant';
-            const message = entry.message;
-            const interrupted = entry.role === 'agent' && entry.interrupted ? ' (interrupted)' : '';
-            return `${speaker}: ${message}${interrupted}`;
-          })
-          .join('. ');
-      } else {
-        return `User: ${interaction.user_input}. Assistant: ${interaction.assistant_response}`;
-      }
-    };
-    
-    // Check if this interaction is currently playing
-    const isPlaying = audioState.state === 'playing' && audioState.playingInteractionId === interaction.id;
-    
     return (
       <Card className="w-full max-w-xs mx-auto bg-gray-900 border-gray-700 h-96">
         <CardContent className="p-3 h-full flex flex-col">
@@ -488,28 +432,18 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
                 </Badge>
               )}
             </div>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
-                onClick={() => toggleFavorite(interaction)}
-              >
-                {interaction.is_favorite ? (
-                  <Star className="w-3 h-3 text-yellow-500 fill-current" />
-                ) : (
-                  <StarOff className="w-3 h-3" />
-                )}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`h-6 w-6 p-0 ${isPlaying ? 'text-green-500' : 'text-white'}`}
-                onClick={() => handleTTSClick(createTranscriptText(), interaction.id, true)}
-              >
-                <Volume2 className="w-3 h-3" />
-              </Button>
-            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0"
+              onClick={() => toggleFavorite(interaction)}
+            >
+              {interaction.is_favorite ? (
+                <Star className="w-3 h-3 text-yellow-500 fill-current" />
+              ) : (
+                <StarOff className="w-3 h-3" />
+              )}
+            </Button>
           </div>
           
           <div className="flex items-center text-xs text-gray-400 mb-2">
@@ -590,9 +524,6 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
       iconColor = 'text-purple-400';
     }
     
-    // Check if this interaction is currently playing
-    const isPlaying = audioState.state === 'playing' && audioState.playingInteractionId === interaction.id;
-    
     return (
       <Card className="w-full max-w-xs mx-auto bg-gray-900 border-gray-700 h-96">
         <CardContent className="p-3 h-full flex flex-col">
@@ -606,28 +537,18 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
                 </Badge>
               )}
             </div>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
-                onClick={() => toggleFavorite(interaction)}
-              >
-                {interaction.is_favorite ? (
-                  <Star className="w-3 h-3 text-yellow-500 fill-current" />
-                ) : (
-                  <StarOff className="w-3 h-3" />
-                )}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`h-6 w-6 p-0 ${isPlaying ? 'text-green-500' : 'text-white'}`}
-                onClick={() => handleTTSClick(interaction.assistant_response, interaction.id, false)}
-              >
-                <Volume2 className="w-3 h-3" />
-              </Button>
-            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0"
+              onClick={() => toggleFavorite(interaction)}
+            >
+              {interaction.is_favorite ? (
+                <Star className="w-3 h-3 text-yellow-500 fill-current" />
+              ) : (
+                <StarOff className="w-3 h-3" />
+              )}
+            </Button>
           </div>
           
           <div className="flex items-center text-xs text-gray-400 mb-2">
@@ -765,24 +686,54 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
               <CarouselNext className="hidden md:flex" />
             </Carousel>
             
-            {/* Pagination Dots */}
+            {/* Pagination Dots with TTS Control */}
             {currentInteractions.length > 1 && (
-              <div className="flex items-center gap-2 mt-6">
-                {currentInteractions.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => scrollToSlide(index)}
-                    className={`w-2 h-2 rounded-full transition-all duration-200 ${
-                      index === currentSlide
-                        ? 'bg-white scale-125'
-                        : 'bg-gray-500 hover:bg-gray-400'
-                    }`}
-                    aria-label={`Go to slide ${index + 1}`}
-                  />
-                ))}
-                <span className="text-xs text-gray-400 ml-2">
-                  {currentSlide + 1} of {currentInteractions.length}
+              <div className="flex items-center gap-4 mt-6">
+                <div className="flex items-center gap-2">
+                  {currentInteractions.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => scrollToSlide(index)}
+                      className={`w-2 h-2 rounded-full transition-all duration-200 ${
+                        index === currentSlide
+                          ? 'bg-white scale-125'
+                          : 'bg-gray-500 hover:bg-gray-400'
+                      }`}
+                      aria-label={`Go to slide ${index + 1}`}
+                    />
+                  ))}
+                  <span className="text-xs text-gray-400 ml-2">
+                    {currentSlide + 1} of {currentInteractions.length}
+                  </span>
+                </div>
+                
+                {/* TTS Control */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`h-8 w-8 p-0 ${isPlayingTTS ? 'text-green-500' : 'text-white'}`}
+                  onClick={handleTTSClick}
+                  disabled={currentInteractions.length === 0}
+                >
+                  <Volume2 className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+            
+            {/* Single card case - still show TTS */}
+            {currentInteractions.length === 1 && (
+              <div className="flex items-center gap-4 mt-6">
+                <span className="text-xs text-gray-400">
+                  1 of 1
                 </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`h-8 w-8 p-0 ${isPlayingTTS ? 'text-green-500' : 'text-white'}`}
+                  onClick={handleTTSClick}
+                >
+                  <Volume2 className="w-4 h-4" />
+                </Button>
               </div>
             )}
           </div>
