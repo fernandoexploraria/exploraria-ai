@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -5,6 +6,7 @@ import { Volume2, VolumeX } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/components/AuthProvider';
 
 interface MapProps {
   mapboxToken: string;
@@ -27,6 +29,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
   const pendingPopupLandmark = useRef<Landmark | null>(null);
   const isZooming = useRef<boolean>(false);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
+  const { user } = useAuth();
 
   // Convert top landmarks to Landmark format
   const allLandmarksWithTop = React.useMemo(() => {
@@ -39,6 +42,37 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     
     return [...landmarks, ...topLandmarksConverted];
   }, [landmarks]);
+
+  // Function to store map marker interaction
+  const storeMapMarkerInteraction = async (landmark: Landmark, imageUrl?: string) => {
+    if (!user) {
+      console.log('User not authenticated, skipping interaction storage');
+      return;
+    }
+
+    try {
+      console.log('Storing map marker interaction for:', landmark.name);
+      
+      const { error } = await supabase.functions.invoke('store-voice-interaction', {
+        body: {
+          userInput: `Clicked on map marker: ${landmark.name}`,
+          assistantResponse: landmark.description,
+          destination: 'World Map',
+          interactionType: 'map_marker',
+          landmarkCoordinates: landmark.coordinates,
+          landmarkImageUrl: imageUrl
+        }
+      });
+
+      if (error) {
+        console.error('Error storing map marker interaction:', error);
+      } else {
+        console.log('Map marker interaction stored successfully');
+      }
+    } catch (error) {
+      console.error('Error storing map marker interaction:', error);
+    }
+  };
 
   // Function to stop current audio playback
   const stopCurrentAudio = () => {
@@ -331,6 +365,9 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       const imageUrl = await fetchLandmarkImage(landmark);
       const isPlaying = playingAudio[landmark.id] || false;
       
+      // Store the interaction with the fetched image URL
+      await storeMapMarkerInteraction(landmark, imageUrl);
+      
       photoPopup.setHTML(`
         <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
           <button class="custom-close-btn" onclick="
@@ -403,6 +440,10 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
 
     } catch (error) {
       console.error('Failed to load image for', landmark.name, error);
+      
+      // Store the interaction even without image
+      await storeMapMarkerInteraction(landmark);
+      
       photoPopup.setHTML(`
         <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
           <button class="custom-close-btn" onclick="

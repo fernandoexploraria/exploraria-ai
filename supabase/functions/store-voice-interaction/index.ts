@@ -15,8 +15,24 @@ serve(async (req) => {
   try {
     console.log('Store voice interaction function called');
     
-    const { userInput, assistantResponse, destination } = await req.json()
-    console.log('Request body:', { userInput, assistantResponse, destination });
+    const { 
+      userInput, 
+      assistantResponse, 
+      destination,
+      interactionType = 'voice',
+      landmarkCoordinates,
+      landmarkImageUrl,
+      landmarkAudioUrl
+    } = await req.json()
+    
+    console.log('Request body:', { 
+      userInput, 
+      assistantResponse, 
+      destination, 
+      interactionType,
+      landmarkCoordinates,
+      landmarkImageUrl 
+    });
 
     if (!userInput || !assistantResponse || !destination) {
       console.error('Missing required fields');
@@ -112,18 +128,36 @@ serve(async (req) => {
     const assistantResponseEmbedding = await generateGeminiEmbedding(assistantResponse, geminiApiKey)
     console.log('Assistant response embedding generated, length:', assistantResponseEmbedding.length);
 
+    // Prepare the data for insertion
+    const insertData: any = {
+      user_id: user.id,
+      destination,
+      user_input: userInput,
+      assistant_response: assistantResponse,
+      user_input_embedding: userInputEmbedding,
+      assistant_response_embedding: assistantResponseEmbedding,
+      interaction_type: interactionType
+    }
+
+    // Add optional fields if provided
+    if (landmarkCoordinates && Array.isArray(landmarkCoordinates) && landmarkCoordinates.length === 2) {
+      // Convert [lng, lat] to PostgreSQL POINT format
+      insertData.landmark_coordinates = `(${landmarkCoordinates[0]}, ${landmarkCoordinates[1]})`
+    }
+
+    if (landmarkImageUrl) {
+      insertData.landmark_image_url = landmarkImageUrl
+    }
+
+    if (landmarkAudioUrl) {
+      insertData.landmark_audio_url = landmarkAudioUrl
+    }
+
     // Store the interaction in the database
     console.log('Storing interaction in database...');
     const { data, error } = await supabaseClient
       .from('voice_interactions')
-      .insert({
-        user_id: user.id,
-        destination,
-        user_input: userInput,
-        assistant_response: assistantResponse,
-        user_input_embedding: userInputEmbedding,
-        assistant_response_embedding: assistantResponseEmbedding
-      })
+      .insert(insertData)
 
     if (error) {
       console.error('Database error:', error)

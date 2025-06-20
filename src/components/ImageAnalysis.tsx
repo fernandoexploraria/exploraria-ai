@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -7,6 +8,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import CameraCapture from './CameraCapture';
 import { Landmark } from '@/data/landmarks';
+import { useAuth } from '@/components/AuthProvider';
 
 interface ImageAnalysisProps {
   plannedLandmarks: Landmark[];
@@ -28,11 +30,42 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
+  const { user } = useAuth();
 
   // Don't render the button if there are no planned landmarks
   if (plannedLandmarks.length === 0) {
     return null;
   }
+
+  // Function to store image recognition interaction
+  const storeImageRecognitionInteraction = async (result: AnalysisResult, imageUrl: string) => {
+    if (!user) {
+      console.log('User not authenticated, skipping interaction storage');
+      return;
+    }
+
+    try {
+      console.log('Storing image recognition interaction for:', result.landmark_name);
+      
+      const { error } = await supabase.functions.invoke('store-voice-interaction', {
+        body: {
+          userInput: `Image recognition: ${result.landmark_name}`,
+          assistantResponse: `${result.description}${result.additional_info ? '. ' + result.additional_info : ''}`,
+          destination: 'Camera Recognition',
+          interactionType: 'image_recognition',
+          landmarkImageUrl: imageUrl
+        }
+      });
+
+      if (error) {
+        console.error('Error storing image recognition interaction:', error);
+      } else {
+        console.log('Image recognition interaction stored successfully');
+      }
+    } catch (error) {
+      console.error('Error storing image recognition interaction:', error);
+    }
+  };
 
   // Function to stop current audio playback
   const stopCurrentAudio = () => {
@@ -155,6 +188,9 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
       if (data) {
         setAnalysisResult(data);
         setIsResultOpen(true);
+        
+        // Store the interaction
+        await storeImageRecognitionInteraction(data, imageData);
         
         if (data.is_from_tour) {
           toast.success(`Found ${data.landmark_name} from your tour!`);

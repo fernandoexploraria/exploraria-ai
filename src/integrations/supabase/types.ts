@@ -81,7 +81,11 @@ export type Database = {
           destination: string
           full_transcript: Json | null
           id: string
+          interaction_type: string | null
           is_favorite: boolean | null
+          landmark_audio_url: string | null
+          landmark_coordinates: unknown | null
+          landmark_image_url: string | null
           user_id: string | null
           user_input: string
           user_input_embedding: string | null
@@ -97,7 +101,11 @@ export type Database = {
           destination: string
           full_transcript?: Json | null
           id?: string
+          interaction_type?: string | null
           is_favorite?: boolean | null
+          landmark_audio_url?: string | null
+          landmark_coordinates?: unknown | null
+          landmark_image_url?: string | null
           user_id?: string | null
           user_input: string
           user_input_embedding?: string | null
@@ -113,7 +121,11 @@ export type Database = {
           destination?: string
           full_transcript?: Json | null
           id?: string
+          interaction_type?: string | null
           is_favorite?: boolean | null
+          landmark_audio_url?: string | null
+          landmark_coordinates?: unknown | null
+          landmark_image_url?: string | null
           user_id?: string | null
           user_input?: string
           user_input_embedding?: string | null
