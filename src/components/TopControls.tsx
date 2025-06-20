@@ -116,7 +116,7 @@ const TopControls: React.FC<TopControlsProps> = ({
                 onClick={onVoiceAssistantOpen}
               >
                 <Sparkles className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
-                Voice Guide
+                Tour Guide
               </Button>
             )}
 
