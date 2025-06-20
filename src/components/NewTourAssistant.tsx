@@ -78,7 +78,19 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     }
   }, [open, toast]);
 
-  // Initialize the conversation without overrides - use agent's default configuration
+  // Prepare dynamic variables for the ElevenLabs agent
+  const prepareDynamicVariables = () => {
+    const landmarkList = landmarks.map(l => l.name).join(', ');
+    const landmarkDetails = landmarks.map(l => `${l.name}: ${l.description}`).join('\n');
+    
+    return {
+      destination: destination,
+      landmark_list: landmarkList,
+      landmark_details: landmarkDetails
+    };
+  };
+
+  // Initialize the conversation without overrides - use agent's default configuration with dynamic variables
   const conversation = useConversation({
     onConnect: () => {
       console.log('Connected to ElevenLabs agent');
@@ -141,12 +153,20 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       try {
         console.log('Starting tour with config:', { agentId: elevenLabsConfig.agentId });
         
+        // Prepare dynamic variables for this conversation
+        const dynamicVariables = prepareDynamicVariables();
+        console.log('Using dynamic variables:', dynamicVariables);
+        
         // Request microphone permission first
         await navigator.mediaDevices.getUserMedia({ audio: true });
         
-        // Start the conversation using the agent ID approach
+        // Start the conversation using the agent ID approach with dynamic variables
         await conversation.startSession({ 
-          agentId: elevenLabsConfig.agentId
+          agentId: elevenLabsConfig.agentId,
+          // Note: The @11labs/react SDK might not support dynamic_variables directly
+          // This is an attempt based on the ElevenLabs API documentation
+          // If this doesn't work, we may need to use a different approach
+          dynamicVariables: dynamicVariables
         });
         
       } catch (error) {
