@@ -9,6 +9,7 @@ import DialogManager from '@/components/DialogManager';
 import SplashScreen from '@/components/SplashScreen';
 import { Landmark } from '@/data/landmarks';
 import { useAuth } from '@/components/AuthProvider';
+import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
   const [landmarks, setLandmarks] = useState<Landmark[]>([]);
@@ -34,13 +35,24 @@ const Index = () => {
   useEffect(() => {
     const fetchToken = async () => {
       try {
-        const response = await fetch('/api/get-mapbox-token');
-        const data = await response.json();
+        console.log('Fetching Mapbox token via Supabase edge function...');
+        const { data, error } = await supabase.functions.invoke('get-mapbox-token');
 
-        if (response.ok) {
+        if (error) {
+          console.error('Failed to fetch Mapbox token:', error);
+          toast({
+            title: "Failed to load map",
+            description: "Could not retrieve Mapbox token.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        if (data?.token) {
+          console.log('Mapbox token retrieved successfully');
           setMapboxToken(data.token);
         } else {
-          console.error('Failed to fetch Mapbox token:', data.error);
+          console.error('No token received from edge function');
           toast({
             title: "Failed to load map",
             description: "Could not retrieve Mapbox token.",
