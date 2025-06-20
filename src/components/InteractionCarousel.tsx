@@ -285,50 +285,52 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     const transcript = interaction.full_transcript;
     
     return (
-      <Card className="w-full max-w-md mx-auto bg-gray-900 border-gray-700">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Mic className="w-4 h-4 text-blue-400" />
-              <Badge variant="outline" className="text-xs">{interaction.destination}</Badge>
+      <Card className="w-full max-w-xs mx-auto bg-gray-900 border-gray-700 h-80">
+        <CardContent className="p-3 h-full flex flex-col">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1">
+              <Mic className="w-3 h-3 text-blue-400" />
+              <Badge variant="outline" className="text-xs px-1 py-0">{interaction.destination}</Badge>
               {interaction.similarity && (
-                <Badge variant="secondary" className="text-xs">
+                <Badge variant="secondary" className="text-xs px-1 py-0">
                   {Math.round(interaction.similarity * 100)}% match
                 </Badge>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               <Button
                 variant="ghost"
                 size="sm"
+                className="h-6 w-6 p-0"
                 onClick={() => toggleFavorite(interaction)}
               >
                 {interaction.is_favorite ? (
-                  <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                  <Star className="w-3 h-3 text-yellow-500 fill-current" />
                 ) : (
-                  <StarOff className="w-4 h-4" />
+                  <StarOff className="w-3 h-3" />
                 )}
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
+                className="h-6 w-6 p-0"
                 onClick={() => handleTTSClick(interaction.assistant_response)}
               >
-                <Volume2 className="w-4 h-4" />
+                <Volume2 className="w-3 h-3" />
               </Button>
             </div>
           </div>
           
-          <div className="flex items-center text-xs text-gray-400 mb-3">
+          <div className="flex items-center text-xs text-gray-400 mb-2">
             <Calendar className="w-3 h-3 mr-1" />
             {formatDate(interaction.created_at)}
           </div>
 
-          <ScrollArea className="h-48 w-full">
-            <div className="space-y-2">
+          <ScrollArea className="flex-1 w-full">
+            <div className="space-y-1">
               {transcript && Array.isArray(transcript.messages) ? (
                 transcript.messages.map((message: any, index: number) => (
-                  <div key={index} className={`p-2 rounded text-sm ${
+                  <div key={index} className={`p-2 rounded text-xs ${
                     message.role === 'user' 
                       ? 'bg-blue-900/30 text-blue-100' 
                       : 'bg-green-900/30 text-green-100'
@@ -340,12 +342,12 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
                   </div>
                 ))
               ) : (
-                <div className="space-y-2">
-                  <div className="p-2 rounded text-sm bg-blue-900/30 text-blue-100">
+                <div className="space-y-1">
+                  <div className="p-2 rounded text-xs bg-blue-900/30 text-blue-100">
                     <span className="font-medium text-xs">You:</span>
                     <p className="mt-1">{interaction.user_input}</p>
                   </div>
-                  <div className="p-2 rounded text-sm bg-green-900/30 text-green-100">
+                  <div className="p-2 rounded text-xs bg-green-900/30 text-green-100">
                     <span className="font-medium text-xs">Assistant:</span>
                     <p className="mt-1">{interaction.assistant_response}</p>
                   </div>
@@ -362,79 +364,83 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     const isCamera = interaction.interaction_type === 'camera';
     
     return (
-      <Card className="w-full max-w-md mx-auto bg-gray-900 border-gray-700">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
+      <Card className="w-full max-w-xs mx-auto bg-gray-900 border-gray-700 h-80">
+        <CardContent className="p-3 h-full flex flex-col">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1">
               {isCamera ? (
-                <Camera className="w-4 h-4 text-purple-400" />
+                <Camera className="w-3 h-3 text-purple-400" />
               ) : (
-                <MapPin className="w-4 h-4 text-red-400" />
+                <MapPin className="w-3 h-3 text-red-400" />
               )}
-              <Badge variant="outline" className="text-xs">{interaction.destination}</Badge>
+              <Badge variant="outline" className="text-xs px-1 py-0">{interaction.destination}</Badge>
               {interaction.similarity && (
-                <Badge variant="secondary" className="text-xs">
+                <Badge variant="secondary" className="text-xs px-1 py-0">
                   {Math.round(interaction.similarity * 100)}% match
                 </Badge>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               <Button
                 variant="ghost"
                 size="sm"
+                className="h-6 w-6 p-0"
                 onClick={() => toggleFavorite(interaction)}
               >
                 {interaction.is_favorite ? (
-                  <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                  <Star className="w-3 h-3 text-yellow-500 fill-current" />
                 ) : (
-                  <StarOff className="w-4 h-4" />
+                  <StarOff className="w-3 h-3" />
                 )}
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
+                className="h-6 w-6 p-0"
                 onClick={() => handleTTSClick(interaction.assistant_response)}
               >
-                <Volume2 className="w-4 h-4" />
+                <Volume2 className="w-3 h-3" />
               </Button>
             </div>
           </div>
           
-          <div className="flex items-center text-xs text-gray-400 mb-3">
+          <div className="flex items-center text-xs text-gray-400 mb-2">
             <Calendar className="w-3 h-3 mr-1" />
             {formatDate(interaction.created_at)}
           </div>
 
           {interaction.landmark_image_url && (
-            <div className="mb-3">
+            <div className="mb-2 flex-shrink-0">
               <img 
                 src={interaction.landmark_image_url} 
                 alt="Landmark" 
-                className="w-full h-32 object-cover rounded"
+                className="w-full h-20 object-cover rounded"
               />
             </div>
           )}
 
-          <div className="space-y-2">
-            <div className="p-2 rounded text-sm bg-blue-900/30 text-blue-100">
-              <span className="font-medium text-xs">You:</span>
-              <p className="mt-1">{interaction.user_input}</p>
+          <ScrollArea className="flex-1 w-full">
+            <div className="space-y-1">
+              <div className="p-2 rounded text-xs bg-blue-900/30 text-blue-100">
+                <span className="font-medium text-xs">You:</span>
+                <p className="mt-1">{interaction.user_input}</p>
+              </div>
+              <div className="p-2 rounded text-xs bg-green-900/30 text-green-100">
+                <span className="font-medium text-xs">Assistant:</span>
+                <p className="mt-1">{interaction.assistant_response}</p>
+              </div>
             </div>
-            <div className="p-2 rounded text-sm bg-green-900/30 text-green-100">
-              <span className="font-medium text-xs">Assistant:</span>
-              <p className="mt-1">{interaction.assistant_response}</p>
-            </div>
-          </div>
+          </ScrollArea>
 
           {interaction.landmark_coordinates && (
-            <div className="mt-3">
+            <div className="mt-2 flex-shrink-0">
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full"
+                className="w-full h-7 text-xs"
                 onClick={() => handleLocationClick(interaction.landmark_coordinates)}
               >
-                <MapPin className="w-4 h-4 mr-2" />
+                <MapPin className="w-3 h-3 mr-1" />
                 Show on Map
               </Button>
             </div>
