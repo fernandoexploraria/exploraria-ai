@@ -1,14 +1,11 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Landmark } from '@/data/landmarks';
-import { useGeminiAPI } from '@/hooks/useGeminiAPI';
-import { useTextToSpeech } from '@/components/voice-assistant/useTextToSpeech';
-import { useAudioContext } from '@/components/voice-assistant/useAudioContext';
-import { useGoogleSpeechRecognition } from '@/components/voice-assistant/useGoogleSpeechRecognition';
+import { useConversation } from '@11labs/react';
 
 interface NewTourAssistantProps {
   open: boolean;
@@ -24,139 +21,154 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   landmarks 
 }) => {
   const { toast } = useToast();
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [conversation, setConversation] = useState<Array<{type: 'user' | 'assistant', text: string}>>([]);
-  const [hasStarted, setHasStarted] = useState(false);
   const [elevenLabsApiKey, setElevenLabsApiKey] = useState<string>('');
-  
-  const { callGemini } = useGeminiAPI();
-  const { audioContextInitialized, initializeAudioContext } = useAudioContext();
-  const { isSpeaking, speakText, cleanup: cleanupTTS } = useTextToSpeech(elevenLabsApiKey, audioContextInitialized);
-  const { 
-    isListening, 
-    startListening, 
-    stopListening, 
-    cleanup: cleanupSpeech 
-  } = useGoogleSpeechRecognition();
+  const [agentId, setAgentId] = useState<string>('');
+  const [hasStarted, setHasStarted] = useState(false);
+  const [conversationMessages, setConversationMessages] = useState<Array<{type: 'user' | 'assistant', text: string}>>([]);
 
-  // Check for stored API key on mount
+  // Check for stored API key and agent ID on mount
   useEffect(() => {
     const storedKey = localStorage.getItem('elevenlabs_api_key');
+    const storedAgentId = localStorage.getItem('elevenlabs_agent_id');
     if (storedKey) {
       setElevenLabsApiKey(storedKey);
     }
+    if (storedAgentId) {
+      setAgentId(storedAgentId);
+    }
   }, []);
 
-  // Cleanup on unmount or dialog close
-  useEffect(() => {
-    if (!open) {
-      cleanupTTS();
-      cleanupSpeech();
-      setHasStarted(false);
-      setConversation([]);
-    }
-  }, [open, cleanupTTS, cleanupSpeech]);
+  // Create dynamic prompt based on tour data
+  const createTourPrompt = () => {
+    const landmarkList = landmarks.map(l => l.name).join(', ');
+    const landmarkDetails = landmarks.map(l => `${l.name}: ${l.description}`).join('\n');
+    
+    return `You are an expert tour guide for ${destination}. The user has planned to visit these landmarks: ${landmarkList}.
 
-  const handleApiKeySubmit = (key: string) => {
+Here are details about each landmark:
+${landmarkDetails}
+
+Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, and recommendations. Keep your responses conversational and engaging, suitable for audio narration. Answer questions about the landmarks, provide historical context, suggest best times to visit, and share insider tips.`;
+  };
+
+  const firstMessage = `Welcome to ${destination}! I'm your personal AI tour guide, and I'm absolutely thrilled to help you explore this amazing destination. I see you're planning to visit ${landmarks.length} incredible landmarks. What would you like to know first? I can tell you about the best times to visit, share fascinating historical stories, or give you insider tips to make your trip unforgettable!`;
+
+  // Initialize the conversation with dynamic configuration
+  const conversation = useConversation({
+    onConnect: () => {
+      console.log('Connected to ElevenLabs agent');
+      toast({
+        title: "Connected",
+        description: "Connected to your tour guide!",
+      });
+    },
+    onDisconnect: () => {
+      console.log('Disconnected from ElevenLabs agent');
+      setHasStarted(false);
+    },
+    onMessage: (message) => {
+      console.log('Received message:', message);
+      // Add messages to our conversation history for display
+      if (message.source === 'ai') {
+        setConversationMessages(prev => [...prev, { type: 'assistant', text: message.message }]);
+      } else if (message.source === 'user') {
+        setConversationMessages(prev => [...prev, { type: 'user', text: message.message }]);
+      }
+    },
+    onError: (error) => {
+      console.error('Conversation error:', error);
+      toast({
+        title: "Connection Error",
+        description: "There was an issue with the tour guide connection.",
+        variant: "destructive"
+      });
+    },
+    overrides: {
+      agent: {
+        prompt: {
+          prompt: createTourPrompt()
+        },
+        firstMessage: firstMessage,
+        language: "en"
+      }
+    }
+  });
+
+  const handleApiKeySubmit = (key: string, agent: string) => {
     setElevenLabsApiKey(key);
+    setAgentId(agent);
     localStorage.setItem('elevenlabs_api_key', key);
+    localStorage.setItem('elevenlabs_agent_id', agent);
     toast({
-      title: "API Key Saved",
-      description: "ElevenLabs API key has been saved successfully.",
+      title: "Configuration Saved",
+      description: "ElevenLabs configuration has been saved successfully.",
     });
   };
 
   const handleStartTour = async () => {
-    // Initialize audio context first
-    await initializeAudioContext();
-    
-    setHasStarted(true);
-    setIsProcessing(true);
-    
-    const landmarkList = landmarks.map(l => l.name).join(', ');
-    const welcomePrompt = `You are an expert tour guide for ${destination}. The user has planned to visit these landmarks: ${landmarkList}. 
-    
-    Give a warm, enthusiastic welcome message introducing yourself as their personal tour guide. Mention that you'll help them explore ${destination} and its amazing landmarks. Keep it conversational and under 30 seconds when spoken. Ask what they'd like to know first.`;
-
     try {
-      const response = await callGemini(welcomePrompt);
-      if (response) {
-        setConversation([{ type: 'assistant', text: response }]);
-        await speakText(response);
+      // Request microphone permission first
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // Generate signed URL for the conversation
+      const response = await fetch('/api/elevenlabs-signed-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          agentId: agentId,
+          apiKey: elevenLabsApiKey
+        })
+      });
+
+      if (!response.ok) {
+        // Fallback to direct agent connection if signed URL generation fails
+        await conversation.startSession({ agentId: agentId });
+      } else {
+        const { signedUrl } = await response.json();
+        await conversation.startSession({ url: signedUrl });
       }
+      
+      setHasStarted(true);
+      setConversationMessages([]);
+      
     } catch (error) {
-      console.error('Error with welcome message:', error);
+      console.error('Error starting tour:', error);
       toast({
         title: "Error",
-        description: "Failed to start tour guide. Please try again.",
+        description: "Failed to start tour guide. Please check your configuration and try again.",
         variant: "destructive"
       });
-    } finally {
-      setIsProcessing(false);
     }
   };
 
-  const handleSpeechResult = async (transcript: string) => {
-    if (!transcript.trim()) return;
-    
-    console.log('Speech result:', transcript);
-    setConversation(prev => [...prev, { type: 'user', text: transcript }]);
-    setIsProcessing(true);
-
-    const landmarkList = landmarks.map(l => `${l.name}: ${l.description}`).join('\n');
-    const contextPrompt = `You are a knowledgeable tour guide for ${destination}. 
-    
-    Context about the user's planned landmarks:
-    ${landmarkList}
-    
-    User question: "${transcript}"
-    
-    Provide a helpful, enthusiastic response as their personal tour guide. Include interesting facts, tips, or recommendations. Keep responses conversational and engaging, suitable for audio narration (under 45 seconds when spoken).`;
-
+  const handleEndTour = async () => {
     try {
-      const response = await callGemini(contextPrompt);
-      if (response) {
-        setConversation(prev => [...prev, { type: 'assistant', text: response }]);
-        await speakText(response);
-      }
+      await conversation.endSession();
+      setHasStarted(false);
+      setConversationMessages([]);
     } catch (error) {
-      console.error('Error processing question:', error);
-      toast({
-        title: "Error",
-        description: "Failed to process your question. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleMicClick = async () => {
-    if (isListening) {
-      await stopListening(handleSpeechResult);
-    } else {
-      if (isSpeaking) {
-        cleanupTTS();
-      }
-      await startListening();
+      console.error('Error ending tour:', error);
     }
   };
 
   const handleClose = () => {
-    cleanupTTS();
-    cleanupSpeech();
+    if (hasStarted) {
+      handleEndTour();
+    }
     onOpenChange(false);
   };
 
-  // Show API key input if not provided
-  if (!elevenLabsApiKey) {
+  // Show configuration input if not provided
+  if (!elevenLabsApiKey || !agentId) {
     return (
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>ElevenLabs API Key Required</DialogTitle>
+            <DialogTitle>ElevenLabs Configuration Required</DialogTitle>
             <DialogDescription>
-              To use the voice tour guide, please enter your ElevenLabs API key.
+              To use the voice tour guide, please enter your ElevenLabs API key and Agent ID.
             </DialogDescription>
           </DialogHeader>
           
@@ -170,32 +182,41 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
                 type="password"
                 placeholder="Enter your ElevenLabs API key..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    const input = e.target as HTMLInputElement;
-                    if (input.value.trim()) {
-                      handleApiKeySubmit(input.value.trim());
-                    }
-                  }
-                }}
+                defaultValue={elevenLabsApiKey}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="agentid" className="block text-sm font-medium mb-2">
+                Agent ID
+              </label>
+              <input
+                id="agentid"
+                type="text"
+                placeholder="Enter your ElevenLabs Agent ID..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                defaultValue={agentId}
               />
             </div>
             
             <div className="text-sm text-muted-foreground">
-              <p>Get your API key from <a href="https://elevenlabs.io" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">ElevenLabs.io</a></p>
-              <p className="mt-1">Your key will be stored locally in your browser.</p>
+              <p>1. Get your API key from <a href="https://elevenlabs.io" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">ElevenLabs.io</a></p>
+              <p>2. Create a Conversational AI agent in your ElevenLabs dashboard</p>
+              <p>3. Copy the Agent ID from your agent settings</p>
+              <p className="mt-1">Your configuration will be stored locally in your browser.</p>
             </div>
             
             <Button
               onClick={() => {
-                const input = document.getElementById('apikey') as HTMLInputElement;
-                if (input?.value.trim()) {
-                  handleApiKeySubmit(input.value.trim());
+                const apiKeyInput = document.getElementById('apikey') as HTMLInputElement;
+                const agentIdInput = document.getElementById('agentid') as HTMLInputElement;
+                if (apiKeyInput?.value.trim() && agentIdInput?.value.trim()) {
+                  handleApiKeySubmit(apiKeyInput.value.trim(), agentIdInput.value.trim());
                 }
               }}
               className="w-full"
             >
-              Save API Key
+              Save Configuration
             </Button>
           </div>
         </DialogContent>
@@ -230,18 +251,18 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
               
               <Button
                 onClick={handleStartTour}
-                disabled={isProcessing}
+                disabled={conversation.status === 'connecting'}
                 size="lg"
                 className="bg-blue-500 hover:bg-blue-600"
               >
-                {isProcessing ? 'Starting...' : 'Start Tour Guide'}
+                {conversation.status === 'connecting' ? 'Connecting...' : 'Start Tour Guide'}
               </Button>
             </div>
           ) : (
             <>
               {/* Conversation History */}
               <div className="flex-1 overflow-y-auto mb-4 space-y-3 min-h-0">
-                {conversation.map((message, index) => (
+                {conversationMessages.map((message, index) => (
                   <div
                     key={index}
                     className={`p-3 rounded-lg ${
@@ -256,48 +277,43 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
                     <div className="text-sm">{message.text}</div>
                   </div>
                 ))}
-                
-                {isProcessing && (
-                  <div className="bg-gray-100 mr-8 p-3 rounded-lg">
-                    <div className="text-sm font-medium mb-1">Tour Guide</div>
-                    <div className="text-sm text-muted-foreground">Thinking...</div>
-                  </div>
-                )}
               </div>
 
               {/* Voice Controls */}
               <div className="flex flex-col items-center space-y-4 py-4 border-t">
-                <Button
-                  size="lg"
-                  className={`w-20 h-20 rounded-full transition-all duration-200 ${
-                    isListening 
-                      ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
-                      : isSpeaking
-                      ? 'bg-green-500 hover:bg-green-600 animate-pulse'
-                      : 'bg-blue-500 hover:bg-blue-600'
-                  }`}
-                  onClick={handleMicClick}
-                  disabled={isProcessing}
-                >
-                  {isListening ? (
-                    <MicOff className="w-8 h-8" />
-                  ) : isSpeaking ? (
-                    <Volume2 className="w-8 h-8" />
-                  ) : (
-                    <Mic className="w-8 h-8" />
-                  )}
-                </Button>
+                <div className="flex items-center space-x-4">
+                  <Button
+                    size="lg"
+                    className={`w-20 h-20 rounded-full transition-all duration-200 ${
+                      conversation.isSpeaking 
+                        ? 'bg-green-500 hover:bg-green-600 animate-pulse'
+                        : conversation.status === 'connected'
+                        ? 'bg-blue-500 hover:bg-blue-600'
+                        : 'bg-gray-400'
+                    }`}
+                    disabled={conversation.status !== 'connected'}
+                  >
+                    {conversation.isSpeaking ? (
+                      <Volume2 className="w-8 h-8" />
+                    ) : (
+                      <Mic className="w-8 h-8" />
+                    )}
+                  </Button>
+                  
+                  <Button
+                    onClick={handleEndTour}
+                    variant="outline"
+                    size="lg"
+                  >
+                    End Tour
+                  </Button>
+                </div>
                 
                 <div className="text-center text-sm text-muted-foreground">
-                  {isListening ? (
-                    "Listening... Click to send your message"
-                  ) : isSpeaking ? (
-                    "Tour guide speaking..."
-                  ) : isProcessing ? (
-                    "Processing your request..."
-                  ) : (
-                    "Click microphone to ask a question"
-                  )}
+                  {conversation.status === 'connecting' && "Connecting to tour guide..."}
+                  {conversation.status === 'connected' && !conversation.isSpeaking && "Listening... Speak naturally with your tour guide"}
+                  {conversation.status === 'connected' && conversation.isSpeaking && "Tour guide speaking..."}
+                  {conversation.status === 'disconnected' && "Disconnected from tour guide"}
                 </div>
               </div>
             </>
