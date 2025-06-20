@@ -179,11 +179,15 @@ export class OpenAIRealtimeChat {
   private audioQueue: AudioQueue | null = null;
   private isConnected = false;
   private isListening = false;
+  private currentUserInput = '';
+  private currentAssistantResponse = '';
 
   constructor(
     private onConnectionChange: (connected: boolean) => void,
     private onListeningChange: (listening: boolean) => void,
-    private onSpeakingChange: (speaking: boolean) => void
+    private onSpeakingChange: (speaking: boolean) => void,
+    private onUserInput?: (userInput: string) => void,
+    private onAssistantResponse?: (assistantResponse: string) => void
   ) {}
 
   async connect() {
@@ -232,6 +236,31 @@ export class OpenAIRealtimeChat {
           } else if (data.type === 'response.audio.done') {
             console.log('Audio response completed');
             this.onSpeakingChange(false);
+            // Trigger callback with current assistant response
+            if (this.currentAssistantResponse && this.onAssistantResponse) {
+              this.onAssistantResponse(this.currentAssistantResponse);
+            }
+          } else if (data.type === 'conversation.item.input_audio_transcription.completed') {
+            // Capture user input transcription
+            if (data.transcript) {
+              console.log('User input transcribed:', data.transcript);
+              this.currentUserInput = data.transcript;
+              if (this.onUserInput) {
+                this.onUserInput(data.transcript);
+              }
+            }
+          } else if (data.type === 'response.text.delta') {
+            // Capture assistant text response
+            if (data.delta) {
+              this.currentAssistantResponse += data.delta;
+            }
+          } else if (data.type === 'response.text.done') {
+            // Assistant text response completed
+            console.log('Assistant text response completed:', this.currentAssistantResponse);
+          } else if (data.type === 'response.done') {
+            // Reset for next interaction
+            this.currentUserInput = '';
+            this.currentAssistantResponse = '';
           } else if (data.type === 'error') {
             console.error('OpenAI API error:', data);
           } else if (data.type === 'session.created') {

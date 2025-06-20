@@ -6,6 +6,8 @@ import { Mic, MicOff } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
 import { OpenAIRealtimeChat } from '@/utils/OpenAIRealtimeChat';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './AuthProvider';
 
 interface VoiceAssistantProps {
   open: boolean;
@@ -21,11 +23,43 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   destination
 }) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [realtimeChat, setRealtimeChat] = useState<OpenAIRealtimeChat | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [currentUserInput, setCurrentUserInput] = useState<string>('');
+  const [currentAssistantResponse, setCurrentAssistantResponse] = useState<string>('');
+
+  // Store voice interaction in database
+  const storeVoiceInteraction = async (userInput: string, assistantResponse: string) => {
+    if (!user || !userInput.trim() || !assistantResponse.trim()) {
+      console.log('Missing data for storing interaction:', { user: !!user, userInput: !!userInput, assistantResponse: !!assistantResponse });
+      return;
+    }
+
+    try {
+      console.log('Storing voice interaction...', { userInput: userInput.substring(0, 50), assistantResponse: assistantResponse.substring(0, 50) });
+      
+      const { error } = await supabase.functions.invoke('store-voice-interaction', {
+        body: {
+          userInput: userInput.trim(),
+          assistantResponse: assistantResponse.trim(),
+          destination
+        }
+      });
+
+      if (error) {
+        console.error('Error storing voice interaction:', error);
+        // Don't show toast error to user as this is background functionality
+      } else {
+        console.log('Voice interaction stored successfully');
+      }
+    } catch (error) {
+      console.error('Error storing voice interaction:', error);
+    }
+  };
 
   // Initialize connection when dialog opens
   useEffect(() => {
@@ -44,10 +78,29 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         (listening) => {
           console.log('Listening status changed:', listening);
           setIsListening(listening);
+          if (listening) {
+            // Reset current input when starting to listen
+            setCurrentUserInput('');
+          }
         },
         (speaking) => {
           console.log('Speaking status changed:', speaking);
           setIsSpeaking(speaking);
+          if (!speaking && currentUserInput && currentAssistantResponse) {
+            // Store interaction when assistant finishes speaking
+            storeVoiceInteraction(currentUserInput, currentAssistantResponse);
+            setCurrentUserInput('');
+            setCurrentAssistantResponse('');
+          }
+        },
+        // Add callbacks for capturing user input and assistant responses
+        (userText) => {
+          console.log('User input captured:', userText);
+          setCurrentUserInput(userText);
+        },
+        (assistantText) => {
+          console.log('Assistant response captured:', assistantText);
+          setCurrentAssistantResponse(assistantText);
         }
       );
       
@@ -72,19 +125,25 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           });
         });
     }
-  }, [open, realtimeChat, toast]);
+  }, [open, realtimeChat, toast, destination, user]);
 
   // Cleanup when dialog closes
   useEffect(() => {
     if (!open && realtimeChat) {
       console.log('Dialog closed, cleaning up connection...');
+      // Store any pending interaction before cleanup
+      if (currentUserInput && currentAssistantResponse) {
+        storeVoiceInteraction(currentUserInput, currentAssistantResponse);
+      }
       realtimeChat.disconnect();
       setRealtimeChat(null);
       setIsConnected(false);
       setIsListening(false);
       setIsSpeaking(false);
+      setCurrentUserInput('');
+      setCurrentAssistantResponse('');
     }
-  }, [open, realtimeChat]);
+  }, [open, realtimeChat, currentUserInput, currentAssistantResponse]);
 
   const handleMicClick = async () => {
     console.log('Mic button clicked, current states:', { isConnected, isListening, isSpeaking });
