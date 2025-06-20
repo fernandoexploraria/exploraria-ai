@@ -295,8 +295,8 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
               <Button
                 onClick={handleMainAction}
                 disabled={conversation.status === 'connecting' || assistantState === 'listening' || assistantState === 'recording'}
-                variant="ghost"
-                className="text-lg font-medium px-6 py-3 h-auto whitespace-normal text-center text-foreground hover:text-foreground"
+                variant="outline"
+                className="text-lg font-semibold px-6 py-3 h-auto whitespace-normal text-center bg-background text-foreground border-border hover:bg-accent hover:text-accent-foreground"
               >
                 {conversation.status === 'connecting' ? (
                   <>
