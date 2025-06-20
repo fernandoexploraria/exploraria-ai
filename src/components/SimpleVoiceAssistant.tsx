@@ -1,6 +1,7 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Mic, MicOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -208,6 +209,9 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
           <DialogTitle className="text-center text-xl">
             Rome Expert Assistant
           </DialogTitle>
+          <DialogDescription className="text-center text-sm text-muted-foreground">
+            Your AI-powered Rome travel guide. Click the microphone to ask questions about Rome's attractions, history, and travel tips.
+          </DialogDescription>
         </DialogHeader>
         
         <div className="flex flex-col items-center justify-center py-16">
