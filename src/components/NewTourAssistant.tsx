@@ -80,13 +80,8 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
 
   // Prepare dynamic variables for the ElevenLabs agent
   const prepareDynamicVariables = () => {
-    const landmarkList = landmarks.map(l => l.name).join(', ');
-    const landmarkDetails = landmarks.map(l => `${l.name}: ${l.description}`).join('\n');
-    
     return {
-      destination: destination,
-      landmark_list: landmarkList,
-      landmark_details: landmarkDetails
+      geminiGenerated: systemPrompt || `You are a knowledgeable tour guide for ${destination}. Provide engaging information about the following landmarks: ${landmarks.map(l => l.name).join(', ')}.`
     };
   };
 
@@ -163,9 +158,6 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
         // Start the conversation using the agent ID approach with dynamic variables
         await conversation.startSession({ 
           agentId: elevenLabsConfig.agentId,
-          // Note: The @11labs/react SDK might not support dynamic_variables directly
-          // This is an attempt based on the ElevenLabs API documentation
-          // If this doesn't work, we may need to use a different approach
           dynamicVariables: dynamicVariables
         });
         
