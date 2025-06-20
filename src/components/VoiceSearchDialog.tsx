@@ -177,15 +177,15 @@ const VoiceSearchDialog: React.FC<VoiceSearchDialogProps> = ({ open, onOpenChang
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>Search Conversations</DialogTitle>
+          <DialogTitle>Search Interactions</DialogTitle>
           <DialogDescription>
-            Search through your previous conversations with the tour assistant. Find specific topics, questions, or destinations you've discussed before.
+            Search through your previous interactions with the tour assistant. Find specific topics, questions, or destinations you've discussed before.
           </DialogDescription>
         </DialogHeader>
         
         <div className="flex gap-2 mb-4">
           <Input
-            placeholder="Search your previous conversations..."
+            placeholder="Search your previous interactions..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
@@ -242,13 +242,13 @@ const VoiceSearchDialog: React.FC<VoiceSearchDialogProps> = ({ open, onOpenChang
           ) : searchQuery && !isSearching ? (
             <div className="text-center py-8 text-muted-foreground">
               <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No conversations found matching your search.</p>
+              <p>No interactions found matching your search.</p>
               <p className="text-sm">Try different keywords or check your spelling.</p>
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>Enter a search query to find your previous conversations.</p>
+              <p>Enter a search query to find your previous interactions.</p>
               <p className="text-sm">You can search by topics, questions, or destinations.</p>
             </div>
           )}
