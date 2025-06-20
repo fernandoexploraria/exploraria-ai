@@ -43,6 +43,8 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   const [showingSearchResults, setShowingSearchResults] = useState(false);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
+  const [isPlayingTTS, setIsPlayingTTS] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -52,6 +54,41 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
       loadAllInteractions();
     }
   }, [open, user]);
+
+  // Stop audio when carousel slide changes
+  useEffect(() => {
+    if (!carouselApi) {
+      return;
+    }
+
+    const updateCurrentSlide = () => {
+      // Stop any playing audio when slide changes
+      stopCurrentAudio();
+      setCurrentSlide(carouselApi.selectedScrollSnap());
+    };
+
+    carouselApi.on("select", updateCurrentSlide);
+    updateCurrentSlide(); // Set initial value
+
+    return () => {
+      carouselApi.off("select", updateCurrentSlide);
+    };
+  }, [carouselApi]);
+
+  const stopCurrentAudio = () => {
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      setCurrentAudio(null);
+    }
+    
+    // Stop browser TTS
+    if (speechSynthesis.speaking) {
+      speechSynthesis.cancel();
+    }
+    
+    setIsPlayingTTS(false);
+  };
 
   const loadAllInteractions = async () => {
     setIsLoading(true);
@@ -237,9 +274,19 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
 
   const handleTTSClick = async (text: string, isVoiceTranscript = false) => {
     try {
+      // If audio is currently playing, stop it
+      if (isPlayingTTS) {
+        stopCurrentAudio();
+        return;
+      }
+
+      setIsPlayingTTS(true);
+
       if (isVoiceTranscript) {
         // For voice transcripts, use browser TTS directly without AI enhancement
         const utterance = new SpeechSynthesisUtterance(text);
+        utterance.onend = () => setIsPlayingTTS(false);
+        utterance.onerror = () => setIsPlayingTTS(false);
         speechSynthesis.speak(utterance);
         return;
       }
@@ -251,6 +298,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
 
       if (error) {
         console.error('TTS error:', error);
+        setIsPlayingTTS(false);
         toast({
           title: "Audio generation failed",
           description: "Could not generate audio for this text.",
@@ -264,14 +312,33 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
         const audioBlob = new Blob([Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0))], { type: 'audio/mp3' });
         const audioUrl = URL.createObjectURL(audioBlob);
         const audio = new Audio(audioUrl);
+        
+        audio.onended = () => {
+          setCurrentAudio(null);
+          setIsPlayingTTS(false);
+          URL.revokeObjectURL(audioUrl);
+        };
+        
+        audio.onerror = () => {
+          setCurrentAudio(null);
+          setIsPlayingTTS(false);
+          URL.revokeObjectURL(audioUrl);
+        };
+        
+        setCurrentAudio(audio);
         audio.play();
       } else if (data.fallbackToBrowser && data.enhancedText) {
         // Use browser TTS as fallback
         const utterance = new SpeechSynthesisUtterance(data.enhancedText);
+        utterance.onend = () => setIsPlayingTTS(false);
+        utterance.onerror = () => setIsPlayingTTS(false);
         speechSynthesis.speak(utterance);
+      } else {
+        setIsPlayingTTS(false);
       }
     } catch (error) {
       console.error('TTS error:', error);
+      setIsPlayingTTS(false);
       toast({
         title: "Audio generation failed",
         description: "Could not generate audio for this text.",
@@ -356,7 +423,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 w-6 p-0"
+                className={`h-6 w-6 p-0 ${isPlayingTTS ? 'text-green-500' : ''}`}
                 onClick={() => handleTTSClick(createTranscriptText(), true)}
               >
                 <Volume2 className="w-3 h-3" />
@@ -471,7 +538,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 w-6 p-0"
+                className={`h-6 w-6 p-0 ${isPlayingTTS ? 'text-green-500' : ''}`}
                 onClick={() => handleTTSClick(interaction.assistant_response, false)}
               >
                 <Volume2 className="w-3 h-3" />
@@ -534,24 +601,6 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
       return renderTranscriptEntry(interaction); // Default fallback
     }
   };
-
-  // Carousel navigation effect
-  useEffect(() => {
-    if (!carouselApi) {
-      return;
-    }
-
-    const updateCurrentSlide = () => {
-      setCurrentSlide(carouselApi.selectedScrollSnap());
-    };
-
-    carouselApi.on("select", updateCurrentSlide);
-    updateCurrentSlide(); // Set initial value
-
-    return () => {
-      carouselApi.off("select", updateCurrentSlide);
-    };
-  }, [carouselApi]);
 
   const scrollToSlide = (index: number) => {
     if (carouselApi) {
