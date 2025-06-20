@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import SearchControl from '@/components/SearchControl';
@@ -20,8 +21,9 @@ const Index = () => {
   const [interactionCarouselOpen, setInteractionCarouselOpen] = useState(false);
   const [favoritesDialogOpen, setFavoritesDialogOpen] = useState(false);
   const [mapboxToken, setMapboxToken] = useState('');
+  const [showSplash, setShowSplash] = useState(true);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [interactionLocation, setInteractionLocation] = useState<{
     coordinates: [number, number];
     name: string;
@@ -80,9 +82,18 @@ const Index = () => {
     });
   };
 
+  const handleSplashDismiss = () => {
+    setShowSplash(false);
+  };
+
+  const handleAuthDialogOpen = () => {
+    // This would open an auth dialog - placeholder for now
+    console.log('Auth dialog should open');
+  };
+
   return (
     <div className="relative w-full h-screen">
-      <SplashScreen />
+      {showSplash && <SplashScreen onDismiss={handleSplashDismiss} />}
       
       <Map
         mapboxToken={mapboxToken}
@@ -94,26 +105,26 @@ const Index = () => {
       />
       
       <TopControls
-        landmarks={allLandmarksForSearch}
+        allLandmarks={allLandmarksForSearch}
         onSelectLandmark={setSelectedLandmark}
-        setSearchDialogOpen={setSearchDialogOpen}
-        setVoiceSearchDialogOpen={setVoiceSearchDialogOpen}
-        setInteractionCarouselOpen={setInteractionCarouselOpen}
-        setFavoritesDialogOpen={setFavoritesDialogOpen}
-        mapboxToken={mapboxToken} 
+        onTourPlannerOpen={() => setSearchDialogOpen(true)}
+        onFavoritesOpen={() => setFavoritesDialogOpen(true)}
+        onVoiceSearchOpen={() => setVoiceSearchDialogOpen(true)}
+        onVoiceAssistantOpen={() => setInteractionCarouselOpen(true)}
+        onLogoClick={handleSplashDismiss}
+        user={user}
+        plannedLandmarks={plannedLandmarks}
       />
       
       <SearchControl
-        onSearch={handleSearch}
-        onClearSearch={handleClearSearch}
-        isLoading={isLoading}
-        searchQuery={searchQuery}
+        landmarks={allLandmarksForSearch}
+        onSelectLandmark={setSelectedLandmark}
       />
       
       <UserControls 
-        mapboxToken={mapboxToken}
-        onLandmarksChange={setLandmarks}
-        onPlanChange={setPlannedLandmarks}
+        user={user}
+        onSignOut={signOut}
+        onAuthDialogOpen={handleAuthDialogOpen}
       />
 
       <DialogManager
