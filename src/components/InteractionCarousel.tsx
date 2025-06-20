@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -366,7 +367,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
         if (data.audioContent) {
           // Play the audio
           const audioBlob = new Blob([Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0))], { type: 'audio/mp3' });
-          const audioUrl = URL.createObjectURL(audioUrl);
+          const audioUrl = URL.createObjectURL(audioBlob);
           const audio = new Audio(audioUrl);
           
           setCurrentAudio(audio);
