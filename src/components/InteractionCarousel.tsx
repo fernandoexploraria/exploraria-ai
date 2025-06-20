@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselApi } from '@/components/ui/carousel';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Search, Star, StarOff, Calendar, MapPin, Volume2, ArrowLeft, Camera, Mic } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -41,6 +41,8 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [showingSearchResults, setShowingSearchResults] = useState(false);
+  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
+  const [currentSlide, setCurrentSlide] = useState(0);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -508,6 +510,30 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
   };
 
+  // Carousel navigation effect
+  useEffect(() => {
+    if (!carouselApi) {
+      return;
+    }
+
+    const updateCurrentSlide = () => {
+      setCurrentSlide(carouselApi.selectedScrollSnap());
+    };
+
+    carouselApi.on("select", updateCurrentSlide);
+    updateCurrentSlide(); // Set initial value
+
+    return () => {
+      carouselApi.off("select", updateCurrentSlide);
+    };
+  }, [carouselApi]);
+
+  const scrollToSlide = (index: number) => {
+    if (carouselApi) {
+      carouselApi.scrollTo(index);
+    }
+  };
+
   if (!open) return null;
 
   const currentInteractions = showingSearchResults ? searchResults : interactions;
@@ -557,15 +583,22 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-4">
+      <div className="flex-1 flex flex-col items-center justify-center p-4">
         {isLoading ? (
           <div className="text-white">Loading your interactions...</div>
         ) : currentInteractions.length > 0 ? (
-          <div className="w-full max-w-5xl">
-            <Carousel className="w-full">
-              <CarouselContent>
+          <div className="w-full max-w-6xl flex flex-col items-center">
+            <Carousel 
+              className="w-full"
+              setApi={setCarouselApi}
+              opts={{
+                align: "center",
+                loop: false,
+              }}
+            >
+              <CarouselContent className="-ml-2 md:-ml-4">
                 {currentInteractions.map((interaction) => (
-                  <CarouselItem key={interaction.id} className="basis-full md:basis-1/2 lg:basis-1/3">
+                  <CarouselItem key={interaction.id} className="pl-2 md:pl-4 basis-4/5 md:basis-3/5 lg:basis-2/5">
                     {renderInteraction(interaction)}
                   </CarouselItem>
                 ))}
@@ -573,6 +606,27 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
               <CarouselPrevious className="hidden md:flex" />
               <CarouselNext className="hidden md:flex" />
             </Carousel>
+            
+            {/* Pagination Dots */}
+            {currentInteractions.length > 1 && (
+              <div className="flex items-center gap-2 mt-6">
+                {currentInteractions.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => scrollToSlide(index)}
+                    className={`w-2 h-2 rounded-full transition-all duration-200 ${
+                      index === currentSlide
+                        ? 'bg-white scale-125'
+                        : 'bg-gray-500 hover:bg-gray-400'
+                    }`}
+                    aria-label={`Go to slide ${index + 1}`}
+                  />
+                ))}
+                <span className="text-xs text-gray-400 ml-2">
+                  {currentSlide + 1} of {currentInteractions.length}
+                </span>
+              </div>
+            )}
           </div>
         ) : (
           <div className="text-center text-gray-400">
