@@ -1,6 +1,6 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import useOpenAIRealtimeProxy from './useOpenAIRealtimeProxy';
 
 interface UseOpenAIRealtimeProps {
   onConnectionChange: (connected: boolean) => void;
@@ -9,10 +9,44 @@ interface UseOpenAIRealtimeProps {
 }
 
 export const useOpenAIRealtime = ({ onConnectionChange, onSpeakingChange, onError }: UseOpenAIRealtimeProps) => {
-  const socketRef = useRef<WebSocket | null>(null);
-  const [connected, setConnected] = useState(false);
   const [messages, setMessages] = useState<any[]>([]);
   const audioContextRef = useRef<AudioContext | null>(null);
+  
+  // Use the OpenAI API key directly (in production, this should come from secure storage)
+  const API_KEY = 'sk-proj-your-key-here'; // Replace with actual key
+  const ENDPOINT = 'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01';
+
+  const { connected, messages: proxyMessages, sendMessage: proxySendMessage, error } = useOpenAIRealtimeProxy({
+    accessToken: API_KEY,
+    endpoint: ENDPOINT
+  });
+
+  // Handle connection changes
+  useEffect(() => {
+    onConnectionChange(connected);
+  }, [connected, onConnectionChange]);
+
+  // Handle errors
+  useEffect(() => {
+    if (error) {
+      onError(error);
+    }
+  }, [error, onError]);
+
+  // Handle incoming messages
+  useEffect(() => {
+    setMessages(proxyMessages);
+    
+    proxyMessages.forEach(data => {
+      // Handle audio responses
+      if (data.type === 'response.audio.delta' && data.delta) {
+        playAudioChunk(data.delta);
+        onSpeakingChange(true);
+      } else if (data.type === 'response.audio.done') {
+        onSpeakingChange(false);
+      }
+    });
+  }, [proxyMessages, onSpeakingChange]);
 
   const playAudioChunk = async (base64Audio: string) => {
     try {
@@ -46,109 +80,21 @@ export const useOpenAIRealtime = ({ onConnectionChange, onSpeakingChange, onErro
   };
 
   const connect = useCallback(async () => {
-    try {
-      console.log('🔌 Starting OpenAI Realtime connection through Supabase...');
-      
-      // Get the session token for authentication
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      
-      if (!token) {
-        onError('Authentication required');
-        return;
-      }
-
-      // Connect through our Supabase Edge Function WebSocket proxy
-      const wsUrl = `wss://ejqgdmbuabrcjxbhpxup.supabase.co/functions/v1/openai-realtime?token=${encodeURIComponent(token)}`;
-      console.log('🌐 Connecting through proxy to:', wsUrl);
-      
-      const ws = new WebSocket(wsUrl);
-      socketRef.current = ws;
-
-      ws.onopen = () => {
-        console.log('✅ WebSocket connected through Supabase proxy');
-        setConnected(true);
-        onConnectionChange(true);
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          console.log('📩 Message from OpenAI via proxy:', data.type, data);
-          
-          setMessages(prev => [...prev, data]);
-          
-          // Handle audio responses
-          if (data.type === 'response.audio.delta' && data.delta) {
-            playAudioChunk(data.delta);
-            onSpeakingChange(true);
-          } else if (data.type === 'response.audio.done') {
-            onSpeakingChange(false);
-          }
-          
-        } catch (error) {
-          console.error('❌ Failed to parse message:', error);
-        }
-      };
-
-      ws.onerror = (error) => {
-        console.error('❌ WebSocket error:', error);
-        onError('WebSocket connection failed');
-      };
-
-      ws.onclose = (event) => {
-        console.log('🔌 WebSocket disconnected:', event.code, event.reason);
-        setConnected(false);
-        onConnectionChange(false);
-        
-        if (event.code !== 1000) {
-          onError(`Connection closed: ${event.reason || 'Unknown reason'}`);
-        }
-      };
-
-    } catch (error) {
-      console.error('❌ Error connecting:', error);
-      onError('Failed to initialize connection');
-    }
-  }, [onConnectionChange, onSpeakingChange, onError]);
+    console.log('🔌 Starting OpenAI Realtime connection...');
+    // Connection is handled by the proxy hook
+  }, []);
 
   const sendMessage = useCallback((text: string) => {
-    if (socketRef.current && connected) {
-      const payload = {
-        type: 'conversation.item.create',
-        item: {
-          type: 'message',
-          role: 'user',
-          content: [{ type: 'input_text', text }]
-        }
-      };
-      
-      console.log('📤 Sending message via proxy:', payload);
-      socketRef.current.send(JSON.stringify(payload));
-      socketRef.current.send(JSON.stringify({ type: 'response.create' }));
-    } else {
-      console.warn('⚠️ WebSocket is not connected');
-    }
-  }, [connected]);
+    console.log('📤 Sending message:', text);
+    proxySendMessage(text);
+  }, [proxySendMessage]);
 
   const disconnect = useCallback(() => {
-    if (socketRef.current) {
-      socketRef.current.close();
-      socketRef.current = null;
-    }
     if (audioContextRef.current) {
       audioContextRef.current.close();
       audioContextRef.current = null;
     }
-    setConnected(false);
-    onConnectionChange(false);
-  }, [onConnectionChange]);
-
-  useEffect(() => {
-    return () => {
-      disconnect();
-    };
-  }, [disconnect]);
+  }, []);
 
   return {
     connected,
