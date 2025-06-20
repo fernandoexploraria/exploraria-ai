@@ -12,8 +12,8 @@ export const useOpenAIRealtime = ({ onConnectionChange, onSpeakingChange, onErro
   const [messages, setMessages] = useState<any[]>([]);
   const audioContextRef = useRef<AudioContext | null>(null);
   
-  // Use the OpenAI API key directly (in production, this should come from secure storage)
-  const API_KEY = 'sk-proj-your-key-here'; // Replace with actual key
+  // Use the provided OpenAI API key
+  const API_KEY = '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';
   const ENDPOINT = 'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01';
 
   const { connected, messages: proxyMessages, sendMessage: proxySendMessage, error } = useOpenAIRealtimeProxy({
