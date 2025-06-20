@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -105,7 +103,6 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
         prompt: {
           prompt: getPromptToUse()
         },
-        firstMessage: `Hello! I'm your AI tour guide for ${destination}. I'm ready to help you explore and learn about the amazing landmarks you've planned to visit. What would you like to know?`,
         language: "en",
       },
     },
@@ -374,4 +371,3 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
 };
 
 export default NewTourAssistant;
-
