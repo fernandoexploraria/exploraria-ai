@@ -19,24 +19,20 @@ export default function useOpenAIRealtimeProxy({ accessToken, endpoint }: UseOpe
       return;
     }
 
-    const ws = new WebSocket(endpoint);
+    console.log('Connecting to OpenAI WebSocket:', endpoint);
+    const ws = new WebSocket(`${endpoint}`, ['realtime']);
     socketRef.current = ws;
 
     ws.onopen = () => {
-      console.log('✅ WebSocket connected');
+      console.log('✅ WebSocket connected to OpenAI');
       setConnected(true);
-
-      // Optionally authenticate here if endpoint supports a message-based auth
-      ws.send(JSON.stringify({
-        type: 'auth',
-        token: accessToken,
-      }));
+      setError(null);
     };
 
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        console.log('📩 Message from OpenAI:', data);
+        console.log('📩 Message from OpenAI:', data.type, data);
         setMessages(prev => [...prev, data]);
       } catch (e) {
         console.error('❌ Failed to parse message:', e);
@@ -45,35 +41,41 @@ export default function useOpenAIRealtimeProxy({ accessToken, endpoint }: UseOpe
 
     ws.onerror = (e) => {
       console.error('❌ WebSocket error:', e);
-      setError('WebSocket error');
+      setError('WebSocket connection error');
     };
 
-    ws.onclose = () => {
-      console.log('🔌 WebSocket disconnected');
+    ws.onclose = (event) => {
+      console.log('🔌 WebSocket disconnected:', event.code, event.reason);
       setConnected(false);
+      
+      // Attempt to reconnect after 3 seconds if not a normal closure
+      if (event.code !== 1000) {
+        setTimeout(() => {
+          console.log('Attempting to reconnect...');
+          connect();
+        }, 3000);
+      }
     };
   }, [accessToken, endpoint]);
 
   // Send a message to OpenAI
-  const sendMessage = (text: string) => {
+  const sendMessage = useCallback((message: string) => {
     if (socketRef.current && connected) {
-      const payload = {
-        type: 'user_message',
-        text,
-      };
-
-      socketRef.current.send(JSON.stringify(payload));
+      console.log('📤 Sending to OpenAI:', JSON.parse(message).type);
+      socketRef.current.send(message);
     } else {
       console.warn('WebSocket is not connected');
     }
-  };
+  }, [connected]);
 
   // Cleanup on unmount
   useEffect(() => {
     connect();
 
     return () => {
-      socketRef.current?.close();
+      if (socketRef.current) {
+        socketRef.current.close(1000, 'Component unmounting');
+      }
     };
   }, [connect]);
 
