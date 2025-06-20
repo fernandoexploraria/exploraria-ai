@@ -6,7 +6,8 @@ import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Landmark } from '@/data/landmarks';
 import { useGeminiAPI } from '@/hooks/useGeminiAPI';
-import { useGeminiTextToSpeech } from '@/components/voice-assistant/useGeminiTextToSpeech';
+import { useTextToSpeech } from '@/components/voice-assistant/useTextToSpeech';
+import { useAudioContext } from '@/components/voice-assistant/useAudioContext';
 import { useGoogleSpeechRecognition } from '@/components/voice-assistant/useGoogleSpeechRecognition';
 
 interface NewTourAssistantProps {
@@ -26,15 +27,25 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [conversation, setConversation] = useState<Array<{type: 'user' | 'assistant', text: string}>>([]);
   const [hasStarted, setHasStarted] = useState(false);
+  const [elevenLabsApiKey, setElevenLabsApiKey] = useState<string>('');
   
   const { callGemini } = useGeminiAPI();
-  const { isSpeaking, speakText, cleanup: cleanupTTS } = useGeminiTextToSpeech();
+  const { audioContextInitialized, initializeAudioContext } = useAudioContext();
+  const { isSpeaking, speakText, cleanup: cleanupTTS } = useTextToSpeech(elevenLabsApiKey, audioContextInitialized);
   const { 
     isListening, 
     startListening, 
     stopListening, 
     cleanup: cleanupSpeech 
   } = useGoogleSpeechRecognition();
+
+  // Check for stored API key on mount
+  useEffect(() => {
+    const storedKey = localStorage.getItem('elevenlabs_api_key');
+    if (storedKey) {
+      setElevenLabsApiKey(storedKey);
+    }
+  }, []);
 
   // Cleanup on unmount or dialog close
   useEffect(() => {
@@ -46,7 +57,19 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     }
   }, [open, cleanupTTS, cleanupSpeech]);
 
+  const handleApiKeySubmit = (key: string) => {
+    setElevenLabsApiKey(key);
+    localStorage.setItem('elevenlabs_api_key', key);
+    toast({
+      title: "API Key Saved",
+      description: "ElevenLabs API key has been saved successfully.",
+    });
+  };
+
   const handleStartTour = async () => {
+    // Initialize audio context first
+    await initializeAudioContext();
+    
     setHasStarted(true);
     setIsProcessing(true);
     
@@ -124,6 +147,61 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     cleanupSpeech();
     onOpenChange(false);
   };
+
+  // Show API key input if not provided
+  if (!elevenLabsApiKey) {
+    return (
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>ElevenLabs API Key Required</DialogTitle>
+            <DialogDescription>
+              To use the voice tour guide, please enter your ElevenLabs API key.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="apikey" className="block text-sm font-medium mb-2">
+                ElevenLabs API Key
+              </label>
+              <input
+                id="apikey"
+                type="password"
+                placeholder="Enter your ElevenLabs API key..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const input = e.target as HTMLInputElement;
+                    if (input.value.trim()) {
+                      handleApiKeySubmit(input.value.trim());
+                    }
+                  }
+                }}
+              />
+            </div>
+            
+            <div className="text-sm text-muted-foreground">
+              <p>Get your API key from <a href="https://elevenlabs.io" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">ElevenLabs.io</a></p>
+              <p className="mt-1">Your key will be stored locally in your browser.</p>
+            </div>
+            
+            <Button
+              onClick={() => {
+                const input = document.getElementById('apikey') as HTMLInputElement;
+                if (input?.value.trim()) {
+                  handleApiKeySubmit(input.value.trim());
+                }
+              }}
+              className="w-full"
+            >
+              Save API Key
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
