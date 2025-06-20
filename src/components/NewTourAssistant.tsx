@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Mic, MicOff, Volume2, VolumeX, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Landmark } from '@/data/landmarks';
 import { useConversation } from '@11labs/react';
@@ -15,6 +16,8 @@ interface NewTourAssistantProps {
   systemPrompt?: string;
 }
 
+type AssistantState = 'not-started' | 'started' | 'listening' | 'recording' | 'playback';
+
 const NewTourAssistant: React.FC<NewTourAssistantProps> = ({ 
   open, 
   onOpenChange, 
@@ -25,8 +28,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   const { toast } = useToast();
   const [elevenLabsConfig, setElevenLabsConfig] = useState<{apiKey: string, agentId: string} | null>(null);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
-  const [hasStarted, setHasStarted] = useState(false);
-  const [conversationMessages, setConversationMessages] = useState<Array<{type: 'user' | 'assistant', text: string}>>([]);
+  const [assistantState, setAssistantState] = useState<AssistantState>('not-started');
 
   // Fetch ElevenLabs configuration from Supabase on mount
   useEffect(() => {
@@ -96,6 +98,7 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
   const conversation = useConversation({
     onConnect: () => {
       console.log('Connected to ElevenLabs agent');
+      setAssistantState('started');
       toast({
         title: "Connected",
         description: "Ready to listen! Start speaking now.",
@@ -103,14 +106,14 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
     },
     onDisconnect: () => {
       console.log('Disconnected from ElevenLabs agent');
-      setHasStarted(false);
+      setAssistantState('not-started');
     },
     onMessage: (message) => {
       console.log('Received message:', message);
       if (message.source === 'ai') {
-        setConversationMessages(prev => [...prev, { type: 'assistant', text: message.message }]);
+        setAssistantState('playback');
       } else if (message.source === 'user') {
-        setConversationMessages(prev => [...prev, { type: 'user', text: message.message }]);
+        setAssistantState('recording');
       }
     },
     onError: (error) => {
@@ -120,6 +123,7 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
         description: "There was an issue with the tour guide connection.",
         variant: "destructive"
       });
+      setAssistantState('not-started');
     },
     overrides: {
       agent: {
@@ -132,91 +136,110 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
     }
   });
 
-  const handleStartTour = async () => {
-    if (!elevenLabsConfig) {
-      toast({
-        title: "Configuration Error",
-        description: "ElevenLabs configuration not available.",
-        variant: "destructive"
-      });
-      return;
+  // Update state based on conversation status
+  useEffect(() => {
+    if (conversation.status === 'connected') {
+      if (conversation.isSpeaking) {
+        setAssistantState('playback');
+      } else {
+        setAssistantState('listening');
+      }
+    } else if (conversation.status === 'connecting') {
+      setAssistantState('started');
+    } else if (conversation.status === 'disconnected' && assistantState !== 'not-started') {
+      setAssistantState('not-started');
     }
+  }, [conversation.status, conversation.isSpeaking, assistantState]);
 
-    try {
-      console.log('Starting tour with config:', { agentId: elevenLabsConfig.agentId });
-      
-      // Request microphone permission first
-      await navigator.mediaDevices.getUserMedia({ audio: true });
-      
-      // Get a signed URL from ElevenLabs API for secure connection
-      const signedUrlResponse = await fetch(`https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=${elevenLabsConfig.agentId}`, {
-        method: 'GET',
-        headers: {
-          'xi-api-key': elevenLabsConfig.apiKey,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!signedUrlResponse.ok) {
-        throw new Error(`Failed to get signed URL: ${signedUrlResponse.statusText}`);
+  const handleMainAction = async () => {
+    if (assistantState === 'not-started') {
+      // Start the conversation
+      if (!elevenLabsConfig) {
+        toast({
+          title: "Configuration Error",
+          description: "ElevenLabs configuration not available.",
+          variant: "destructive"
+        });
+        return;
       }
 
-      const signedUrlData = await signedUrlResponse.json();
-      console.log('Got signed URL from ElevenLabs:', signedUrlData);
-      
-      // Start the conversation using the agent ID approach
-      await conversation.startSession({ 
-        agentId: elevenLabsConfig.agentId
-      });
-      
-      setHasStarted(true);
-      setConversationMessages([]);
-      
-    } catch (error) {
-      console.error('Error starting tour:', error);
-      toast({
-        title: "Error",
-        description: `Failed to start tour guide: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        variant: "destructive"
-      });
+      try {
+        console.log('Starting tour with config:', { agentId: elevenLabsConfig.agentId });
+        
+        // Request microphone permission first
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        // Start the conversation using the agent ID approach
+        await conversation.startSession({ 
+          agentId: elevenLabsConfig.agentId
+        });
+        
+      } catch (error) {
+        console.error('Error starting tour:', error);
+        toast({
+          title: "Error",
+          description: `Failed to start tour guide: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          variant: "destructive"
+        });
+      }
+    } else if (assistantState === 'playback') {
+      // Interrupt playback - this would require additional conversation controls
+      // For now, we'll just indicate the intent
+      console.log('User wants to interrupt playback');
     }
   };
 
   const handleEndTour = async () => {
     try {
       await conversation.endSession();
-      setHasStarted(false);
-      setConversationMessages([]);
+      setAssistantState('not-started');
     } catch (error) {
       console.error('Error ending tour:', error);
     }
   };
 
   const handleClose = () => {
-    if (hasStarted) {
+    if (assistantState !== 'not-started') {
       handleEndTour();
     }
     onOpenChange(false);
   };
 
-  // Helper function to get conversation status text and color
-  const getConversationStatus = () => {
-    if (conversation.status === 'connecting') {
-      return { text: "Connecting to your tour guide...", color: "text-yellow-600", showPulse: true };
+  // Get button label based on state
+  const getButtonLabel = () => {
+    switch (assistantState) {
+      case 'not-started':
+        return 'Call Tour Guide';
+      case 'started':
+        return 'Talk to interrupt';
+      case 'listening':
+        return 'Listening';
+      case 'recording':
+        return 'Listening';
+      case 'playback':
+        return 'Talk to interrupt';
+      default:
+        return 'Call Tour Guide';
     }
-    if (conversation.status === 'connected' && conversation.isSpeaking) {
-      return { text: "🗣️ Tour guide is speaking...", color: "text-green-600", showPulse: true };
-    }
-    if (conversation.status === 'connected' && !conversation.isSpeaking) {
-      return { text: "🎤 Listening - Start speaking now!", color: "text-blue-600", showPulse: true };
-    }
-    if (conversation.status === 'disconnected') {
-      return { text: "Disconnected from tour guide", color: "text-gray-500", showPulse: false };
-    }
-    return { text: "Ready", color: "text-gray-600", showPulse: false };
   };
 
-  const statusInfo = getConversationStatus();
+  // Get circle color based on state
+  const getCircleColor = () => {
+    switch (assistantState) {
+      case 'not-started':
+        return 'border-gray-300 bg-gray-50';
+      case 'started':
+        return 'border-yellow-400 bg-yellow-50 animate-pulse';
+      case 'listening':
+        return 'border-blue-500 bg-blue-50 animate-pulse';
+      case 'recording':
+        return 'border-red-500 bg-red-50 animate-pulse';
+      case 'playback':
+        return 'border-green-500 bg-green-50 animate-pulse';
+      default:
+        return 'border-gray-300 bg-gray-50';
+    }
+  };
 
   // Show loading if configuration is being fetched
   if (isLoadingConfig) {
@@ -267,7 +290,7 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[80vh] flex flex-col">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-center text-xl">
             {destination} Tour Guide
@@ -277,24 +300,15 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
           </DialogDescription>
         </DialogHeader>
         
-        <div className="flex-1 flex flex-col min-h-0">
-          {!hasStarted ? (
-            <div className="flex-1 flex flex-col items-center justify-center py-8">
-              <div className="text-center mb-8">
-                <h3 className="text-lg font-semibold mb-2">Ready to explore {destination}?</h3>
-                <p className="text-muted-foreground mb-4">
-                  I'm your personal tour guide ready to help you discover amazing places and share fascinating stories.
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  You have {landmarks.length} landmarks planned for your visit.
-                </p>
-              </div>
-              
+        <div className="flex flex-col items-center py-8 space-y-6">
+          {/* Main Circle with Button */}
+          <div className="relative flex items-center justify-center">
+            <div className={`w-48 h-48 rounded-full border-4 flex items-center justify-center transition-all duration-300 ${getCircleColor()}`}>
               <Button
-                onClick={handleStartTour}
-                disabled={conversation.status === 'connecting'}
-                size="lg"
-                className="bg-blue-500 hover:bg-blue-600"
+                onClick={handleMainAction}
+                disabled={conversation.status === 'connecting' || assistantState === 'listening' || assistantState === 'recording'}
+                variant="ghost"
+                className="text-lg font-medium px-6 py-3 h-auto whitespace-normal text-center"
               >
                 {conversation.status === 'connecting' ? (
                   <>
@@ -302,102 +316,46 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
                     Connecting...
                   </>
                 ) : (
-                  'Start Tour Guide'
+                  getButtonLabel()
                 )}
               </Button>
             </div>
-          ) : (
-            <>
-              {/* Conversation History */}
-              <div className="flex-1 overflow-y-auto mb-4 space-y-3 min-h-0">
-                {conversationMessages.length === 0 && (
-                  <div className="text-center text-muted-foreground py-8">
-                    <p>Conversation will appear here as you chat with your tour guide.</p>
-                  </div>
-                )}
-                {conversationMessages.map((message, index) => (
-                  <div
-                    key={index}
-                    className={`p-3 rounded-lg ${
-                      message.type === 'user' 
-                        ? 'bg-blue-100 ml-8 text-right' 
-                        : 'bg-gray-100 mr-8'
-                    }`}
-                  >
-                    <div className="text-sm font-medium mb-1">
-                      {message.type === 'user' ? 'You' : 'Tour Guide'}
-                    </div>
-                    <div className="text-sm">{message.text}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Voice Status and Controls */}
-              <div className="flex flex-col items-center space-y-4 py-4 border-t">
-                {/* Visual Microphone Indicator */}
-                <div className="relative flex items-center justify-center">
-                  <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center transition-all duration-300 ${
-                    conversation.status === 'connecting' ? 
-                      'border-yellow-400 bg-yellow-50 animate-pulse' :
-                    conversation.isSpeaking ? 
-                      'border-green-500 bg-green-50 animate-pulse' : 
-                    conversation.status === 'connected' ? 
-                      'border-blue-500 bg-blue-50 animate-pulse' : 
-                      'border-gray-300 bg-gray-50'
-                  }`}>
-                    {conversation.status === 'connecting' ? (
-                      <Loader2 className="w-8 h-8 text-yellow-600 animate-spin" />
-                    ) : conversation.isSpeaking ? (
-                      <Volume2 className="w-8 h-8 text-green-600" />
-                    ) : conversation.status === 'connected' ? (
-                      <Mic className="w-8 h-8 text-blue-600" />
-                    ) : (
-                      <MicOff className="w-8 h-8 text-gray-400" />
-                    )}
-                  </div>
-                  
-                  {/* Animated rings for active states */}
-                  {(conversation.isSpeaking || (conversation.status === 'connected' && !conversation.isSpeaking)) && (
-                    <>
-                      <div className={`absolute inset-0 rounded-full border-2 animate-ping ${
-                        conversation.isSpeaking ? 'border-green-400' : 'border-blue-400'
-                      }`} style={{ animationDuration: '2s' }} />
-                      <div className={`absolute inset-2 rounded-full border-2 animate-ping ${
-                        conversation.isSpeaking ? 'border-green-300' : 'border-blue-300'
-                      }`} style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
-                    </>
-                  )}
-                </div>
-                
-                {/* Status Text */}
-                <div className="text-center">
-                  <div className={`text-lg font-medium ${statusInfo.color} ${statusInfo.showPulse ? 'animate-pulse' : ''}`}>
-                    {statusInfo.text}
-                  </div>
-                  <div className="text-sm text-muted-foreground mt-1">
-                    {conversation.status === 'connected' && !conversation.isSpeaking && 
-                      "Speak naturally - no need to hold any buttons!"
-                    }
-                    {conversation.status === 'connected' && conversation.isSpeaking && 
-                      "Listening to your tour guide..."
-                    }
-                    {conversation.status === 'connecting' && 
-                      "Setting up your personal tour guide..."
-                    }
-                  </div>
-                </div>
-                
-                {/* End Tour Button */}
-                <Button
-                  onClick={handleEndTour}
-                  variant="outline"
-                  size="lg"
-                  disabled={conversation.status === 'connecting'}
-                >
-                  End Tour
-                </Button>
-              </div>
-            </>
+            
+            {/* Animated rings for active states */}
+            {(assistantState === 'listening' || assistantState === 'recording' || assistantState === 'playback') && (
+              <>
+                <div className={`absolute inset-0 rounded-full border-2 animate-ping ${
+                  assistantState === 'playback' ? 'border-green-400' : 
+                  assistantState === 'recording' ? 'border-red-400' : 'border-blue-400'
+                }`} style={{ animationDuration: '2s' }} />
+                <div className={`absolute inset-4 rounded-full border-2 animate-ping ${
+                  assistantState === 'playback' ? 'border-green-300' : 
+                  assistantState === 'recording' ? 'border-red-300' : 'border-blue-300'
+                }`} style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
+              </>
+            )}
+          </div>
+          
+          {/* Status Text */}
+          <div className="text-center">
+            <div className="text-sm text-muted-foreground">
+              {assistantState === 'not-started' && `Ready to explore ${landmarks.length} landmarks`}
+              {assistantState === 'started' && 'Connecting to your tour guide...'}
+              {assistantState === 'listening' && 'Your tour guide is ready to listen'}
+              {assistantState === 'recording' && 'Recording your question...'}
+              {assistantState === 'playback' && 'Your tour guide is speaking...'}
+            </div>
+          </div>
+          
+          {/* End Tour Button - Only show when active */}
+          {assistantState !== 'not-started' && (
+            <Button
+              onClick={handleEndTour}
+              variant="outline"
+              size="sm"
+            >
+              End Tour
+            </Button>
           )}
         </div>
       </DialogContent>
