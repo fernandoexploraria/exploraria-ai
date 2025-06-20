@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -29,6 +28,7 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
   const [isResultOpen, setIsResultOpen] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<[number, number] | null>(null);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
   const { user } = useAuth();
 
@@ -37,8 +37,38 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
     return null;
   }
 
+  // Function to get current location
+  const getCurrentLocation = (): Promise<[number, number]> => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Geolocation is not supported by this browser'));
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const coords: [number, number] = [
+            position.coords.longitude,
+            position.coords.latitude
+          ];
+          resolve(coords);
+        },
+        (error) => {
+          console.warn('Could not get location:', error.message);
+          // Don't reject, just resolve with null to allow the feature to work without location
+          reject(error);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 300000 // 5 minutes
+        }
+      );
+    });
+  };
+
   // Function to store image recognition interaction
-  const storeImageRecognitionInteraction = async (result: AnalysisResult, imageUrl: string) => {
+  const storeImageRecognitionInteraction = async (result: AnalysisResult, imageUrl: string, coordinates?: [number, number]) => {
     if (!user) {
       console.log('User not authenticated, skipping interaction storage');
       return;
@@ -47,14 +77,22 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
     try {
       console.log('Storing image recognition interaction for:', result.landmark_name);
       
-      const { error } = await supabase.functions.invoke('store-voice-interaction', {
-        body: {
-          userInput: `Image recognition: ${result.landmark_name}`,
-          assistantResponse: `${result.description}${result.additional_info ? '. ' + result.additional_info : ''}`,
-          destination: 'Camera Recognition',
-          interactionType: 'image_recognition',
-          landmarkImageUrl: imageUrl
-        }
+      const interactionData: any = {
+        userInput: `Image recognition: ${result.landmark_name}`,
+        assistantResponse: `${result.description}${result.additional_info ? '. ' + result.additional_info : ''}`,
+        destination: 'Camera Recognition',
+        interactionType: 'image_recognition',
+        landmarkImageUrl: imageUrl
+      };
+
+      // Add coordinates if available
+      if (coordinates) {
+        interactionData.landmarkCoordinates = coordinates;
+        console.log('Including coordinates:', coordinates);
+      }
+
+      const { error } = await supabase.functions.invoke('store-interaction', {
+        body: interactionData
       });
 
       if (error) {
@@ -170,6 +208,17 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
     setIsAnalyzing(true);
     
     try {
+      // Try to get current location
+      let coordinates: [number, number] | undefined;
+      try {
+        coordinates = await getCurrentLocation();
+        setCurrentLocation(coordinates);
+        console.log('Location captured:', coordinates);
+      } catch (locationError) {
+        console.warn('Could not capture location:', locationError);
+        // Continue without location - this is not a critical failure
+      }
+
       const base64Data = imageData.split(',')[1];
       
       const { data, error } = await supabase.functions.invoke('analyze-landmark-image', {
@@ -189,8 +238,8 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
         setAnalysisResult(data);
         setIsResultOpen(true);
         
-        // Store the interaction
-        await storeImageRecognitionInteraction(data, imageData);
+        // Store the interaction with location if available
+        await storeImageRecognitionInteraction(data, imageData, coordinates);
         
         if (data.is_from_tour) {
           toast.success(`Found ${data.landmark_name} from your tour!`);
@@ -216,6 +265,7 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
     setIsResultOpen(false);
     setAnalysisResult(null);
     setCapturedImage(null);
+    setCurrentLocation(null);
   };
 
   return (
@@ -248,6 +298,12 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
             <DialogTitle className="flex items-center gap-2">
               <Camera className="h-5 w-5" />
               Image Recognition
+              {currentLocation && (
+                <Badge variant="outline" className="ml-2 text-xs">
+                  <MapPin className="h-3 w-3 mr-1" />
+                  Location captured
+                </Badge>
+              )}
             </DialogTitle>
           </DialogHeader>
           
@@ -316,6 +372,13 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
                 <p className="text-sm text-muted-foreground">
                   {analysisResult.additional_info}
                 </p>
+              )}
+              
+              {currentLocation && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <MapPin className="h-3 w-3" />
+                  <span>Photo location: {currentLocation[1].toFixed(6)}, {currentLocation[0].toFixed(6)}</span>
+                </div>
               )}
             </div>
           )}
