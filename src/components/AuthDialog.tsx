@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -101,6 +101,12 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange }) => {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{isSignUp ? 'Sign Up' : 'Sign In'}</DialogTitle>
+          <DialogDescription>
+            {isSignUp 
+              ? 'Create an account to save your tours, conversations, and access premium features.'
+              : 'Sign in to access your saved tours, conversation history, and premium features.'
+            }
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">

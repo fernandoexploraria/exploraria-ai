@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Mic, MicOff } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
@@ -124,6 +124,9 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           <DialogTitle className="text-center text-xl">
             {destination} Tour Assistant
           </DialogTitle>
+          <DialogDescription className="text-center">
+            Click the microphone to start a voice conversation with your AI tour guide. Get personalized recommendations and answers about {destination}.
+          </DialogDescription>
         </DialogHeader>
         
         <div className="flex flex-col items-center justify-center py-16">

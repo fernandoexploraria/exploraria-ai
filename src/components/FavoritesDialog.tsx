@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Star, Calendar, Trash2 } from 'lucide-react';
@@ -136,6 +135,9 @@ const FavoritesDialog: React.FC<FavoritesDialogProps> = ({ open, onOpenChange })
             <Star className="w-5 h-5 text-yellow-500 fill-current" />
             Favorite Conversations
           </DialogTitle>
+          <DialogDescription>
+            View and manage your saved conversations with the tour assistant. These are the conversations you've marked as favorites for easy reference.
+          </DialogDescription>
         </DialogHeader>
         
         <div className="flex-1 overflow-y-auto space-y-4">

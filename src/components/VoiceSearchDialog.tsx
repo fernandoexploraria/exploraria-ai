@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -177,6 +177,9 @@ const VoiceSearchDialog: React.FC<VoiceSearchDialogProps> = ({ open, onOpenChang
       <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Search Voice Conversations</DialogTitle>
+          <DialogDescription>
+            Search through your previous voice conversations with the tour assistant. Find specific topics, questions, or destinations you've discussed before.
+          </DialogDescription>
         </DialogHeader>
         
         <div className="flex gap-2 mb-4">
