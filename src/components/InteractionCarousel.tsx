@@ -45,6 +45,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
+  const [playingCardIndex, setPlayingCardIndex] = useState<number | null>(null);
   
   const { toast } = useToast();
   const { user } = useAuth();
@@ -53,6 +54,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   const stopTTSPlayback = () => {
     if (isPlaying) {
       setIsPlaying(false);
+      setPlayingCardIndex(null);
       if (currentAudio) {
         currentAudio.pause();
         currentAudio.currentTime = 0;
@@ -360,6 +362,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     if (!currentInteraction) return;
 
     setIsPlaying(true);
+    setPlayingCardIndex(currentSlide);
 
     try {
       if (currentInteraction.interaction_type === 'voice' && currentInteraction.full_transcript) {
@@ -396,6 +399,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
             variant: "destructive"
           });
           setIsPlaying(false);
+          setPlayingCardIndex(null);
           return;
         }
 
@@ -409,12 +413,14 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
           
           audio.onended = () => {
             setIsPlaying(false);
+            setPlayingCardIndex(null);
             setCurrentAudio(null);
             URL.revokeObjectURL(audioUrl);
           };
           
           audio.onerror = () => {
             setIsPlaying(false);
+            setPlayingCardIndex(null);
             setCurrentAudio(null);
             URL.revokeObjectURL(audioUrl);
           };
@@ -423,8 +429,14 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
         } else if (data.fallbackToBrowser && data.enhancedText) {
           // Use browser TTS with enhanced text
           const utterance = new SpeechSynthesisUtterance(data.enhancedText);
-          utterance.onend = () => setIsPlaying(false);
-          utterance.onerror = () => setIsPlaying(false);
+          utterance.onend = () => {
+            setIsPlaying(false);
+            setPlayingCardIndex(null);
+          };
+          utterance.onerror = () => {
+            setIsPlaying(false);
+            setPlayingCardIndex(null);
+          };
           speechSynthesis.speak(utterance);
         }
       } else {
@@ -441,6 +453,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
             variant: "destructive"
           });
           setIsPlaying(false);
+          setPlayingCardIndex(null);
           return;
         }
 
@@ -454,12 +467,14 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
           
           audio.onended = () => {
             setIsPlaying(false);
+            setPlayingCardIndex(null);
             setCurrentAudio(null);
             URL.revokeObjectURL(audioUrl);
           };
           
           audio.onerror = () => {
             setIsPlaying(false);
+            setPlayingCardIndex(null);
             setCurrentAudio(null);
             URL.revokeObjectURL(audioUrl);
           };
@@ -468,8 +483,14 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
         } else if (data.fallbackToBrowser && data.enhancedText) {
           // Use browser TTS as fallback
           const utterance = new SpeechSynthesisUtterance(data.enhancedText);
-          utterance.onend = () => setIsPlaying(false);
-          utterance.onerror = () => setIsPlaying(false);
+          utterance.onend = () => {
+            setIsPlaying(false);
+            setPlayingCardIndex(null);
+          };
+          utterance.onerror = () => {
+            setIsPlaying(false);
+            setPlayingCardIndex(null);
+          };
           speechSynthesis.speak(utterance);
         }
       }
@@ -481,6 +502,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
         variant: "destructive"
       });
       setIsPlaying(false);
+      setPlayingCardIndex(null);
     }
   };
 
@@ -494,8 +516,9 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     });
   };
 
-  const renderTranscriptEntry = (interaction: Interaction) => {
+  const renderTranscriptEntry = (interaction: Interaction, index: number) => {
     const transcript = interaction.full_transcript;
+    const isCurrentlyPlaying = playingCardIndex === index;
     
     // Determine icon based on interaction type
     let IconComponent, iconColor;
@@ -515,7 +538,11 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
     
     return (
-      <Card className="w-full max-w-xs mx-auto bg-gray-900 border-gray-700 h-96">
+      <Card className={`w-full max-w-xs mx-auto border-gray-700 h-96 transition-all duration-300 ${
+        isCurrentlyPlaying 
+          ? 'bg-green-900/20 border-green-500/50 shadow-lg shadow-green-500/20' 
+          : 'bg-gray-900'
+      }`}>
         <CardContent className="p-3 h-full flex flex-col">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1">
@@ -551,8 +578,8 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
               {transcript && Array.isArray(transcript) ? (
                 transcript
                   .filter((entry: any) => entry.message && (entry.role === 'user' || entry.role === 'agent'))
-                  .map((entry: any, index: number) => (
-                    <div key={index} className={`p-2 rounded text-xs ${
+                  .map((entry: any, entryIndex: number) => (
+                    <div key={entryIndex} className={`p-2 rounded text-xs ${
                       entry.role === 'user' 
                         ? 'bg-blue-900/30 text-blue-100' 
                         : 'bg-green-900/30 text-green-100'
@@ -601,7 +628,9 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     );
   };
 
-  const renderImageEntry = (interaction: Interaction) => {
+  const renderImageEntry = (interaction: Interaction, index: number) => {
+    const isCurrentlyPlaying = playingCardIndex === index;
+    
     // Determine icon based on interaction type
     let IconComponent, iconColor;
     if (interaction.interaction_type === 'voice') {
@@ -620,7 +649,11 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
     
     return (
-      <Card className="w-full max-w-xs mx-auto bg-gray-900 border-gray-700 h-96">
+      <Card className={`w-full max-w-xs mx-auto border-gray-700 h-96 transition-all duration-300 ${
+        isCurrentlyPlaying 
+          ? 'bg-green-900/20 border-green-500/50 shadow-lg shadow-green-500/20' 
+          : 'bg-gray-900'
+      }`}>
         <CardContent className="p-3 h-full flex flex-col">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1">
@@ -692,13 +725,13 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     );
   };
 
-  const renderInteraction = (interaction: Interaction) => {
+  const renderInteraction = (interaction: Interaction, index: number) => {
     if (interaction.interaction_type === 'voice' && interaction.full_transcript) {
-      return renderTranscriptEntry(interaction);
+      return renderTranscriptEntry(interaction, index);
     } else if (interaction.interaction_type === 'image_recognition' || interaction.landmark_image_url) {
-      return renderImageEntry(interaction);
+      return renderImageEntry(interaction, index);
     } else {
-      return renderTranscriptEntry(interaction); // Default fallback
+      return renderTranscriptEntry(interaction, index); // Default fallback
     }
   };
 
@@ -771,9 +804,9 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
               }}
             >
               <CarouselContent className="-ml-2 md:-ml-4">
-                {currentInteractions.map((interaction) => (
+                {currentInteractions.map((interaction, index) => (
                   <CarouselItem key={interaction.id} className="pl-2 md:pl-4 basis-4/5 md:basis-3/5 lg:basis-2/5">
-                    {renderInteraction(interaction)}
+                    {renderInteraction(interaction, index)}
                   </CarouselItem>
                 ))}
               </CarouselContent>
