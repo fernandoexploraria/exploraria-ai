@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -110,25 +109,11 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
       // Request microphone permission first
       await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      // Generate signed URL for the conversation
-      const response = await fetch('/api/elevenlabs-signed-url', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          agentId: agentId,
-          apiKey: elevenLabsApiKey
-        })
+      // Start the conversation with the agent ID
+      await conversation.startSession({ 
+        agentId: agentId,
+        authorization: elevenLabsApiKey 
       });
-
-      if (!response.ok) {
-        // Fallback to direct agent connection if signed URL generation fails
-        await conversation.startSession({ agentId: agentId });
-      } else {
-        const { signedUrl } = await response.json();
-        await conversation.startSession({ url: signedUrl });
-      }
       
       setHasStarted(true);
       setConversationMessages([]);
