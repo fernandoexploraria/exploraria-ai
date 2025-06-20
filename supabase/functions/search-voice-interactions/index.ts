@@ -13,7 +13,9 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Search function called');
     const { query, destination } = await req.json()
+    console.log('Search query:', query, 'Destination filter:', destination);
     
     if (!query) {
       return new Response(
@@ -42,21 +44,27 @@ serve(async (req) => {
     )
 
     if (authError || !user) {
+      console.error('Auth error:', authError);
       return new Response(
         JSON.stringify({ error: 'Invalid token' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
+    console.log('User authenticated:', user.id);
+
     // Generate embedding for the search query using Gemini
     const geminiApiKey = Deno.env.get('GOOGLE_AI_API_KEY')
     if (!geminiApiKey) {
+      console.error('Gemini API key not configured');
       return new Response(
         JSON.stringify({ error: 'Gemini API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
+    console.log('Generating embedding for query...');
+    
     const embeddingResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
@@ -71,7 +79,8 @@ serve(async (req) => {
     })
 
     if (!embeddingResponse.ok) {
-      console.error('Gemini API error:', await embeddingResponse.text())
+      const errorText = await embeddingResponse.text();
+      console.error('Gemini API error:', embeddingResponse.status, errorText);
       return new Response(
         JSON.stringify({ error: 'Failed to generate embedding' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -80,33 +89,39 @@ serve(async (req) => {
 
     const embeddingData = await embeddingResponse.json()
     const queryEmbedding = embeddingData.embedding.values
+    console.log('Generated embedding with dimensions:', queryEmbedding.length);
 
-    // Build the query with optional destination filter
-    let rpcQuery = supabaseClient
+    // Use the search function with proper filtering
+    console.log('Calling search function...');
+    const { data: searchResults, error: searchError } = await supabaseClient
       .rpc('search_voice_interactions', {
         query_embedding: queryEmbedding,
-        match_threshold: 0.7,
-        match_count: 10,
+        match_threshold: 0.5, // Lower threshold for better recall
+        match_count: 20,
         user_id: user.id
       })
-
-    // Add destination filter if provided
-    if (destination) {
-      rpcQuery = rpcQuery.eq('destination', destination)
-    }
-
-    const { data: searchResults, error: searchError } = await rpcQuery
 
     if (searchError) {
       console.error('Search error:', searchError)
       return new Response(
-        JSON.stringify({ error: 'Search failed' }),
+        JSON.stringify({ error: 'Search failed: ' + searchError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
+    console.log('Search results count:', searchResults?.length || 0);
+
+    // Apply destination filter on the client side if needed
+    let filteredResults = searchResults || []
+    if (destination && destination !== '') {
+      filteredResults = filteredResults.filter(result => 
+        result.destination && result.destination.toLowerCase().includes(destination.toLowerCase())
+      )
+      console.log('Filtered results count:', filteredResults.length);
+    }
+
     return new Response(
-      JSON.stringify({ results: searchResults || [] }),
+      JSON.stringify({ results: filteredResults }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
