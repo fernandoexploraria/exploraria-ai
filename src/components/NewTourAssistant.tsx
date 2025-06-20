@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -97,7 +98,7 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
       agent: {
         prompt: {
           // Use the Gemini-generated system prompt if available, otherwise use fallback
-          geminiPrompt: systemPrompt || createFallbackTourPrompt()
+          prompt: systemPrompt || createFallbackTourPrompt()
         }
       }
     },
