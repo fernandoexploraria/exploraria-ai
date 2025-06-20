@@ -733,7 +733,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
               <Button
                 variant="ghost"
                 size="sm"
-                className={`h-8 w-8 p-0 ${isPlaying ? 'text-green-500' : 'text-white'}`}
+                className={`h-8 w-8 p-0 ${isPlaying ? 'text-green-500' : 'text-white'} hover:text-gray-300`}
                 onClick={handleTTSClick}
                 disabled={currentInteractions.length === 0}
               >
