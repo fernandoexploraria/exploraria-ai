@@ -296,7 +296,7 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
                 onClick={handleMainAction}
                 disabled={conversation.status === 'connecting' || assistantState === 'listening' || assistantState === 'recording'}
                 variant="ghost"
-                className="text-lg font-medium px-6 py-3 h-auto whitespace-normal text-center"
+                className="text-lg font-medium px-6 py-3 h-auto whitespace-normal text-center text-foreground hover:text-foreground"
               >
                 {conversation.status === 'connecting' ? (
                   <>
