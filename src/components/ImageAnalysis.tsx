@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -28,17 +28,31 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
   const [isResultOpen, setIsResultOpen] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const currentAudio = useRef<HTMLAudioElement | null>(null);
 
   // Don't render the button if there are no planned landmarks
   if (plannedLandmarks.length === 0) {
     return null;
   }
 
+  // Function to stop current audio playback
+  const stopCurrentAudio = () => {
+    if (currentAudio.current) {
+      currentAudio.current.pause();
+      currentAudio.current.currentTime = 0;
+      currentAudio.current = null;
+    }
+    setIsPlayingAudio(false);
+  };
+
   // Function to handle text-to-speech using Google Cloud TTS via edge function
   const handleTextToSpeech = async () => {
     if (!analysisResult || isPlayingAudio) {
       return;
     }
+
+    // Stop any currently playing audio
+    stopCurrentAudio();
 
     try {
       setIsPlayingAudio(true);
@@ -83,18 +97,23 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
         }
         
         const blob = new Blob([bytes], { type: 'audio/mp3' });
-        const audioUrl = URL.createObjectURL(blob);
+        const audioUrl = URL.createObjectURL(audioUrl);
         const audio = new Audio(audioUrl);
+        
+        // Store reference to current audio
+        currentAudio.current = audio;
         
         audio.onended = () => {
           console.log('Image analysis audio playback ended');
           URL.revokeObjectURL(audioUrl);
+          currentAudio.current = null;
           resolve();
         };
         
         audio.onerror = (error) => {
           console.error('Image analysis audio playback error:', error);
           URL.revokeObjectURL(audioUrl);
+          currentAudio.current = null;
           reject(error);
         };
         
@@ -103,6 +122,7 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
         }).catch(error => {
           console.error('Failed to play image analysis audio:', error);
           URL.revokeObjectURL(audioUrl);
+          currentAudio.current = null;
           reject(error);
         });
         
@@ -156,6 +176,8 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
   };
 
   const closeResult = () => {
+    // Stop any playing audio when dialog closes
+    stopCurrentAudio();
     setIsResultOpen(false);
     setAnalysisResult(null);
     setCapturedImage(null);
