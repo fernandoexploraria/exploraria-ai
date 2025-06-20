@@ -91,7 +91,7 @@ ${landmarkDetails}
 Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, and recommendations. Keep your responses conversational and engaging, suitable for audio narration. Answer questions about the landmarks, provide historical context, suggest best times to visit, and share insider tips.`;
   };
 
-  // Initialize the conversation with dynamic configuration
+  // Initialize the conversation with minimal configuration
   const conversation = useConversation({
     onConnect: () => {
       console.log('Connected to ElevenLabs agent');
@@ -121,14 +121,6 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
         variant: "destructive"
       });
       setAssistantState('not-started');
-    },
-    overrides: {
-      agent: {
-        prompt: {
-          prompt: systemPrompt || createFallbackTourPrompt()
-        },
-        language: "en"
-      }
     }
   });
 
