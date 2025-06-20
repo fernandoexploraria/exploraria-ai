@@ -50,20 +50,23 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Function to stop TTS playback
-  const stopTTSPlayback = () => {
-    if (isPlaying) {
-      setIsPlaying(false);
-      setPlayingCardIndex(null);
-      if (currentAudio) {
-        currentAudio.pause();
-        currentAudio.currentTime = 0;
-        setCurrentAudio(null);
-      }
-      if (speechSynthesis.speaking) {
-        speechSynthesis.cancel();
-      }
+  // Function to stop all TTS playback (including browser TTS)
+  const stopAllTTSPlayback = () => {
+    // Stop HTML5 audio
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      setCurrentAudio(null);
     }
+    
+    // Stop browser speech synthesis
+    if (speechSynthesis.speaking) {
+      speechSynthesis.cancel();
+    }
+    
+    // Reset state
+    setIsPlaying(false);
+    setPlayingCardIndex(null);
   };
 
   // Load all interactions on mount
@@ -83,7 +86,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
       const newSlide = carouselApi.selectedScrollSnap();
       if (newSlide !== currentSlide) {
         // Stop TTS when slide changes
-        stopTTSPlayback();
+        stopAllTTSPlayback();
         setCurrentSlide(newSlide);
       }
     };
@@ -120,7 +123,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
 
       // If there's horizontal movement above threshold, stop TTS
       if (diffX > swipeThreshold && diffX > diffY) {
-        stopTTSPlayback();
+        stopAllTTSPlayback();
       }
     };
 
@@ -138,13 +141,13 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
 
       // If there's horizontal movement above threshold, stop TTS
       if (diffX > swipeThreshold && diffX > diffY) {
-        stopTTSPlayback();
+        stopAllTTSPlayback();
       }
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-        stopTTSPlayback();
+        stopAllTTSPlayback();
       }
     };
 
@@ -348,11 +351,13 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
   };
 
-  // Handle TTS for the currently visible card
+  // Handle TTS for the currently visible card with global audio management
   const handleTTSClick = async () => {
-    if (isPlaying) {
-      // Stop current playback
-      stopTTSPlayback();
+    // Always stop any currently playing audio first
+    stopAllTTSPlayback();
+
+    // If we were already playing the current card, just stop (toggle behavior)
+    if (playingCardIndex === currentSlide && isPlaying) {
       return;
     }
 
