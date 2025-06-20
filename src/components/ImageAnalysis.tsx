@@ -180,16 +180,48 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
                 alt="Captured image" 
                 className="w-full h-48 object-cover rounded-lg"
               />
-              {/* TTS Button positioned in bottom right like marker preview */}
+              {/* TTS Button using exact same styling as map marker preview */}
               {analysisResult && (
-                <Button
+                <button 
                   onClick={handleTTS}
                   disabled={isPlaying}
-                  size="sm"
-                  className="absolute bottom-2 right-2 bg-white/90 hover:bg-white text-gray-800 shadow-lg"
+                  style={{
+                    position: 'absolute',
+                    bottom: '10px',
+                    right: '10px',
+                    background: 'rgba(0, 0, 0, 0.9)',
+                    color: 'white',
+                    border: '3px solid rgba(255, 255, 255, 0.9)',
+                    borderRadius: '50%',
+                    width: '56px',
+                    height: '56px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '24px',
+                    transition: 'all 0.3s ease',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+                    opacity: isPlaying ? '0.7' : '1'
+                  }}
+                  onMouseOver={(e) => {
+                    const target = e.target as HTMLButtonElement;
+                    target.style.backgroundColor = 'rgba(59, 130, 246, 0.95)';
+                    target.style.borderColor = 'white';
+                    target.style.transform = 'scale(1.15)';
+                    target.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.5)';
+                  }}
+                  onMouseOut={(e) => {
+                    const target = e.target as HTMLButtonElement;
+                    target.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+                    target.style.borderColor = 'rgba(255, 255, 255, 0.9)';
+                    target.style.transform = 'scale(1)';
+                    target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.4)';
+                  }}
+                  title="Listen to description"
                 >
-                  <Volume2 className={`h-4 w-4 ${isPlaying ? 'animate-pulse' : ''}`} />
-                </Button>
+                  🔊
+                </button>
               )}
             </div>
           )}
