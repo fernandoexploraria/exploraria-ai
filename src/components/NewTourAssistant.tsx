@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -91,6 +92,49 @@ ${landmarkDetails}
 Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, and recommendations. Keep your responses conversational and engaging, suitable for audio narration. Answer questions about the landmarks, provide historical context, suggest best times to visit, and share insider tips.`;
   };
 
+  // Function to initialize conversation with variables
+  const initializeConversationWithVariables = async () => {
+    if (!elevenLabsConfig) {
+      throw new Error('ElevenLabs configuration not available');
+    }
+
+    const promptToUse = systemPrompt || createFallbackTourPrompt();
+    
+    try {
+      console.log('Initializing conversation with variables...');
+      
+      // Call the ElevenLabs interact endpoint to set variables
+      const response = await fetch(`https://api.elevenlabs.io/v1/agents/${elevenLabsConfig.agentId}/interact`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'xi-api-key': elevenLabsConfig.apiKey,
+        },
+        body: JSON.stringify({
+          voice: "eleven_monica", // You can make this configurable later
+          text: `Hello! I'm your AI tour guide for ${destination}. I'm ready to help you explore and learn about the amazing landmarks you've planned to visit. What would you like to know?`,
+          variables: {
+            geminiGenerated: promptToUse
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('ElevenLabs interact API error:', response.status, errorText);
+        throw new Error(`Failed to initialize conversation: ${response.status}`);
+      }
+
+      const responseData = await response.json();
+      console.log('ElevenLabs interact API response:', responseData);
+      
+      return responseData;
+    } catch (error) {
+      console.error('Error calling ElevenLabs interact API:', error);
+      throw error;
+    }
+  };
+
   // Initialize the conversation with minimal configuration
   const conversation = useConversation({
     onConnect: () => {
@@ -156,6 +200,9 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
         
         // Request microphone permission first
         await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        // Initialize conversation with variables first
+        await initializeConversationWithVariables();
         
         // Start the conversation using the agent ID approach
         await conversation.startSession({ 
@@ -285,6 +332,11 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
           </DialogTitle>
           <DialogDescription className="text-center text-sm text-muted-foreground">
             Your AI-powered personal tour guide for {destination}
+            {systemPrompt && (
+              <div className="mt-2 text-xs text-green-600 font-medium">
+                ✨ Enhanced with AI-generated tour expertise
+              </div>
+            )}
           </DialogDescription>
         </DialogHeader>
         
