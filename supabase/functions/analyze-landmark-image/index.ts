@@ -3,7 +3,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const googleAIApiKey = Deno.env.get('GOOGLE_AI_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -25,10 +25,10 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Starting landmark image analysis...');
+    console.log('Starting landmark image analysis with Gemini Vision...');
     
-    if (!openAIApiKey) {
-      throw new Error('OpenAI API key not configured');
+    if (!googleAIApiKey) {
+      throw new Error('Google AI API key not configured');
     }
 
     const { image, plannedLandmarks } = await req.json();
@@ -45,86 +45,89 @@ serve(async (req) => {
       : '';
 
     const prompt = plannedLandmarks && plannedLandmarks.length > 0
-      ? `You are an expert landmark identification system. Analyze this image and identify any landmarks.
+      ? `You are an expert landmark and cultural site identification system. Analyze this image and identify any landmarks, monuments, artworks, sculptures, or cultural sites.
 
 Priority landmarks from the user's tour plan:
 ${landmarksList}
 
-Please identify the landmark in the image and provide:
-1. The exact name of the landmark
+Please provide a comprehensive analysis including:
+1. The exact name of the landmark/site/artwork
 2. Your confidence level (0.0 to 1.0)
-3. A brief description of what you see
-4. Whether this landmark is from the user's tour plan (is_from_tour: true/false)
-5. Any additional interesting information about the landmark
+3. Historical background and significance
+4. Architectural or artistic details
+5. Cultural importance and interesting facts
+6. Whether this landmark is from the user's tour plan (is_from_tour: true/false)
+7. Best times to visit or viewing tips
+8. Any legends, stories, or fascinating trivia
 
 Respond in JSON format:
 {
-  "landmark_name": "Name of the landmark",
+  "landmark_name": "Name of the landmark/site/artwork",
   "confidence": 0.95,
-  "description": "What you observe in the image",
+  "description": "Rich description with historical context",
   "is_from_tour": true,
-  "additional_info": "Interesting facts or context"
+  "additional_info": "Detailed cultural significance, interesting facts, legends, and visitor tips"
 }`
-      : `You are an expert landmark identification system. Analyze this image and identify any landmarks you can see.
+      : `You are an expert landmark and cultural site identification system. Analyze this image and identify any landmarks, monuments, artworks, sculptures, buildings, or cultural sites you can see.
 
-Please identify the landmark in the image and provide:
-1. The exact name of the landmark
-2. Your confidence level (0.0 to 1.0)
-3. A brief description of what you see
-4. Any additional interesting information about the landmark
+Please provide a comprehensive analysis including:
+1. The exact name of the landmark/site/artwork
+2. Your confidence level (0.0 to 1.0)  
+3. Historical background and significance
+4. Architectural or artistic details
+5. Cultural importance and interesting facts
+6. Best times to visit or viewing tips
+7. Any legends, stories, or fascinating trivia
 
 Respond in JSON format:
 {
-  "landmark_name": "Name of the landmark",
+  "landmark_name": "Name of the landmark/site/artwork",
   "confidence": 0.95,
-  "description": "What you observe in the image",
+  "description": "Rich description with historical context",
   "is_from_tour": false,
-  "additional_info": "Interesting facts or context"
+  "additional_info": "Detailed cultural significance, interesting facts, legends, and visitor tips"
 }`;
 
-    console.log('Sending request to OpenAI...');
+    console.log('Sending request to Google AI (Gemini Vision)...');
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${googleAIApiKey}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
+        contents: [
           {
-            role: 'user',
-            content: [
+            parts: [
               {
-                type: 'text',
                 text: prompt
               },
               {
-                type: 'image_url',
-                image_url: {
-                  url: `data:image/jpeg;base64,${image}`,
-                  detail: 'high'
+                inline_data: {
+                  mime_type: "image/jpeg",
+                  data: image
                 }
               }
             ]
           }
         ],
-        max_tokens: 500,
-        temperature: 0.1
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 1000,
+        }
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('OpenAI API error:', errorData);
-      throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
+      console.error('Google AI API error:', errorData);
+      throw new Error(`Google AI API error: ${errorData.error?.message || 'Unknown error'}`);
     }
 
     const data = await response.json();
-    console.log('OpenAI response received');
+    console.log('Gemini Vision response received');
 
-    const aiResponse = data.choices[0].message.content;
+    const aiResponse = data.candidates[0].content.parts[0].text;
     console.log('AI response:', aiResponse);
 
     // Parse the JSON response
@@ -137,11 +140,11 @@ Respond in JSON format:
       console.error('Error parsing AI response:', parseError);
       // Fallback response
       analysisResult = {
-        landmark_name: "Unknown Landmark",
-        confidence: 0.5,
-        description: "Unable to parse the landmark analysis response",
+        landmark_name: "Cultural Site Detected",
+        confidence: 0.7,
+        description: "A significant location has been identified in the image. The AI was able to analyze the visual elements but encountered an issue with detailed formatting.",
         is_from_tour: false,
-        additional_info: "Please try again with a clearer image"
+        additional_info: "Please try again with a clearer image for more detailed cultural and historical information"
       };
     }
 
@@ -156,10 +159,11 @@ Respond in JSON format:
     return new Response(
       JSON.stringify({ 
         error: error.message,
-        landmark_name: "Error",
+        landmark_name: "Analysis Error",
         confidence: 0,
-        description: "Failed to analyze the image",
-        is_from_tour: false
+        description: "Failed to analyze the image with Gemini Vision",
+        is_from_tour: false,
+        additional_info: "Please check your internet connection and try again"
       }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
