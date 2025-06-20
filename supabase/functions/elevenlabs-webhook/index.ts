@@ -74,36 +74,52 @@ serve(async (req) => {
     const webhookData = JSON.parse(rawBody);
     console.log('Webhook payload:', JSON.stringify(webhookData, null, 2));
 
+    // Handle different webhook types
+    if (webhookData.type !== 'post_call_transcription') {
+      console.log(`Ignoring webhook type: ${webhookData.type}`);
+      return new Response(
+        JSON.stringify({ message: 'Webhook type not handled' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     // Initialize Supabase client with service role key for webhook access
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Extract relevant data from webhook payload
+    // Extract data from the nested structure that ElevenLabs actually sends
     const {
+      agent_id,
       conversation_id,
       transcript,
-      duration_seconds,
-      audio_url,
-      agent_id,
-      variables // This contains custom variables like destination, user_id
-    } = webhookData
+      metadata
+    } = webhookData.data || {};
 
     if (!conversation_id || !transcript) {
-      console.error('Missing required webhook data');
+      console.error('Missing required webhook data - conversation_id or transcript not found');
+      console.log('Available data keys:', Object.keys(webhookData.data || {}));
       return new Response(
         JSON.stringify({ error: 'Missing conversation_id or transcript' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // Extract user_id and destination from variables
-    const userId = variables?.user_id
-    const destination = variables?.destination || 'Unknown'
+    // Extract duration and other metadata
+    const duration_seconds = metadata?.call_duration_secs || 0;
+    const audio_url = null; // ElevenLabs doesn't provide audio URL in this webhook
+
+    // Extract variables from the webhook data (these should contain user_id and destination)
+    // Note: Variables might be in different locations depending on ElevenLabs setup
+    const variables = webhookData.variables || webhookData.data?.variables || {};
+    
+    const userId = variables?.user_id;
+    const destination = variables?.destination || 'Unknown';
 
     if (!userId) {
-      console.error('No user_id in webhook variables');
+      console.error('No user_id found in webhook variables');
+      console.log('Available variables:', JSON.stringify(variables, null, 2));
       return new Response(
         JSON.stringify({ error: 'Missing user_id in variables' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -120,10 +136,10 @@ serve(async (req) => {
       const assistantMessages = []
 
       transcript.forEach(entry => {
-        if (entry.role === 'user' && entry.content) {
-          userMessages.push(entry.content)
-        } else if (entry.role === 'assistant' && entry.content) {
-          assistantMessages.push(entry.content)
+        if (entry.role === 'user' && entry.message) {
+          userMessages.push(entry.message)
+        } else if ((entry.role === 'assistant' || entry.role === 'agent') && entry.message) {
+          assistantMessages.push(entry.message)
         }
       })
 
@@ -134,6 +150,7 @@ serve(async (req) => {
     // Skip if no meaningful content
     if (!userInput.trim() || !assistantResponse.trim()) {
       console.log('No meaningful conversation content, skipping storage');
+      console.log('User input length:', userInput.length, 'Assistant response length:', assistantResponse.length);
       return new Response(
         JSON.stringify({ message: 'No meaningful content to store' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
