@@ -193,20 +193,18 @@ export class OpenAIRealtimeChat {
       this.audioContext = new AudioContext({ sampleRate: 24000 });
       this.audioQueue = new AudioQueue(this.audioContext);
       
-      // Use the correct WebSocket URL for Supabase Edge Functions
       const wsUrl = 'wss://ejqgdmbuabrcjxbhpxup.functions.supabase.co/functions/v1/openai-realtime';
       console.log('Connecting to WebSocket:', wsUrl);
       
       this.ws = new WebSocket(wsUrl);
 
-      // Add timeout for connection
       const connectionTimeout = setTimeout(() => {
         console.error('WebSocket connection timeout');
         if (this.ws && this.ws.readyState !== WebSocket.OPEN) {
           this.ws.close();
           throw new Error('Connection timeout');
         }
-      }, 10000); // 10 second timeout
+      }, 10000);
 
       this.ws.onopen = () => {
         console.log('WebSocket connected successfully');
@@ -259,7 +257,6 @@ export class OpenAIRealtimeChat {
         this.onConnectionChange(false);
       };
 
-      // Wait for connection to be established
       await new Promise((resolve, reject) => {
         const checkConnection = () => {
           if (this.ws?.readyState === WebSocket.OPEN) {
@@ -279,6 +276,32 @@ export class OpenAIRealtimeChat {
     }
   }
 
+  private sendWebSocketMessage(message: any) {
+    if (!this.ws) {
+      console.error('WebSocket is null, cannot send message');
+      return false;
+    }
+
+    if (this.ws.readyState !== WebSocket.OPEN) {
+      console.error(`WebSocket is not open. ReadyState: ${this.ws.readyState}`, {
+        CONNECTING: WebSocket.CONNECTING,
+        OPEN: WebSocket.OPEN,
+        CLOSING: WebSocket.CLOSING,
+        CLOSED: WebSocket.CLOSED
+      });
+      return false;
+    }
+
+    try {
+      this.ws.send(JSON.stringify(message));
+      console.log('Sent WebSocket message:', message.type);
+      return true;
+    } catch (error) {
+      console.error('Error sending WebSocket message:', error);
+      return false;
+    }
+  }
+
   async startListening() {
     if (!this.isConnected || this.isListening) {
       console.log('Cannot start listening - not connected or already listening');
@@ -289,13 +312,10 @@ export class OpenAIRealtimeChat {
       console.log('Starting to listen...');
       
       this.audioRecorder = new AudioRecorder((audioData) => {
-        if (this.ws?.readyState === WebSocket.OPEN) {
-          const encodedAudio = encodeAudioForAPI(audioData);
-          this.ws.send(JSON.stringify({
-            type: 'input_audio_buffer.append',
-            audio: encodedAudio
-          }));
-        }
+        this.sendWebSocketMessage({
+          type: 'input_audio_buffer.append',
+          audio: encodeAudioForAPI(audioData)
+        });
       });
 
       await this.audioRecorder.start();
@@ -344,9 +364,13 @@ export class OpenAIRealtimeChat {
       }
     };
 
-    this.ws?.send(JSON.stringify(greetingEvent));
-    this.ws?.send(JSON.stringify({ type: 'response.create' }));
-    console.log('Initial greeting sent');
+    const greetingSent = this.sendWebSocketMessage(greetingEvent);
+    if (greetingSent) {
+      this.sendWebSocketMessage({ type: 'response.create' });
+      console.log('Initial greeting sent');
+    } else {
+      console.log('Failed to send initial greeting - WebSocket not ready');
+    }
   }
 
   disconnect() {
@@ -357,7 +381,9 @@ export class OpenAIRealtimeChat {
   private cleanup() {
     this.stopListening();
     if (this.ws) {
-      this.ws.close();
+      if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
+        this.ws.close();
+      }
       this.ws = null;
     }
     if (this.audioContext) {
