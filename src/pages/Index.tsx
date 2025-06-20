@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import Map from '@/components/Map';
 import SplashScreen from '@/components/SplashScreen';
@@ -25,10 +24,9 @@ const Index: React.FC = () => {
   const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [isNewTourAssistantOpen, setIsNewTourAssistantOpen] = useState(false);
-  const [currentDestination, setCurrentDestination] = useState<string>('');
   const [pendingDestination, setPendingDestination] = useState<string>('');
   const [additionalLandmarks, setAdditionalLandmarks] = useState<Landmark[]>([]);
-  const { plannedLandmarks, isLoading: isTourLoading, generateTour } = useTourPlanner();
+  const { tourPlan, plannedLandmarks, isLoading: isTourLoading, generateTour } = useTourPlanner();
   const { user, signOut } = useAuth();
   
   const allLandmarks = useMemo(() => {
@@ -59,7 +57,6 @@ const Index: React.FC = () => {
   }, []);
 
   const handleGenerateTour = async (destination: string) => {
-    setCurrentDestination(destination);
     await generateTour(destination);
     
     // Close tour planner and show new tour assistant after tour is generated
@@ -165,7 +162,7 @@ const Index: React.FC = () => {
         isTourLoading={isTourLoading}
         isVoiceAssistantOpen={isVoiceAssistantOpen}
         onVoiceAssistantOpenChange={setIsVoiceAssistantOpen}
-        currentDestination={currentDestination}
+        currentDestination={tourPlan?.destination || ''}
         plannedLandmarks={plannedLandmarks}
         isVoiceSearchOpen={isVoiceSearchOpen}
         onVoiceSearchOpenChange={setIsVoiceSearchOpen}
@@ -179,8 +176,9 @@ const Index: React.FC = () => {
       <NewTourAssistant
         open={isNewTourAssistantOpen}
         onOpenChange={setIsNewTourAssistantOpen}
-        destination={currentDestination}
+        destination={tourPlan?.destination || ''}
         landmarks={plannedLandmarks}
+        systemPrompt={tourPlan?.systemPrompt}
       />
     </div>
   );

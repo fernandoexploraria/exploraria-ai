@@ -12,13 +12,15 @@ interface NewTourAssistantProps {
   onOpenChange: (open: boolean) => void;
   destination: string;
   landmarks: Landmark[];
+  systemPrompt?: string;
 }
 
 const NewTourAssistant: React.FC<NewTourAssistantProps> = ({ 
   open, 
   onOpenChange, 
   destination, 
-  landmarks 
+  landmarks,
+  systemPrompt 
 }) => {
   const { toast } = useToast();
   const [elevenLabsConfig, setElevenLabsConfig] = useState<{apiKey: string, agentId: string} | null>(null);
@@ -75,8 +77,8 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     }
   }, [open, toast]);
 
-  // Create dynamic prompt based on tour data
-  const createTourPrompt = () => {
+  // Create dynamic prompt based on tour data (fallback if no systemPrompt provided)
+  const createFallbackTourPrompt = () => {
     const landmarkList = landmarks.map(l => l.name).join(', ');
     const landmarkDetails = landmarks.map(l => `${l.name}: ${l.description}`).join('\n');
     
@@ -122,7 +124,7 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
     overrides: {
       agent: {
         prompt: {
-          prompt: createTourPrompt()
+          prompt: systemPrompt || createFallbackTourPrompt()
         },
         firstMessage: firstMessage,
         language: "en"
