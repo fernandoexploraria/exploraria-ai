@@ -29,8 +29,8 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
-  const [currentUserInput, setCurrentUserInput] = useState<string>('');
-  const [currentAssistantResponse, setCurrentAssistantResponse] = useState<string>('');
+  const [pendingUserInput, setPendingUserInput] = useState<string>('');
+  const [pendingAssistantResponse, setPendingAssistantResponse] = useState<string>('');
 
   // Store voice interaction in database
   const storeVoiceInteraction = async (userInput: string, assistantResponse: string) => {
@@ -40,7 +40,11 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     }
 
     try {
-      console.log('Storing voice interaction...', { userInput: userInput.substring(0, 50), assistantResponse: assistantResponse.substring(0, 50) });
+      console.log('Storing voice interaction...', { 
+        userInput: userInput.substring(0, 50) + '...', 
+        assistantResponse: assistantResponse.substring(0, 50) + '...',
+        destination 
+      });
       
       const { error } = await supabase.functions.invoke('store-voice-interaction', {
         body: {
@@ -78,29 +82,20 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         (listening) => {
           console.log('Listening status changed:', listening);
           setIsListening(listening);
-          if (listening) {
-            // Reset current input when starting to listen
-            setCurrentUserInput('');
-          }
         },
         (speaking) => {
           console.log('Speaking status changed:', speaking);
           setIsSpeaking(speaking);
-          if (!speaking && currentUserInput && currentAssistantResponse) {
-            // Store interaction when assistant finishes speaking
-            storeVoiceInteraction(currentUserInput, currentAssistantResponse);
-            setCurrentUserInput('');
-            setCurrentAssistantResponse('');
-          }
         },
-        // Add callbacks for capturing user input and assistant responses
+        // Callback for capturing user input
         (userText) => {
           console.log('User input captured:', userText);
-          setCurrentUserInput(userText);
+          setPendingUserInput(userText);
         },
+        // Callback for capturing assistant responses
         (assistantText) => {
           console.log('Assistant response captured:', assistantText);
-          setCurrentAssistantResponse(assistantText);
+          setPendingAssistantResponse(assistantText);
         }
       );
       
@@ -127,23 +122,34 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     }
   }, [open, realtimeChat, toast, destination, user]);
 
+  // Store interaction when both user input and assistant response are available
+  useEffect(() => {
+    if (pendingUserInput && pendingAssistantResponse) {
+      console.log('Both user input and assistant response available, storing interaction...');
+      storeVoiceInteraction(pendingUserInput, pendingAssistantResponse);
+      // Clear pending data after storing
+      setPendingUserInput('');
+      setPendingAssistantResponse('');
+    }
+  }, [pendingUserInput, pendingAssistantResponse]);
+
   // Cleanup when dialog closes
   useEffect(() => {
     if (!open && realtimeChat) {
       console.log('Dialog closed, cleaning up connection...');
       // Store any pending interaction before cleanup
-      if (currentUserInput && currentAssistantResponse) {
-        storeVoiceInteraction(currentUserInput, currentAssistantResponse);
+      if (pendingUserInput && pendingAssistantResponse) {
+        storeVoiceInteraction(pendingUserInput, pendingAssistantResponse);
       }
       realtimeChat.disconnect();
       setRealtimeChat(null);
       setIsConnected(false);
       setIsListening(false);
       setIsSpeaking(false);
-      setCurrentUserInput('');
-      setCurrentAssistantResponse('');
+      setPendingUserInput('');
+      setPendingAssistantResponse('');
     }
-  }, [open, realtimeChat, currentUserInput, currentAssistantResponse]);
+  }, [open, realtimeChat, pendingUserInput, pendingAssistantResponse]);
 
   const handleMicClick = async () => {
     console.log('Mic button clicked, current states:', { isConnected, isListening, isSpeaking });

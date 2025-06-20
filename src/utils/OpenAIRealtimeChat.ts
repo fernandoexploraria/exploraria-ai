@@ -1,4 +1,3 @@
-
 export class AudioRecorder {
   private stream: MediaStream | null = null;
   private audioContext: AudioContext | null = null;
@@ -181,6 +180,8 @@ export class OpenAIRealtimeChat {
   private isListening = false;
   private currentUserInput = '';
   private currentAssistantResponse = '';
+  private accumulatedUserInput = '';
+  private accumulatedAssistantResponse = '';
 
   constructor(
     private onConnectionChange: (connected: boolean) => void,
@@ -236,31 +237,37 @@ export class OpenAIRealtimeChat {
           } else if (data.type === 'response.audio.done') {
             console.log('Audio response completed');
             this.onSpeakingChange(false);
-            // Trigger callback with current assistant response
-            if (this.currentAssistantResponse && this.onAssistantResponse) {
-              this.onAssistantResponse(this.currentAssistantResponse);
-            }
+            // Store the interaction when audio finishes
+            this.storeCurrentInteraction();
           } else if (data.type === 'conversation.item.input_audio_transcription.completed') {
-            // Capture user input transcription
+            // Capture complete user input transcription
             if (data.transcript) {
-              console.log('User input transcribed:', data.transcript);
-              this.currentUserInput = data.transcript;
+              console.log('Complete user input transcribed:', data.transcript);
+              this.accumulatedUserInput = data.transcript;
               if (this.onUserInput) {
                 this.onUserInput(data.transcript);
               }
             }
+          } else if (data.type === 'response.output_item.added') {
+            // New response item started - reset assistant response
+            this.accumulatedAssistantResponse = '';
+          } else if (data.type === 'response.content_part.added') {
+            // Content part added (could be text or audio)
+            if (data.part?.type === 'text') {
+              this.accumulatedAssistantResponse = data.part.text || '';
+            }
           } else if (data.type === 'response.text.delta') {
-            // Capture assistant text response
+            // Accumulate assistant text response
             if (data.delta) {
-              this.currentAssistantResponse += data.delta;
+              this.accumulatedAssistantResponse += data.delta;
+              console.log('Accumulated assistant response:', this.accumulatedAssistantResponse.length, 'chars');
             }
           } else if (data.type === 'response.text.done') {
             // Assistant text response completed
-            console.log('Assistant text response completed:', this.currentAssistantResponse);
-          } else if (data.type === 'response.done') {
-            // Reset for next interaction
-            this.currentUserInput = '';
-            this.currentAssistantResponse = '';
+            console.log('Complete assistant text response:', this.accumulatedAssistantResponse);
+            if (this.onAssistantResponse) {
+              this.onAssistantResponse(this.accumulatedAssistantResponse);
+            }
           } else if (data.type === 'error') {
             console.error('OpenAI API error:', data);
           } else if (data.type === 'session.created') {
@@ -302,6 +309,26 @@ export class OpenAIRealtimeChat {
     } catch (error) {
       console.error('Error connecting to OpenAI Realtime API:', error);
       throw error;
+    }
+  }
+
+  private storeCurrentInteraction() {
+    if (this.accumulatedUserInput && this.accumulatedAssistantResponse) {
+      console.log('Storing interaction:', {
+        userInput: this.accumulatedUserInput.substring(0, 50) + '...',
+        assistantResponse: this.accumulatedAssistantResponse.substring(0, 50) + '...'
+      });
+      
+      if (this.onUserInput) {
+        this.onUserInput(this.accumulatedUserInput);
+      }
+      if (this.onAssistantResponse) {
+        this.onAssistantResponse(this.accumulatedAssistantResponse);
+      }
+      
+      // Reset for next interaction
+      this.accumulatedUserInput = '';
+      this.accumulatedAssistantResponse = '';
     }
   }
 
@@ -404,6 +431,8 @@ export class OpenAIRealtimeChat {
 
   disconnect() {
     console.log('Disconnecting from OpenAI Realtime API...');
+    // Store any pending interaction before cleanup
+    this.storeCurrentInteraction();
     this.cleanup();
   }
 
