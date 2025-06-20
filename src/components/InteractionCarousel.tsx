@@ -44,7 +44,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
-  const [isPlayingTTS, setIsPlayingTTS] = useState(false);
+  const [playingInteractionId, setPlayingInteractionId] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -87,7 +87,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
       speechSynthesis.cancel();
     }
     
-    setIsPlayingTTS(false);
+    setPlayingInteractionId(null);
   };
 
   const loadAllInteractions = async () => {
@@ -272,15 +272,18 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
   };
 
-  const handleTTSClick = async (text: string, isVoiceTranscript = false) => {
+  const handleTTSClick = async (text: string, interactionId: string, isVoiceTranscript = false) => {
     try {
-      // If audio is currently playing, stop it
-      if (isPlayingTTS) {
+      // If this interaction is currently playing, stop it
+      if (playingInteractionId === interactionId) {
         stopCurrentAudio();
         return;
       }
 
-      setIsPlayingTTS(true);
+      // Stop any currently playing audio first
+      stopCurrentAudio();
+
+      setPlayingInteractionId(interactionId);
 
       if (isVoiceTranscript) {
         // For voice transcripts, create a memory-style narration using Gemini + Google TTS
@@ -293,7 +296,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
 
         if (error) {
           console.error('Memory TTS error:', error);
-          setIsPlayingTTS(false);
+          setPlayingInteractionId(null);
           toast({
             title: "Audio generation failed",
             description: "Could not generate memory narration.",
@@ -310,13 +313,13 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
           
           audio.onended = () => {
             setCurrentAudio(null);
-            setIsPlayingTTS(false);
+            setPlayingInteractionId(null);
             URL.revokeObjectURL(audioUrl);
           };
           
           audio.onerror = () => {
             setCurrentAudio(null);
-            setIsPlayingTTS(false);
+            setPlayingInteractionId(null);
             URL.revokeObjectURL(audioUrl);
           };
           
@@ -325,11 +328,11 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
         } else if (data.fallbackToBrowser && data.enhancedText) {
           // Use browser TTS with the enhanced memory text
           const utterance = new SpeechSynthesisUtterance(data.enhancedText);
-          utterance.onend = () => setIsPlayingTTS(false);
-          utterance.onerror = () => setIsPlayingTTS(false);
+          utterance.onend = () => setPlayingInteractionId(null);
+          utterance.onerror = () => setPlayingInteractionId(null);
           speechSynthesis.speak(utterance);
         } else {
-          setIsPlayingTTS(false);
+          setPlayingInteractionId(null);
         }
         return;
       }
@@ -341,7 +344,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
 
       if (error) {
         console.error('TTS error:', error);
-        setIsPlayingTTS(false);
+        setPlayingInteractionId(null);
         toast({
           title: "Audio generation failed",
           description: "Could not generate audio for this text.",
@@ -358,13 +361,13 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
         
         audio.onended = () => {
           setCurrentAudio(null);
-          setIsPlayingTTS(false);
+          setPlayingInteractionId(null);
           URL.revokeObjectURL(audioUrl);
         };
         
         audio.onerror = () => {
           setCurrentAudio(null);
-          setIsPlayingTTS(false);
+          setPlayingInteractionId(null);
           URL.revokeObjectURL(audioUrl);
         };
         
@@ -373,15 +376,15 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
       } else if (data.fallbackToBrowser && data.enhancedText) {
         // Use browser TTS as fallback
         const utterance = new SpeechSynthesisUtterance(data.enhancedText);
-        utterance.onend = () => setIsPlayingTTS(false);
-        utterance.onerror = () => setIsPlayingTTS(false);
+        utterance.onend = () => setPlayingInteractionId(null);
+        utterance.onerror = () => setPlayingInteractionId(null);
         speechSynthesis.speak(utterance);
       } else {
-        setIsPlayingTTS(false);
+        setPlayingInteractionId(null);
       }
     } catch (error) {
       console.error('TTS error:', error);
-      setIsPlayingTTS(false);
+      setPlayingInteractionId(null);
       toast({
         title: "Audio generation failed",
         description: "Could not generate audio for this text.",
@@ -437,6 +440,8 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
       }
     };
     
+    const isPlaying = playingInteractionId === interaction.id;
+    
     return (
       <Card className="w-full max-w-xs mx-auto bg-gray-900 border-gray-700 h-96">
         <CardContent className="p-3 h-full flex flex-col">
@@ -466,8 +471,8 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
               <Button
                 variant="ghost"
                 size="sm"
-                className={`h-6 w-6 p-0 ${isPlayingTTS ? 'text-green-500' : ''}`}
-                onClick={() => handleTTSClick(createTranscriptText(), true)}
+                className={`h-6 w-6 p-0 ${isPlaying ? 'text-green-500' : ''}`}
+                onClick={() => handleTTSClick(createTranscriptText(), interaction.id, true)}
               >
                 <Volume2 className="w-3 h-3" />
               </Button>
@@ -552,6 +557,8 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
       iconColor = 'text-purple-400';
     }
     
+    const isPlaying = playingInteractionId === interaction.id;
+    
     return (
       <Card className="w-full max-w-xs mx-auto bg-gray-900 border-gray-700 h-96">
         <CardContent className="p-3 h-full flex flex-col">
@@ -581,8 +588,8 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
               <Button
                 variant="ghost"
                 size="sm"
-                className={`h-6 w-6 p-0 ${isPlayingTTS ? 'text-green-500' : ''}`}
-                onClick={() => handleTTSClick(interaction.assistant_response, false)}
+                className={`h-6 w-6 p-0 ${isPlaying ? 'text-green-500' : ''}`}
+                onClick={() => handleTTSClick(interaction.assistant_response, interaction.id, false)}
               >
                 <Volume2 className="w-3 h-3" />
               </Button>
