@@ -9,7 +9,6 @@ import { Search, Star, StarOff, Calendar, MapPin, Volume2, ArrowLeft, Camera, Mi
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from './AuthProvider';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Interaction {
   id: string;
@@ -49,7 +48,6 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   
   const { toast } = useToast();
   const { user } = useAuth();
-  const isMobile = useIsMobile();
 
   // Function to stop TTS playback
   const stopTTSPlayback = () => {
@@ -348,7 +346,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
   };
 
-  // Handle TTS for the appropriate card based on device type
+  // Handle TTS for the currently visible card
   const handleTTSClick = async () => {
     if (isPlaying) {
       // Stop current playback
@@ -357,25 +355,16 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
 
     const currentInteractions = showingSearchResults ? searchResults : interactions;
+    const currentInteraction = currentInteractions[currentSlide];
     
-    // Determine which card to play based on device type
-    let targetInteraction;
-    if (isMobile) {
-      // Mobile: play the centered/current slide
-      targetInteraction = currentInteractions[currentSlide];
-    } else {
-      // Desktop: play the leftmost visible card (index 0)
-      targetInteraction = currentInteractions[0];
-    }
-    
-    if (!targetInteraction) return;
+    if (!currentInteraction) return;
 
     setIsPlaying(true);
 
     try {
-      if (targetInteraction.interaction_type === 'voice' && targetInteraction.full_transcript) {
+      if (currentInteraction.interaction_type === 'voice' && currentInteraction.full_transcript) {
         // For voice transcripts, create a memory-style narration using Gemini + Google TTS
-        const transcript = targetInteraction.full_transcript;
+        const transcript = currentInteraction.full_transcript;
         let transcriptText = '';
         
         if (transcript && Array.isArray(transcript)) {
@@ -389,7 +378,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
             })
             .join('. ');
         } else {
-          transcriptText = `User: ${targetInteraction.user_input}. Assistant: ${targetInteraction.assistant_response}`;
+          transcriptText = `User: ${currentInteraction.user_input}. Assistant: ${currentInteraction.assistant_response}`;
         }
 
         const { data, error } = await supabase.functions.invoke('gemini-tts', {
@@ -441,7 +430,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
       } else {
         // For non-voice interactions, use the enhanced TTS
         const { data, error } = await supabase.functions.invoke('gemini-tts', {
-          body: { text: targetInteraction.assistant_response }
+          body: { text: currentInteraction.assistant_response }
         });
 
         if (error) {
@@ -773,118 +762,66 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
           <div className="text-white">Loading your interactions...</div>
         ) : currentInteractions.length > 0 ? (
           <div className="w-full max-w-6xl flex flex-col items-center">
-            <div className="relative w-full">
-              <Carousel 
-                className="w-full"
-                setApi={setCarouselApi}
-                opts={{
-                  align: "center",
-                  loop: false,
-                }}
-              >
-                <CarouselContent className="-ml-2 md:-ml-4">
-                  {currentInteractions.map((interaction) => (
-                    <CarouselItem key={interaction.id} className="pl-2 md:pl-4 basis-4/5 md:basis-3/5 lg:basis-2/5">
-                      {renderInteraction(interaction)}
-                    </CarouselItem>
+            <Carousel 
+              className="w-full"
+              setApi={setCarouselApi}
+              opts={{
+                align: "center",
+                loop: false,
+              }}
+            >
+              <CarouselContent className="-ml-2 md:-ml-4">
+                {currentInteractions.map((interaction) => (
+                  <CarouselItem key={interaction.id} className="pl-2 md:pl-4 basis-4/5 md:basis-3/5 lg:basis-2/5">
+                    {renderInteraction(interaction)}
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious className="hidden md:flex" />
+              <CarouselNext className="hidden md:flex" />
+            </Carousel>
+            
+            {/* Pagination Dots with TTS Control */}
+            <div className="flex items-center gap-4 mt-6">
+              {currentInteractions.length > 1 && (
+                <div className="flex items-center gap-2">
+                  {currentInteractions.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => scrollToSlide(index)}
+                      className={`w-2 h-2 rounded-full transition-all duration-200 ${
+                        index === currentSlide
+                          ? 'bg-white scale-125'
+                          : 'bg-gray-500 hover:bg-gray-400'
+                      }`}
+                      aria-label={`Go to slide ${index + 1}`}
+                    />
                   ))}
-                </CarouselContent>
-                <CarouselPrevious className="hidden md:flex" />
-                <CarouselNext className="hidden md:flex" />
-              </Carousel>
-              
-              {/* Desktop-only TTS control positioned below left arrow */}
-              {!isMobile && currentInteractions.length > 0 && (
-                <div className="absolute left-0 top-full mt-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={`h-8 w-8 p-0 border-none bg-transparent hover:bg-transparent focus:bg-transparent active:bg-transparent ${
-                      isPlaying ? 'text-green-500' : 'text-white'
-                    }`}
-                    onClick={handleTTSClick}
-                    title="Play audio for leftmost card"
-                  >
-                    <Volume2 className={`w-4 h-4 ${isPlaying ? 'text-green-500' : 'text-white'}`} />
-                  </Button>
+                  <span className="text-xs text-gray-400 ml-2">
+                    {currentSlide + 1} of {currentInteractions.length}
+                  </span>
                 </div>
               )}
+              
+              {currentInteractions.length === 1 && (
+                <span className="text-xs text-gray-400">
+                  1 of 1
+                </span>
+              )}
+              
+              {/* TTS Control - Fixed styling for mobile */}
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`h-8 w-8 p-0 border-none bg-transparent hover:bg-transparent focus:bg-transparent active:bg-transparent ${
+                  isPlaying ? 'text-green-500' : 'text-white'
+                }`}
+                onClick={handleTTSClick}
+                disabled={currentInteractions.length === 0}
+              >
+                <Volume2 className={`w-4 h-4 ${isPlaying ? 'text-green-500' : 'text-white'}`} />
+              </Button>
             </div>
-            
-            {/* Mobile pagination with TTS control */}
-            {isMobile && (
-              <div className="flex items-center gap-4 mt-6">
-                {currentInteractions.length > 1 && (
-                  <div className="flex items-center gap-2">
-                    {currentInteractions.map((_, index) => (
-                      <button
-                        key={index}
-                        onClick={() => scrollToSlide(index)}
-                        className={`w-2 h-2 rounded-full transition-all duration-200 ${
-                          index === currentSlide
-                            ? 'bg-white scale-125'
-                            : 'bg-gray-500 hover:bg-gray-400'
-                        }`}
-                        aria-label={`Go to slide ${index + 1}`}
-                      />
-                    ))}
-                    <span className="text-xs text-gray-400 ml-2">
-                      {currentSlide + 1} of {currentInteractions.length}
-                    </span>
-                  </div>
-                )}
-                
-                {currentInteractions.length === 1 && (
-                  <span className="text-xs text-gray-400">
-                    1 of 1
-                  </span>
-                )}
-                
-                {/* Mobile TTS Control */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={`h-8 w-8 p-0 border-none bg-transparent hover:bg-transparent focus:bg-transparent active:bg-transparent ${
-                    isPlaying ? 'text-green-500' : 'text-white'
-                  }`}
-                  onClick={handleTTSClick}
-                  disabled={currentInteractions.length === 0}
-                >
-                  <Volume2 className={`w-4 h-4 ${isPlaying ? 'text-green-500' : 'text-white'}`} />
-                </Button>
-              </div>
-            )}
-
-            {/* Desktop pagination without TTS control */}
-            {!isMobile && (
-              <div className="flex items-center gap-4 mt-6">
-                {currentInteractions.length > 1 && (
-                  <div className="flex items-center gap-2">
-                    {currentInteractions.map((_, index) => (
-                      <button
-                        key={index}
-                        onClick={() => scrollToSlide(index)}
-                        className={`w-2 h-2 rounded-full transition-all duration-200 ${
-                          index === currentSlide
-                            ? 'bg-white scale-125'
-                            : 'bg-gray-500 hover:bg-gray-400'
-                        }`}
-                        aria-label={`Go to slide ${index + 1}`}
-                      />
-                    ))}
-                    <span className="text-xs text-gray-400 ml-2">
-                      {currentSlide + 1} of {currentInteractions.length}
-                    </span>
-                  </div>
-                )}
-                
-                {currentInteractions.length === 1 && (
-                  <span className="text-xs text-gray-400">
-                    1 of 1
-                  </span>
-                )}
-              </div>
-            )}
           </div>
         ) : (
           <div className="text-center text-gray-400">
