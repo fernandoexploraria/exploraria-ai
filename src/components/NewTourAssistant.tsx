@@ -327,7 +327,7 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
           {/* Status Text */}
           <div className="text-center">
             <div className="text-sm text-muted-foreground">
-              {assistantState === 'not-started' && `Ready to explore ${landmarks.length} landmarks`}
+              {assistantState === 'not-started' && ''}
               {assistantState === 'started' && 'Connecting to your tour guide...'}
               {assistantState === 'listening' && 'Your tour guide is ready to listen'}
               {assistantState === 'recording' && 'Recording your question...'}
