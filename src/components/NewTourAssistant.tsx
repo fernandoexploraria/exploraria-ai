@@ -56,6 +56,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
             variant: "destructive"
           });
         } else {
+          console.log('ElevenLabs config loaded:', data);
           setElevenLabsConfig(data);
         }
       } catch (error) {
@@ -105,7 +106,6 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
     },
     onMessage: (message) => {
       console.log('Received message:', message);
-      // Add messages to our conversation history for display
       if (message.source === 'ai') {
         setConversationMessages(prev => [...prev, { type: 'assistant', text: message.message }]);
       } else if (message.source === 'user') {
@@ -142,13 +142,14 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
     }
 
     try {
+      console.log('Starting tour with config:', { agentId: elevenLabsConfig.agentId });
+      
       // Request microphone permission first
       await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      // Start the conversation with the agent ID
+      // Start the conversation with the agent ID and API key
       await conversation.startSession({ 
-        agentId: elevenLabsConfig.agentId,
-        authorization: elevenLabsConfig.apiKey 
+        agentId: elevenLabsConfig.agentId
       });
       
       setHasStarted(true);
@@ -158,7 +159,7 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
       console.error('Error starting tour:', error);
       toast({
         title: "Error",
-        description: "Failed to start tour guide. Please check your configuration and try again.",
+        description: `Failed to start tour guide: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: "destructive"
       });
     }
