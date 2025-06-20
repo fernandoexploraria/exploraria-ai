@@ -48,29 +48,30 @@ serve(async (req) => {
       )
     }
 
-    // Generate embedding for the search query
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY')
-    if (!openAIApiKey) {
+    // Generate embedding for the search query using Gemini
+    const geminiApiKey = Deno.env.get('GOOGLE_AI_API_KEY')
+    if (!geminiApiKey) {
       return new Response(
-        JSON.stringify({ error: 'OpenAI API key not configured' }),
+        JSON.stringify({ error: 'Gemini API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+    const embeddingResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        input: query,
-        model: 'text-embedding-ada-002'
+        model: 'models/text-embedding-004',
+        content: {
+          parts: [{ text: query }]
+        }
       })
     })
 
     if (!embeddingResponse.ok) {
-      console.error('OpenAI API error:', await embeddingResponse.text())
+      console.error('Gemini API error:', await embeddingResponse.text())
       return new Response(
         JSON.stringify({ error: 'Failed to generate embedding' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -78,7 +79,7 @@ serve(async (req) => {
     }
 
     const embeddingData = await embeddingResponse.json()
-    const queryEmbedding = embeddingData.data[0].embedding
+    const queryEmbedding = embeddingData.embedding.values
 
     // Build the query with optional destination filter
     let rpcQuery = supabaseClient
