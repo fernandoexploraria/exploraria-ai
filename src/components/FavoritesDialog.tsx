@@ -169,12 +169,12 @@ const FavoritesDialog: React.FC<FavoritesDialogProps> = ({ open, onOpenChange })
                 
                 <div className="space-y-2">
                   <div>
-                    <p className="text-sm font-medium text-blue-600">You asked:</p>
-                    <p className="text-sm text-gray-700">{interaction.user_input}</p>
+                    <p className="text-sm font-medium text-blue-400">You asked:</p>
+                    <p className="text-sm text-white">{interaction.user_input}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-green-600">Assistant replied:</p>
-                    <p className="text-sm text-gray-700">{interaction.assistant_response}</p>
+                    <p className="text-sm font-medium text-green-400">Assistant replied:</p>
+                    <p className="text-sm text-white">{interaction.assistant_response}</p>
                   </div>
                 </div>
               </div>
