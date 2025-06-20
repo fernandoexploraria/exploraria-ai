@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -56,7 +57,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
         body: {
           userInput: `Clicked on map marker: ${landmark.name}`,
           assistantResponse: landmark.description,
-          destination: 'World Map',
+          destination: 'Map',
           interactionType: 'map_marker',
           landmarkCoordinates: landmark.coordinates,
           landmarkImageUrl: imageUrl
