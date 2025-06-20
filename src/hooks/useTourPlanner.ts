@@ -112,13 +112,13 @@ export const useTourPlanner = () => {
 
       setTourPlan(newTourPlan);
       
-      // ... keep existing code (increment tour count logic)
+      // Increment tour count with corrected parameter name
       try {
         console.log('Calling increment_tour_count function for user:', user.id);
         
-        // Call the database function to increment tour count
+        // Call the database function to increment tour count with correct parameter name
         const { data: incrementResult, error: incrementError } = await supabase.rpc('increment_tour_count', {
-          user_id: user.id
+          p_user_id: user.id
         });
         
         if (incrementError) {

@@ -151,7 +151,7 @@ export type Database = {
         Returns: unknown
       }
       increment_tour_count: {
-        Args: { user_id: string }
+        Args: { p_user_id: string }
         Returns: number
       }
       ivfflat_bit_support: {
