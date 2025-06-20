@@ -69,6 +69,13 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     setPlayingCardIndex(null);
   };
 
+  // Stop TTS when dialog is closed
+  useEffect(() => {
+    if (!open && (isPlaying || currentAudio || speechSynthesis.speaking)) {
+      stopAllTTSPlayback();
+    }
+  }, [open, isPlaying, currentAudio]);
+
   // Load all interactions on mount
   useEffect(() => {
     if (open && user) {
