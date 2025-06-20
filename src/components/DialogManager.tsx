@@ -1,7 +1,6 @@
 
 import React from 'react';
 import TourPlannerDialog from './TourPlannerDialog';
-import VoiceAssistant from './VoiceAssistant';
 import VoiceSearchDialog from './VoiceSearchDialog';
 import FavoritesDialog from './FavoritesDialog';
 import AuthDialog from './AuthDialog';
@@ -13,17 +12,12 @@ interface DialogManagerProps {
   onGenerateTour: (destination: string) => Promise<void>;
   onTourAuthRequired: (destination: string) => void;
   isTourLoading: boolean;
-  isVoiceAssistantOpen: boolean;
-  onVoiceAssistantOpenChange: (open: boolean) => void;
-  currentDestination: string;
-  plannedLandmarks: Landmark[];
   isVoiceSearchOpen: boolean;
   onVoiceSearchOpenChange: (open: boolean) => void;
   isFavoritesOpen: boolean;
   onFavoritesOpenChange: (open: boolean) => void;
   isAuthDialogOpen: boolean;
   onAuthDialogOpenChange: (open: boolean) => void;
-  onAddLandmarks?: (newLandmarks: Landmark[]) => void;
 }
 
 const DialogManager: React.FC<DialogManagerProps> = ({
@@ -32,17 +26,12 @@ const DialogManager: React.FC<DialogManagerProps> = ({
   onGenerateTour,
   onTourAuthRequired,
   isTourLoading,
-  isVoiceAssistantOpen,
-  onVoiceAssistantOpenChange,
-  currentDestination,
-  plannedLandmarks,
   isVoiceSearchOpen,
   onVoiceSearchOpenChange,
   isFavoritesOpen,
   onFavoritesOpenChange,
   isAuthDialogOpen,
   onAuthDialogOpenChange,
-  onAddLandmarks
 }) => {
   return (
     <>
@@ -52,14 +41,6 @@ const DialogManager: React.FC<DialogManagerProps> = ({
         onGenerateTour={onGenerateTour}
         onAuthRequired={onTourAuthRequired}
         isLoading={isTourLoading}
-      />
-
-      <VoiceAssistant
-        open={isVoiceAssistantOpen}
-        onOpenChange={onVoiceAssistantOpenChange}
-        destination={currentDestination}
-        landmarks={plannedLandmarks}
-        onAddLandmarks={onAddLandmarks}
       />
 
       <VoiceSearchDialog
