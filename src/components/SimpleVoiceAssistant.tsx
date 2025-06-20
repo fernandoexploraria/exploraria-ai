@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Mic, MicOff } from 'lucide-react';
+import { Mic, MicOff, MessageCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useOpenAIRealtime } from '@/hooks/useOpenAIRealtime';
 
@@ -40,7 +40,7 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
     });
   };
 
-  const { connected, connect, sendMessage, disconnect } = useOpenAIRealtime({
+  const { connected, connect, sendMessage, disconnect, messages } = useOpenAIRealtime({
     onConnectionChange: handleConnectionChange,
     onSpeakingChange: handleSpeakingChange,
     onError: handleError
@@ -59,6 +59,32 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
       }
     };
   }, [open, connected, connect]);
+
+  // Log messages for debugging
+  useEffect(() => {
+    if (messages.length > 0) {
+      console.log('📩 Latest messages:', messages);
+    }
+  }, [messages]);
+
+  const handleSendHi = () => {
+    if (!connected) {
+      toast({
+        title: "Not Connected",
+        description: "Please wait for connection to be established",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    console.log('📤 Sending "Hi" message...');
+    sendMessage("Hi! Can you introduce yourself as a Rome travel expert?");
+    
+    toast({
+      title: "Message Sent",
+      description: "Sent 'Hi' to Rome expert",
+    });
+  };
 
   const startListening = async () => {
     try {
@@ -123,11 +149,27 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
             Rome Expert Assistant
           </DialogTitle>
           <DialogDescription className="text-center text-sm text-muted-foreground">
-            Your AI-powered Rome travel guide. Click the microphone to ask questions about Rome's attractions, history, and travel tips.
+            Your AI-powered Rome travel guide. Test the connection with a simple message or use voice.
           </DialogDescription>
         </DialogHeader>
         
-        <div className="flex flex-col items-center justify-center py-16">
+        <div className="flex flex-col items-center justify-center py-8 space-y-4">
+          {/* Test Message Button */}
+          <Button
+            onClick={handleSendHi}
+            disabled={!connected}
+            className="bg-blue-500 hover:bg-blue-600 text-white"
+            size="lg"
+          >
+            <MessageCircle className="w-5 h-5 mr-2" />
+            Send "Hi" Test Message
+          </Button>
+
+          <div className="text-center text-sm text-muted-foreground">
+            - OR -
+          </div>
+
+          {/* Microphone Button */}
           <Button
             size="lg"
             className={`w-24 h-24 rounded-full transition-all duration-200 hover:scale-105 ${
@@ -147,7 +189,7 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
             ) : (
               <Mic className="w-12 h-12" />
             )}
-  </Button>
+          </Button>
           
           {!connected && (
             <p className="mt-4 text-sm text-muted-foreground text-center">
@@ -169,8 +211,15 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
 
           {connected && !isListening && !isSpeaking && (
             <p className="mt-4 text-sm text-muted-foreground text-center">
-              Click microphone to ask about Rome
+              Click "Send Hi" to test or use microphone for voice chat
             </p>
+          )}
+
+          {/* Debug info */}
+          {messages.length > 0 && (
+            <div className="mt-4 text-xs text-muted-foreground text-center">
+              Messages received: {messages.length}
+            </div>
           )}
         </div>
       </DialogContent>
