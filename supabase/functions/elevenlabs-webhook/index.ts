@@ -7,6 +7,32 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+async function verifyHmacSignature(body: string, signature: string, secret: string): Promise<boolean> {
+  try {
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign', 'verify']
+    );
+
+    const expectedSignature = await crypto.subtle.sign('HMAC', key, encoder.encode(body));
+    const expectedSignatureHex = Array.from(new Uint8Array(expectedSignature))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+
+    // ElevenLabs typically sends signature as "sha256=<hex>"
+    const receivedSignature = signature.replace('sha256=', '');
+    
+    return expectedSignatureHex === receivedSignature;
+  } catch (error) {
+    console.error('HMAC verification error:', error);
+    return false;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -15,7 +41,37 @@ serve(async (req) => {
   try {
     console.log('ElevenLabs webhook received');
     
-    const webhookData = await req.json()
+    // Get HMAC secret from environment
+    const hmacSecret = Deno.env.get('ELEVENLABS_WEBHOOK_SECRET');
+    if (!hmacSecret) {
+      console.error('ELEVENLABS_WEBHOOK_SECRET not configured');
+      return new Response(
+        JSON.stringify({ error: 'Webhook secret not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Get the raw body for HMAC verification
+    const rawBody = await req.text();
+    
+    // Verify HMAC signature if present
+    const signature = req.headers.get('x-elevenlabs-signature') || req.headers.get('x-signature');
+    if (signature) {
+      const isValidSignature = await verifyHmacSignature(rawBody, signature, hmacSecret);
+      if (!isValidSignature) {
+        console.error('Invalid HMAC signature');
+        return new Response(
+          JSON.stringify({ error: 'Invalid signature' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      console.log('HMAC signature verified successfully');
+    } else {
+      console.warn('No HMAC signature found in headers - webhook may not be authenticated');
+    }
+
+    // Parse the webhook data
+    const webhookData = JSON.parse(rawBody);
     console.log('Webhook payload:', JSON.stringify(webhookData, null, 2));
 
     // Initialize Supabase client with service role key for webhook access
