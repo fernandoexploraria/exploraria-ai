@@ -1,12 +1,6 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import useOpenAIRealtimeProxy from './useOpenAIRealtimeProxy';
-
-const supabase = createClient(
-  'https://ldvxpijumlrmhqhazqar.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkdnhwaWp1bWxybWhxaGF6cWFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTg2ODg3MzYsImV4cCI6MjAzNDI2NDczNn0.cfC7zPGI_RjH63PIcNF9l6YMwXKZgRJN-Uf7AJB1k-8'
-);
 
 interface UseOpenAIRealtimeProps {
   onConnectionChange: (connected: boolean) => void;
@@ -16,28 +10,15 @@ interface UseOpenAIRealtimeProps {
 
 export const useOpenAIRealtime = ({ onConnectionChange, onSpeakingChange, onError }: UseOpenAIRealtimeProps) => {
   const [messages, setMessages] = useState<any[]>([]);
-  const [accessToken, setAccessToken] = useState<string>('');
   const audioContextRef = useRef<AudioContext | null>(null);
   
-  // Get user's auth token
-  useEffect(() => {
-    const getAuthToken = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.access_token) {
-        console.log('🔑 Got auth token');
-        setAccessToken(session.access_token);
-      } else {
-        console.warn('⚠️ No auth token found');
-        onError('Authentication token not found. Please log in.');
-      }
-    };
-    
-    getAuthToken();
-  }, [onError]);
+  // Use the provided OpenAI API key
+  const API_KEY = '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';
+  const ENDPOINT = 'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01';
 
   const { connected, messages: proxyMessages, sendMessage: proxySendMessage, error } = useOpenAIRealtimeProxy({
-    accessToken,
-    endpoint: '' // Not used since we're using Supabase Edge Function
+    accessToken: API_KEY,
+    endpoint: ENDPOINT
   });
 
   // Handle connection changes

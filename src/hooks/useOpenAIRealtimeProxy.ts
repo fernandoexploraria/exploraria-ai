@@ -1,6 +1,5 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { createClient } from '@supabase/supabase-js';
 
 interface UseOpenAIRealtimeProxyProps {
   accessToken: string;
@@ -13,32 +12,31 @@ export default function useOpenAIRealtimeProxy({ accessToken, endpoint }: UseOpe
   const [messages, setMessages] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  // Connect to Supabase Edge Function WebSocket
+  // Connect to OpenAI WebSocket
   const connect = useCallback(() => {
-    if (!accessToken) {
-      console.warn('Missing access token');
+    if (!accessToken || !endpoint) {
+      console.warn('Missing accessToken or endpoint');
       return;
     }
 
-    // Use the Supabase Edge Function instead of direct OpenAI connection
-    const supabaseUrl = 'https://ldvxpijumlrmhqhazqar.supabase.co';
-    const wsUrl = `wss://ldvxpijumlrmhqhazqar.functions.supabase.co/openai-realtime?token=${accessToken}`;
-    
-    console.log('🔌 Connecting to Supabase Edge Function WebSocket:', wsUrl);
-    
-    const ws = new WebSocket(wsUrl);
+    const ws = new WebSocket(endpoint);
     socketRef.current = ws;
 
     ws.onopen = () => {
-      console.log('✅ WebSocket connected to Supabase Edge Function');
+      console.log('✅ WebSocket connected');
       setConnected(true);
-      setError(null);
+
+      // Optionally authenticate here if endpoint supports a message-based auth
+      ws.send(JSON.stringify({
+        type: 'auth',
+        token: accessToken,
+      }));
     };
 
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        console.log('📩 Message from OpenAI via Supabase:', data);
+        console.log('📩 Message from OpenAI:', data);
         setMessages(prev => [...prev, data]);
       } catch (e) {
         console.error('❌ Failed to parse message:', e);
@@ -47,47 +45,24 @@ export default function useOpenAIRealtimeProxy({ accessToken, endpoint }: UseOpe
 
     ws.onerror = (e) => {
       console.error('❌ WebSocket error:', e);
-      setError('WebSocket connection error');
+      setError('WebSocket error');
     };
 
-    ws.onclose = (event) => {
-      console.log('🔌 WebSocket disconnected:', event.code, event.reason);
+    ws.onclose = () => {
+      console.log('🔌 WebSocket disconnected');
       setConnected(false);
-      
-      // Only set error if it's not a normal closure
-      if (event.code !== 1000) {
-        setError(`Connection closed: ${event.reason || 'Unknown reason'}`);
-      }
     };
-  }, [accessToken]);
+  }, [accessToken, endpoint]);
 
   // Send a message to OpenAI
   const sendMessage = (text: string) => {
     if (socketRef.current && connected) {
       const payload = {
-        type: 'conversation.item.create',
-        item: {
-          type: 'message',
-          role: 'user',
-          content: [
-            {
-              type: 'input_text',
-              text,
-            }
-          ]
-        }
+        type: 'user_message',
+        text,
       };
 
-      console.log('📤 Sending message to OpenAI:', payload);
       socketRef.current.send(JSON.stringify(payload));
-      
-      // Trigger response generation
-      setTimeout(() => {
-        if (socketRef.current && connected) {
-          socketRef.current.send(JSON.stringify({type: 'response.create'}));
-        }
-      }, 100);
-      
     } else {
       console.warn('WebSocket is not connected');
     }
@@ -98,9 +73,7 @@ export default function useOpenAIRealtimeProxy({ accessToken, endpoint }: UseOpe
     connect();
 
     return () => {
-      if (socketRef.current) {
-        socketRef.current.close();
-      }
+      socketRef.current?.close();
     };
   }, [connect]);
 
