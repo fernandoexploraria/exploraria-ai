@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -13,31 +14,17 @@ interface MapProps {
   onSelectLandmark: (landmark: Landmark) => void;
   selectedLandmark: Landmark | null;
   plannedLandmarks: Landmark[];
-  interactionLocation?: {
-    coordinates: [number, number];
-    name: string;
-    imageUrl?: string;
-    description: string;
-  };
 }
 
 // Google API key
 const GOOGLE_API_KEY = 'AIzaSyCjQKg2W9uIrIx4EmRnyf3WCkO4eeEvpyg';
 
-const Map: React.FC<MapProps> = ({ 
-  mapboxToken, 
-  landmarks, 
-  onSelectLandmark, 
-  selectedLandmark, 
-  plannedLandmarks,
-  interactionLocation 
-}) => {
+const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, selectedLandmark, plannedLandmarks }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<{ [key: string]: mapboxgl.Marker }>({});
   const imageCache = useRef<{ [key: string]: string }>({});
   const photoPopups = useRef<{ [key: string]: mapboxgl.Popup }>({});
-  const interactionMarker = useRef<mapboxgl.Marker | null>(null);
   const [playingAudio, setPlayingAudio] = useState<{ [key: string]: boolean }>({});
   const pendingPopupLandmark = useRef<Landmark | null>(null);
   const isZooming = useRef<boolean>(false);
@@ -197,46 +184,6 @@ const Map: React.FC<MapProps> = ({
       console.error('Error with Google Cloud TTS for map marker:', error);
     } finally {
       setPlayingAudio(prev => ({ ...prev, [landmarkId]: false }));
-    }
-  };
-
-  // Function to handle TTS for interaction markers
-  const handleInteractionTTS = async (name: string, description: string) => {
-    const markerId = 'interaction-marker';
-    
-    if (playingAudio[markerId]) {
-      return; // Already playing
-    }
-
-    // Stop any currently playing audio
-    stopCurrentAudio();
-
-    try {
-      setPlayingAudio(prev => ({ ...prev, [markerId]: true }));
-      const text = `${name}. ${description}`;
-      
-      console.log('Calling Google Cloud TTS for interaction marker:', text.substring(0, 50) + '...');
-      
-      const { data, error } = await supabase.functions.invoke('gemini-tts', {
-        body: { text }
-      });
-
-      if (error) {
-        console.error('Google Cloud TTS error:', error);
-        return;
-      }
-
-      if (data?.audioContent && !data.fallbackToBrowser) {
-        console.log('Playing audio from Google Cloud TTS for interaction marker');
-        await playAudioFromBase64(data.audioContent);
-      } else {
-        console.log('No audio content received for interaction marker');
-      }
-      
-    } catch (error) {
-      console.error('Error with Google Cloud TTS for interaction marker:', error);
-    } finally {
-      setPlayingAudio(prev => ({ ...prev, [markerId]: false }));
     }
   };
 
@@ -557,123 +504,6 @@ const Map: React.FC<MapProps> = ({
     }
   };
 
-  // Function to show interaction popup (for markers from interaction history)
-  const showInteractionPopup = (location: NonNullable<typeof interactionLocation>) => {
-    if (!map.current) return;
-    
-    console.log('Showing interaction popup for:', location.name);
-    
-    // Stop any playing audio when showing new popup
-    stopCurrentAudio();
-    
-    // Close all other popups first
-    Object.values(photoPopups.current).forEach(popup => {
-      popup.remove();
-    });
-    photoPopups.current = {};
-    
-    // Create new photo popup with image and listen button
-    const photoPopup = new mapboxgl.Popup({
-      closeButton: true,
-      closeOnClick: false,
-      offset: 25,
-      maxWidth: '450px',
-      className: 'custom-popup'
-    });
-
-    const isPlaying = playingAudio['interaction-marker'] || false;
-    
-    photoPopup
-      .setLngLat(location.coordinates)
-      .setHTML(`
-        <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
-          <button class="custom-close-btn" onclick="
-            if (window.handleInteractionPopupClose) window.handleInteractionPopupClose();
-            this.closest('.mapboxgl-popup').remove();
-          " style="
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            font-weight: bold;
-            z-index: 1000;
-            transition: background-color 0.2s;
-          " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
-          <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${location.name}</h3>
-          <div style="position: relative; margin-bottom: 10px;">
-            ${location.imageUrl 
-              ? `<img src="${location.imageUrl}" alt="${location.name}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px;" />`
-              : `<div style="width: 100%; height: 150px; background-color: #f0f0f0; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #888;">No image available</div>`
-            }
-            <button 
-              class="interaction-listen-btn" 
-              onclick="window.handleInteractionListen('${location.name}', '${location.description.replace(/'/g, "\\'")}')"
-              style="
-                position: absolute;
-                bottom: 10px;
-                right: 10px;
-                background: rgba(138, 43, 226, 0.9);
-                color: white;
-                border: 3px solid rgba(255, 255, 255, 0.9);
-                border-radius: 50%;
-                width: 56px;
-                height: 56px;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 24px;
-                transition: all 0.3s ease;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-                ${isPlaying ? 'opacity: 0.7;' : ''}
-              "
-              onmouseover="this.style.backgroundColor='rgba(138, 43, 226, 0.95)'; this.style.borderColor='white'; this.style.transform='scale(1.15)'; this.style.boxShadow='0 6px 20px rgba(0, 0, 0, 0.5)'"
-              onmouseout="this.style.backgroundColor='rgba(138, 43, 226, 0.9)'; this.style.borderColor='rgba(255, 255, 255, 0.9)'; this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.4)'"
-              ${isPlaying ? 'disabled' : ''}
-              title="Listen to description"
-            >
-              🔊
-            </button>
-          </div>
-        </div>
-      `)
-      .addTo(map.current!);
-
-    photoPopups.current['interaction-marker'] = photoPopup;
-
-    // Handle popup close event - stop audio when popup closes
-    photoPopup.on('close', () => {
-      stopCurrentAudio();
-      delete photoPopups.current['interaction-marker'];
-    });
-
-    // Add global handlers for interaction popup
-    if (!(window as any).handleInteractionPopupClose) {
-      (window as any).handleInteractionPopupClose = () => {
-        stopCurrentAudio();
-        if (photoPopups.current['interaction-marker']) {
-          delete photoPopups.current['interaction-marker'];
-        }
-      };
-    }
-
-    if (!(window as any).handleInteractionListen) {
-      (window as any).handleInteractionListen = (name: string, description: string) => {
-        handleInteractionTTS(name, description);
-      };
-    }
-  };
-
   // Update markers when landmarks change
   useEffect(() => {
     if (!map.current) return;
@@ -742,48 +572,6 @@ const Map: React.FC<MapProps> = ({
     });
 
   }, [allLandmarksWithTop, playingAudio, onSelectLandmark]);
-
-  // Handle interaction location marker
-  useEffect(() => {
-    if (!map.current) return;
-
-    // Remove existing interaction marker
-    if (interactionMarker.current) {
-      interactionMarker.current.remove();
-      interactionMarker.current = null;
-    }
-
-    // Add new interaction marker if location is provided
-    if (interactionLocation) {
-      const el = document.createElement('div');
-      el.className = 'w-5 h-5 rounded-full bg-purple-500 border-2 border-white shadow-lg cursor-pointer transition-transform duration-300 hover:scale-125';
-      el.style.transition = 'background-color 0.3s, transform 0.3s';
-      
-      const marker = new mapboxgl.Marker(el)
-        .setLngLat(interactionLocation.coordinates)
-        .addTo(map.current!);
-
-      marker.getElement().addEventListener('click', (e) => {
-        e.stopPropagation(); // Prevent map click event
-        
-        console.log('Interaction marker clicked:', interactionLocation.name);
-        
-        // Show popup for interaction marker (without storing new interaction)
-        showInteractionPopup(interactionLocation);
-      });
-
-      interactionMarker.current = marker;
-
-      // Fly to the interaction location
-      map.current.flyTo({
-        center: interactionLocation.coordinates,
-        zoom: 14,
-        speed: 0.7,
-        curve: 1,
-        easing: (t) => t,
-      });
-    }
-  }, [interactionLocation]);
 
   // Fly to selected landmark and update marker styles
   useEffect(() => {

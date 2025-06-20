@@ -27,7 +27,7 @@ interface Interaction {
 interface InteractionCarouselProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onLocationSelect?: (coordinates: [number, number], interaction: Interaction) => void;
+  onLocationSelect?: (coordinates: [number, number]) => void;
 }
 
 const InteractionCarousel: React.FC<InteractionCarouselProps> = ({ 
@@ -345,14 +345,14 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
   };
 
-  const handleLocationClick = (interaction: Interaction) => {
-    if (interaction.landmark_coordinates && onLocationSelect) {
+  const handleLocationClick = (coordinates: any) => {
+    if (coordinates && onLocationSelect) {
       // Convert PostgreSQL point format to [lng, lat]
-      const coordsArray = interaction.landmark_coordinates.toString().replace(/[()]/g, '').split(',');
+      const coordsArray = coordinates.toString().replace(/[()]/g, '').split(',');
       if (coordsArray.length === 2) {
         const lng = parseFloat(coordsArray[0]);
         const lat = parseFloat(coordsArray[1]);
-        onLocationSelect([lng, lat], interaction);
+        onLocationSelect([lng, lat]);
         onOpenChange(false);
       }
     }
@@ -628,7 +628,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
                 variant="outline"
                 size="sm"
                 className="w-full h-7 text-xs"
-                onClick={() => handleLocationClick(interaction)}
+                onClick={() => handleLocationClick(interaction.landmark_coordinates)}
               >
                 <MapPin className="w-3 h-3 mr-1" />
                 Show on Map
@@ -725,7 +725,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
                 variant="outline"
                 size="sm"
                 className="w-full h-7 text-xs"
-                onClick={() => handleLocationClick(interaction)}
+                onClick={() => handleLocationClick(interaction.landmark_coordinates)}
               >
                 <MapPin className="w-3 h-3 mr-1" />
                 Show on Map
