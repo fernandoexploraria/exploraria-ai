@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Camera, Loader2, MapPin, Info } from 'lucide-react';
+import { Camera, Loader2, MapPin, Info, Volume2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import CameraCapture from './CameraCapture';
@@ -27,6 +27,7 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isResultOpen, setIsResultOpen] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   // Don't render the button if there are no planned landmarks
   if (plannedLandmarks.length === 0) {
@@ -79,6 +80,64 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
     setIsResultOpen(false);
     setAnalysisResult(null);
     setCapturedImage(null);
+    setIsPlaying(false);
+  };
+
+  const handleTTS = async () => {
+    if (!analysisResult) return;
+
+    setIsPlaying(true);
+    
+    try {
+      // Combine description and additional info for TTS
+      const textToSpeak = analysisResult.additional_info 
+        ? `${analysisResult.description} ${analysisResult.additional_info}`
+        : analysisResult.description;
+
+      const { data, error } = await supabase.functions.invoke('gemini-tts', {
+        body: { text: textToSpeak }
+      });
+
+      if (error) {
+        console.error('TTS error:', error);
+        toast.error("Text-to-speech failed. Please try again.");
+        return;
+      }
+
+      if (data.audioContent) {
+        // Create audio element and play
+        const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
+        
+        audio.onended = () => {
+          setIsPlaying(false);
+        };
+        
+        audio.onerror = () => {
+          setIsPlaying(false);
+          // Fallback to browser TTS if available
+          if (data.fallbackToBrowser && 'speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(data.enhancedText || textToSpeak);
+            utterance.onend = () => setIsPlaying(false);
+            utterance.onerror = () => setIsPlaying(false);
+            speechSynthesis.speak(utterance);
+          } else {
+            toast.error("Audio playback failed.");
+          }
+        };
+        
+        await audio.play();
+      } else if (data.fallbackToBrowser && 'speechSynthesis' in window) {
+        // Use browser TTS as fallback
+        const utterance = new SpeechSynthesisUtterance(data.enhancedText || textToSpeak);
+        utterance.onend = () => setIsPlaying(false);
+        utterance.onerror = () => setIsPlaying(false);
+        speechSynthesis.speak(utterance);
+      }
+    } catch (error) {
+      console.error('TTS error:', error);
+      setIsPlaying(false);
+      toast.error("Text-to-speech failed. Please try again.");
+    }
   };
 
   return (
@@ -115,12 +174,23 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
           </DialogHeader>
           
           {capturedImage && (
-            <div className="mb-4">
+            <div className="mb-4 relative">
               <img 
                 src={capturedImage} 
                 alt="Captured image" 
                 className="w-full h-48 object-cover rounded-lg"
               />
+              {/* TTS Button positioned like in marker preview */}
+              {analysisResult && (
+                <Button
+                  onClick={handleTTS}
+                  disabled={isPlaying}
+                  size="sm"
+                  className="absolute top-2 right-2 bg-white/90 hover:bg-white text-gray-800 shadow-lg"
+                >
+                  <Volume2 className={`h-4 w-4 ${isPlaying ? 'animate-pulse' : ''}`} />
+                </Button>
+              )}
             </div>
           )}
           
