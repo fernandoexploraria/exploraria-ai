@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -124,6 +123,15 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
         variant: "destructive"
       });
       setAssistantState('not-started');
+    },
+    overrides: {
+      agent: {
+        prompt: {
+          prompt: systemPrompt || createFallbackTourPrompt()
+        },
+        firstMessage: firstMessage,
+        language: "en"
+      }
     }
   });
 
@@ -160,45 +168,9 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
         // Request microphone permission first
         await navigator.mediaDevices.getUserMedia({ audio: true });
         
-        // Get a signed URL for the conversation
-        const { data: session } = await supabase.auth.getSession();
-        if (!session.session) {
-          toast({
-            title: "Authentication Required",
-            description: "Please sign in to use the tour guide.",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        // Generate signed URL through our backend
-        const response = await fetch(`https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=${elevenLabsConfig.agentId}`, {
-          method: 'GET',
-          headers: {
-            'xi-api-key': elevenLabsConfig.apiKey,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to get signed URL: ${response.status}`);
-        }
-
-        const { signed_url } = await response.json();
-        console.log('Got signed URL for ElevenLabs conversation');
-        
-        // Start the conversation with the signed URL and overrides
+        // Start the conversation using the agent ID approach
         await conversation.startSession({ 
-          url: signed_url,
-          overrides: {
-            agent: {
-              prompt: {
-                prompt: systemPrompt || createFallbackTourPrompt()
-              },
-              firstMessage: firstMessage,
-              language: "en"
-            }
-          }
+          agentId: elevenLabsConfig.agentId
         });
         
       } catch (error) {
