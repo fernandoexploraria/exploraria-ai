@@ -27,6 +27,15 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [elevenLabsApiKey, setElevenLabsApiKey] = useState<string>('');
+  const [conversationState, setConversationState] = useState<{
+    userInput: string;
+    assistantResponse: string;
+    step: 'idle' | 'recording' | 'transcribing' | 'generating' | 'speaking' | 'storing';
+  }>({
+    userInput: '',
+    assistantResponse: '',
+    step: 'idle'
+  });
   
   const { isRecording, isProcessing: isAudioProcessing, startRecording, stopRecording, cleanup } = useAudioRecorder();
   const { isSpeaking, speakText, cleanup: cleanupTTS } = useTextToSpeech(elevenLabsApiKey, true);
@@ -51,24 +60,25 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     }
   }, [open]);
 
-  // Store voice interaction in database
-  const storeVoiceInteraction = async (userInput: string, assistantResponse: string) => {
+  // Store conversation interaction
+  const storeConversation = async (userInput: string, assistantResponse: string) => {
     if (!user || !userInput.trim() || !assistantResponse.trim()) {
-      console.log('Missing data for storing interaction:', { 
+      console.log('Cannot store conversation - missing data:', { 
         hasUser: !!user, 
         hasUserInput: !!userInput.trim(), 
         hasAssistantResponse: !!assistantResponse.trim() 
       });
-      return;
+      return false;
     }
 
     try {
-      console.log('Storing voice interaction...', { 
-        userInputLength: userInput.length,
-        assistantResponseLength: assistantResponse.length,
-        destination,
-        userId: user.id
+      console.log('Storing conversation:', { 
+        userInput: userInput.substring(0, 50) + '...', 
+        assistantResponse: assistantResponse.substring(0, 50) + '...',
+        destination 
       });
+
+      setConversationState(prev => ({ ...prev, step: 'storing' }));
       
       const { error } = await supabase.functions.invoke('store-voice-interaction', {
         body: {
@@ -79,54 +89,62 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       });
 
       if (error) {
-        console.error('Error storing voice interaction:', error);
+        console.error('Error storing conversation:', error);
         toast({
           title: "Storage Error",
-          description: "Could not save voice interaction to database.",
+          description: "Could not save conversation to database.",
           variant: "destructive"
         });
+        return false;
       } else {
-        console.log('Voice interaction stored successfully');
+        console.log('Conversation stored successfully');
         toast({
-          title: "Interaction Saved",
-          description: "Your conversation has been saved for future reference.",
+          title: "Conversation Saved",
+          description: "Your interaction has been saved.",
         });
+        return true;
       }
     } catch (error) {
-      console.error('Error storing voice interaction:', error);
+      console.error('Error in storeConversation:', error);
       toast({
         title: "Storage Error",
-        description: "Failed to save voice interaction.",
+        description: "Failed to save conversation.",
         variant: "destructive"
       });
+      return false;
+    } finally {
+      setConversationState(prev => ({ ...prev, step: 'idle' }));
     }
   };
 
-  // Process audio and get response
-  const processAudioAndRespond = async (audioBase64: string) => {
+  // Complete conversation flow
+  const processCompleteConversation = async (audioBase64: string) => {
     setIsProcessing(true);
     
     try {
-      console.log('Converting speech to text...');
+      // Step 1: Convert speech to text
+      console.log('Step 1: Converting speech to text...');
+      setConversationState(prev => ({ ...prev, step: 'transcribing' }));
       
-      // Convert speech to text
       const { data: transcriptData, error: transcriptError } = await supabase.functions.invoke('speech-to-text', {
         body: { audio: audioBase64 }
       });
 
-      if (transcriptError) {
-        throw new Error(`Speech-to-text error: ${transcriptError.message}`);
+      if (transcriptError || !transcriptData?.text?.trim()) {
+        throw new Error('No speech detected or transcription failed');
       }
 
-      const userInput = transcriptData.text;
+      const userInput = transcriptData.text.trim();
       console.log('User said:', userInput);
 
-      if (!userInput.trim()) {
-        throw new Error('No speech detected');
-      }
-
-      // Get AI response
-      console.log('Getting AI response...');
+      // Step 2: Get AI response
+      console.log('Step 2: Getting AI response...');
+      setConversationState(prev => ({ 
+        ...prev, 
+        userInput, 
+        step: 'generating' 
+      }));
+      
       const { data: aiData, error: aiError } = await supabase.functions.invoke('gemini-chat', {
         body: {
           message: userInput,
@@ -135,26 +153,47 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         }
       });
 
-      if (aiError) {
-        throw new Error(`AI response error: ${aiError.message}`);
+      if (aiError || !aiData?.response?.trim()) {
+        throw new Error('Failed to get AI response');
       }
 
-      const assistantResponse = aiData.response;
+      const assistantResponse = aiData.response.trim();
       console.log('AI responded:', assistantResponse);
 
-      // Store the interaction
-      await storeVoiceInteraction(userInput, assistantResponse);
-
-      // Speak the response
-      console.log('Speaking response...');
+      // Step 3: Speak the response
+      console.log('Step 3: Speaking response...');
+      setConversationState(prev => ({ 
+        ...prev, 
+        assistantResponse, 
+        step: 'speaking' 
+      }));
+      
       await speakText(assistantResponse);
 
+      // Step 4: Store the complete conversation
+      console.log('Step 4: Storing conversation...');
+      await storeConversation(userInput, assistantResponse);
+
+      // Reset state
+      setConversationState({
+        userInput: '',
+        assistantResponse: '',
+        step: 'idle'
+      });
+
     } catch (error) {
-      console.error('Error processing audio:', error);
+      console.error('Error in conversation flow:', error);
       toast({
         title: "Processing Error",
-        description: error instanceof Error ? error.message : "Failed to process audio",
+        description: error instanceof Error ? error.message : "Failed to process conversation",
         variant: "destructive"
+      });
+      
+      // Reset state on error
+      setConversationState({
+        userInput: '',
+        assistantResponse: '',
+        step: 'idle'
       });
     } finally {
       setIsProcessing(false);
@@ -162,9 +201,9 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   };
 
   const handleMicClick = async () => {
-    console.log('Mic button clicked, current states:', { isRecording, isProcessing, isSpeaking });
+    console.log('Mic button clicked, current state:', { isRecording, isProcessing, isSpeaking, step: conversationState.step });
     
-    if (isSpeaking) {
+    if (isSpeaking || conversationState.step === 'speaking') {
       toast({
         title: "Please Wait",
         description: "Assistant is currently speaking. Please wait for it to finish.",
@@ -175,22 +214,25 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
     if (isRecording) {
       console.log('Stopping recording...');
+      setConversationState(prev => ({ ...prev, step: 'recording' }));
       try {
         const audioBase64 = await stopRecording();
-        console.log('Recording stopped, processing audio...');
-        await processAudioAndRespond(audioBase64);
+        console.log('Recording stopped, starting conversation flow...');
+        await processCompleteConversation(audioBase64);
       } catch (error) {
-        console.error('Error stopping recording:', error);
+        console.error('Error processing recording:', error);
         toast({
           title: "Recording Error",
           description: "Failed to process recording.",
           variant: "destructive"
         });
+        setConversationState(prev => ({ ...prev, step: 'idle' }));
       }
     } else {
       console.log('Starting recording...');
       try {
         await startRecording();
+        setConversationState(prev => ({ ...prev, step: 'recording' }));
       } catch (error) {
         console.error('Error starting recording:', error);
         toast({
@@ -208,6 +250,11 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       console.log('Dialog closed, cleaning up...');
       cleanup();
       cleanupTTS();
+      setConversationState({
+        userInput: '',
+        assistantResponse: '',
+        step: 'idle'
+      });
     }
   }, [open, cleanup, cleanupTTS]);
 
@@ -222,7 +269,39 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     }
   }, [open, elevenLabsApiKey, destination, speakText]);
 
-  const isButtonDisabled = isProcessing || isAudioProcessing || isSpeaking;
+  const isButtonDisabled = isProcessing || isAudioProcessing || isSpeaking || conversationState.step !== 'idle';
+
+  const getStatusMessage = () => {
+    switch (conversationState.step) {
+      case 'recording':
+        return isRecording ? "Recording... Click to stop and process." : "Processing recording...";
+      case 'transcribing':
+        return "Converting speech to text...";
+      case 'generating':
+        return "Getting AI response...";
+      case 'speaking':
+        return "Assistant speaking...";
+      case 'storing':
+        return "Saving conversation...";
+      default:
+        if (isSpeaking) return "Assistant speaking...";
+        if (isProcessing || isAudioProcessing) return "Processing your message...";
+        return "Click microphone to start talking";
+    }
+  };
+
+  const getButtonColor = () => {
+    if (isRecording || conversationState.step === 'recording') {
+      return 'bg-red-500 hover:bg-red-600 animate-pulse';
+    }
+    if (isSpeaking || conversationState.step === 'speaking') {
+      return 'bg-green-500 hover:bg-green-600 animate-pulse';
+    }
+    if (isProcessing || isAudioProcessing || conversationState.step !== 'idle') {
+      return 'bg-yellow-500 hover:bg-yellow-600';
+    }
+    return 'bg-primary hover:bg-primary/90';
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -239,15 +318,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         <div className="flex flex-col items-center justify-center py-16">
           <Button
             size="lg"
-            className={`w-24 h-24 rounded-full transition-all duration-200 hover:scale-105 ${
-              isRecording 
-                ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
-                : isSpeaking
-                ? 'bg-green-500 hover:bg-green-600 animate-pulse'
-                : isProcessing || isAudioProcessing
-                ? 'bg-yellow-500 hover:bg-yellow-600'
-                : 'bg-primary hover:bg-primary/90'
-            }`}
+            className={`w-24 h-24 rounded-full transition-all duration-200 hover:scale-105 ${getButtonColor()}`}
             onClick={handleMicClick}
             disabled={isButtonDisabled}
           >
@@ -258,28 +329,15 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
             )}
           </Button>
           
-          {isRecording && (
-            <p className="mt-4 text-sm text-muted-foreground text-center">
-              Recording... Click to stop and process.
-            </p>
-          )}
-          
-          {(isProcessing || isAudioProcessing) && (
-            <p className="mt-4 text-sm text-muted-foreground text-center">
-              Processing your message...
-            </p>
-          )}
-          
-          {isSpeaking && (
-            <p className="mt-4 text-sm text-muted-foreground text-center">
-              Assistant speaking...
-            </p>
-          )}
+          <p className="mt-4 text-sm text-muted-foreground text-center">
+            {getStatusMessage()}
+          </p>
 
-          {!isRecording && !isProcessing && !isAudioProcessing && !isSpeaking && (
-            <p className="mt-4 text-sm text-muted-foreground text-center">
-              Click microphone to start talking
-            </p>
+          {conversationState.userInput && (
+            <div className="mt-4 text-xs text-center max-w-sm">
+              <p className="text-blue-600 font-medium">You said:</p>
+              <p className="text-gray-600 italic">"{conversationState.userInput}"</p>
+            </div>
           )}
         </div>
       </DialogContent>
