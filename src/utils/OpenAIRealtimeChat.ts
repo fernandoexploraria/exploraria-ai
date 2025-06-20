@@ -1,3 +1,4 @@
+
 export class AudioRecorder {
   private stream: MediaStream | null = null;
   private audioContext: AudioContext | null = null;
@@ -180,15 +181,14 @@ export class OpenAIRealtimeChat {
   private isListening = false;
   private currentUserInput = '';
   private currentAssistantResponse = '';
-  private accumulatedUserInput = '';
-  private accumulatedAssistantResponse = '';
+  private isCapturingInteraction = false;
+  private interactionStartTime: number | null = null;
 
   constructor(
     private onConnectionChange: (connected: boolean) => void,
     private onListeningChange: (listening: boolean) => void,
     private onSpeakingChange: (speaking: boolean) => void,
-    private onUserInput?: (userInput: string) => void,
-    private onAssistantResponse?: (assistantResponse: string) => void
+    private onInteractionComplete?: (userInput: string, assistantResponse: string) => void
   ) {}
 
   async connect() {
@@ -237,37 +237,25 @@ export class OpenAIRealtimeChat {
           } else if (data.type === 'response.audio.done') {
             console.log('Audio response completed');
             this.onSpeakingChange(false);
-            // Store the interaction when audio finishes
-            this.storeCurrentInteraction();
+            // Complete the interaction when audio finishes
+            this.completeInteraction();
           } else if (data.type === 'conversation.item.input_audio_transcription.completed') {
-            // Capture complete user input transcription
+            // Capture user input transcription
             if (data.transcript) {
-              console.log('Complete user input transcribed:', data.transcript);
-              this.accumulatedUserInput = data.transcript;
-              if (this.onUserInput) {
-                this.onUserInput(data.transcript);
-              }
-            }
-          } else if (data.type === 'response.output_item.added') {
-            // New response item started - reset assistant response
-            this.accumulatedAssistantResponse = '';
-          } else if (data.type === 'response.content_part.added') {
-            // Content part added (could be text or audio)
-            if (data.part?.type === 'text') {
-              this.accumulatedAssistantResponse = data.part.text || '';
+              console.log('User input transcribed:', data.transcript);
+              this.currentUserInput = data.transcript;
+              this.isCapturingInteraction = true;
+              this.interactionStartTime = Date.now();
             }
           } else if (data.type === 'response.text.delta') {
             // Accumulate assistant text response
             if (data.delta) {
-              this.accumulatedAssistantResponse += data.delta;
-              console.log('Accumulated assistant response:', this.accumulatedAssistantResponse.length, 'chars');
+              this.currentAssistantResponse += data.delta;
+              console.log('Accumulated assistant response length:', this.currentAssistantResponse.length);
             }
           } else if (data.type === 'response.text.done') {
             // Assistant text response completed
-            console.log('Complete assistant text response:', this.accumulatedAssistantResponse);
-            if (this.onAssistantResponse) {
-              this.onAssistantResponse(this.accumulatedAssistantResponse);
-            }
+            console.log('Complete assistant text response captured:', this.currentAssistantResponse.substring(0, 100) + '...');
           } else if (data.type === 'error') {
             console.error('OpenAI API error:', data);
           } else if (data.type === 'session.created') {
@@ -312,23 +300,23 @@ export class OpenAIRealtimeChat {
     }
   }
 
-  private storeCurrentInteraction() {
-    if (this.accumulatedUserInput && this.accumulatedAssistantResponse) {
-      console.log('Storing interaction:', {
-        userInput: this.accumulatedUserInput.substring(0, 50) + '...',
-        assistantResponse: this.accumulatedAssistantResponse.substring(0, 50) + '...'
+  private completeInteraction() {
+    if (this.isCapturingInteraction && this.currentUserInput && this.currentAssistantResponse) {
+      console.log('Completing interaction:', {
+        userInput: this.currentUserInput.substring(0, 50) + '...',
+        assistantResponse: this.currentAssistantResponse.substring(0, 50) + '...',
+        duration: this.interactionStartTime ? Date.now() - this.interactionStartTime : 'unknown'
       });
       
-      if (this.onUserInput) {
-        this.onUserInput(this.accumulatedUserInput);
-      }
-      if (this.onAssistantResponse) {
-        this.onAssistantResponse(this.accumulatedAssistantResponse);
+      if (this.onInteractionComplete) {
+        this.onInteractionComplete(this.currentUserInput, this.currentAssistantResponse);
       }
       
       // Reset for next interaction
-      this.accumulatedUserInput = '';
-      this.accumulatedAssistantResponse = '';
+      this.currentUserInput = '';
+      this.currentAssistantResponse = '';
+      this.isCapturingInteraction = false;
+      this.interactionStartTime = null;
     }
   }
 
@@ -366,6 +354,11 @@ export class OpenAIRealtimeChat {
 
     try {
       console.log('Starting to listen...');
+      
+      // Reset interaction state
+      this.currentUserInput = '';
+      this.currentAssistantResponse = '';
+      this.isCapturingInteraction = false;
       
       this.audioRecorder = new AudioRecorder((audioData) => {
         this.sendWebSocketMessage({
@@ -431,8 +424,8 @@ export class OpenAIRealtimeChat {
 
   disconnect() {
     console.log('Disconnecting from OpenAI Realtime API...');
-    // Store any pending interaction before cleanup
-    this.storeCurrentInteraction();
+    // Complete any pending interaction before cleanup
+    this.completeInteraction();
     this.cleanup();
   }
 
