@@ -147,9 +147,26 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
       // Request microphone permission first
       await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      // Start the conversation with the agent ID and API key
+      // Start the conversation with the signed URL approach
+      // First get a signed URL from ElevenLabs API
+      const signedUrlResponse = await fetch(`https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=${elevenLabsConfig.agentId}`, {
+        method: 'GET',
+        headers: {
+          'xi-api-key': elevenLabsConfig.apiKey,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!signedUrlResponse.ok) {
+        throw new Error(`Failed to get signed URL: ${signedUrlResponse.statusText}`);
+      }
+
+      const signedUrlData = await signedUrlResponse.json();
+      console.log('Got signed URL from ElevenLabs');
+      
+      // Start the conversation with the signed URL
       await conversation.startSession({ 
-        agentId: elevenLabsConfig.agentId
+        url: signedUrlData.signed_url
       });
       
       setHasStarted(true);
