@@ -280,7 +280,10 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       .setLngLat(landmark.coordinates)
       .setHTML(`
         <div style="text-align: center; padding: 10px; position: relative;">
-          <button class="custom-close-btn" onclick="this.closest('.mapboxgl-popup').remove()" style="
+          <button class="custom-close-btn" onclick="
+            if (window.handlePopupClose) window.handlePopupClose('${landmark.id}');
+            this.closest('.mapboxgl-popup').remove();
+          " style="
             position: absolute;
             top: 5px;
             right: 5px;
@@ -313,6 +316,16 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       delete photoPopups.current[landmark.id];
     });
 
+    // Add global handler for popup close if it doesn't exist
+    if (!(window as any).handlePopupClose) {
+      (window as any).handlePopupClose = (landmarkId: string) => {
+        stopCurrentAudio();
+        if (photoPopups.current[landmarkId]) {
+          delete photoPopups.current[landmarkId];
+        }
+      };
+    }
+
     // Fetch and display image with listen button
     try {
       const imageUrl = await fetchLandmarkImage(landmark);
@@ -320,7 +333,10 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       
       photoPopup.setHTML(`
         <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
-          <button class="custom-close-btn" onclick="this.closest('.mapboxgl-popup').remove()" style="
+          <button class="custom-close-btn" onclick="
+            if (window.handlePopupClose) window.handlePopupClose('${landmark.id}');
+            this.closest('.mapboxgl-popup').remove();
+          " style="
             position: absolute;
             top: 5px;
             right: 5px;
@@ -389,7 +405,10 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       console.error('Failed to load image for', landmark.name, error);
       photoPopup.setHTML(`
         <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
-          <button class="custom-close-btn" onclick="this.closest('.mapboxgl-popup').remove()" style="
+          <button class="custom-close-btn" onclick="
+            if (window.handlePopupClose) window.handlePopupClose('${landmark.id}');
+            this.closest('.mapboxgl-popup').remove();
+          " style="
             position: absolute;
             top: 5px;
             right: 5px;
