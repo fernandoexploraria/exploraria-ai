@@ -26,6 +26,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
   const [playingAudio, setPlayingAudio] = useState<{ [key: string]: boolean }>({});
   const pendingPopupLandmark = useRef<Landmark | null>(null);
   const isZooming = useRef<boolean>(false);
+  const currentAudio = useRef<HTMLAudioElement | null>(null);
 
   // Convert top landmarks to Landmark format
   const allLandmarksWithTop = React.useMemo(() => {
@@ -38,6 +39,16 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     
     return [...landmarks, ...topLandmarksConverted];
   }, [landmarks]);
+
+  // Function to stop current audio playback
+  const stopCurrentAudio = () => {
+    if (currentAudio.current) {
+      currentAudio.current.pause();
+      currentAudio.current.currentTime = 0;
+      currentAudio.current = null;
+    }
+    setPlayingAudio({});
+  };
 
   // Initialize map (runs once)
   useEffect(() => {
@@ -63,6 +74,9 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       const isMarkerClick = clickedElement.closest('.w-4.h-4.rounded-full');
       
       if (!isMarkerClick) {
+        // Stop any playing audio
+        stopCurrentAudio();
+        
         // Close all photo popups
         Object.values(photoPopups.current).forEach(popup => {
           popup.remove();
@@ -92,6 +106,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     });
 
     return () => {
+      stopCurrentAudio();
       map.current?.remove();
       map.current = null;
     };
@@ -104,6 +119,9 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     if (playingAudio[landmarkId]) {
       return; // Already playing
     }
+
+    // Stop any currently playing audio
+    stopCurrentAudio();
 
     try {
       setPlayingAudio(prev => ({ ...prev, [landmarkId]: true }));
@@ -151,15 +169,20 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
         const audioUrl = URL.createObjectURL(blob);
         const audio = new Audio(audioUrl);
         
+        // Store reference to current audio
+        currentAudio.current = audio;
+        
         audio.onended = () => {
           console.log('Map marker audio playback ended');
           URL.revokeObjectURL(audioUrl);
+          currentAudio.current = null;
           resolve();
         };
         
         audio.onerror = (error) => {
           console.error('Map marker audio playback error:', error);
           URL.revokeObjectURL(audioUrl);
+          currentAudio.current = null;
           reject(error);
         };
         
@@ -168,6 +191,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
         }).catch(error => {
           console.error('Failed to play map marker audio:', error);
           URL.revokeObjectURL(audioUrl);
+          currentAudio.current = null;
           reject(error);
         });
         
@@ -228,6 +252,9 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     
     console.log('Showing popup for:', landmark.name);
     
+    // Stop any playing audio when showing new popup
+    stopCurrentAudio();
+    
     // Remove existing photo popup for this landmark
     if (photoPopups.current[landmark.id]) {
       photoPopups.current[landmark.id].remove();
@@ -280,8 +307,9 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
 
     photoPopups.current[landmark.id] = photoPopup;
 
-    // Handle popup close event
+    // Handle popup close event - stop audio when popup closes
     photoPopup.on('close', () => {
+      stopCurrentAudio();
       delete photoPopups.current[landmark.id];
     });
 
