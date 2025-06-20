@@ -344,19 +344,26 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
 
           <ScrollArea className="flex-1 w-full">
             <div className="space-y-1">
-              {transcript && Array.isArray(transcript.messages) ? (
-                transcript.messages.map((message: any, index: number) => (
-                  <div key={index} className={`p-2 rounded text-xs ${
-                    message.role === 'user' 
-                      ? 'bg-blue-900/30 text-blue-100' 
-                      : 'bg-green-900/30 text-green-100'
-                  }`}>
-                    <span className="font-medium text-xs">
-                      {message.role === 'user' ? 'You:' : 'Assistant:'}
-                    </span>
-                    <p className="mt-1">{message.content}</p>
-                  </div>
-                ))
+              {transcript && Array.isArray(transcript) ? (
+                transcript
+                  .filter((entry: any) => entry.message && (entry.role === 'user' || entry.role === 'agent'))
+                  .map((entry: any, index: number) => (
+                    <div key={index} className={`p-2 rounded text-xs ${
+                      entry.role === 'user' 
+                        ? 'bg-blue-900/30 text-blue-100' 
+                        : 'bg-green-900/30 text-green-100'
+                    }`}>
+                      <span className="font-medium text-xs">
+                        {entry.role === 'user' ? 'You:' : 'Assistant:'}
+                      </span>
+                      <p className="mt-1">
+                        {entry.message}
+                        {entry.role === 'agent' && entry.interrupted && (
+                          <span className="text-orange-400 ml-1">(interrupted)</span>
+                        )}
+                      </p>
+                    </div>
+                  ))
               ) : (
                 <div className="space-y-1">
                   <div className="p-2 rounded text-xs bg-blue-900/30 text-blue-100">
@@ -371,6 +378,20 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
               )}
             </div>
           </ScrollArea>
+
+          {interaction.landmark_coordinates && (
+            <div className="mt-2 flex-shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full h-7 text-xs"
+                onClick={() => handleLocationClick(interaction.landmark_coordinates)}
+              >
+                <MapPin className="w-3 h-3 mr-1" />
+                Show on Map
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     );
