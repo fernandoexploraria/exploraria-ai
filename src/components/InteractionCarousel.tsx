@@ -30,6 +30,15 @@ interface InteractionCarouselProps {
   onLocationSelect?: (coordinates: [number, number]) => void;
 }
 
+// Audio State Machine
+type AudioState = 'not_playing' | 'playing';
+
+interface AudioStateMachine {
+  state: AudioState;
+  playingInteractionId: string | null;
+  currentAudio: HTMLAudioElement | null;
+}
+
 const InteractionCarousel: React.FC<InteractionCarouselProps> = ({ 
   open, 
   onOpenChange,
@@ -43,8 +52,14 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   const [showingSearchResults, setShowingSearchResults] = useState(false);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
-  const [playingInteractionId, setPlayingInteractionId] = useState<string | null>(null);
+  
+  // Audio State Machine
+  const [audioState, setAudioState] = useState<AudioStateMachine>({
+    state: 'not_playing',
+    playingInteractionId: null,
+    currentAudio: null
+  });
+  
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -55,16 +70,20 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
   }, [open, user]);
 
-  // Stop audio when carousel slide changes
+  // Handle carousel slide changes - trigger state transition to not_playing
   useEffect(() => {
     if (!carouselApi) {
       return;
     }
 
     const updateCurrentSlide = () => {
-      // Stop any playing audio when slide changes
-      stopCurrentAudio();
-      setCurrentSlide(carouselApi.selectedScrollSnap());
+      const newSlide = carouselApi.selectedScrollSnap();
+      setCurrentSlide(newSlide);
+      
+      // If audio is playing, transition to not_playing state when swiping
+      if (audioState.state === 'playing') {
+        transitionToNotPlaying();
+      }
     };
 
     carouselApi.on("select", updateCurrentSlide);
@@ -73,13 +92,22 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     return () => {
       carouselApi.off("select", updateCurrentSlide);
     };
-  }, [carouselApi]);
+  }, [carouselApi, audioState.state]);
 
-  const stopCurrentAudio = () => {
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio.currentTime = 0;
-      setCurrentAudio(null);
+  // State machine transitions
+  const transitionToPlaying = (interactionId: string, audio: HTMLAudioElement) => {
+    setAudioState({
+      state: 'playing',
+      playingInteractionId: interactionId,
+      currentAudio: audio
+    });
+  };
+
+  const transitionToNotPlaying = () => {
+    // Stop current audio if playing
+    if (audioState.currentAudio) {
+      audioState.currentAudio.pause();
+      audioState.currentAudio.currentTime = 0;
     }
     
     // Stop browser TTS
@@ -87,7 +115,11 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
       speechSynthesis.cancel();
     }
     
-    setPlayingInteractionId(null);
+    setAudioState({
+      state: 'not_playing',
+      playingInteractionId: null,
+      currentAudio: null
+    });
   };
 
   const loadAllInteractions = async () => {
@@ -272,31 +304,33 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
   };
 
+  // Main TTS handler - implements state machine logic
   const handleTTSClick = async (text: string, interactionId: string, isVoiceTranscript = false) => {
     try {
-      // If this interaction is currently playing, stop it
-      if (playingInteractionId === interactionId) {
-        stopCurrentAudio();
+      // State machine logic
+      if (audioState.state === 'playing' && audioState.playingInteractionId === interactionId) {
+        // Event: click on green icon -> transition to not_playing
+        transitionToNotPlaying();
         return;
       }
 
-      // Stop any currently playing audio first
-      stopCurrentAudio();
-
-      setPlayingInteractionId(interactionId);
+      // Event: click on white icon -> transition to playing
+      // First stop any currently playing audio
+      if (audioState.state === 'playing') {
+        transitionToNotPlaying();
+      }
 
       if (isVoiceTranscript) {
         // For voice transcripts, create a memory-style narration using Gemini + Google TTS
         const { data, error } = await supabase.functions.invoke('gemini-tts', {
           body: { 
             text: text,
-            isMemoryNarration: true // Flag to indicate this should be a memory-style summary
+            isMemoryNarration: true
           }
         });
 
         if (error) {
           console.error('Memory TTS error:', error);
-          setPlayingInteractionId(null);
           toast({
             title: "Audio generation failed",
             description: "Could not generate memory narration.",
@@ -312,27 +346,27 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
           const audio = new Audio(audioUrl);
           
           audio.onended = () => {
-            setCurrentAudio(null);
-            setPlayingInteractionId(null);
+            transitionToNotPlaying();
             URL.revokeObjectURL(audioUrl);
           };
           
           audio.onerror = () => {
-            setCurrentAudio(null);
-            setPlayingInteractionId(null);
+            transitionToNotPlaying();
             URL.revokeObjectURL(audioUrl);
           };
           
-          setCurrentAudio(audio);
+          // Transition to playing state
+          transitionToPlaying(interactionId, audio);
           audio.play();
         } else if (data.fallbackToBrowser && data.enhancedText) {
-          // Use browser TTS with the enhanced memory text
+          // Use browser TTS with enhanced text - no audio object to track
           const utterance = new SpeechSynthesisUtterance(data.enhancedText);
-          utterance.onend = () => setPlayingInteractionId(null);
-          utterance.onerror = () => setPlayingInteractionId(null);
+          utterance.onend = () => transitionToNotPlaying();
+          utterance.onerror = () => transitionToNotPlaying();
+          
+          // Transition to playing state (no audio object for browser TTS)
+          transitionToPlaying(interactionId, null as any);
           speechSynthesis.speak(utterance);
-        } else {
-          setPlayingInteractionId(null);
         }
         return;
       }
@@ -344,7 +378,6 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
 
       if (error) {
         console.error('TTS error:', error);
-        setPlayingInteractionId(null);
         toast({
           title: "Audio generation failed",
           description: "Could not generate audio for this text.",
@@ -360,31 +393,30 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
         const audio = new Audio(audioUrl);
         
         audio.onended = () => {
-          setCurrentAudio(null);
-          setPlayingInteractionId(null);
+          transitionToNotPlaying();
           URL.revokeObjectURL(audioUrl);
         };
         
         audio.onerror = () => {
-          setCurrentAudio(null);
-          setPlayingInteractionId(null);
+          transitionToNotPlaying();
           URL.revokeObjectURL(audioUrl);
         };
         
-        setCurrentAudio(audio);
+        // Transition to playing state
+        transitionToPlaying(interactionId, audio);
         audio.play();
       } else if (data.fallbackToBrowser && data.enhancedText) {
         // Use browser TTS as fallback
         const utterance = new SpeechSynthesisUtterance(data.enhancedText);
-        utterance.onend = () => setPlayingInteractionId(null);
-        utterance.onerror = () => setPlayingInteractionId(null);
+        utterance.onend = () => transitionToNotPlaying();
+        utterance.onerror = () => transitionToNotPlaying();
+        
+        // Transition to playing state
+        transitionToPlaying(interactionId, null as any);
         speechSynthesis.speak(utterance);
-      } else {
-        setPlayingInteractionId(null);
       }
     } catch (error) {
       console.error('TTS error:', error);
-      setPlayingInteractionId(null);
       toast({
         title: "Audio generation failed",
         description: "Could not generate audio for this text.",
@@ -440,7 +472,8 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
       }
     };
     
-    const isPlaying = playingInteractionId === interaction.id;
+    // Check if this interaction is currently playing
+    const isPlaying = audioState.state === 'playing' && audioState.playingInteractionId === interaction.id;
     
     return (
       <Card className="w-full max-w-xs mx-auto bg-gray-900 border-gray-700 h-96">
@@ -471,7 +504,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
               <Button
                 variant="ghost"
                 size="sm"
-                className={`h-6 w-6 p-0 ${isPlaying ? 'text-green-500' : ''}`}
+                className={`h-6 w-6 p-0 ${isPlaying ? 'text-green-500' : 'text-white'}`}
                 onClick={() => handleTTSClick(createTranscriptText(), interaction.id, true)}
               >
                 <Volume2 className="w-3 h-3" />
@@ -557,7 +590,8 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
       iconColor = 'text-purple-400';
     }
     
-    const isPlaying = playingInteractionId === interaction.id;
+    // Check if this interaction is currently playing
+    const isPlaying = audioState.state === 'playing' && audioState.playingInteractionId === interaction.id;
     
     return (
       <Card className="w-full max-w-xs mx-auto bg-gray-900 border-gray-700 h-96">
@@ -588,7 +622,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
               <Button
                 variant="ghost"
                 size="sm"
-                className={`h-6 w-6 p-0 ${isPlaying ? 'text-green-500' : ''}`}
+                className={`h-6 w-6 p-0 ${isPlaying ? 'text-green-500' : 'text-white'}`}
                 onClick={() => handleTTSClick(interaction.assistant_response, interaction.id, false)}
               >
                 <Volume2 className="w-3 h-3" />
