@@ -71,10 +71,15 @@ export type Database = {
       }
       voice_interactions: {
         Row: {
+          agent_id: string | null
           assistant_response: string
           assistant_response_embedding: string | null
+          audio_url: string | null
+          conversation_duration: number | null
+          conversation_id: string | null
           created_at: string
           destination: string
+          full_transcript: Json | null
           id: string
           is_favorite: boolean | null
           user_id: string | null
@@ -82,10 +87,15 @@ export type Database = {
           user_input_embedding: string | null
         }
         Insert: {
+          agent_id?: string | null
           assistant_response: string
           assistant_response_embedding?: string | null
+          audio_url?: string | null
+          conversation_duration?: number | null
+          conversation_id?: string | null
           created_at?: string
           destination: string
+          full_transcript?: Json | null
           id?: string
           is_favorite?: boolean | null
           user_id?: string | null
@@ -93,10 +103,15 @@ export type Database = {
           user_input_embedding?: string | null
         }
         Update: {
+          agent_id?: string | null
           assistant_response?: string
           assistant_response_embedding?: string | null
+          audio_url?: string | null
+          conversation_duration?: number | null
+          conversation_id?: string | null
           created_at?: string
           destination?: string
+          full_transcript?: Json | null
           id?: string
           is_favorite?: boolean | null
           user_id?: string | null

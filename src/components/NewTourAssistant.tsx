@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Landmark } from '@/data/landmarks';
 import { useConversation } from '@11labs/react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './AuthProvider';
 
 interface NewTourAssistantProps {
   open: boolean;
@@ -26,6 +27,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   systemPrompt 
 }) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [elevenLabsConfig, setElevenLabsConfig] = useState<{apiKey: string, agentId: string} | null>(null);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const [assistantState, setAssistantState] = useState<AssistantState>('not-started');
@@ -83,11 +85,12 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   const prepareDynamicVariables = () => {
     return {
       geminiGenerated: systemPrompt || `You are a knowledgeable tour guide for ${destination}. Provide engaging information about the following landmarks: ${landmarks.map(l => l.name).join(', ')}.`,
-      destination: destination
+      destination: destination,
+      user_id: user?.id // Pass user ID for webhook processing
     };
   };
 
-  // Initialize the conversation without overrides - use agent's default configuration with dynamic variables
+  // Initialize the conversation with webhook support
   const conversation = useConversation({
     onConnect: () => {
       console.log('Connected to ElevenLabs agent');
@@ -100,6 +103,12 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     onDisconnect: () => {
       console.log('Disconnected from ElevenLabs agent');
       setAssistantState('not-started');
+      
+      // Show success message when conversation ends
+      toast({
+        title: "Conversation Saved",
+        description: "Your tour conversation has been processed and saved.",
+      });
     },
     onMessage: (message) => {
       console.log('Received message:', message);
@@ -142,6 +151,15 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
         toast({
           title: "Configuration Error",
           description: "ElevenLabs configuration not available.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (!user) {
+        toast({
+          title: "Authentication Required",
+          description: "Please sign in to use the tour guide.",
           variant: "destructive"
         });
         return;
@@ -291,6 +309,9 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
                 ✨ Enhanced with AI-generated tour expertise
               </div>
             )}
+            <div className="mt-2 text-xs text-blue-600 font-medium">
+              🎙️ Conversations are automatically saved after each session
+            </div>
           </DialogDescription>
         </DialogHeader>
         
@@ -355,6 +376,41 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       </DialogContent>
     </Dialog>
   );
+
+  // Helper functions
+  function getButtonLabel() {
+    switch (assistantState) {
+      case 'not-started':
+        return 'Call Tour Guide';
+      case 'started':
+        return 'Talk to interrupt';
+      case 'listening':
+        return 'Listening';
+      case 'recording':
+        return 'Listening';
+      case 'playback':
+        return 'Talk to interrupt';
+      default:
+        return 'Call Tour Guide';
+    }
+  }
+
+  function getCircleColor() {
+    switch (assistantState) {
+      case 'not-started':
+        return 'border-gray-600 bg-gray-200';
+      case 'started':
+        return 'border-yellow-400 bg-yellow-50 animate-pulse';
+      case 'listening':
+        return 'border-blue-500 bg-blue-50 animate-pulse';
+      case 'recording':
+        return 'border-red-500 bg-red-50 animate-pulse';
+      case 'playback':
+        return 'border-green-500 bg-green-50 animate-pulse';
+      default:
+        return 'border-gray-600 bg-gray-200';
+    }
+  }
 };
 
 export default NewTourAssistant;

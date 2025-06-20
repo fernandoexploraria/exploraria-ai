@@ -1,1 +1,38 @@
+
 project_id = "ejqgdmbuabrcjxbhpxup"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[auth]
+enabled = true
+port = 54322
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://localhost:3000"]
+jwt_expiry = 3600
+enable_signup = true
+enable_anonymous_sign_ins = false
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+secure_password_change = false
+enable_reauthentication = false
+
+[db]
+port = 54323
+shadow_port = 54324
+major_version = 15
+
+[functions.elevenlabs-webhook]
+verify_jwt = false
+
+[storage]
+enabled = true
+port = 54325
+file_size_limit = "50MiB"
