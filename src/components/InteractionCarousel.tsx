@@ -729,15 +729,17 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
                 </span>
               )}
               
-              {/* TTS Control */}
+              {/* TTS Control - Fixed styling for mobile */}
               <Button
                 variant="ghost"
                 size="sm"
-                className={`h-8 w-8 p-0 ${isPlaying ? 'text-green-500' : 'text-white'} hover:text-gray-300`}
+                className={`h-8 w-8 p-0 border-none bg-transparent hover:bg-transparent focus:bg-transparent active:bg-transparent ${
+                  isPlaying ? 'text-green-500' : 'text-white'
+                }`}
                 onClick={handleTTSClick}
                 disabled={currentInteractions.length === 0}
               >
-                <Volume2 className="w-4 h-4" />
+                <Volume2 className={`w-4 h-4 ${isPlaying ? 'text-green-500' : 'text-white'}`} />
               </Button>
             </div>
           </div>
