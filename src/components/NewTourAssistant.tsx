@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Landmark } from '@/data/landmarks';
 import { useConversation } from '@11labs/react';
@@ -96,7 +96,7 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
       console.log('Connected to ElevenLabs agent');
       toast({
         title: "Connected",
-        description: "Connected to your tour guide!",
+        description: "Ready to listen! Start speaking now.",
       });
     },
     onDisconnect: () => {
@@ -197,6 +197,25 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
     onOpenChange(false);
   };
 
+  // Helper function to get conversation status text and color
+  const getConversationStatus = () => {
+    if (conversation.status === 'connecting') {
+      return { text: "Connecting to your tour guide...", color: "text-yellow-600", showPulse: true };
+    }
+    if (conversation.status === 'connected' && conversation.isSpeaking) {
+      return { text: "🗣️ Tour guide is speaking...", color: "text-green-600", showPulse: true };
+    }
+    if (conversation.status === 'connected' && !conversation.isSpeaking) {
+      return { text: "🎤 Listening - Start speaking now!", color: "text-blue-600", showPulse: true };
+    }
+    if (conversation.status === 'disconnected') {
+      return { text: "Disconnected from tour guide", color: "text-gray-500", showPulse: false };
+    }
+    return { text: "Ready", color: "text-gray-600", showPulse: false };
+  };
+
+  const statusInfo = getConversationStatus();
+
   // Show loading if configuration is being fetched
   if (isLoadingConfig) {
     return (
@@ -275,13 +294,25 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
                 size="lg"
                 className="bg-blue-500 hover:bg-blue-600"
               >
-                {conversation.status === 'connecting' ? 'Connecting...' : 'Start Tour Guide'}
+                {conversation.status === 'connecting' ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Connecting...
+                  </>
+                ) : (
+                  'Start Tour Guide'
+                )}
               </Button>
             </div>
           ) : (
             <>
               {/* Conversation History */}
               <div className="flex-1 overflow-y-auto mb-4 space-y-3 min-h-0">
+                {conversationMessages.length === 0 && (
+                  <div className="text-center text-muted-foreground py-8">
+                    <p>Conversation will appear here as you chat with your tour guide.</p>
+                  </div>
+                )}
                 {conversationMessages.map((message, index) => (
                   <div
                     key={index}
@@ -299,42 +330,70 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
                 ))}
               </div>
 
-              {/* Voice Controls */}
+              {/* Voice Status and Controls */}
               <div className="flex flex-col items-center space-y-4 py-4 border-t">
-                <div className="flex items-center space-x-4">
-                  <Button
-                    size="lg"
-                    className={`w-20 h-20 rounded-full transition-all duration-200 ${
-                      conversation.isSpeaking 
-                        ? 'bg-green-500 hover:bg-green-600 animate-pulse'
-                        : conversation.status === 'connected'
-                        ? 'bg-blue-500 hover:bg-blue-600'
-                        : 'bg-gray-400'
-                    }`}
-                    disabled={conversation.status !== 'connected'}
-                  >
-                    {conversation.isSpeaking ? (
-                      <Volume2 className="w-8 h-8" />
+                {/* Visual Microphone Indicator */}
+                <div className="relative flex items-center justify-center">
+                  <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center transition-all duration-300 ${
+                    conversation.status === 'connecting' ? 
+                      'border-yellow-400 bg-yellow-50 animate-pulse' :
+                    conversation.isSpeaking ? 
+                      'border-green-500 bg-green-50 animate-pulse' : 
+                    conversation.status === 'connected' ? 
+                      'border-blue-500 bg-blue-50 animate-pulse' : 
+                      'border-gray-300 bg-gray-50'
+                  }`}>
+                    {conversation.status === 'connecting' ? (
+                      <Loader2 className="w-8 h-8 text-yellow-600 animate-spin" />
+                    ) : conversation.isSpeaking ? (
+                      <Volume2 className="w-8 h-8 text-green-600" />
+                    ) : conversation.status === 'connected' ? (
+                      <Mic className="w-8 h-8 text-blue-600" />
                     ) : (
-                      <Mic className="w-8 h-8" />
+                      <MicOff className="w-8 h-8 text-gray-400" />
                     )}
-                  </Button>
+                  </div>
                   
-                  <Button
-                    onClick={handleEndTour}
-                    variant="outline"
-                    size="lg"
-                  >
-                    End Tour
-                  </Button>
+                  {/* Animated rings for active states */}
+                  {(conversation.isSpeaking || (conversation.status === 'connected' && !conversation.isSpeaking)) && (
+                    <>
+                      <div className={`absolute inset-0 rounded-full border-2 animate-ping ${
+                        conversation.isSpeaking ? 'border-green-400' : 'border-blue-400'
+                      }`} style={{ animationDuration: '2s' }} />
+                      <div className={`absolute inset-2 rounded-full border-2 animate-ping ${
+                        conversation.isSpeaking ? 'border-green-300' : 'border-blue-300'
+                      }`} style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
+                    </>
+                  )}
                 </div>
                 
-                <div className="text-center text-sm text-muted-foreground">
-                  {conversation.status === 'connecting' && "Connecting to tour guide..."}
-                  {conversation.status === 'connected' && !conversation.isSpeaking && "Listening... Speak naturally with your tour guide"}
-                  {conversation.status === 'connected' && conversation.isSpeaking && "Tour guide speaking..."}
-                  {conversation.status === 'disconnected' && "Disconnected from tour guide"}
+                {/* Status Text */}
+                <div className="text-center">
+                  <div className={`text-lg font-medium ${statusInfo.color} ${statusInfo.showPulse ? 'animate-pulse' : ''}`}>
+                    {statusInfo.text}
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    {conversation.status === 'connected' && !conversation.isSpeaking && 
+                      "Speak naturally - no need to hold any buttons!"
+                    }
+                    {conversation.status === 'connected' && conversation.isSpeaking && 
+                      "Listening to your tour guide..."
+                    }
+                    {conversation.status === 'connecting' && 
+                      "Setting up your personal tour guide..."
+                    }
+                  </div>
                 </div>
+                
+                {/* End Tour Button */}
+                <Button
+                  onClick={handleEndTour}
+                  variant="outline"
+                  size="lg"
+                  disabled={conversation.status === 'connecting'}
+                >
+                  End Tour
+                </Button>
               </div>
             </>
           )}
