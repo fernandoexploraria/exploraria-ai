@@ -21,7 +21,7 @@ export const useOpenAIRealtime = ({ onConnectionChange, onSpeakingChange, onErro
       }
 
       const binaryString = atob(base64Audio);
-      const bytes = new Uint8Array(binaryString.length);
+      const bytes new Uint8Array(binaryString.length);
       for (let i = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
       }
@@ -47,9 +47,9 @@ export const useOpenAIRealtime = ({ onConnectionChange, onSpeakingChange, onErro
 
   const connect = useCallback(async () => {
     try {
-      console.log('🔌 Starting OpenAI Realtime connection...');
+      console.log('🔌 Starting OpenAI Realtime connection through Supabase...');
       
-      // Get the session token
+      // Get the session token for authentication
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       
@@ -58,15 +58,15 @@ export const useOpenAIRealtime = ({ onConnectionChange, onSpeakingChange, onErro
         return;
       }
 
-      // Use the correct WebSocket URL format
+      // Connect through our Supabase Edge Function WebSocket proxy
       const wsUrl = `wss://ejqgdmbuabrcjxbhpxup.supabase.co/functions/v1/openai-realtime?token=${encodeURIComponent(token)}`;
-      console.log('🌐 Connecting to:', wsUrl);
+      console.log('🌐 Connecting through proxy to:', wsUrl);
       
       const ws = new WebSocket(wsUrl);
       socketRef.current = ws;
 
       ws.onopen = () => {
-        console.log('✅ WebSocket connected successfully');
+        console.log('✅ WebSocket connected through Supabase proxy');
         setConnected(true);
         onConnectionChange(true);
       };
@@ -74,7 +74,7 @@ export const useOpenAIRealtime = ({ onConnectionChange, onSpeakingChange, onErro
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          console.log('📩 Message from OpenAI:', data.type, data);
+          console.log('📩 Message from OpenAI via proxy:', data.type, data);
           
           setMessages(prev => [...prev, data]);
           
@@ -123,7 +123,7 @@ export const useOpenAIRealtime = ({ onConnectionChange, onSpeakingChange, onErro
         }
       };
       
-      console.log('📤 Sending message:', payload);
+      console.log('📤 Sending message via proxy:', payload);
       socketRef.current.send(JSON.stringify(payload));
       socketRef.current.send(JSON.stringify({ type: 'response.create' }));
     } else {
