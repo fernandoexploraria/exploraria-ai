@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Mic, MicOff } from 'lucide-react';
@@ -14,7 +14,9 @@ interface SimpleVoiceAssistantProps {
 const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpenChange }) => {
   const { toast } = useToast();
   const [isConnected, setIsConnected] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const handleConnectionChange = (connected: boolean) => {
     setIsConnected(connected);
@@ -22,12 +24,6 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
       toast({
         title: "Connected",
         description: "Rome expert is ready to help",
-      });
-    } else {
-      toast({
-        title: "Disconnected",
-        description: "Connection to Rome expert lost",
-        variant: "destructive"
       });
     }
   };
@@ -44,7 +40,7 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
     });
   };
 
-  const { connected, isListening, connect, startListening, stopListening, disconnect } = useOpenAIRealtime({
+  const { connected, connect, sendMessage, disconnect } = useOpenAIRealtime({
     onConnectionChange: handleConnectionChange,
     onSpeakingChange: handleSpeakingChange,
     onError: handleError
@@ -55,9 +51,48 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
       console.log('🚀 Dialog opened, connecting...');
       connect();
     }
+    
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+    };
   }, [open, connected, connect]);
 
-  const handleMicClick = async () => {
+  const startListening = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { sampleRate: 24000, channelCount: 1 }
+      });
+      
+      streamRef.current = stream;
+      setIsListening(true);
+      
+      toast({
+        title: "Listening",
+        description: "Voice recording started - speak now",
+      });
+      
+    } catch (error) {
+      console.error('Error starting microphone:', error);
+      toast({
+        title: "Microphone Error",
+        description: "Could not access microphone. Please check permissions.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const stopListening = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setIsListening(false);
+  };
+
+  const handleMicClick = () => {
     if (!connected) {
       toast({
         title: "Not Connected",
@@ -68,26 +103,14 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
     }
 
     if (isListening) {
-      console.log('Stopping listening...');
       stopListening();
-      toast({
-        title: "Stopped Listening",
-        description: "Processing your message...",
-      });
     } else {
-      console.log('Starting listening...');
-      await startListening();
-      toast({
-        title: "Listening",
-        description: "Voice recording started - speak now",
-      });
+      startListening();
     }
   };
 
   const handleClose = () => {
-    if (isListening) {
-      stopListening();
-    }
+    stopListening();
     disconnect();
     onOpenChange(false);
   };
@@ -124,7 +147,7 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
             ) : (
               <Mic className="w-12 h-12" />
             )}
-          </Button>
+  </Button>
           
           {!connected && (
             <p className="mt-4 text-sm text-muted-foreground text-center">
@@ -134,7 +157,7 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
           
           {connected && isListening && (
             <p className="mt-4 text-sm text-muted-foreground text-center">
-              Listening... Click to stop and process.
+              Listening... Click to stop.
             </p>
           )}
           
