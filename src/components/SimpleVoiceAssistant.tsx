@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Mic, MicOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { useOpenAIRealtime } from '@/hooks/useOpenAIRealtime';
 
 interface SimpleVoiceAssistantProps {
   open: boolean;
@@ -16,146 +16,49 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
   const [isConnected, setIsConnected] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const wsRef = useRef<WebSocket | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  useEffect(() => {
-    if (open && !isConnected) {
-      connectToOpenAI();
-    }
-    
-    return () => {
-      cleanup();
-    };
-  }, [open]);
-
-  const connectToOpenAI = async () => {
-    try {
-      console.log('Connecting to OpenAI Realtime API via Supabase...');
-      
-      // Get the session to include auth token in URL
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      
-      if (!token) {
-        toast({
-          title: "Authentication Required",
-          description: "Please sign in to use the voice assistant",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Create WebSocket connection with correct Supabase edge function URL
-      const wsUrl = `wss://ejqgdmbuabrcjxbhpxup.supabase.co/functions/v1/openai-realtime?token=${encodeURIComponent(token)}`;
-      console.log('Connecting to WebSocket URL:', wsUrl);
-      
-      const ws = new WebSocket(wsUrl);
-
-      ws.onopen = () => {
-        console.log('WebSocket connection opened successfully');
-        setIsConnected(true);
-        
-        toast({
-          title: "Connected",
-          description: "Rome expert is ready to help",
-        });
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          console.log('Received WebSocket message:', data.type, data);
-          
-          if (data.type === 'response.audio.delta') {
-            console.log('Received audio delta, length:', data.delta?.length);
-            if (data.delta) {
-              playAudioChunk(data.delta);
-              setIsSpeaking(true);
-            }
-          } else if (data.type === 'response.audio.done') {
-            console.log('Audio response completed');
-            setIsSpeaking(false);
-          } else if (data.type === 'error') {
-            console.error('OpenAI API error:', data);
-            toast({
-              title: "API Error",
-              description: data.error?.message || "An error occurred",
-              variant: "destructive"
-            });
-          }
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
-        }
-      };
-
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        toast({
-          title: "Connection Error",
-          description: "Failed to connect to voice assistant. Please check your connection and try again.",
-          variant: "destructive"
-        });
-      };
-
-      ws.onclose = (event) => {
-        console.log('WebSocket connection closed:', event.code, event.reason);
-        setIsConnected(false);
-        setIsListening(false);
-        setIsSpeaking(false);
-        
-        if (event.code !== 1000) { // Not a normal closure
-          toast({
-            title: "Connection Lost",
-            description: `Connection closed: ${event.reason || 'Unknown reason'}`,
-            variant: "destructive"
-          });
-        }
-      };
-
-      wsRef.current = ws;
-      
-    } catch (error) {
-      console.error('Error connecting to WebSocket:', error);
+  const handleConnectionChange = (connected: boolean) => {
+    setIsConnected(connected);
+    if (connected) {
       toast({
-        title: "Error",
-        description: "Failed to initialize voice assistant. Please try again.",
-        variant: "destructive"
+        title: "Connected",
+        description: "Rome expert is ready to help",
       });
     }
   };
 
-  const playAudioChunk = async (base64Audio: string) => {
-    try {
-      if (!audioContextRef.current) {
-        audioContextRef.current = new AudioContext();
-      }
-
-      const binaryString = atob(base64Audio);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-
-      // Convert PCM16 to AudioBuffer
-      const audioBuffer = audioContextRef.current.createBuffer(1, bytes.length / 2, 24000);
-      const channelData = audioBuffer.getChannelData(0);
-      
-      for (let i = 0; i < channelData.length; i++) {
-        const sample = (bytes[i * 2] | (bytes[i * 2 + 1] << 8));
-        channelData[i] = sample / 32768.0;
-      }
-
-      const source = audioContextRef.current.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(audioContextRef.current.destination);
-      source.start();
-      
-    } catch (error) {
-      console.error('Error playing audio:', error);
-    }
+  const handleSpeakingChange = (speaking: boolean) => {
+    setIsSpeaking(speaking);
   };
+
+  const handleError = (error: string) => {
+    toast({
+      title: "Error",
+      description: error,
+      variant: "destructive"
+    });
+  };
+
+  const { connected, connect, sendMessage, disconnect } = useOpenAIRealtime({
+    onConnectionChange: handleConnectionChange,
+    onSpeakingChange: handleSpeakingChange,
+    onError: handleError
+  });
+
+  useEffect(() => {
+    if (open && !connected) {
+      console.log('🚀 Dialog opened, connecting...');
+      connect();
+    }
+    
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+    };
+  }, [open, connected, connect]);
 
   const startListening = async () => {
     try {
@@ -189,28 +92,8 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
     setIsListening(false);
   };
 
-  const cleanup = () => {
-    console.log('Cleaning up voice assistant resources...');
-    
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
-    setIsConnected(false);
-    setIsListening(false);
-    setIsSpeaking(false);
-  };
-
   const handleMicClick = () => {
-    if (!isConnected) {
+    if (!connected) {
       toast({
         title: "Not Connected",
         description: "Please wait for connection to be established",
@@ -226,8 +109,14 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
     }
   };
 
+  const handleClose = () => {
+    stopListening();
+    disconnect();
+    onOpenChange(false);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-center text-xl">
@@ -246,39 +135,39 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
                 ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
                 : isSpeaking
                 ? 'bg-green-500 hover:bg-green-600 animate-pulse'
-                : isConnected
+                : connected
                 ? 'bg-primary hover:bg-primary/90'
                 : 'bg-gray-400'
             }`}
             onClick={handleMicClick}
-            disabled={!isConnected || isSpeaking}
+            disabled={!connected || isSpeaking}
           >
             {isListening ? (
               <MicOff className="w-12 h-12" />
             ) : (
               <Mic className="w-12 h-12" />
             )}
-          </Button>
+  </Button>
           
-          {!isConnected && (
+          {!connected && (
             <p className="mt-4 text-sm text-muted-foreground text-center">
               Connecting to Rome expert...
             </p>
           )}
           
-          {isConnected && isListening && (
+          {connected && isListening && (
             <p className="mt-4 text-sm text-muted-foreground text-center">
               Listening... Click to stop.
             </p>
           )}
           
-          {isConnected && isSpeaking && (
+          {connected && isSpeaking && (
             <p className="mt-4 text-sm text-muted-foreground text-center">
               Rome expert speaking...
             </p>
           )}
 
-          {isConnected && !isListening && !isSpeaking && (
+          {connected && !isListening && !isSpeaking && (
             <p className="mt-4 text-sm text-muted-foreground text-center">
               Click microphone to ask about Rome
             </p>
