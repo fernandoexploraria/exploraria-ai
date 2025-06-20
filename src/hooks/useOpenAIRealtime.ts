@@ -21,7 +21,7 @@ export const useOpenAIRealtime = ({ onConnectionChange, onSpeakingChange, onErro
       }
 
       const binaryString = atob(base64Audio);
-      const bytes new Uint8Array(binaryString.length);
+      const bytes = new Uint8Array(binaryString.length);
       for (let i = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
       }
