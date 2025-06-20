@@ -215,7 +215,7 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
   const getCircleColor = () => {
     switch (assistantState) {
       case 'not-started':
-        return 'border-gray-400 bg-gray-100';
+        return 'border-gray-600 bg-gray-200';
       case 'started':
         return 'border-yellow-400 bg-yellow-50 animate-pulse';
       case 'listening':
@@ -225,7 +225,7 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
       case 'playback':
         return 'border-green-500 bg-green-50 animate-pulse';
       default:
-        return 'border-gray-400 bg-gray-100';
+        return 'border-gray-600 bg-gray-200';
     }
   };
 
