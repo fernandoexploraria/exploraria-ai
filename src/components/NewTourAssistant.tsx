@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -376,41 +375,6 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       </DialogContent>
     </Dialog>
   );
-
-  // Helper functions
-  function getButtonLabel() {
-    switch (assistantState) {
-      case 'not-started':
-        return 'Call Tour Guide';
-      case 'started':
-        return 'Talk to interrupt';
-      case 'listening':
-        return 'Listening';
-      case 'recording':
-        return 'Listening';
-      case 'playback':
-        return 'Talk to interrupt';
-      default:
-        return 'Call Tour Guide';
-    }
-  }
-
-  function getCircleColor() {
-    switch (assistantState) {
-      case 'not-started':
-        return 'border-gray-600 bg-gray-200';
-      case 'started':
-        return 'border-yellow-400 bg-yellow-50 animate-pulse';
-      case 'listening':
-        return 'border-blue-500 bg-blue-50 animate-pulse';
-      case 'recording':
-        return 'border-red-500 bg-red-50 animate-pulse';
-      case 'playback':
-        return 'border-green-500 bg-green-50 animate-pulse';
-      default:
-        return 'border-gray-600 bg-gray-200';
-    }
-  }
 };
 
 export default NewTourAssistant;
