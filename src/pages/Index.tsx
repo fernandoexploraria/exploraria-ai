@@ -129,9 +129,7 @@ const Index: React.FC = () => {
       id: `temp-${Date.now()}`,
       name: 'Selected Location',
       description: 'Location from interaction history',
-      coordinates,
-      category: 'historic',
-      imageUrl: ''
+      coordinates
     };
     setSelectedLandmark(tempLandmark);
   }, []);
