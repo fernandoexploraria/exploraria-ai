@@ -96,6 +96,8 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
 
   // Initialize the conversation with dynamic configuration
   const conversation = useConversation({
+    // Add the API key to the configuration
+    ...(elevenLabsConfig ? { apiKey: elevenLabsConfig.apiKey } : {}),
     onConnect: () => {
       console.log('Connected to ElevenLabs agent');
       setAssistantState('started');
