@@ -160,17 +160,12 @@ const Index: React.FC = () => {
         onGenerateTour={handleGenerateTour}
         onTourAuthRequired={handleTourAuthRequired}
         isTourLoading={isTourLoading}
-        isVoiceAssistantOpen={isVoiceAssistantOpen}
-        onVoiceAssistantOpenChange={setIsVoiceAssistantOpen}
-        currentDestination={tourPlan?.destination || ''}
-        plannedLandmarks={plannedLandmarks}
         isVoiceSearchOpen={isVoiceSearchOpen}
         onVoiceSearchOpenChange={setIsVoiceSearchOpen}
         isFavoritesOpen={isFavoritesOpen}
         onFavoritesOpenChange={setIsFavoritesOpen}
         isAuthDialogOpen={isAuthDialogOpen}
         onAuthDialogOpenChange={handleAuthDialogClose}
-        onAddLandmarks={handleAddLandmarks}
       />
 
       <NewTourAssistant
