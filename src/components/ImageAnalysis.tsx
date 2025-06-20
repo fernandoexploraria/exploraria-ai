@@ -180,13 +180,13 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
                 alt="Captured image" 
                 className="w-full h-48 object-cover rounded-lg"
               />
-              {/* TTS Button positioned like in marker preview */}
+              {/* TTS Button positioned in bottom right like marker preview */}
               {analysisResult && (
                 <Button
                   onClick={handleTTS}
                   disabled={isPlaying}
                   size="sm"
-                  className="absolute top-2 right-2 bg-white/90 hover:bg-white text-gray-800 shadow-lg"
+                  className="absolute bottom-2 right-2 bg-white/90 hover:bg-white text-gray-800 shadow-lg"
                 >
                   <Volume2 className={`h-4 w-4 ${isPlaying ? 'animate-pulse' : ''}`} />
                 </Button>

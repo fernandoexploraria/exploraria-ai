@@ -144,6 +144,8 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   }, [conversation.status, conversation.isSpeaking, assistantState]);
 
   const handleMainAction = async () => {
+    console.log('Main action clicked, current state:', assistantState);
+    
     if (assistantState === 'not-started') {
       // Start the conversation
       if (!elevenLabsConfig) {
@@ -179,6 +181,8 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
           agentId: elevenLabsConfig.agentId,
           dynamicVariables: dynamicVariables
         });
+        
+        console.log('Conversation started successfully');
         
       } catch (error) {
         console.error('Error starting tour:', error);
