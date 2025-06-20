@@ -283,11 +283,54 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
       setIsPlayingTTS(true);
 
       if (isVoiceTranscript) {
-        // For voice transcripts, use browser TTS directly without AI enhancement
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.onend = () => setIsPlayingTTS(false);
-        utterance.onerror = () => setIsPlayingTTS(false);
-        speechSynthesis.speak(utterance);
+        // For voice transcripts, create a memory-style narration using Gemini + Google TTS
+        const { data, error } = await supabase.functions.invoke('gemini-tts', {
+          body: { 
+            text: text,
+            isMemoryNarration: true // Flag to indicate this should be a memory-style summary
+          }
+        });
+
+        if (error) {
+          console.error('Memory TTS error:', error);
+          setIsPlayingTTS(false);
+          toast({
+            title: "Audio generation failed",
+            description: "Could not generate memory narration.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        if (data.audioContent) {
+          // Play the enhanced memory narration audio
+          const audioBlob = new Blob([Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0))], { type: 'audio/mp3' });
+          const audioUrl = URL.createObjectURL(audioBlob);
+          const audio = new Audio(audioUrl);
+          
+          audio.onended = () => {
+            setCurrentAudio(null);
+            setIsPlayingTTS(false);
+            URL.revokeObjectURL(audioUrl);
+          };
+          
+          audio.onerror = () => {
+            setCurrentAudio(null);
+            setIsPlayingTTS(false);
+            URL.revokeObjectURL(audioUrl);
+          };
+          
+          setCurrentAudio(audio);
+          audio.play();
+        } else if (data.fallbackToBrowser && data.enhancedText) {
+          // Use browser TTS with the enhanced memory text
+          const utterance = new SpeechSynthesisUtterance(data.enhancedText);
+          utterance.onend = () => setIsPlayingTTS(false);
+          utterance.onerror = () => setIsPlayingTTS(false);
+          speechSynthesis.speak(utterance);
+        } else {
+          setIsPlayingTTS(false);
+        }
         return;
       }
 

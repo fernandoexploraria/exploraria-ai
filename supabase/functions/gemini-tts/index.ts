@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { text } = await req.json()
+    const { text, isMemoryNarration } = await req.json()
     
     if (!text) {
       throw new Error('Text is required')
@@ -26,6 +26,14 @@ serve(async (req) => {
 
     console.log('Step 1: Enhancing text with Gemini AI...')
     
+    // Create different prompts for memory narrations vs regular descriptions
+    let geminiPrompt;
+    if (isMemoryNarration) {
+      geminiPrompt = `Transform this conversation transcript into a warm, nostalgic memory narration, as if someone is fondly recounting their travel experience. Make it feel personal and engaging, like sharing a cherished memory with a friend. Focus on the key moments, discoveries, and feelings from the interaction. Keep it conversational and under 30 seconds when spoken aloud. Original transcript: "${text}"`
+    } else {
+      geminiPrompt = `Please enhance this landmark description for audio narration. Make it sound like a friendly, knowledgeable tour guide speaking to visitors. Keep it conversational and under 30 seconds when spoken aloud. Original text: "${text}"`
+    }
+    
     // First, enhance the text with Gemini for better narration
     const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${googleApiKey}`, {
       method: 'POST',
@@ -35,7 +43,7 @@ serve(async (req) => {
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `Please enhance this landmark description for audio narration. Make it sound like a friendly, knowledgeable tour guide speaking to visitors. Keep it conversational and under 30 seconds when spoken aloud. Original text: "${text}"`
+            text: geminiPrompt
           }]
         }],
         generationConfig: {
