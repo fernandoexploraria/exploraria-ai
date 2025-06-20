@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -284,12 +283,29 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   const renderTranscriptEntry = (interaction: Interaction) => {
     const transcript = interaction.full_transcript;
     
+    // Determine icon based on interaction type
+    let IconComponent, iconColor;
+    if (interaction.interaction_type === 'voice') {
+      IconComponent = Mic;
+      iconColor = 'text-blue-400';
+    } else if (interaction.interaction_type === 'image_recognition') {
+      IconComponent = Camera;
+      iconColor = 'text-purple-400';
+    } else if (interaction.interaction_type === 'map_marker') {
+      IconComponent = MapPin;
+      iconColor = 'text-red-400';
+    } else {
+      // Fallback
+      IconComponent = Mic;
+      iconColor = 'text-blue-400';
+    }
+    
     return (
-      <Card className="w-full max-w-xs mx-auto bg-gray-900 border-gray-700 h-80">
+      <Card className="w-full max-w-xs mx-auto bg-gray-900 border-gray-700 h-64">
         <CardContent className="p-3 h-full flex flex-col">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1">
-              <Mic className="w-3 h-3 text-blue-400" />
+              <IconComponent className={`w-3 h-3 ${iconColor}`} />
               <Badge variant="outline" className="text-xs px-1 py-0">{interaction.destination}</Badge>
               {interaction.similarity && (
                 <Badge variant="secondary" className="text-xs px-1 py-0">
@@ -361,18 +377,29 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   };
 
   const renderImageEntry = (interaction: Interaction) => {
-    const isCamera = interaction.interaction_type === 'camera';
+    // Determine icon based on interaction type
+    let IconComponent, iconColor;
+    if (interaction.interaction_type === 'voice') {
+      IconComponent = Mic;
+      iconColor = 'text-blue-400';
+    } else if (interaction.interaction_type === 'image_recognition') {
+      IconComponent = Camera;
+      iconColor = 'text-purple-400';
+    } else if (interaction.interaction_type === 'map_marker') {
+      IconComponent = MapPin;
+      iconColor = 'text-red-400';
+    } else {
+      // Fallback
+      IconComponent = Camera;
+      iconColor = 'text-purple-400';
+    }
     
     return (
-      <Card className="w-full max-w-xs mx-auto bg-gray-900 border-gray-700 h-80">
+      <Card className="w-full max-w-xs mx-auto bg-gray-900 border-gray-700 h-64">
         <CardContent className="p-3 h-full flex flex-col">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1">
-              {isCamera ? (
-                <Camera className="w-3 h-3 text-purple-400" />
-              ) : (
-                <MapPin className="w-3 h-3 text-red-400" />
-              )}
+              <IconComponent className={`w-3 h-3 ${iconColor}`} />
               <Badge variant="outline" className="text-xs px-1 py-0">{interaction.destination}</Badge>
               {interaction.similarity && (
                 <Badge variant="secondary" className="text-xs px-1 py-0">
@@ -453,7 +480,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   const renderInteraction = (interaction: Interaction) => {
     if (interaction.interaction_type === 'voice' && interaction.full_transcript) {
       return renderTranscriptEntry(interaction);
-    } else if (interaction.interaction_type === 'camera' || interaction.landmark_image_url) {
+    } else if (interaction.interaction_type === 'image_recognition' || interaction.landmark_image_url) {
       return renderImageEntry(interaction);
     } else {
       return renderTranscriptEntry(interaction); // Default fallback
