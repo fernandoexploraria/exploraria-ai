@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,6 +49,21 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   const { toast } = useToast();
   const { user } = useAuth();
 
+  // Function to stop TTS playback
+  const stopTTSPlayback = () => {
+    if (isPlaying) {
+      setIsPlaying(false);
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        setCurrentAudio(null);
+      }
+      if (speechSynthesis.speaking) {
+        speechSynthesis.cancel();
+      }
+    }
+  };
+
   // Load all interactions on mount
   useEffect(() => {
     if (open && user) {
@@ -57,7 +71,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
   }, [open, user]);
 
-  // Handle carousel slide changes
+  // Handle carousel slide changes and stop TTS on navigation
   useEffect(() => {
     if (!carouselApi) {
       return;
@@ -65,7 +79,11 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
 
     const updateCurrentSlide = () => {
       const newSlide = carouselApi.selectedScrollSnap();
-      setCurrentSlide(newSlide);
+      if (newSlide !== currentSlide) {
+        // Stop TTS when slide changes
+        stopTTSPlayback();
+        setCurrentSlide(newSlide);
+      }
     };
 
     carouselApi.on("select", updateCurrentSlide);
@@ -74,7 +92,77 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     return () => {
       carouselApi.off("select", updateCurrentSlide);
     };
-  }, [carouselApi]);
+  }, [carouselApi, currentSlide]);
+
+  // Add swipe detection to stop TTS
+  useEffect(() => {
+    if (!carouselApi) return;
+
+    let startX = 0;
+    let startY = 0;
+    const swipeThreshold = 10; // Minimum distance to consider it a swipe
+
+    const handleTouchStart = (e: TouchEvent) => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!startX || !startY) return;
+
+      const currentX = e.touches[0].clientX;
+      const currentY = e.touches[0].clientY;
+      
+      const diffX = Math.abs(currentX - startX);
+      const diffY = Math.abs(currentY - startY);
+
+      // If there's horizontal movement above threshold, stop TTS
+      if (diffX > swipeThreshold && diffX > diffY) {
+        stopTTSPlayback();
+      }
+    };
+
+    const handleMouseDown = (e: MouseEvent) => {
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!startX || !startY) return;
+      if (e.buttons !== 1) return; // Only when mouse is pressed
+
+      const diffX = Math.abs(e.clientX - startX);
+      const diffY = Math.abs(e.clientY - startY);
+
+      // If there's horizontal movement above threshold, stop TTS
+      if (diffX > swipeThreshold && diffX > diffY) {
+        stopTTSPlayback();
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        stopTTSPlayback();
+      }
+    };
+
+    const carouselElement = carouselApi.rootNode();
+    
+    // Add event listeners
+    carouselElement.addEventListener('touchstart', handleTouchStart, { passive: true });
+    carouselElement.addEventListener('touchmove', handleTouchMove, { passive: true });
+    carouselElement.addEventListener('mousedown', handleMouseDown);
+    carouselElement.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      carouselElement.removeEventListener('touchstart', handleTouchStart);
+      carouselElement.removeEventListener('touchmove', handleTouchMove);
+      carouselElement.removeEventListener('mousedown', handleMouseDown);
+      carouselElement.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [carouselApi, isPlaying, currentAudio]);
 
   const loadAllInteractions = async () => {
     setIsLoading(true);
@@ -262,15 +350,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   const handleTTSClick = async () => {
     if (isPlaying) {
       // Stop current playback
-      setIsPlaying(false);
-      if (currentAudio) {
-        currentAudio.pause();
-        currentAudio.currentTime = 0;
-        setCurrentAudio(null);
-      }
-      if (speechSynthesis.speaking) {
-        speechSynthesis.cancel();
-      }
+      stopTTSPlayback();
       return;
     }
 
