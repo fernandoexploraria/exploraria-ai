@@ -301,7 +301,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
     
     return (
-      <Card className="w-full max-w-xs mx-auto bg-gray-900 border-gray-700 h-64">
+      <Card className="w-full max-w-xs mx-auto bg-gray-900 border-gray-700 h-96">
         <CardContent className="p-3 h-full flex flex-col">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1">
@@ -395,7 +395,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
     
     return (
-      <Card className="w-full max-w-xs mx-auto bg-gray-900 border-gray-700 h-64">
+      <Card className="w-full max-w-xs mx-auto bg-gray-900 border-gray-700 h-96">
         <CardContent className="p-3 h-full flex flex-col">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1">
