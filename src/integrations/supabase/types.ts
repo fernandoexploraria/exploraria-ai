@@ -174,6 +174,23 @@ export type Database = {
         Args: { "": string } | { "": unknown } | { "": unknown }
         Returns: unknown
       }
+      search_voice_interactions: {
+        Args: {
+          query_embedding: string
+          match_threshold: number
+          match_count: number
+          user_id: string
+        }
+        Returns: {
+          id: string
+          destination: string
+          user_input: string
+          assistant_response: string
+          is_favorite: boolean
+          created_at: string
+          similarity: number
+        }[]
+      }
       sparsevec_out: {
         Args: { "": unknown }
         Returns: unknown
