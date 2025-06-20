@@ -1,9 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Star, Calendar, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -131,7 +129,7 @@ const FavoritesDialog: React.FC<FavoritesDialogProps> = ({ open, onOpenChange })
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-5xl max-h-[80vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Star className="w-5 h-5 text-yellow-500 fill-current" />
@@ -142,53 +140,45 @@ const FavoritesDialog: React.FC<FavoritesDialogProps> = ({ open, onOpenChange })
           </DialogDescription>
         </DialogHeader>
         
-        <div className="flex-1 overflow-hidden py-4">
+        <div className="flex-1 overflow-y-auto space-y-4">
           {isLoading ? (
             <div className="text-center py-8 text-muted-foreground">
               <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
               <p>Loading your favorite conversations...</p>
             </div>
           ) : favorites.length > 0 ? (
-            <Carousel className="w-full max-w-4xl mx-auto">
-              <CarouselContent className="-ml-4">
-                {favorites.map((interaction) => (
-                  <CarouselItem key={interaction.id} className="pl-4 md:basis-1/2 lg:basis-1/3">
-                    <div className="border rounded-lg p-4 space-y-3 h-full">
-                      <div className="flex items-start justify-between">
-                        <div className="flex flex-col gap-2">
-                          <Badge variant="outline">{interaction.destination}</Badge>
-                          <div className="flex items-center text-sm text-muted-foreground">
-                            <Calendar className="w-3 h-3 mr-1" />
-                            {formatDate(interaction.created_at)}
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeFavorite(interaction)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div>
-                          <p className="text-sm font-medium text-blue-400">You asked:</p>
-                          <p className="text-sm text-white line-clamp-2">{interaction.user_input}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-green-400">Assistant replied:</p>
-                          <p className="text-sm text-white line-clamp-3">{interaction.assistant_response}</p>
-                        </div>
-                      </div>
+            favorites.map((interaction) => (
+              <div key={interaction.id} className="border rounded-lg p-4 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">{interaction.destination}</Badge>
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Calendar className="w-3 h-3 mr-1" />
+                      {formatDate(interaction.created_at)}
                     </div>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-              <CarouselPrevious />
-              <CarouselNext />
-            </Carousel>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeFavorite(interaction)}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+                
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-sm font-medium text-blue-400">You asked:</p>
+                    <p className="text-sm text-white">{interaction.user_input}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-green-400">Assistant replied:</p>
+                    <p className="text-sm text-white">{interaction.assistant_response}</p>
+                  </div>
+                </div>
+              </div>
+            ))
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               <Star className="w-12 h-12 mx-auto mb-4 opacity-50" />
