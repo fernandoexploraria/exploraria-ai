@@ -235,8 +235,16 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
   };
 
-  const handleTTSClick = async (text: string) => {
+  const handleTTSClick = async (text: string, isVoiceTranscript = false) => {
     try {
+      if (isVoiceTranscript) {
+        // For voice transcripts, use browser TTS directly without AI enhancement
+        const utterance = new SpeechSynthesisUtterance(text);
+        speechSynthesis.speak(utterance);
+        return;
+      }
+
+      // For non-voice interactions, use the enhanced TTS
       const { data, error } = await supabase.functions.invoke('gemini-tts', {
         body: { text }
       });
@@ -302,6 +310,23 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
       iconColor = 'text-blue-400';
     }
     
+    // Create a readable transcript text for TTS
+    const createTranscriptText = () => {
+      if (transcript && Array.isArray(transcript)) {
+        return transcript
+          .filter((entry: any) => entry.message && (entry.role === 'user' || entry.role === 'agent'))
+          .map((entry: any) => {
+            const speaker = entry.role === 'user' ? 'User' : 'Assistant';
+            const message = entry.message;
+            const interrupted = entry.role === 'agent' && entry.interrupted ? ' (interrupted)' : '';
+            return `${speaker}: ${message}${interrupted}`;
+          })
+          .join('. ');
+      } else {
+        return `User: ${interaction.user_input}. Assistant: ${interaction.assistant_response}`;
+      }
+    };
+    
     return (
       <Card className="w-full max-w-xs mx-auto bg-gray-900 border-gray-700 h-96">
         <CardContent className="p-3 h-full flex flex-col">
@@ -332,7 +357,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
                 variant="ghost"
                 size="sm"
                 className="h-6 w-6 p-0"
-                onClick={() => handleTTSClick(interaction.assistant_response)}
+                onClick={() => handleTTSClick(createTranscriptText(), true)}
               >
                 <Volume2 className="w-3 h-3" />
               </Button>
@@ -447,7 +472,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
                 variant="ghost"
                 size="sm"
                 className="h-6 w-6 p-0"
-                onClick={() => handleTTSClick(interaction.assistant_response)}
+                onClick={() => handleTTSClick(interaction.assistant_response, false)}
               >
                 <Volume2 className="w-3 h-3" />
               </Button>
