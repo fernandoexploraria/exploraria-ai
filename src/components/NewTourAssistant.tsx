@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -147,8 +146,7 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
       // Request microphone permission first
       await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      // Start the conversation with the signed URL approach
-      // First get a signed URL from ElevenLabs API
+      // Get a signed URL from ElevenLabs API for secure connection
       const signedUrlResponse = await fetch(`https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=${elevenLabsConfig.agentId}`, {
         method: 'GET',
         headers: {
@@ -162,11 +160,11 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
       }
 
       const signedUrlData = await signedUrlResponse.json();
-      console.log('Got signed URL from ElevenLabs');
+      console.log('Got signed URL from ElevenLabs:', signedUrlData);
       
-      // Start the conversation with the signed URL
+      // Start the conversation using the agent ID approach
       await conversation.startSession({ 
-        url: signedUrlData.signed_url
+        agentId: elevenLabsConfig.agentId
       });
       
       setHasStarted(true);
