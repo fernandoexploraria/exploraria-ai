@@ -23,7 +23,6 @@ export type Database = {
           id: string
           interaction_type: string | null
           is_favorite: boolean | null
-          landmark_audio_url: string | null
           landmark_coordinates: unknown | null
           landmark_image_url: string | null
           user_id: string | null
@@ -43,7 +42,6 @@ export type Database = {
           id?: string
           interaction_type?: string | null
           is_favorite?: boolean | null
-          landmark_audio_url?: string | null
           landmark_coordinates?: unknown | null
           landmark_image_url?: string | null
           user_id?: string | null
@@ -63,7 +61,6 @@ export type Database = {
           id?: string
           interaction_type?: string | null
           is_favorite?: boolean | null
-          landmark_audio_url?: string | null
           landmark_coordinates?: unknown | null
           landmark_image_url?: string | null
           user_id?: string | null
