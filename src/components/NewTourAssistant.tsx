@@ -91,10 +91,18 @@ ${landmarkDetails}
 Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, and recommendations. Keep your responses conversational and engaging, suitable for audio narration. Answer questions about the landmarks, provide historical context, suggest best times to visit, and share insider tips.`;
   };
 
-  // Initialize the conversation with minimal configuration
+  // Initialize the conversation with the system prompt override
   const conversation = useConversation({
+    overrides: {
+      agent: {
+        prompt: {
+          // Use the Gemini-generated system prompt if available, otherwise use fallback
+          geminiPrompt: systemPrompt || createFallbackTourPrompt()
+        }
+      }
+    },
     onConnect: () => {
-      console.log('Connected to ElevenLabs agent');
+      console.log('Connected to ElevenLabs agent with custom prompt');
       setAssistantState('started');
       toast({
         title: "Connected",
@@ -153,6 +161,7 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
 
       try {
         console.log('Starting tour with config:', { agentId: elevenLabsConfig.agentId });
+        console.log('Using system prompt:', systemPrompt ? 'Custom Gemini prompt' : 'Fallback prompt');
         
         // Request microphone permission first
         await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -285,6 +294,11 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
           </DialogTitle>
           <DialogDescription className="text-center text-sm text-muted-foreground">
             Your AI-powered personal tour guide for {destination}
+            {systemPrompt && (
+              <span className="block text-green-600 text-xs mt-1">
+                ✨ Enhanced with AI-generated expertise
+              </span>
+            )}
           </DialogDescription>
         </DialogHeader>
         
