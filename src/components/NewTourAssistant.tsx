@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -81,7 +82,8 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   // Prepare dynamic variables for the ElevenLabs agent
   const prepareDynamicVariables = () => {
     return {
-      geminiGenerated: systemPrompt || `You are a knowledgeable tour guide for ${destination}. Provide engaging information about the following landmarks: ${landmarks.map(l => l.name).join(', ')}.`
+      geminiGenerated: systemPrompt || `You are a knowledgeable tour guide for ${destination}. Provide engaging information about the following landmarks: ${landmarks.map(l => l.name).join(', ')}.`,
+      destination: destination
     };
   };
 
