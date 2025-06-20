@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -5,6 +6,7 @@ import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Landmark } from '@/data/landmarks';
 import { useConversation } from '@11labs/react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface NewTourAssistantProps {
   open: boolean;
@@ -20,22 +22,58 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   landmarks 
 }) => {
   const { toast } = useToast();
-  const [elevenLabsApiKey, setElevenLabsApiKey] = useState<string>('');
-  const [agentId, setAgentId] = useState<string>('');
+  const [elevenLabsConfig, setElevenLabsConfig] = useState<{apiKey: string, agentId: string} | null>(null);
+  const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const [hasStarted, setHasStarted] = useState(false);
   const [conversationMessages, setConversationMessages] = useState<Array<{type: 'user' | 'assistant', text: string}>>([]);
 
-  // Check for stored API key and agent ID on mount
+  // Fetch ElevenLabs configuration from Supabase on mount
   useEffect(() => {
-    const storedKey = localStorage.getItem('elevenlabs_api_key');
-    const storedAgentId = localStorage.getItem('elevenlabs_agent_id');
-    if (storedKey) {
-      setElevenLabsApiKey(storedKey);
+    const fetchConfig = async () => {
+      try {
+        const { data: session } = await supabase.auth.getSession();
+        if (!session.session) {
+          toast({
+            title: "Authentication Required",
+            description: "Please sign in to use the tour guide.",
+            variant: "destructive"
+          });
+          setIsLoadingConfig(false);
+          return;
+        }
+
+        const { data, error } = await supabase.functions.invoke('get-elevenlabs-config', {
+          headers: {
+            Authorization: `Bearer ${session.session.access_token}`,
+          },
+        });
+
+        if (error) {
+          console.error('Error fetching ElevenLabs config:', error);
+          toast({
+            title: "Configuration Error",
+            description: "Failed to load tour guide configuration.",
+            variant: "destructive"
+          });
+        } else {
+          setElevenLabsConfig(data);
+        }
+      } catch (error) {
+        console.error('Error fetching config:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load tour guide configuration.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoadingConfig(false);
+      }
+    };
+
+    if (open) {
+      fetchConfig();
     }
-    if (storedAgentId) {
-      setAgentId(storedAgentId);
-    }
-  }, []);
+  }, [open, toast]);
 
   // Create dynamic prompt based on tour data
   const createTourPrompt = () => {
@@ -93,26 +131,24 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
     }
   });
 
-  const handleApiKeySubmit = (key: string, agent: string) => {
-    setElevenLabsApiKey(key);
-    setAgentId(agent);
-    localStorage.setItem('elevenlabs_api_key', key);
-    localStorage.setItem('elevenlabs_agent_id', agent);
-    toast({
-      title: "Configuration Saved",
-      description: "ElevenLabs configuration has been saved successfully.",
-    });
-  };
-
   const handleStartTour = async () => {
+    if (!elevenLabsConfig) {
+      toast({
+        title: "Configuration Error",
+        description: "ElevenLabs configuration not available.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       // Request microphone permission first
       await navigator.mediaDevices.getUserMedia({ audio: true });
       
       // Start the conversation with the agent ID
       await conversation.startSession({ 
-        agentId: agentId,
-        authorization: elevenLabsApiKey 
+        agentId: elevenLabsConfig.agentId,
+        authorization: elevenLabsConfig.apiKey 
       });
       
       setHasStarted(true);
@@ -145,63 +181,46 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
     onOpenChange(false);
   };
 
-  // Show configuration input if not provided
-  if (!elevenLabsApiKey || !agentId) {
+  // Show loading if configuration is being fetched
+  if (isLoadingConfig) {
     return (
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>ElevenLabs Configuration Required</DialogTitle>
+            <DialogTitle>Loading Tour Guide...</DialogTitle>
             <DialogDescription>
-              To use the voice tour guide, please enter your ElevenLabs API key and Agent ID.
+              Setting up your personal tour guide...
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Show error if configuration couldn't be loaded
+  if (!elevenLabsConfig) {
+    return (
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Configuration Error</DialogTitle>
+            <DialogDescription>
+              Unable to load tour guide configuration. Please try again later.
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="apikey" className="block text-sm font-medium mb-2">
-                ElevenLabs API Key
-              </label>
-              <input
-                id="apikey"
-                type="password"
-                placeholder="Enter your ElevenLabs API key..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                defaultValue={elevenLabsApiKey}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="agentid" className="block text-sm font-medium mb-2">
-                Agent ID
-              </label>
-              <input
-                id="agentid"
-                type="text"
-                placeholder="Enter your ElevenLabs Agent ID..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                defaultValue={agentId}
-              />
-            </div>
-            
-            <div className="text-sm text-muted-foreground">
-              <p>1. Get your API key from <a href="https://elevenlabs.io" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">ElevenLabs.io</a></p>
-              <p>2. Create a Conversational AI agent in your ElevenLabs dashboard</p>
-              <p>3. Copy the Agent ID from your agent settings</p>
-              <p className="mt-1">Your configuration will be stored locally in your browser.</p>
-            </div>
-            
+          <div className="text-center py-8">
+            <p className="text-muted-foreground mb-4">
+              There was an issue loading the ElevenLabs configuration.
+            </p>
             <Button
-              onClick={() => {
-                const apiKeyInput = document.getElementById('apikey') as HTMLInputElement;
-                const agentIdInput = document.getElementById('agentid') as HTMLInputElement;
-                if (apiKeyInput?.value.trim() && agentIdInput?.value.trim()) {
-                  handleApiKeySubmit(apiKeyInput.value.trim(), agentIdInput.value.trim());
-                }
-              }}
-              className="w-full"
+              onClick={handleClose}
+              variant="outline"
             >
-              Save Configuration
+              Close
             </Button>
           </div>
         </DialogContent>
