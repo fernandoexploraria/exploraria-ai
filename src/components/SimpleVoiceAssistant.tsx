@@ -47,14 +47,14 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
         return;
       }
 
-      // Create WebSocket connection with auth token as query parameter
+      // Create WebSocket connection with correct Supabase edge function URL
       const wsUrl = `wss://ejqgdmbuabrcjxbhpxup.supabase.co/functions/v1/openai-realtime?token=${encodeURIComponent(token)}`;
-      console.log('Connecting to:', wsUrl);
+      console.log('Connecting to WebSocket URL:', wsUrl);
       
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
-        console.log('Connected to OpenAI Realtime API');
+        console.log('WebSocket connection opened successfully');
         setIsConnected(true);
         
         toast({
@@ -64,14 +64,29 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
       };
 
       ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        console.log('Received:', data.type);
-        
-        if (data.type === 'response.audio.delta') {
-          playAudioChunk(data.delta);
-          setIsSpeaking(true);
-        } else if (data.type === 'response.audio.done') {
-          setIsSpeaking(false);
+        try {
+          const data = JSON.parse(event.data);
+          console.log('Received WebSocket message:', data.type, data);
+          
+          if (data.type === 'response.audio.delta') {
+            console.log('Received audio delta, length:', data.delta?.length);
+            if (data.delta) {
+              playAudioChunk(data.delta);
+              setIsSpeaking(true);
+            }
+          } else if (data.type === 'response.audio.done') {
+            console.log('Audio response completed');
+            setIsSpeaking(false);
+          } else if (data.type === 'error') {
+            console.error('OpenAI API error:', data);
+            toast({
+              title: "API Error",
+              description: data.error?.message || "An error occurred",
+              variant: "destructive"
+            });
+          }
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error);
         }
       };
 
@@ -79,25 +94,33 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
         console.error('WebSocket error:', error);
         toast({
           title: "Connection Error",
-          description: "Failed to connect to voice assistant",
+          description: "Failed to connect to voice assistant. Please check your connection and try again.",
           variant: "destructive"
         });
       };
 
       ws.onclose = (event) => {
-        console.log('WebSocket closed:', event.code, event.reason);
+        console.log('WebSocket connection closed:', event.code, event.reason);
         setIsConnected(false);
         setIsListening(false);
         setIsSpeaking(false);
+        
+        if (event.code !== 1000) { // Not a normal closure
+          toast({
+            title: "Connection Lost",
+            description: `Connection closed: ${event.reason || 'Unknown reason'}`,
+            variant: "destructive"
+          });
+        }
       };
 
       wsRef.current = ws;
       
     } catch (error) {
-      console.error('Error connecting:', error);
+      console.error('Error connecting to WebSocket:', error);
       toast({
         title: "Error",
-        description: "Failed to initialize voice assistant",
+        description: "Failed to initialize voice assistant. Please try again.",
         variant: "destructive"
       });
     }
@@ -143,17 +166,16 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
       streamRef.current = stream;
       setIsListening(true);
       
-      // Send audio to OpenAI (simplified for now)
       toast({
         title: "Listening",
-        description: "Voice recording started",
+        description: "Voice recording started - speak now",
       });
       
     } catch (error) {
       console.error('Error starting microphone:', error);
       toast({
         title: "Microphone Error",
-        description: "Could not access microphone",
+        description: "Could not access microphone. Please check permissions.",
         variant: "destructive"
       });
     }
@@ -168,6 +190,8 @@ const SimpleVoiceAssistant: React.FC<SimpleVoiceAssistantProps> = ({ open, onOpe
   };
 
   const cleanup = () => {
+    console.log('Cleaning up voice assistant resources...');
+    
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
