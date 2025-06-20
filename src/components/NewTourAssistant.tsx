@@ -78,34 +78,8 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     }
   }, [open, toast]);
 
-  // Create dynamic prompt based on tour data (fallback if no systemPrompt provided)
-  const createFallbackTourPrompt = () => {
-    const landmarkList = landmarks.map(l => l.name).join(', ');
-    const landmarkDetails = landmarks.map(l => `${l.name}: ${l.description}`).join('\n');
-    
-    return `You are an expert tour guide for ${destination}. The user has planned to visit these landmarks: ${landmarkList}.
-
-Here are details about each landmark:
-${landmarkDetails}
-
-Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, and recommendations. Keep your responses conversational and engaging, suitable for audio narration. Answer questions about the landmarks, provide historical context, suggest best times to visit, and share insider tips.`;
-  };
-
-  // Get the prompt to use (either from Gemini or fallback)
-  const getPromptToUse = () => {
-    return systemPrompt || createFallbackTourPrompt();
-  };
-
-  // Initialize the conversation with overrides including the dynamic prompt
+  // Initialize the conversation without overrides - use agent's default configuration
   const conversation = useConversation({
-    overrides: {
-      agent: {
-        prompt: {
-          prompt: getPromptToUse()
-        },
-        language: "en",
-      },
-    },
     onConnect: () => {
       console.log('Connected to ElevenLabs agent');
       setAssistantState('started');
@@ -166,7 +140,6 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
 
       try {
         console.log('Starting tour with config:', { agentId: elevenLabsConfig.agentId });
-        console.log('Using prompt:', getPromptToUse().substring(0, 100) + '...');
         
         // Request microphone permission first
         await navigator.mediaDevices.getUserMedia({ audio: true });
