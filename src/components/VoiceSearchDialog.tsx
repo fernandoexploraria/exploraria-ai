@@ -7,9 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Search, Star, StarOff, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from './AuthProvider';
+import { useAuth }  from './AuthProvider';
 
-interface VoiceInteraction {
+interface Interaction {
   id: string;
   destination: string;
   user_input: string;
@@ -26,7 +26,7 @@ interface VoiceSearchDialogProps {
 
 const VoiceSearchDialog: React.FC<VoiceSearchDialogProps> = ({ open, onOpenChange }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<VoiceInteraction[]>([]);
+  const [searchResults, setSearchResults] = useState<Interaction[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -49,7 +49,7 @@ const VoiceSearchDialog: React.FC<VoiceSearchDialogProps> = ({ open, onOpenChang
 
       // First try the vector search function if available
       try {
-        const { data, error } = await supabase.functions.invoke('search-voice-interactions', {
+        const { data, error } = await supabase.functions.invoke('search-interactions', {
           body: { query: searchQuery }
         });
 
@@ -76,7 +76,7 @@ const VoiceSearchDialog: React.FC<VoiceSearchDialogProps> = ({ open, onOpenChang
 
       // Fallback to simple text search
       const { data: interactions, error: searchError } = await supabase
-        .from('voice_interactions')
+        .from('interactions')
         .select('*')
         .or(`user_input.ilike.%${searchQuery}%,assistant_response.ilike.%${searchQuery}%,destination.ilike.%${searchQuery}%`)
         .order('created_at', { ascending: false })
@@ -114,7 +114,7 @@ const VoiceSearchDialog: React.FC<VoiceSearchDialogProps> = ({ open, onOpenChang
     }
   };
 
-  const toggleFavorite = async (interaction: VoiceInteraction) => {
+  const toggleFavorite = async (interaction: Interaction) => {
     if (!user) {
       toast({
         title: "Authentication required",
@@ -126,7 +126,7 @@ const VoiceSearchDialog: React.FC<VoiceSearchDialogProps> = ({ open, onOpenChang
 
     try {
       const { error } = await supabase
-        .from('voice_interactions')
+        .from('interactions')
         .update({ is_favorite: !interaction.is_favorite })
         .eq('id', interaction.id);
 
@@ -177,9 +177,9 @@ const VoiceSearchDialog: React.FC<VoiceSearchDialogProps> = ({ open, onOpenChang
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>Search Voice Conversations</DialogTitle>
+          <DialogTitle>Search Conversations</DialogTitle>
           <DialogDescription>
-            Search through your previous voice conversations with the tour assistant. Find specific topics, questions, or destinations you've discussed before.
+            Search through your previous conversations with the tour assistant. Find specific topics, questions, or destinations you've discussed before.
           </DialogDescription>
         </DialogHeader>
         

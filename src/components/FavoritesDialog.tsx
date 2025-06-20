@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -7,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from './AuthProvider';
 
-interface VoiceInteraction {
+interface Interaction {
   id: string;
   destination: string;
   user_input: string;
@@ -22,7 +23,7 @@ interface FavoritesDialogProps {
 }
 
 const FavoritesDialog: React.FC<FavoritesDialogProps> = ({ open, onOpenChange }) => {
-  const [favorites, setFavorites] = useState<VoiceInteraction[]>([]);
+  const [favorites, setFavorites] = useState<Interaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -40,7 +41,7 @@ const FavoritesDialog: React.FC<FavoritesDialogProps> = ({ open, onOpenChange })
     setIsLoading(true);
     try {
       const { data: interactions, error } = await supabase
-        .from('voice_interactions')
+        .from('interactions')
         .select('*')
         .eq('is_favorite', true)
         .order('created_at', { ascending: false });
@@ -74,7 +75,7 @@ const FavoritesDialog: React.FC<FavoritesDialogProps> = ({ open, onOpenChange })
     }
   }, [open, user]);
 
-  const removeFavorite = async (interaction: VoiceInteraction) => {
+  const removeFavorite = async (interaction: Interaction) => {
     if (!user) {
       toast({
         title: "Authentication required",
@@ -86,7 +87,7 @@ const FavoritesDialog: React.FC<FavoritesDialogProps> = ({ open, onOpenChange })
 
     try {
       const { error } = await supabase
-        .from('voice_interactions')
+        .from('interactions')
         .update({ is_favorite: false })
         .eq('id', interaction.id);
 

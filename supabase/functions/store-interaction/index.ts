@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Store voice interaction function called');
+    console.log('Store interaction function called');
     
     const { 
       userInput, 
@@ -156,7 +156,7 @@ serve(async (req) => {
     // Store the interaction in the database
     console.log('Storing interaction in database...');
     const { data, error } = await supabaseClient
-      .from('voice_interactions')
+      .from('interactions')
       .insert(insertData)
 
     if (error) {
@@ -193,7 +193,7 @@ serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Error storing voice interaction:', error)
+    console.error('Error storing interaction:', error)
     return new Response(
       JSON.stringify({ error: `Unexpected error: ${error.message}` }),
       { 

@@ -94,7 +94,7 @@ serve(async (req) => {
     // Use the search function with proper filtering
     console.log('Calling search function...');
     const { data: searchResults, error: searchError } = await supabaseClient
-      .rpc('search_voice_interactions', {
+      .rpc('search_interactions', {
         query_embedding: queryEmbedding,
         match_threshold: 0.5, // Lower threshold for better recall
         match_count: 20,

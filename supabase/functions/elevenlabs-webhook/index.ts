@@ -182,7 +182,7 @@ serve(async (req) => {
     // Store the conversation in the database
     console.log('Storing conversation in database...');
     const { data, error } = await supabaseClient
-      .from('voice_interactions')
+      .from('interactions')
       .insert({
         user_id: userId,
         destination: destination,
