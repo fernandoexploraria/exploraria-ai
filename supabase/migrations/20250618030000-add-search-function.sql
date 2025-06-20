@@ -1,7 +1,7 @@
 
 -- Create a function to search voice interactions using vector similarity
 CREATE OR REPLACE FUNCTION search_voice_interactions(
-  query_embedding vector(1536),
+  query_embedding vector(768),
   match_threshold float,
   match_count int,
   user_id uuid
