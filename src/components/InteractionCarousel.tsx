@@ -43,7 +43,8 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   const [showingSearchResults, setShowingSearchResults] = useState(false);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [isPlayingTTS, setIsPlayingTTS] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   
   const { toast } = useToast();
   const { user } = useAuth();
@@ -258,9 +259,14 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
 
   // Handle TTS for the currently visible card
   const handleTTSClick = async () => {
-    if (isPlayingTTS) {
+    if (isPlaying) {
       // Stop current playback
-      setIsPlayingTTS(false);
+      setIsPlaying(false);
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        setCurrentAudio(null);
+      }
       if (speechSynthesis.speaking) {
         speechSynthesis.cancel();
       }
@@ -272,7 +278,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     
     if (!currentInteraction) return;
 
-    setIsPlayingTTS(true);
+    setIsPlaying(true);
 
     try {
       if (currentInteraction.interaction_type === 'voice' && currentInteraction.full_transcript) {
@@ -308,7 +314,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
             description: "Could not generate memory narration.",
             variant: "destructive"
           });
-          setIsPlayingTTS(false);
+          setIsPlaying(false);
           return;
         }
 
@@ -318,13 +324,17 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
           const audioUrl = URL.createObjectURL(audioBlob);
           const audio = new Audio(audioUrl);
           
+          setCurrentAudio(audio);
+          
           audio.onended = () => {
-            setIsPlayingTTS(false);
+            setIsPlaying(false);
+            setCurrentAudio(null);
             URL.revokeObjectURL(audioUrl);
           };
           
           audio.onerror = () => {
-            setIsPlayingTTS(false);
+            setIsPlaying(false);
+            setCurrentAudio(null);
             URL.revokeObjectURL(audioUrl);
           };
           
@@ -332,8 +342,8 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
         } else if (data.fallbackToBrowser && data.enhancedText) {
           // Use browser TTS with enhanced text
           const utterance = new SpeechSynthesisUtterance(data.enhancedText);
-          utterance.onend = () => setIsPlayingTTS(false);
-          utterance.onerror = () => setIsPlayingTTS(false);
+          utterance.onend = () => setIsPlaying(false);
+          utterance.onerror = () => setIsPlaying(false);
           speechSynthesis.speak(utterance);
         }
       } else {
@@ -349,23 +359,27 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
             description: "Could not generate audio for this text.",
             variant: "destructive"
           });
-          setIsPlayingTTS(false);
+          setIsPlaying(false);
           return;
         }
 
         if (data.audioContent) {
           // Play the audio
           const audioBlob = new Blob([Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0))], { type: 'audio/mp3' });
-          const audioUrl = URL.createObjectURL(audioBlob);
+          const audioUrl = URL.createObjectURL(audioUrl);
           const audio = new Audio(audioUrl);
           
+          setCurrentAudio(audio);
+          
           audio.onended = () => {
-            setIsPlayingTTS(false);
+            setIsPlaying(false);
+            setCurrentAudio(null);
             URL.revokeObjectURL(audioUrl);
           };
           
           audio.onerror = () => {
-            setIsPlayingTTS(false);
+            setIsPlaying(false);
+            setCurrentAudio(null);
             URL.revokeObjectURL(audioUrl);
           };
           
@@ -373,8 +387,8 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
         } else if (data.fallbackToBrowser && data.enhancedText) {
           // Use browser TTS as fallback
           const utterance = new SpeechSynthesisUtterance(data.enhancedText);
-          utterance.onend = () => setIsPlayingTTS(false);
-          utterance.onerror = () => setIsPlayingTTS(false);
+          utterance.onend = () => setIsPlaying(false);
+          utterance.onerror = () => setIsPlaying(false);
           speechSynthesis.speak(utterance);
         }
       }
@@ -385,7 +399,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
         description: "Could not generate audio for this text.",
         variant: "destructive"
       });
-      setIsPlayingTTS(false);
+      setIsPlaying(false);
     }
   };
 
@@ -687,8 +701,8 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
             </Carousel>
             
             {/* Pagination Dots with TTS Control */}
-            {currentInteractions.length > 1 && (
-              <div className="flex items-center gap-4 mt-6">
+            <div className="flex items-center gap-4 mt-6">
+              {currentInteractions.length > 1 && (
                 <div className="flex items-center gap-2">
                   {currentInteractions.map((_, index) => (
                     <button
@@ -706,36 +720,25 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
                     {currentSlide + 1} of {currentInteractions.length}
                   </span>
                 </div>
-                
-                {/* TTS Control */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={`h-8 w-8 p-0 ${isPlayingTTS ? 'text-green-500' : 'text-white'}`}
-                  onClick={handleTTSClick}
-                  disabled={currentInteractions.length === 0}
-                >
-                  <Volume2 className="w-4 h-4" />
-                </Button>
-              </div>
-            )}
-            
-            {/* Single card case - still show TTS */}
-            {currentInteractions.length === 1 && (
-              <div className="flex items-center gap-4 mt-6">
+              )}
+              
+              {currentInteractions.length === 1 && (
                 <span className="text-xs text-gray-400">
                   1 of 1
                 </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={`h-8 w-8 p-0 ${isPlayingTTS ? 'text-green-500' : 'text-white'}`}
-                  onClick={handleTTSClick}
-                >
-                  <Volume2 className="w-4 h-4" />
-                </Button>
-              </div>
-            )}
+              )}
+              
+              {/* TTS Control */}
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`h-8 w-8 p-0 ${isPlaying ? 'text-green-500' : 'text-white'}`}
+                onClick={handleTTSClick}
+                disabled={currentInteractions.length === 0}
+              >
+                <Volume2 className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="text-center text-gray-400">
