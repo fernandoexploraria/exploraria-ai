@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -53,7 +52,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
     try {
       console.log('Storing map marker interaction for:', landmark.name);
       
-      const { error } = await supabase.functions.invoke('store-voice-interaction', {
+      const { error } = await supabase.functions.invoke('store-interaction', {
         body: {
           userInput: `Clicked on map marker: ${landmark.name}`,
           assistantResponse: landmark.description,
@@ -542,6 +541,9 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
           e.stopPropagation(); // Prevent map click event
           
           console.log('Marker clicked:', landmark.name);
+          
+          // Store the interaction immediately when marker is clicked
+          await storeMapMarkerInteraction(landmark);
           
           // Check current zoom level and zoom in if needed
           const currentZoom = map.current?.getZoom() || 1.5;
