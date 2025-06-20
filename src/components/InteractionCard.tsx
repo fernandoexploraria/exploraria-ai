@@ -1,0 +1,175 @@
+
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Star, StarOff, Calendar, MapPin, Camera, Mic } from 'lucide-react';
+
+interface Interaction {
+  id: string;
+  destination: string;
+  user_input: string;
+  assistant_response: string;
+  is_favorite: boolean;
+  created_at: string;
+  interaction_type: string;
+  landmark_coordinates: any;
+  landmark_image_url: string | null;
+  full_transcript: any;
+  similarity?: number;
+}
+
+interface InteractionCardProps {
+  interaction: Interaction;
+  index: number;
+  isCurrentlyPlaying: boolean;
+  onToggleFavorite: (interaction: Interaction) => void;
+  onLocationClick: (coordinates: any) => void;
+}
+
+const InteractionCard: React.FC<InteractionCardProps> = ({
+  interaction,
+  index,
+  isCurrentlyPlaying,
+  onToggleFavorite,
+  onLocationClick,
+}) => {
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Determine icon based on interaction type
+  let IconComponent, iconColor;
+  if (interaction.interaction_type === 'voice') {
+    IconComponent = Mic;
+    iconColor = 'text-blue-400';
+  } else if (interaction.interaction_type === 'image_recognition') {
+    IconComponent = Camera;
+    iconColor = 'text-purple-400';
+  } else if (interaction.interaction_type === 'map_marker') {
+    IconComponent = MapPin;
+    iconColor = 'text-red-400';
+  } else {
+    IconComponent = Mic;
+    iconColor = 'text-blue-400';
+  }
+
+  const renderContent = () => {
+    const transcript = interaction.full_transcript;
+    
+    if (interaction.interaction_type === 'voice' && transcript && Array.isArray(transcript)) {
+      return (
+        <div className="space-y-1">
+          {transcript
+            .filter((entry: any) => entry.message && (entry.role === 'user' || entry.role === 'agent'))
+            .map((entry: any, entryIndex: number) => (
+              <div key={entryIndex} className={`p-2 rounded text-xs ${
+                entry.role === 'user' 
+                  ? 'bg-blue-900/30 text-blue-100' 
+                  : 'bg-green-900/30 text-green-100'
+              }`}>
+                <span className="font-medium text-xs">
+                  {entry.role === 'user' ? 'You:' : 'Assistant:'}
+                </span>
+                <p className="mt-1">
+                  {entry.message}
+                  {entry.role === 'agent' && entry.interrupted && (
+                    <span className="text-orange-400 ml-1">(interrupted)</span>
+                  )}
+                </p>
+              </div>
+            ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-1">
+        <div className="p-2 rounded text-xs bg-blue-900/30 text-blue-100">
+          <span className="font-medium text-xs">You:</span>
+          <p className="mt-1">{interaction.user_input}</p>
+        </div>
+        <div className="p-2 rounded text-xs bg-green-900/30 text-green-100">
+          <span className="font-medium text-xs">Assistant:</span>
+          <p className="mt-1">{interaction.assistant_response}</p>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <Card className={`w-full max-w-xs mx-auto border-gray-700 h-96 transition-all duration-300 ${
+      isCurrentlyPlaying 
+        ? 'bg-green-900/20 border-green-500/50 shadow-lg shadow-green-500/20' 
+        : 'bg-gray-900'
+    }`}>
+      <CardContent className="p-3 h-full flex flex-col">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-1">
+            <IconComponent className={`w-3 h-3 ${iconColor}`} />
+            <Badge variant="outline" className="text-xs px-1 py-0">{interaction.destination}</Badge>
+            {interaction.similarity && (
+              <Badge variant="secondary" className="text-xs px-1 py-0">
+                {Math.round(interaction.similarity * 100)}% match
+              </Badge>
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0"
+            onClick={() => onToggleFavorite(interaction)}
+          >
+            {interaction.is_favorite ? (
+              <Star className="w-3 h-3 text-yellow-500 fill-current" />
+            ) : (
+              <StarOff className="w-3 h-3" />
+            )}
+          </Button>
+        </div>
+        
+        <div className="flex items-center text-xs text-gray-400 mb-2">
+          <Calendar className="w-3 h-3 mr-1" />
+          {formatDate(interaction.created_at)}
+        </div>
+
+        {interaction.landmark_image_url && (
+          <div className="mb-2 flex-shrink-0">
+            <img 
+              src={interaction.landmark_image_url} 
+              alt="Landmark" 
+              className="w-full h-20 object-cover rounded"
+            />
+          </div>
+        )}
+
+        <ScrollArea className="flex-1 w-full">
+          {renderContent()}
+        </ScrollArea>
+
+        {interaction.landmark_coordinates && (
+          <div className="mt-2 flex-shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-7 text-xs"
+              onClick={() => onLocationClick(interaction.landmark_coordinates)}
+            >
+              <MapPin className="w-3 h-3 mr-1" />
+              Show on Map
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+export default InteractionCard;

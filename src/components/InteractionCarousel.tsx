@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselApi } from '@/components/ui/carousel';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Star, StarOff, Calendar, MapPin, Volume2, ArrowLeft, Camera, Mic } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from './AuthProvider';
+import { useTTSManager } from '@/hooks/useTTSManager';
+import InteractionSearch from './InteractionSearch';
+import InteractionCard from './InteractionCard';
+import CarouselControls from './CarouselControls';
 
 interface Interaction {
   id: string;
@@ -43,38 +43,17 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   const [showingSearchResults, setShowingSearchResults] = useState(false);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
-  const [playingCardIndex, setPlayingCardIndex] = useState<number | null>(null);
   
   const { toast } = useToast();
   const { user } = useAuth();
-
-  // Function to stop all TTS playback (including browser TTS)
-  const stopAllTTSPlayback = () => {
-    // Stop HTML5 audio
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio.currentTime = 0;
-      setCurrentAudio(null);
-    }
-    
-    // Stop browser speech synthesis
-    if (speechSynthesis.speaking) {
-      speechSynthesis.cancel();
-    }
-    
-    // Reset state
-    setIsPlaying(false);
-    setPlayingCardIndex(null);
-  };
+  const { isPlaying, playingCardIndex, stopAllTTSPlayback, playTTS } = useTTSManager();
 
   // Stop TTS when dialog is closed
   useEffect(() => {
-    if (!open && (isPlaying || currentAudio || speechSynthesis.speaking)) {
+    if (!open && isPlaying) {
       stopAllTTSPlayback();
     }
-  }, [open, isPlaying, currentAudio]);
+  }, [open, isPlaying, stopAllTTSPlayback]);
 
   // Load all interactions on mount
   useEffect(() => {
@@ -85,34 +64,31 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
 
   // Handle carousel slide changes and stop TTS on navigation
   useEffect(() => {
-    if (!carouselApi) {
-      return;
-    }
+    if (!carouselApi) return;
 
     const updateCurrentSlide = () => {
       const newSlide = carouselApi.selectedScrollSnap();
       if (newSlide !== currentSlide) {
-        // Stop TTS when slide changes
         stopAllTTSPlayback();
         setCurrentSlide(newSlide);
       }
     };
 
     carouselApi.on("select", updateCurrentSlide);
-    updateCurrentSlide(); // Set initial value
+    updateCurrentSlide();
 
     return () => {
       carouselApi.off("select", updateCurrentSlide);
     };
-  }, [carouselApi, currentSlide]);
+  }, [carouselApi, currentSlide, stopAllTTSPlayback]);
 
-  // Add swipe detection to stop TTS
+  // Add swipe and navigation detection to stop TTS
   useEffect(() => {
     if (!carouselApi) return;
 
     let startX = 0;
     let startY = 0;
-    const swipeThreshold = 10; // Minimum distance to consider it a swipe
+    const swipeThreshold = 10;
 
     const handleTouchStart = (e: TouchEvent) => {
       startX = e.touches[0].clientX;
@@ -128,7 +104,6 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
       const diffX = Math.abs(currentX - startX);
       const diffY = Math.abs(currentY - startY);
 
-      // If there's horizontal movement above threshold, stop TTS
       if (diffX > swipeThreshold && diffX > diffY) {
         stopAllTTSPlayback();
       }
@@ -141,12 +116,11 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!startX || !startY) return;
-      if (e.buttons !== 1) return; // Only when mouse is pressed
+      if (e.buttons !== 1) return;
 
       const diffX = Math.abs(e.clientX - startX);
       const diffY = Math.abs(e.clientY - startY);
 
-      // If there's horizontal movement above threshold, stop TTS
       if (diffX > swipeThreshold && diffX > diffY) {
         stopAllTTSPlayback();
       }
@@ -160,7 +134,6 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
 
     const carouselElement = carouselApi.rootNode();
     
-    // Add event listeners
     carouselElement.addEventListener('touchstart', handleTouchStart, { passive: true });
     carouselElement.addEventListener('touchmove', handleTouchMove, { passive: true });
     carouselElement.addEventListener('mousedown', handleMouseDown);
@@ -174,7 +147,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
       carouselElement.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [carouselApi, isPlaying, currentAudio]);
+  }, [carouselApi, stopAllTTSPlayback]);
 
   const loadAllInteractions = async () => {
     setIsLoading(true);
@@ -320,7 +293,6 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
         return;
       }
 
-      // Update local state
       const updateInteraction = (item: Interaction) => 
         item.id === interaction.id 
           ? { ...item, is_favorite: !item.is_favorite }
@@ -347,7 +319,6 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
 
   const handleLocationClick = (coordinates: any) => {
     if (coordinates && onLocationSelect) {
-      // Convert PostgreSQL point format to [lng, lat]
       const coordsArray = coordinates.toString().replace(/[()]/g, '').split(',');
       if (coordsArray.length === 2) {
         const lng = parseFloat(coordsArray[0]);
@@ -358,393 +329,13 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
   };
 
-  // Handle TTS for the currently visible card with global audio management
   const handleTTSClick = async () => {
-    // Always stop any currently playing audio first
-    stopAllTTSPlayback();
-
-    // If we were already playing the current card, just stop (toggle behavior)
-    if (playingCardIndex === currentSlide && isPlaying) {
-      return;
-    }
-
     const currentInteractions = showingSearchResults ? searchResults : interactions;
     const currentInteraction = currentInteractions[currentSlide];
     
     if (!currentInteraction) return;
 
-    setIsPlaying(true);
-    setPlayingCardIndex(currentSlide);
-
-    try {
-      if (currentInteraction.interaction_type === 'voice' && currentInteraction.full_transcript) {
-        // For voice transcripts, create a memory-style narration using Gemini + Google TTS
-        const transcript = currentInteraction.full_transcript;
-        let transcriptText = '';
-        
-        if (transcript && Array.isArray(transcript)) {
-          transcriptText = transcript
-            .filter((entry: any) => entry.message && (entry.role === 'user' || entry.role === 'agent'))
-            .map((entry: any) => {
-              const speaker = entry.role === 'user' ? 'User' : 'Assistant';
-              const message = entry.message;
-              const interrupted = entry.role === 'agent' && entry.interrupted ? ' (interrupted)' : '';
-              return `${speaker}: ${message}${interrupted}`;
-            })
-            .join('. ');
-        } else {
-          transcriptText = `User: ${currentInteraction.user_input}. Assistant: ${currentInteraction.assistant_response}`;
-        }
-
-        const { data, error } = await supabase.functions.invoke('gemini-tts', {
-          body: { 
-            text: transcriptText,
-            isMemoryNarration: true
-          }
-        });
-
-        if (error) {
-          console.error('Memory TTS error:', error);
-          toast({
-            title: "Audio generation failed",
-            description: "Could not generate memory narration.",
-            variant: "destructive"
-          });
-          setIsPlaying(false);
-          setPlayingCardIndex(null);
-          return;
-        }
-
-        if (data.audioContent) {
-          // Play the enhanced memory narration audio
-          const audioBlob = new Blob([Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0))], { type: 'audio/mp3' });
-          const audioUrl = URL.createObjectURL(audioBlob);
-          const audio = new Audio(audioUrl);
-          
-          setCurrentAudio(audio);
-          
-          audio.onended = () => {
-            setIsPlaying(false);
-            setPlayingCardIndex(null);
-            setCurrentAudio(null);
-            URL.revokeObjectURL(audioUrl);
-          };
-          
-          audio.onerror = () => {
-            setIsPlaying(false);
-            setPlayingCardIndex(null);
-            setCurrentAudio(null);
-            URL.revokeObjectURL(audioUrl);
-          };
-          
-          audio.play();
-        } else if (data.fallbackToBrowser && data.enhancedText) {
-          // Use browser TTS with enhanced text
-          const utterance = new SpeechSynthesisUtterance(data.enhancedText);
-          utterance.onend = () => {
-            setIsPlaying(false);
-            setPlayingCardIndex(null);
-          };
-          utterance.onerror = () => {
-            setIsPlaying(false);
-            setPlayingCardIndex(null);
-          };
-          speechSynthesis.speak(utterance);
-        }
-      } else {
-        // For non-voice interactions, use the enhanced TTS
-        const { data, error } = await supabase.functions.invoke('gemini-tts', {
-          body: { text: currentInteraction.assistant_response }
-        });
-
-        if (error) {
-          console.error('TTS error:', error);
-          toast({
-            title: "Audio generation failed",
-            description: "Could not generate audio for this text.",
-            variant: "destructive"
-          });
-          setIsPlaying(false);
-          setPlayingCardIndex(null);
-          return;
-        }
-
-        if (data.audioContent) {
-          // Play the audio
-          const audioBlob = new Blob([Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0))], { type: 'audio/mp3' });
-          const audioUrl = URL.createObjectURL(audioBlob);
-          const audio = new Audio(audioUrl);
-          
-          setCurrentAudio(audio);
-          
-          audio.onended = () => {
-            setIsPlaying(false);
-            setPlayingCardIndex(null);
-            setCurrentAudio(null);
-            URL.revokeObjectURL(audioUrl);
-          };
-          
-          audio.onerror = () => {
-            setIsPlaying(false);
-            setPlayingCardIndex(null);
-            setCurrentAudio(null);
-            URL.revokeObjectURL(audioUrl);
-          };
-          
-          audio.play();
-        } else if (data.fallbackToBrowser && data.enhancedText) {
-          // Use browser TTS as fallback
-          const utterance = new SpeechSynthesisUtterance(data.enhancedText);
-          utterance.onend = () => {
-            setIsPlaying(false);
-            setPlayingCardIndex(null);
-          };
-          utterance.onerror = () => {
-            setIsPlaying(false);
-            setPlayingCardIndex(null);
-          };
-          speechSynthesis.speak(utterance);
-        }
-      }
-    } catch (error) {
-      console.error('TTS error:', error);
-      toast({
-        title: "Audio generation failed",
-        description: "Could not generate audio for this text.",
-        variant: "destructive"
-      });
-      setIsPlaying(false);
-      setPlayingCardIndex(null);
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const renderTranscriptEntry = (interaction: Interaction, index: number) => {
-    const transcript = interaction.full_transcript;
-    const isCurrentlyPlaying = playingCardIndex === index;
-    
-    // Determine icon based on interaction type
-    let IconComponent, iconColor;
-    if (interaction.interaction_type === 'voice') {
-      IconComponent = Mic;
-      iconColor = 'text-blue-400';
-    } else if (interaction.interaction_type === 'image_recognition') {
-      IconComponent = Camera;
-      iconColor = 'text-purple-400';
-    } else if (interaction.interaction_type === 'map_marker') {
-      IconComponent = MapPin;
-      iconColor = 'text-red-400';
-    } else {
-      // Fallback
-      IconComponent = Mic;
-      iconColor = 'text-blue-400';
-    }
-    
-    return (
-      <Card className={`w-full max-w-xs mx-auto border-gray-700 h-96 transition-all duration-300 ${
-        isCurrentlyPlaying 
-          ? 'bg-green-900/20 border-green-500/50 shadow-lg shadow-green-500/20' 
-          : 'bg-gray-900'
-      }`}>
-        <CardContent className="p-3 h-full flex flex-col">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1">
-              <IconComponent className={`w-3 h-3 ${iconColor}`} />
-              <Badge variant="outline" className="text-xs px-1 py-0">{interaction.destination}</Badge>
-              {interaction.similarity && (
-                <Badge variant="secondary" className="text-xs px-1 py-0">
-                  {Math.round(interaction.similarity * 100)}% match
-                </Badge>
-              )}
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0"
-              onClick={() => toggleFavorite(interaction)}
-            >
-              {interaction.is_favorite ? (
-                <Star className="w-3 h-3 text-yellow-500 fill-current" />
-              ) : (
-                <StarOff className="w-3 h-3" />
-              )}
-            </Button>
-          </div>
-          
-          <div className="flex items-center text-xs text-gray-400 mb-2">
-            <Calendar className="w-3 h-3 mr-1" />
-            {formatDate(interaction.created_at)}
-          </div>
-
-          <ScrollArea className="flex-1 w-full">
-            <div className="space-y-1">
-              {transcript && Array.isArray(transcript) ? (
-                transcript
-                  .filter((entry: any) => entry.message && (entry.role === 'user' || entry.role === 'agent'))
-                  .map((entry: any, entryIndex: number) => (
-                    <div key={entryIndex} className={`p-2 rounded text-xs ${
-                      entry.role === 'user' 
-                        ? 'bg-blue-900/30 text-blue-100' 
-                        : 'bg-green-900/30 text-green-100'
-                    }`}>
-                      <span className="font-medium text-xs">
-                        {entry.role === 'user' ? 'You:' : 'Assistant:'}
-                      </span>
-                      <p className="mt-1">
-                        {entry.message}
-                        {entry.role === 'agent' && entry.interrupted && (
-                          <span className="text-orange-400 ml-1">(interrupted)</span>
-                        )}
-                      </p>
-                    </div>
-                  ))
-              ) : (
-                <div className="space-y-1">
-                  <div className="p-2 rounded text-xs bg-blue-900/30 text-blue-100">
-                    <span className="font-medium text-xs">You:</span>
-                    <p className="mt-1">{interaction.user_input}</p>
-                  </div>
-                  <div className="p-2 rounded text-xs bg-green-900/30 text-green-100">
-                    <span className="font-medium text-xs">Assistant:</span>
-                    <p className="mt-1">{interaction.assistant_response}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-
-          {interaction.landmark_coordinates && (
-            <div className="mt-2 flex-shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full h-7 text-xs"
-                onClick={() => handleLocationClick(interaction.landmark_coordinates)}
-              >
-                <MapPin className="w-3 h-3 mr-1" />
-                Show on Map
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    );
-  };
-
-  const renderImageEntry = (interaction: Interaction, index: number) => {
-    const isCurrentlyPlaying = playingCardIndex === index;
-    
-    // Determine icon based on interaction type
-    let IconComponent, iconColor;
-    if (interaction.interaction_type === 'voice') {
-      IconComponent = Mic;
-      iconColor = 'text-blue-400';
-    } else if (interaction.interaction_type === 'image_recognition') {
-      IconComponent = Camera;
-      iconColor = 'text-purple-400';
-    } else if (interaction.interaction_type === 'map_marker') {
-      IconComponent = MapPin;
-      iconColor = 'text-red-400';
-    } else {
-      // Fallback
-      IconComponent = Camera;
-      iconColor = 'text-purple-400';
-    }
-    
-    return (
-      <Card className={`w-full max-w-xs mx-auto border-gray-700 h-96 transition-all duration-300 ${
-        isCurrentlyPlaying 
-          ? 'bg-green-900/20 border-green-500/50 shadow-lg shadow-green-500/20' 
-          : 'bg-gray-900'
-      }`}>
-        <CardContent className="p-3 h-full flex flex-col">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1">
-              <IconComponent className={`w-3 h-3 ${iconColor}`} />
-              <Badge variant="outline" className="text-xs px-1 py-0">{interaction.destination}</Badge>
-              {interaction.similarity && (
-                <Badge variant="secondary" className="text-xs px-1 py-0">
-                  {Math.round(interaction.similarity * 100)}% match
-                </Badge>
-              )}
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0"
-              onClick={() => toggleFavorite(interaction)}
-            >
-              {interaction.is_favorite ? (
-                <Star className="w-3 h-3 text-yellow-500 fill-current" />
-              ) : (
-                <StarOff className="w-3 h-3" />
-              )}
-            </Button>
-          </div>
-          
-          <div className="flex items-center text-xs text-gray-400 mb-2">
-            <Calendar className="w-3 h-3 mr-1" />
-            {formatDate(interaction.created_at)}
-          </div>
-
-          {interaction.landmark_image_url && (
-            <div className="mb-2 flex-shrink-0">
-              <img 
-                src={interaction.landmark_image_url} 
-                alt="Landmark" 
-                className="w-full h-20 object-cover rounded"
-              />
-            </div>
-          )}
-
-          <ScrollArea className="flex-1 w-full">
-            <div className="space-y-1">
-              <div className="p-2 rounded text-xs bg-blue-900/30 text-blue-100">
-                <span className="font-medium text-xs">You:</span>
-                <p className="mt-1">{interaction.user_input}</p>
-              </div>
-              <div className="p-2 rounded text-xs bg-green-900/30 text-green-100">
-                <span className="font-medium text-xs">Assistant:</span>
-                <p className="mt-1">{interaction.assistant_response}</p>
-              </div>
-            </div>
-          </ScrollArea>
-
-          {interaction.landmark_coordinates && (
-            <div className="mt-2 flex-shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full h-7 text-xs"
-                onClick={() => handleLocationClick(interaction.landmark_coordinates)}
-              >
-                <MapPin className="w-3 h-3 mr-1" />
-                Show on Map
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    );
-  };
-
-  const renderInteraction = (interaction: Interaction, index: number) => {
-    if (interaction.interaction_type === 'voice' && interaction.full_transcript) {
-      return renderTranscriptEntry(interaction, index);
-    } else if (interaction.interaction_type === 'image_recognition' || interaction.landmark_image_url) {
-      return renderImageEntry(interaction, index);
-    } else {
-      return renderTranscriptEntry(interaction, index); // Default fallback
-    }
+    await playTTS(currentInteraction, currentSlide);
   };
 
   const scrollToSlide = (index: number) => {
@@ -774,31 +365,14 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
             </h2>
           </div>
           
-          <div className="flex gap-2">
-            {showingSearchResults && (
-              <Button
-                variant="outline"
-                onClick={handleBackToHistory}
-                className="flex items-center gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to History
-              </Button>
-            )}
-            <div className="flex-1 flex gap-2">
-              <Input
-                placeholder="Search your previous interactions..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                className="flex-1 bg-gray-800 border-gray-600 text-white"
-              />
-              <Button onClick={handleSearch} disabled={isSearching || !searchQuery.trim()}>
-                <Search className="w-4 h-4 mr-2" />
-                {isSearching ? 'Searching...' : 'Search'}
-              </Button>
-            </div>
-          </div>
+          <InteractionSearch
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            onSearch={handleSearch}
+            isSearching={isSearching}
+            showingSearchResults={showingSearchResults}
+            onBackToHistory={handleBackToHistory}
+          />
         </div>
       </div>
 
@@ -818,7 +392,13 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
               <CarouselContent className="-ml-2 md:-ml-4">
                 {currentInteractions.map((interaction, index) => (
                   <CarouselItem key={interaction.id} className="pl-2 md:pl-4 basis-4/5 md:basis-3/5 lg:basis-2/5">
-                    {renderInteraction(interaction, index)}
+                    <InteractionCard
+                      interaction={interaction}
+                      index={index}
+                      isCurrentlyPlaying={playingCardIndex === index}
+                      onToggleFavorite={toggleFavorite}
+                      onLocationClick={handleLocationClick}
+                    />
                   </CarouselItem>
                 ))}
               </CarouselContent>
@@ -826,47 +406,13 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
               <CarouselNext className="hidden md:flex" />
             </Carousel>
             
-            {/* Pagination Dots with TTS Control */}
-            <div className="flex items-center gap-4 mt-6">
-              {currentInteractions.length > 1 && (
-                <div className="flex items-center gap-2">
-                  {currentInteractions.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => scrollToSlide(index)}
-                      className={`w-2 h-2 rounded-full transition-all duration-200 ${
-                        index === currentSlide
-                          ? 'bg-white scale-125'
-                          : 'bg-gray-500 hover:bg-gray-400'
-                      }`}
-                      aria-label={`Go to slide ${index + 1}`}
-                    />
-                  ))}
-                  <span className="text-xs text-gray-400 ml-2">
-                    {currentSlide + 1} of {currentInteractions.length}
-                  </span>
-                </div>
-              )}
-              
-              {currentInteractions.length === 1 && (
-                <span className="text-xs text-gray-400">
-                  1 of 1
-                </span>
-              )}
-              
-              {/* TTS Control - Fixed styling for mobile */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`h-8 w-8 p-0 border-none bg-transparent hover:bg-transparent focus:bg-transparent active:bg-transparent ${
-                  isPlaying ? 'text-green-500' : 'text-white'
-                }`}
-                onClick={handleTTSClick}
-                disabled={currentInteractions.length === 0}
-              >
-                <Volume2 className={`w-4 h-4 ${isPlaying ? 'text-green-500' : 'text-white'}`} />
-              </Button>
-            </div>
+            <CarouselControls
+              currentSlide={currentSlide}
+              totalSlides={currentInteractions.length}
+              isPlaying={isPlaying}
+              onSlideSelect={scrollToSlide}
+              onTTSClick={handleTTSClick}
+            />
           </div>
         ) : (
           <div className="text-center text-gray-400">
