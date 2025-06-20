@@ -179,7 +179,11 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
         // Start the conversation using the agent ID approach with dynamic variables
         await conversation.startSession({ 
           agentId: elevenLabsConfig.agentId,
-          dynamicVariables: dynamicVariables
+          overrides: {
+            agent: {
+              firstMessage: `Hello! I'm your AI tour guide for ${destination}. I'm here to help you explore and learn about the amazing landmarks and history of this destination. What would you like to know about ${destination}?`
+            }
+          }
         });
         
         console.log('Conversation started successfully');
