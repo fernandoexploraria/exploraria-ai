@@ -91,8 +91,6 @@ ${landmarkDetails}
 Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, and recommendations. Keep your responses conversational and engaging, suitable for audio narration. Answer questions about the landmarks, provide historical context, suggest best times to visit, and share insider tips.`;
   };
 
-  const firstMessage = `Welcome to ${destination}! I'm your personal AI tour guide, and I'm absolutely thrilled to help you explore this amazing destination. I see you're planning to visit ${landmarks.length} incredible landmarks. What would you like to know first? I can tell you about the best times to visit, share fascinating historical stories, or give you insider tips to make your trip unforgettable!`;
-
   // Initialize the conversation with dynamic configuration
   const conversation = useConversation({
     onConnect: () => {
@@ -129,7 +127,6 @@ Be enthusiastic, knowledgeable, and helpful. Provide interesting facts, tips, an
         prompt: {
           prompt: systemPrompt || createFallbackTourPrompt()
         },
-        firstMessage: firstMessage,
         language: "en"
       }
     }
