@@ -94,7 +94,8 @@ serve(async (req) => {
       agent_id,
       conversation_id,
       transcript,
-      metadata
+      metadata,
+      conversation_initiation_client_data
     } = webhookData.data || {};
 
     if (!conversation_id || !transcript) {
@@ -110,18 +111,21 @@ serve(async (req) => {
     const duration_seconds = metadata?.call_duration_secs || 0;
     const audio_url = null; // ElevenLabs doesn't provide audio URL in this webhook
 
-    // Extract variables from the webhook data (these should contain user_id and destination)
-    // Note: Variables might be in different locations depending on ElevenLabs setup
-    const variables = webhookData.variables || webhookData.data?.variables || {};
+    // Extract variables from the correct location in the webhook data
+    // ElevenLabs sends dynamic variables in conversation_initiation_client_data.dynamic_variables
+    const dynamicVariables = conversation_initiation_client_data?.dynamic_variables || {};
     
-    const userId = variables?.user_id;
-    const destination = variables?.destination || 'Unknown';
+    const userId = dynamicVariables?.user_id;
+    const destination = dynamicVariables?.destination || 'Unknown';
+
+    console.log('Extracted variables:', { userId, destination });
+    console.log('Full dynamic variables:', JSON.stringify(dynamicVariables, null, 2));
 
     if (!userId) {
-      console.error('No user_id found in webhook variables');
-      console.log('Available variables:', JSON.stringify(variables, null, 2));
+      console.error('No user_id found in dynamic variables');
+      console.log('Available dynamic variables:', JSON.stringify(dynamicVariables, null, 2));
       return new Response(
-        JSON.stringify({ error: 'Missing user_id in variables' }),
+        JSON.stringify({ error: 'Missing user_id in dynamic variables' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
