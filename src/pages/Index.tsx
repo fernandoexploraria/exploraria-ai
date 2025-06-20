@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import Map from '@/components/Map';
 import SplashScreen from '@/components/SplashScreen';
@@ -20,7 +21,7 @@ const Index: React.FC = () => {
   const [selectedLandmark, setSelectedLandmark] = useState<Landmark | null>(null);
   const [isTourPlannerOpen, setIsTourPlannerOpen] = useState(false);
   const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false);
-  const [isVoiceSearchOpen, setIsVoiceSearchOpen] = useState(false);
+  const [isInteractionHistoryOpen, setIsInteractionHistoryOpen] = useState(false);
   const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [isNewTourAssistantOpen, setIsNewTourAssistantOpen] = useState(false);
@@ -86,12 +87,12 @@ const Index: React.FC = () => {
     setIsVoiceAssistantOpen(true);
   };
 
-  const handleVoiceSearchOpen = () => {
+  const handleInteractionHistoryOpen = () => {
     if (!user) {
       setIsAuthDialogOpen(true);
       return;
     }
-    setIsVoiceSearchOpen(true);
+    setIsInteractionHistoryOpen(true);
   };
 
   const handleFavoritesOpen = () => {
@@ -122,6 +123,19 @@ const Index: React.FC = () => {
     setIsNewTourAssistantOpen(true);
   };
 
+  const handleLocationSelect = useCallback((coordinates: [number, number]) => {
+    // Create a temporary landmark at the selected coordinates
+    const tempLandmark: Landmark = {
+      id: `temp-${Date.now()}`,
+      name: 'Selected Location',
+      description: 'Location from interaction history',
+      coordinates,
+      category: 'historic',
+      imageUrl: ''
+    };
+    setSelectedLandmark(tempLandmark);
+  }, []);
+
   if (showSplash) {
     return <SplashScreen onDismiss={handleSplashDismiss} />;
   }
@@ -133,7 +147,7 @@ const Index: React.FC = () => {
         onSelectLandmark={handleSelectLandmark}
         onTourPlannerOpen={() => setIsTourPlannerOpen(true)}
         onFavoritesOpen={handleFavoritesOpen}
-        onVoiceSearchOpen={handleVoiceSearchOpen}
+        onVoiceSearchOpen={handleInteractionHistoryOpen}
         onVoiceAssistantOpen={handleNewTourAssistantOpen}
         onLogoClick={handleLogoClick}
         user={user}
@@ -160,12 +174,13 @@ const Index: React.FC = () => {
         onGenerateTour={handleGenerateTour}
         onTourAuthRequired={handleTourAuthRequired}
         isTourLoading={isTourLoading}
-        isVoiceSearchOpen={isVoiceSearchOpen}
-        onVoiceSearchOpenChange={setIsVoiceSearchOpen}
+        isVoiceSearchOpen={isInteractionHistoryOpen}
+        onVoiceSearchOpenChange={setIsInteractionHistoryOpen}
         isFavoritesOpen={isFavoritesOpen}
         onFavoritesOpenChange={setIsFavoritesOpen}
         isAuthDialogOpen={isAuthDialogOpen}
         onAuthDialogOpenChange={handleAuthDialogClose}
+        onLocationSelect={handleLocationSelect}
       />
 
       <NewTourAssistant
