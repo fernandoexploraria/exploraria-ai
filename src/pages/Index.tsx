@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import Map from '@/components/Map';
 import SplashScreen from '@/components/SplashScreen';
@@ -9,10 +8,7 @@ import { useAuth } from '@/components/AuthProvider';
 import TopControls from '@/components/TopControls';
 import UserControls from '@/components/UserControls';
 import DialogManager from '@/components/DialogManager';
-
-// IMPORTANT: Replace this with your own public Mapbox token!
-// You can get one from your Mapbox account: https://www.mapbox.com/
-const MAPBOX_TOKEN = 'pk.eyJ1IjoiZm9icmVnb25hIiwiYSI6ImNtMGlnYzFlYTBtYnUybG9tMGRuczNoMzkifQ.n_n-sCR4Zm-dCV5ijeXiDg';
+import { supabase } from '@/integrations/supabase/client';
 
 const PENDING_DESTINATION_KEY = 'pendingTourDestination';
 
@@ -27,12 +23,35 @@ const Index: React.FC = () => {
   const [isNewTourAssistantOpen, setIsNewTourAssistantOpen] = useState(false);
   const [pendingDestination, setPendingDestination] = useState<string>('');
   const [additionalLandmarks, setAdditionalLandmarks] = useState<Landmark[]>([]);
+  const [mapboxToken, setMapboxToken] = useState<string>('');
   const { tourPlan, plannedLandmarks, isLoading: isTourLoading, generateTour } = useTourPlanner();
   const { user, signOut } = useAuth();
   
   const allLandmarks = useMemo(() => {
     return [...staticLandmarks, ...plannedLandmarks, ...additionalLandmarks];
   }, [plannedLandmarks, additionalLandmarks]);
+
+  // Fetch Mapbox token from Supabase secrets
+  useEffect(() => {
+    const fetchMapboxToken = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('get-mapbox-token');
+        if (error) {
+          console.error('Error fetching Mapbox token:', error);
+          // Fallback to hardcoded token if secret fetch fails
+          setMapboxToken('pk.eyJ1IjoiZm9icmVnb25hIiwiYSI6ImNtMGlnYzFlYTBtYnUybG9tMGRuczNoMzkifQ.n_n-sCR4Zm-dCV5ijeXiDg');
+        } else {
+          setMapboxToken(data.token);
+        }
+      } catch (error) {
+        console.error('Error fetching Mapbox token:', error);
+        // Fallback to hardcoded token
+        setMapboxToken('pk.eyJ1IjoiZm9icmVnb25hIiwiYSI6ImNtMGlnYzFlYTBtYnUybG9tMGRuczNoMzkifQ.n_n-sCR4Zm-dCV5ijeXiDg');
+      }
+    };
+
+    fetchMapboxToken();
+  }, []);
 
   // Handle post-authentication tour generation
   useEffect(() => {
@@ -138,6 +157,11 @@ const Index: React.FC = () => {
     return <SplashScreen onDismiss={handleSplashDismiss} />;
   }
 
+  // Don't render the map until we have a token
+  if (!mapboxToken) {
+    return <div className="w-screen h-screen flex items-center justify-center">Loading map...</div>;
+  }
+
   return (
     <div className="w-screen h-screen relative">
       <TopControls
@@ -159,7 +183,7 @@ const Index: React.FC = () => {
       />
 
       <Map 
-        mapboxToken={MAPBOX_TOKEN}
+        mapboxToken={mapboxToken}
         landmarks={allLandmarks}
         onSelectLandmark={handleSelectLandmark}
         selectedLandmark={selectedLandmark}
