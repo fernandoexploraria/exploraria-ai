@@ -27,11 +27,91 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isResultOpen, setIsResultOpen] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
 
   // Don't render the button if there are no planned landmarks
   if (plannedLandmarks.length === 0) {
     return null;
   }
+
+  // Function to handle text-to-speech using Google Cloud TTS via edge function
+  const handleTextToSpeech = async () => {
+    if (!analysisResult || isPlayingAudio) {
+      return;
+    }
+
+    try {
+      setIsPlayingAudio(true);
+      const text = `${analysisResult.landmark_name}. ${analysisResult.description}${analysisResult.additional_info ? '. ' + analysisResult.additional_info : ''}`;
+      
+      console.log('Calling Google Cloud TTS via edge function for image analysis:', text.substring(0, 50) + '...');
+      
+      // Call the same edge function used by the voice assistant and map markers
+      const { data, error } = await supabase.functions.invoke('gemini-tts', {
+        body: { text }
+      });
+
+      if (error) {
+        console.error('Google Cloud TTS error:', error);
+        return;
+      }
+
+      if (data?.audioContent && !data.fallbackToBrowser) {
+        console.log('Playing audio from Google Cloud TTS for image analysis');
+        await playAudioFromBase64(data.audioContent);
+      } else {
+        console.log('No audio content received for image analysis');
+      }
+      
+    } catch (error) {
+      console.error('Error with Google Cloud TTS for image analysis:', error);
+    } finally {
+      setIsPlayingAudio(false);
+    }
+  };
+
+  // Function to play audio from base64
+  const playAudioFromBase64 = async (base64Audio: string) => {
+    return new Promise<void>((resolve, reject) => {
+      try {
+        console.log('Converting base64 to audio blob for image analysis');
+        
+        const binaryString = atob(base64Audio);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        const blob = new Blob([bytes], { type: 'audio/mp3' });
+        const audioUrl = URL.createObjectURL(blob);
+        const audio = new Audio(audioUrl);
+        
+        audio.onended = () => {
+          console.log('Image analysis audio playback ended');
+          URL.revokeObjectURL(audioUrl);
+          resolve();
+        };
+        
+        audio.onerror = (error) => {
+          console.error('Image analysis audio playback error:', error);
+          URL.revokeObjectURL(audioUrl);
+          reject(error);
+        };
+        
+        audio.play().then(() => {
+          console.log('Image analysis audio playing successfully');
+        }).catch(error => {
+          console.error('Failed to play image analysis audio:', error);
+          URL.revokeObjectURL(audioUrl);
+          reject(error);
+        });
+        
+      } catch (error) {
+        console.error('Error creating audio from base64 for image analysis:', error);
+        reject(error);
+      }
+    });
+  };
 
   const handleCapture = async (imageData: string) => {
     setCapturedImage(imageData);
@@ -115,23 +195,68 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
           </DialogHeader>
           
           {capturedImage && (
-            <div className="mb-4">
+            <div className="mb-4 relative">
               <img 
                 src={capturedImage} 
                 alt="Captured image" 
                 className="w-full h-48 object-cover rounded-lg"
               />
+              {analysisResult && (
+                <button 
+                  onClick={handleTextToSpeech}
+                  disabled={isPlayingAudio}
+                  style={{
+                    position: 'absolute',
+                    bottom: '10px',
+                    right: '10px',
+                    background: 'rgba(0, 0, 0, 0.9)',
+                    color: 'white',
+                    border: '3px solid rgba(255, 255, 255, 0.9)',
+                    borderRadius: '50%',
+                    width: '56px',
+                    height: '56px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '24px',
+                    transition: 'all 0.3s ease',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+                    opacity: isPlayingAudio ? 0.7 : 1
+                  }}
+                  onMouseOver={(e) => {
+                    if (!isPlayingAudio) {
+                      e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.95)';
+                      e.currentTarget.style.borderColor = 'white';
+                      e.currentTarget.style.transform = 'scale(1.15)';
+                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.5)';
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (!isPlayingAudio) {
+                      e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.9)';
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.4)';
+                    }
+                  }}
+                  title="Listen to description"
+                >
+                  🔊
+                </button>
+              )}
             </div>
           )}
           
           {analysisResult && (
             <div className="space-y-3">
-              <p className="text-sm">
+              <h3 className="font-semibold text-lg">{analysisResult.landmark_name}</h3>
+              <p className="text-sm text-muted-foreground">
                 {analysisResult.description}
               </p>
               
               {analysisResult.additional_info && (
-                <p className="text-sm">
+                <p className="text-sm text-muted-foreground">
                   {analysisResult.additional_info}
                 </p>
               )}
