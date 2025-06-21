@@ -48,13 +48,13 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
       shareText += `AI discovered: ${interaction.assistant_response}\n\n`;
     }
     
-    // Add descriptive text for media instead of URLs
+    // Add meaningful links for media
     if (interaction.landmark_image_url) {
-      shareText += `📸 Photo included\n`;
+      shareText += `📸 View Photo: ${interaction.landmark_image_url}\n`;
     }
     
     if (interaction.audio_url) {
-      shareText += `🎵 Audio included\n`;
+      shareText += `🎵 Listen to Audio: ${interaction.audio_url}\n`;
     }
     
     if (interaction.landmark_image_url || interaction.audio_url) {
@@ -66,45 +66,12 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
     const shareUrl = window.location.origin;
 
     try {
-      // For Web Share API, we can include files if supported
       if (navigator.share) {
-        const shareData: any = {
+        const shareData = {
           title: shareTitle,
           text: shareText,
           url: shareUrl,
         };
-
-        // Try to include files for native sharing if supported
-        const filesToShare: File[] = [];
-
-        // Add image file if available
-        if (interaction.landmark_image_url && navigator.canShare) {
-          try {
-            const response = await fetch(interaction.landmark_image_url);
-            const blob = await response.blob();
-            const file = new File([blob], `${interaction.destination}-photo.jpg`, { type: blob.type });
-            filesToShare.push(file);
-          } catch (error) {
-            console.log('Could not include image file in share:', error);
-          }
-        }
-
-        // Add audio file if available
-        if (interaction.audio_url && navigator.canShare) {
-          try {
-            const response = await fetch(interaction.audio_url);
-            const blob = await response.blob();
-            const file = new File([blob], `${interaction.destination}-audio.mp3`, { type: blob.type });
-            filesToShare.push(file);
-          } catch (error) {
-            console.log('Could not include audio file in share:', error);
-          }
-        }
-
-        // Check if we can share files and add them to shareData
-        if (filesToShare.length > 0 && navigator.canShare({ files: filesToShare })) {
-          shareData.files = filesToShare;
-        }
 
         await navigator.share(shareData);
         console.log('Content shared successfully');
