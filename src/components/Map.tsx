@@ -548,7 +548,7 @@ const Map: React.FC<MapProps> = ({
 
     console.log('Popup data - Location:', locationName, 'Image:', imageUrl, 'Description:', description);
 
-    // Create popup content
+    // Create popup content with existing interaction data - NO NEW API CALLS
     const popupContent = `
       <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
         <button class="custom-close-btn" onclick="this.closest('.mapboxgl-popup').remove();" style="
@@ -576,11 +576,14 @@ const Map: React.FC<MapProps> = ({
             <img src="${imageUrl}" alt="${locationName}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px;" />
           </div>
         ` : `
-          <div style="width: 100%; height: 150px; background-color: #f0f0f0; border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; color: #888;">
-            From Interaction History
+          <div style="width: 100%; height: 150px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px;">
+            <div style="text-align: center;">
+              <div style="font-size: 24px; margin-bottom: 5px;">📍</div>
+              <div>From Interaction History</div>
+            </div>
           </div>
         `}
-        <p style="margin: 0; font-size: 14px; color: #666; text-align: left;">${description}</p>
+        <p style="margin: 0; font-size: 14px; color: #666; text-align: left; line-height: 1.4;">${description}</p>
       </div>
     `;
 
