@@ -2,11 +2,10 @@ import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Camera, Loader2, MapPin, Info, Upload } from 'lucide-react';
+import { Camera, Loader2, MapPin, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import CameraCapture from './CameraCapture';
-import PhotoUpload from './PhotoUpload';
 import { Landmark } from '@/data/landmarks';
 import { useAuth } from '@/components/AuthProvider';
 
@@ -24,7 +23,6 @@ interface AnalysisResult {
 
 const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
   const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const [isPhotoUploadOpen, setIsPhotoUploadOpen] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isResultOpen, setIsResultOpen] = useState(false);
@@ -34,7 +32,7 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
   const currentAudio = useRef<HTMLAudioElement | null>(null);
   const { user } = useAuth();
 
-  // Don't render the buttons if there are no planned landmarks
+  // Don't render the button if there are no planned landmarks
   if (plannedLandmarks.length === 0) {
     return null;
   }
@@ -205,21 +203,20 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
     });
   };
 
-  const handleImageAnalysis = async (imageData: string, fromCamera: boolean = false) => {
+  const handleCapture = async (imageData: string) => {
     setCapturedImage(imageData);
     setIsAnalyzing(true);
     
     try {
-      // Try to get current location only for camera captures
+      // Try to get current location
       let coordinates: [number, number] | undefined;
-      if (fromCamera) {
-        try {
-          coordinates = await getCurrentLocation();
-          setCurrentLocation(coordinates);
-          console.log('Location captured:', coordinates);
-        } catch (locationError) {
-          console.warn('Could not capture location:', locationError);
-        }
+      try {
+        coordinates = await getCurrentLocation();
+        setCurrentLocation(coordinates);
+        console.log('Location captured:', coordinates);
+      } catch (locationError) {
+        console.warn('Could not capture location:', locationError);
+        // Continue without location - this is not a critical failure
       }
 
       const base64Data = imageData.split(',')[1];
@@ -258,20 +255,8 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
     }
   };
 
-  const handleCapture = async (imageData: string) => {
-    await handleImageAnalysis(imageData, true);
-  };
-
-  const handlePhotoUpload = async (imageData: string) => {
-    await handleImageAnalysis(imageData, false);
-  };
-
   const openCamera = () => {
     setIsCameraOpen(true);
-  };
-
-  const openPhotoUpload = () => {
-    setIsPhotoUploadOpen(true);
   };
 
   const closeResult = () => {
@@ -285,44 +270,26 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
 
   return (
     <>
-      <div className="flex flex-col gap-2 w-full">
-        <Button
-          variant="outline"
-          size="sm"
-          className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
-          onClick={openCamera}
-          disabled={isAnalyzing}
-        >
-          {isAnalyzing ? (
-            <Loader2 className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4 animate-spin" />
-          ) : (
-            <Camera className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
-          )}
-          <span>Take Photo</span>
-        </Button>
-
-        <Button
-          variant="outline"
-          size="sm"
-          className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
-          onClick={openPhotoUpload}
-          disabled={isAnalyzing}
-        >
-          <Upload className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
-          <span>Upload Photo</span>
-        </Button>
-      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
+        onClick={openCamera}
+        disabled={isAnalyzing}
+      >
+        {isAnalyzing ? (
+          <Loader2 className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4 animate-spin" />
+        ) : (
+          <Camera className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+        )}
+        <span className="lg:hidden">Image Recognition</span>
+        <span className="hidden lg:inline">Image Recognition</span>
+      </Button>
 
       <CameraCapture
         isOpen={isCameraOpen}
         onClose={() => setIsCameraOpen(false)}
         onCapture={handleCapture}
-      />
-
-      <PhotoUpload
-        isOpen={isPhotoUploadOpen}
-        onClose={() => setIsPhotoUploadOpen(false)}
-        onUpload={handlePhotoUpload}
       />
 
       <Dialog open={isResultOpen} onOpenChange={closeResult}>
@@ -344,7 +311,7 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
             <div className="mb-4 relative">
               <img 
                 src={capturedImage} 
-                alt="Analyzed image" 
+                alt="Captured image" 
                 className="w-full h-48 object-cover rounded-lg"
               />
               {analysisResult && (
