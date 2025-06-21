@@ -12,7 +12,7 @@ const Drawer = ({
     shouldScaleBackground={shouldScaleBackground}
     snapPoints={[0.15, 0.85]}
     fadeFromIndex={0}
-    initialSnap={0.85}
+    defaultSnap={0.85}
     {...props}
   />
 )
