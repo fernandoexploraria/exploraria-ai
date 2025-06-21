@@ -14,10 +14,7 @@ interface PhotoUploadProps {
 const PhotoUpload: React.FC<PhotoUploadProps> = ({ isOpen, onClose, onUpload }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  const processFile = useCallback((file: File) => {
     // Check if file is an image
     if (!file.type.startsWith('image/')) {
       toast.error('Please select an image file');
@@ -45,6 +42,12 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({ isOpen, onClose, onUpload }) 
     reader.readAsDataURL(file);
   }, [onUpload, onClose]);
 
+  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    processFile(file);
+  }, [processFile]);
+
   const handleUploadClick = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
@@ -61,15 +64,9 @@ const PhotoUpload: React.FC<PhotoUploadProps> = ({ isOpen, onClose, onUpload }) 
     const files = e.dataTransfer.files;
     if (files.length > 0) {
       const file = files[0];
-      
-      // Create a fake event to reuse the same logic
-      const fakeEvent = {
-        target: { files: [file] }
-      } as React.ChangeEvent<HTMLInputElement>;
-      
-      handleFileSelect(fakeEvent);
+      processFile(file);
     }
-  }, [handleFileSelect]);
+  }, [processFile]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
