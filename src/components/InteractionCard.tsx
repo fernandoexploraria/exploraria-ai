@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -106,7 +105,7 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
     );
   };
 
-  // Function specifically for handling "Show on Map" button click
+  // Enhanced "Show on Map" button click handler
   const handleShowOnMap = () => {
     console.log('=== Show on Map Debug ===');
     console.log('Button clicked!');
@@ -149,20 +148,20 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
         return;
       }
       
-      // Minimize the drawer first
+      // First minimize the drawer
       if (onMinimizeDrawer) {
-        console.log('Calling onMinimizeDrawer...');
+        console.log('Minimizing drawer...');
         onMinimizeDrawer();
         
-        // Small delay to ensure drawer animation starts before map navigation
+        // Wait a bit longer for the drawer animation to complete before navigating
         setTimeout(() => {
           if ((window as any).navigateToMapCoordinates) {
-            console.log('Calling navigateToMapCoordinates...');
+            console.log('Navigating to map coordinates...');
             (window as any).navigateToMapCoordinates(coordinates, interaction);
           } else {
             console.log('ERROR: navigateToMapCoordinates function not found!');
           }
-        }, 100);
+        }, 300); // Increased delay for better animation
       } else {
         console.log('ERROR: onMinimizeDrawer function not provided!');
       }

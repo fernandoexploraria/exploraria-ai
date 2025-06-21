@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useInteractionCarouselLogic } from './InteractionCarouselLogic';
 import InteractionCarouselHeader from './InteractionCarouselHeader';
 import InteractionCarouselContent from './InteractionCarouselContent';
@@ -25,6 +25,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
 }) => {
   const { user } = useAuth();
   const { stop } = useTTSContext();
+  const drawerRef = useRef<HTMLDivElement>(null);
   
   console.log('InteractionCarousel render - open:', open);
   console.log('Drawer should be visible:', open);
@@ -71,26 +72,56 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
   };
 
-  // Function to minimize drawer to 7% using Vaul's setActiveSnapPoint
+  // Function to minimize drawer to 7% using direct DOM manipulation
   const handleMinimizeDrawer = () => {
-    console.log('Minimizing drawer to 7%');
-    // Find the drawer element and get its snap function
-    const drawerElement = document.querySelector('[data-vaul-drawer-wrapper]');
-    if (drawerElement) {
-      // Use Vaul's built-in snap functionality
-      const snapEvent = new CustomEvent('vaul-snap-to', { 
+    console.log('=== Minimize Drawer Debug ===');
+    console.log('Attempting to minimize drawer to 7%');
+    
+    // Try multiple approaches to minimize the drawer
+    const drawerElement = document.querySelector('[data-vaul-drawer]');
+    const drawerWrapper = document.querySelector('[data-vaul-drawer-wrapper]');
+    const drawerContent = document.querySelector('[data-vaul-drawer-content]');
+    
+    console.log('Found drawer element:', !!drawerElement);
+    console.log('Found drawer wrapper:', !!drawerWrapper);
+    console.log('Found drawer content:', !!drawerContent);
+    
+    // Method 1: Try to use Vaul's internal API
+    if (drawerElement && (drawerElement as any).snapTo) {
+      console.log('Using Vaul snapTo method');
+      (drawerElement as any).snapTo(0.07);
+    } 
+    // Method 2: Try to dispatch event on wrapper
+    else if (drawerWrapper) {
+      console.log('Dispatching snap event on wrapper');
+      const snapEvent = new CustomEvent('snap', { 
         detail: { snapPoint: 0.07 },
         bubbles: true 
       });
-      drawerElement.dispatchEvent(snapEvent);
+      drawerWrapper.dispatchEvent(snapEvent);
     }
+    // Method 3: Try direct style manipulation as fallback
+    else if (drawerContent) {
+      console.log('Using direct style manipulation');
+      const windowHeight = window.innerHeight;
+      const targetHeight = windowHeight * 0.07;
+      (drawerContent as HTMLElement).style.height = `${targetHeight}px`;
+      (drawerContent as HTMLElement).style.transform = `translate3d(0, ${windowHeight - targetHeight}px, 0)`;
+    }
+    
+    console.log('=== End Minimize Debug ===');
   };
 
   const currentInteractions = showingSearchResults ? searchResults : interactions;
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="h-screen flex flex-col bg-gray-900">
+    <Drawer 
+      open={open} 
+      onOpenChange={onOpenChange}
+      snapPoints={[0.07, 0.50, 0.78]}
+      activeSnapPoint={0.78}
+    >
+      <DrawerContent ref={drawerRef} className="h-screen flex flex-col bg-gray-900">
         <DrawerTitle className="sr-only">
           {showingSearchResults ? 'Search Results' : 'Interaction History'}
         </DrawerTitle>
