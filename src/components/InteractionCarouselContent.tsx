@@ -24,7 +24,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
 }) => {
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
-  const { stop, isPlaying } = useTTS();
+  const { stop } = useTTS();
 
   // Handle carousel slide changes - stop audio when card moves
   useEffect(() => {
@@ -33,9 +33,16 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
     const handleSlideChange = () => {
       console.log('Card movement detected');
       
-      // Use the same logic as the InteractionCard - if audio is playing, stop it
-      if (isPlaying) {
-        console.log('Audio is playing - stopping it');
+      // Check if the speaker icon is green (audio playing) by looking at the DOM
+      const speakerIcon = document.querySelector('[style*="color: rgb(16, 185, 129)"]') || 
+                         document.querySelector('[style*="color:#10b981"]');
+      const isAudioPlaying = speakerIcon !== null;
+      
+      console.log('Green speaker icon found:', isAudioPlaying);
+      
+      // If audio is playing (green icon detected), stop it using the same function as the button
+      if (isAudioPlaying) {
+        console.log('Stopping audio due to card movement');
         stop();
         
         toast({
@@ -57,7 +64,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
     return () => {
       carouselApi.off("select", handleSlideChange);
     };
-  }, [carouselApi, stop, isPlaying]);
+  }, [carouselApi, stop]);
 
   const scrollToSlide = (index: number) => {
     if (carouselApi) {
