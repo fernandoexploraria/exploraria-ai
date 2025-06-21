@@ -723,7 +723,10 @@ const Map: React.FC<MapProps> = ({
     // Create popup content with TTS button
     const popupContent = `
       <div style="text-align: center; padding: 10px; max-width: 300px; position: relative;">
-        <button class="custom-close-btn" onclick="this.closest('.mapboxgl-popup').remove();" style="
+        <button class="custom-close-btn" onclick="
+          if (window.stopCurrentAudio) window.stopCurrentAudio();
+          this.closest('.mapboxgl-popup').remove();
+        " style="
           position: absolute;
           top: 5px;
           right: 5px;
@@ -860,6 +863,7 @@ const Map: React.FC<MapProps> = ({
   React.useEffect(() => {
     console.log('Setting up navigateToMapCoordinates on window');
     (window as any).navigateToMapCoordinates = navigateToCoordinates;
+    (window as any).stopCurrentAudio = stopCurrentAudio;
     
     // Add global handler for interaction listen button
     (window as any).handleInteractionListen = (interactionId: string) => {
@@ -874,6 +878,7 @@ const Map: React.FC<MapProps> = ({
       console.log('Cleaning up navigateToMapCoordinates from window');
       delete (window as any).navigateToMapCoordinates;
       delete (window as any).handleInteractionListen;
+      delete (window as any).stopCurrentAudio;
     };
   }, []);
 
