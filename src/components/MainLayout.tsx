@@ -5,6 +5,7 @@ import UserControls from '@/components/UserControls';
 import DialogManager from '@/components/DialogManager';
 import NewTourAssistant from '@/components/NewTourAssistant';
 import InstagramIntegration from './InstagramIntegration';
+import { toast } from 'sonner';
 import { Landmark } from '@/data/landmarks';
 import { User } from '@supabase/supabase-js';
 
@@ -81,14 +82,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   return (
     <div className="relative w-full h-screen overflow-hidden">
       <TopControls
-        allLandmarks={allLandmarks}
-        onSelectLandmark={onSelectLandmark}
+        plannedLandmarks={plannedLandmarks}
         onTourPlannerOpen={onTourPlannerOpen}
         onVoiceSearchOpen={onVoiceSearchOpen}
         onVoiceAssistantOpen={onVoiceAssistantOpen}
-        onLogoClick={onLogoClick}
-        user={user}
-        plannedLandmarks={plannedLandmarks}
+        onInstagramOpen={handleInstagramOpen}
       />
 
       <UserControls
