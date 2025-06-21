@@ -1,4 +1,3 @@
-
 import * as React from "react"
 import { Drawer as DrawerPrimitive } from "vaul"
 
@@ -12,7 +11,6 @@ const Drawer = ({
     shouldScaleBackground={shouldScaleBackground}
     snapPoints={[0.15, 0.85]}
     fadeFromIndex={0}
-    defaultSnap={0.85}
     {...props}
   />
 )
