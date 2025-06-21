@@ -1,5 +1,5 @@
 
-const INSTAGRAM_CLIENT_ID = 'your_instagram_client_id'; // This will need to be set in Supabase secrets
+const INSTAGRAM_CLIENT_ID = 'your_instagram_client_id'; // This will be set from Supabase secrets
 const REDIRECT_URI = `${window.location.origin}/auth/instagram/callback`;
 
 export interface InstagramPost {
@@ -37,7 +37,7 @@ export class InstagramService {
   }
 
   static async exchangeCodeForToken(code: string): Promise<string> {
-    const response = await fetch('/api/instagram/token', {
+    const response = await fetch(`https://ejqgdmbuabrcjxbhpxup.supabase.co/functions/v1/instagram-token`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

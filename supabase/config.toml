@@ -32,6 +32,9 @@ major_version = 15
 [functions.elevenlabs-webhook]
 verify_jwt = false
 
+[functions.instagram-token]
+verify_jwt = false
+
 [storage]
 enabled = true
 port = 54325
