@@ -26,7 +26,6 @@ interface InteractionCardProps {
   isCurrentlyPlaying: boolean;
   onToggleFavorite: (interaction: Interaction) => void;
   onLocationClick: (coordinates: any) => void;
-  onSlideDrawer?: () => void;
 }
 
 const InteractionCard: React.FC<InteractionCardProps> = ({
@@ -35,7 +34,6 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
   isCurrentlyPlaying,
   onToggleFavorite,
   onLocationClick,
-  onSlideDrawer,
 }) => {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -163,12 +161,6 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
         (window as any).navigateToMapCoordinates(coordinates, interaction);
       } else {
         console.log('ERROR: navigateToMapCoordinates function not found on window!');
-      }
-
-      // Slide the drawer to 7% instead of closing completely
-      if (onSlideDrawer) {
-        console.log('Sliding drawer to 7%...');
-        onSlideDrawer();
       }
     } else {
       console.log('ERROR: No landmark coordinates found!');
