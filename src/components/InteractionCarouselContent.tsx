@@ -24,7 +24,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
 }) => {
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
-  const { stop, isPlaying } = useTTSContext();
+  const { stop, isPlaying, currentPlayingId } = useTTSContext();
 
   // Handle carousel slide changes - stop audio when card moves
   useEffect(() => {
@@ -116,7 +116,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
                 <InteractionCard
                   interaction={interaction}
                   index={index}
-                  isCurrentlyPlaying={false}
+                  isCurrentlyPlaying={currentPlayingId === interaction.id}
                   onToggleFavorite={onToggleFavorite}
                   onLocationClick={onLocationClick}
                 />

@@ -45,7 +45,7 @@ const CarouselControls: React.FC<CarouselControlsProps> = ({
       isMemoryNarration = false;
     }
 
-    speak(textToSpeak, isMemoryNarration);
+    speak(textToSpeak, isMemoryNarration, currentInteraction.id);
   };
 
   return (
