@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import InteractionCardHeader from './InteractionCardHeader';
@@ -52,6 +51,7 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
             imageUrl={interaction.landmark_image_url}
             destination={interaction.destination}
             userInput={interaction.user_input}
+            interaction={interaction}
           />
         )}
 
