@@ -260,6 +260,7 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
 
   const handleImageClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    console.log('Image clicked, opening viewer...');
     setIsImageViewerOpen(true);
   };
 
@@ -301,7 +302,7 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
           </div>
 
           {interaction.landmark_image_url && (
-            <div className="mb-2 flex-shrink-0 relative group">
+            <div className="mb-2 flex-shrink-0 relative">
               <img 
                 src={interaction.landmark_image_url} 
                 alt="Landmark" 
@@ -311,7 +312,7 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
               <Button
                 variant="ghost"
                 size="sm"
-                className="absolute top-1 right-1 h-6 w-6 p-0 bg-black/50 hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute top-1 right-1 h-6 w-6 p-0 bg-black/50 hover:bg-black/70"
                 onClick={handleImageDownload}
                 title="Download image"
               >
