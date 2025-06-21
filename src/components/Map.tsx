@@ -693,6 +693,11 @@ const Map: React.FC<MapProps> = ({
         e.stopPropagation();
         showInteractionPopup(coordinates, interaction);
       });
+      
+      // Show popup instantly after adding the marker
+      setTimeout(() => {
+        showInteractionPopup(coordinates, interaction);
+      }, 1000); // Small delay to allow fly animation to complete
     }
 
     // Store the marker so it can be managed later if needed
