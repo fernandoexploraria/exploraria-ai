@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Share2 } from 'lucide-react';
@@ -48,14 +49,14 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
       shareText += `AI discovered: ${interaction.assistant_response}\n\n`;
     }
     
-    // Create short, meaningful URLs for media
+    // Create short, meaningful URLs for media with HTML anchor tags
     if (interaction.landmark_image_url) {
       const shortImageUrl = createShortUrl(
         interaction.landmark_image_url, 
         'image', 
         interaction.destination
       );
-      shareText += `📸 View ${interaction.destination} Photo: ${shortImageUrl}\n`;
+      shareText += `📸 <a href="${shortImageUrl}">View ${interaction.destination} Photo</a>\n`;
     }
     
     if (interaction.audio_url) {
@@ -64,7 +65,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
         'audio', 
         interaction.destination
       );
-      shareText += `🎵 Listen to ${interaction.destination} Audio: ${shortAudioUrl}\n`;
+      shareText += `🎵 <a href="${shortAudioUrl}">Listen to ${interaction.destination} Audio</a>\n`;
     }
     
     if (interaction.landmark_image_url || interaction.audio_url) {
