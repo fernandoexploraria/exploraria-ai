@@ -19,7 +19,6 @@ const Index: React.FC = () => {
   const [isTourPlannerOpen, setIsTourPlannerOpen] = useState(false);
   const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false);
   const [isInteractionHistoryOpen, setIsInteractionHistoryOpen] = useState(false);
-  const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [isNewTourAssistantOpen, setIsNewTourAssistantOpen] = useState(false);
   const [pendingDestination, setPendingDestination] = useState<string>('');
@@ -115,14 +114,6 @@ const Index: React.FC = () => {
     setIsInteractionHistoryOpen(true);
   };
 
-  const handleFavoritesOpen = () => {
-    if (!user) {
-      setIsAuthDialogOpen(true);
-      return;
-    }
-    setIsFavoritesOpen(true);
-  };
-
   const handleSplashDismiss = () => {
     setShowSplash(false);
   };
@@ -163,7 +154,6 @@ const Index: React.FC = () => {
         allLandmarks={allLandmarks}
         onSelectLandmark={handleSelectLandmark}
         onTourPlannerOpen={() => setIsTourPlannerOpen(true)}
-        onFavoritesOpen={handleFavoritesOpen}
         onVoiceSearchOpen={handleInteractionHistoryOpen}
         onVoiceAssistantOpen={handleNewTourAssistantOpen}
         onLogoClick={handleLogoClick}
@@ -193,8 +183,6 @@ const Index: React.FC = () => {
         isTourLoading={isTourLoading}
         isVoiceSearchOpen={isInteractionHistoryOpen}
         onVoiceSearchOpenChange={setIsInteractionHistoryOpen}
-        isFavoritesOpen={isFavoritesOpen}
-        onFavoritesOpenChange={setIsFavoritesOpen}
         isAuthDialogOpen={isAuthDialogOpen}
         onAuthDialogOpenChange={handleAuthDialogClose}
         onLocationSelect={handleLocationSelect}
