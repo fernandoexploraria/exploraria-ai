@@ -5,6 +5,7 @@ import { Search } from 'lucide-react';
 import InteractionCard from './InteractionCard';
 import CarouselControls from './CarouselControls';
 import { Interaction } from './InteractionCarouselLogic';
+import { useTTS } from '@/hooks/useTTS';
 
 interface InteractionCarouselContentProps {
   isLoading: boolean;
@@ -23,6 +24,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
 }) => {
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
+  const { stop } = useTTS();
 
   // Handle carousel slide changes
   useEffect(() => {
@@ -30,6 +32,12 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
 
     const updateCurrentSlide = () => {
       const newSlide = carouselApi.selectedScrollSnap();
+      
+      // Stop TTS when slide changes
+      if (newSlide !== currentSlide) {
+        stop();
+      }
+      
       setCurrentSlide(newSlide);
     };
 
@@ -39,7 +47,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
     return () => {
       carouselApi.off("select", updateCurrentSlide);
     };
-  }, [carouselApi, currentSlide]);
+  }, [carouselApi, currentSlide, stop]);
 
   const scrollToSlide = (index: number) => {
     if (carouselApi) {
