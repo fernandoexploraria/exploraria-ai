@@ -13,9 +13,14 @@ const MediaRedirect: React.FC = () => {
   const [error, setError] = useState(false);
 
   useEffect(() => {
+    console.log('MediaRedirect loaded with shortCode:', shortCode);
+    
     if (shortCode) {
       const originalUrl = resolveShortUrl(shortCode);
       const info = getShortUrlInfo(shortCode);
+      
+      console.log('Original URL:', originalUrl);
+      console.log('URL Info:', info);
       
       if (originalUrl && info) {
         console.log(`Loading ${info.type} for ${info.destination}`);
@@ -55,7 +60,8 @@ const MediaRedirect: React.FC = () => {
       <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Media Not Found</h1>
-          <p className="mb-6">The media you're looking for could not be found.</p>
+          <p className="mb-2">The media you're looking for could not be found.</p>
+          <p className="mb-6 text-sm text-gray-400">Short code: {shortCode}</p>
           <Button onClick={handleGoHome} className="bg-blue-600 hover:bg-blue-700">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Go Home
@@ -64,6 +70,8 @@ const MediaRedirect: React.FC = () => {
       </div>
     );
   }
+
+  console.log('Rendering media with URL:', mediaUrl);
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4">
@@ -76,6 +84,7 @@ const MediaRedirect: React.FC = () => {
             <p className="text-gray-400">
               {urlInfo.type === 'image' ? 'Photo' : 'Audio'} from Exploraria AI
             </p>
+            <p className="text-xs text-gray-500 mt-1">URL: {mediaUrl}</p>
           </div>
           <div className="flex gap-2">
             <Button 
@@ -103,7 +112,11 @@ const MediaRedirect: React.FC = () => {
                 src={mediaUrl} 
                 alt={`${urlInfo.destination} landmark`}
                 className="max-w-full h-auto mx-auto rounded-lg shadow-lg"
-                onError={() => setError(true)}
+                onLoad={() => console.log('Image loaded successfully')}
+                onError={(e) => {
+                  console.error('Image failed to load:', e);
+                  setError(true);
+                }}
               />
             </div>
           ) : (
@@ -116,7 +129,11 @@ const MediaRedirect: React.FC = () => {
                 controls 
                 className="w-full max-w-md mx-auto"
                 src={mediaUrl}
-                onError={() => setError(true)}
+                onLoadedData={() => console.log('Audio loaded successfully')}
+                onError={(e) => {
+                  console.error('Audio failed to load:', e);
+                  setError(true);
+                }}
               >
                 Your browser does not support the audio element.
               </audio>
