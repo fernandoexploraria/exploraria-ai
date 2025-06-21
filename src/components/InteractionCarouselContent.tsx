@@ -5,7 +5,6 @@ import InteractionCard from './InteractionCard';
 import CarouselControls from './CarouselControls';
 import { Interaction } from './InteractionCarouselLogic';
 import { useTTSContext } from '@/contexts/TTSContext';
-import { toast } from '@/hooks/use-toast';
 
 interface InteractionCarouselContentProps {
   isLoading: boolean;
@@ -40,11 +39,6 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
       if (isPlaying) {
         console.log('Stopping audio due to card movement');
         stop();
-        
-        toast({
-          title: "Audio stopped",
-          description: "Audio stopped due to card movement",
-        });
       }
       
       // Update current slide
