@@ -49,14 +49,14 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
       shareText += `AI discovered: ${interaction.assistant_response}\n\n`;
     }
     
-    // Create short, meaningful URLs for media with HTML anchor tags
+    // Create short, meaningful URLs for media with descriptive text
     if (interaction.landmark_image_url) {
       const shortImageUrl = createShortUrl(
         interaction.landmark_image_url, 
         'image', 
         interaction.destination
       );
-      shareText += `📸 <a href="${shortImageUrl}">View ${interaction.destination} Photo</a>\n`;
+      shareText += `📸 View ${interaction.destination} Photo:\n${shortImageUrl}\n\n`;
     }
     
     if (interaction.audio_url) {
@@ -65,11 +65,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
         'audio', 
         interaction.destination
       );
-      shareText += `🎵 <a href="${shortAudioUrl}">Listen to ${interaction.destination} Audio</a>\n`;
-    }
-    
-    if (interaction.landmark_image_url || interaction.audio_url) {
-      shareText += `\n`;
+      shareText += `🎵 Listen to ${interaction.destination} Audio:\n${shortAudioUrl}\n\n`;
     }
     
     shareText += `Discovered with Exploraria AI 🗺️✨`;
