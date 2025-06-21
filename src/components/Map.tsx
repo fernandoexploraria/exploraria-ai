@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -29,7 +30,6 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
   const isZooming = useRef<boolean>(false);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
   const { user } = useAuth();
-  const simpleMarker = useRef<mapboxgl.Marker | null>(null);
 
   // Convert top landmarks to Landmark format
   const allLandmarksWithTop = React.useMemo(() => {
@@ -101,14 +101,6 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       map.current?.setFog({}); // Add a sky layer and atmosphere
     });
 
-    // Add a simple test marker (no interactions)
-    const testMarkerElement = document.createElement('div');
-    testMarkerElement.className = 'w-3 h-3 rounded-full bg-red-500 border-2 border-white shadow-lg';
-    
-    simpleMarker.current = new mapboxgl.Marker(testMarkerElement)
-      .setLngLat([2.2945, 48.8584]) // Eiffel Tower coordinates for testing
-      .addTo(map.current);
-
     // Close all popups when clicking on the map
     map.current.on('click', (e) => {
       // Check if the click was on a marker by looking for our marker class
@@ -149,7 +141,6 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
 
     return () => {
       stopCurrentAudio();
-      simpleMarker.current?.remove();
       map.current?.remove();
       map.current = null;
     };
