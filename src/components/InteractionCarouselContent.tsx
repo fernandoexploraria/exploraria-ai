@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselApi } from '@/components/ui/carousel';
 import { Search } from 'lucide-react';
@@ -22,23 +23,18 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
   showingSearchResults,
   onToggleFavorite,
   onLocationClick,
-  isPlaying,
-  stopAllTTSPlayback,
 }) => {
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
-  const { playingCardIndex, playTTS } = useTTSManager();
+  const { playTTS } = useTTSManager();
 
-  // Handle carousel slide changes and stop TTS on navigation
+  // Handle carousel slide changes
   useEffect(() => {
     if (!carouselApi) return;
 
     const updateCurrentSlide = () => {
       const newSlide = carouselApi.selectedScrollSnap();
-      if (newSlide !== currentSlide) {
-        stopAllTTSPlayback();
-        setCurrentSlide(newSlide);
-      }
+      setCurrentSlide(newSlide);
     };
 
     carouselApi.on("select", updateCurrentSlide);
@@ -47,96 +43,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
     return () => {
       carouselApi.off("select", updateCurrentSlide);
     };
-  }, [carouselApi, currentSlide, stopAllTTSPlayback]);
-
-  // Enhanced swipe and navigation detection to stop TTS
-  useEffect(() => {
-    if (!carouselApi) return;
-
-    let startX = 0;
-    let startY = 0;
-    let isInteracting = false;
-    const swipeThreshold = 20;
-
-    const handleTouchStart = (e: TouchEvent) => {
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
-      isInteracting = true;
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      if (!startX || !startY || !isInteracting) return;
-
-      const currentX = e.touches[0].clientX;
-      const currentY = e.touches[0].clientY;
-      
-      const diffX = Math.abs(currentX - startX);
-      const diffY = Math.abs(currentY - startY);
-
-      // If horizontal swipe is detected and greater than vertical movement
-      if (diffX > swipeThreshold && diffX > diffY) {
-        stopAllTTSPlayback();
-        isInteracting = false;
-      }
-    };
-
-    const handleTouchEnd = () => {
-      isInteracting = false;
-      startX = 0;
-      startY = 0;
-    };
-
-    const handleMouseDown = (e: MouseEvent) => {
-      startX = e.clientX;
-      startY = e.clientY;
-      isInteracting = true;
-    };
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!startX || !startY || !isInteracting) return;
-      if (e.buttons !== 1) return;
-
-      const diffX = Math.abs(e.clientX - startX);
-      const diffY = Math.abs(e.clientY - startY);
-
-      if (diffX > swipeThreshold && diffX > diffY) {
-        stopAllTTSPlayback();
-        isInteracting = false;
-      }
-    };
-
-    const handleMouseUp = () => {
-      isInteracting = false;
-      startX = 0;
-      startY = 0;
-    };
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-        stopAllTTSPlayback();
-      }
-    };
-
-    const carouselElement = carouselApi.rootNode();
-    
-    carouselElement.addEventListener('touchstart', handleTouchStart, { passive: true });
-    carouselElement.addEventListener('touchmove', handleTouchMove, { passive: true });
-    carouselElement.addEventListener('touchend', handleTouchEnd, { passive: true });
-    carouselElement.addEventListener('mousedown', handleMouseDown);
-    carouselElement.addEventListener('mousemove', handleMouseMove);
-    carouselElement.addEventListener('mouseup', handleMouseUp);
-    document.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      carouselElement.removeEventListener('touchstart', handleTouchStart);
-      carouselElement.removeEventListener('touchmove', handleTouchMove);
-      carouselElement.removeEventListener('touchend', handleTouchEnd);
-      carouselElement.removeEventListener('mousedown', handleMouseDown);
-      carouselElement.removeEventListener('mousemove', handleMouseMove);
-      carouselElement.removeEventListener('mouseup', handleMouseUp);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [carouselApi, stopAllTTSPlayback]);
+  }, [carouselApi, currentSlide]);
 
   const handleTTSClick = async () => {
     const currentInteraction = currentInteractions[currentSlide];
@@ -195,7 +102,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
                 <InteractionCard
                   interaction={interaction}
                   index={index}
-                  isCurrentlyPlaying={playingCardIndex === index}
+                  isCurrentlyPlaying={false}
                   onToggleFavorite={onToggleFavorite}
                   onLocationClick={onLocationClick}
                 />
@@ -209,7 +116,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
         <CarouselControls
           currentSlide={currentSlide}
           totalSlides={currentInteractions.length}
-          isPlaying={playingCardIndex === currentSlide && isPlaying}
+          isPlaying={false}
           onSlideSelect={scrollToSlide}
           onTTSClick={handleTTSClick}
         />

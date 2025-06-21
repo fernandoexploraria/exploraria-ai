@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -12,37 +12,9 @@ interface Interaction {
 }
 
 export const useTTSManager = () => {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
-  const [playingCardIndex, setPlayingCardIndex] = useState<number | null>(null);
   const { toast } = useToast();
 
-  const stopAllTTSPlayback = useCallback(() => {
-    // Stop HTML5 audio
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio.currentTime = 0;
-      setCurrentAudio(null);
-    }
-    
-    // Stop browser speech synthesis
-    if (speechSynthesis.speaking) {
-      speechSynthesis.cancel();
-    }
-    
-    // Reset state
-    setIsPlaying(false);
-    setPlayingCardIndex(null);
-  }, [currentAudio]);
-
   const playTTS = useCallback(async (interaction: Interaction, cardIndex: number) => {
-    // Always stop any currently playing audio first
-    stopAllTTSPlayback();
-
-    // Set playing state immediately
-    setIsPlaying(true);
-    setPlayingCardIndex(cardIndex);
-
     try {
       if (interaction.interaction_type === 'voice' && interaction.full_transcript) {
         // For voice transcripts, create a memory-style narration
@@ -77,8 +49,6 @@ export const useTTSManager = () => {
             description: "Could not generate memory narration.",
             variant: "destructive"
           });
-          setIsPlaying(false);
-          setPlayingCardIndex(null);
           return;
         }
 
@@ -88,19 +58,11 @@ export const useTTSManager = () => {
           const audioUrl = URL.createObjectURL(audioBlob);
           const audio = new Audio(audioUrl);
           
-          setCurrentAudio(audio);
-          
           audio.onended = () => {
-            setIsPlaying(false);
-            setPlayingCardIndex(null);
-            setCurrentAudio(null);
             URL.revokeObjectURL(audioUrl);
           };
           
           audio.onerror = () => {
-            setIsPlaying(false);
-            setPlayingCardIndex(null);
-            setCurrentAudio(null);
             URL.revokeObjectURL(audioUrl);
           };
           
@@ -108,14 +70,6 @@ export const useTTSManager = () => {
         } else if (data.fallbackToBrowser && data.enhancedText) {
           // Use browser TTS with enhanced text
           const utterance = new SpeechSynthesisUtterance(data.enhancedText);
-          utterance.onend = () => {
-            setIsPlaying(false);
-            setPlayingCardIndex(null);
-          };
-          utterance.onerror = () => {
-            setIsPlaying(false);
-            setPlayingCardIndex(null);
-          };
           speechSynthesis.speak(utterance);
         }
       } else {
@@ -131,30 +85,20 @@ export const useTTSManager = () => {
             description: "Could not generate audio for this text.",
             variant: "destructive"
           });
-          setIsPlaying(false);
-          setPlayingCardIndex(null);
           return;
         }
 
         if (data.audioContent) {
           // Play the audio
           const audioBlob = new Blob([Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0))], { type: 'audio/mp3' });
-          const audioUrl = URL.createObjectURL(audioBlob);
+          const audioUrl = URL.createObjectURL(audioUrl);
           const audio = new Audio(audioUrl);
           
-          setCurrentAudio(audio);
-          
           audio.onended = () => {
-            setIsPlaying(false);
-            setPlayingCardIndex(null);
-            setCurrentAudio(null);
             URL.revokeObjectURL(audioUrl);
           };
           
           audio.onerror = () => {
-            setIsPlaying(false);
-            setPlayingCardIndex(null);
-            setCurrentAudio(null);
             URL.revokeObjectURL(audioUrl);
           };
           
@@ -162,14 +106,6 @@ export const useTTSManager = () => {
         } else if (data.fallbackToBrowser && data.enhancedText) {
           // Use browser TTS as fallback
           const utterance = new SpeechSynthesisUtterance(data.enhancedText);
-          utterance.onend = () => {
-            setIsPlaying(false);
-            setPlayingCardIndex(null);
-          };
-          utterance.onerror = () => {
-            setIsPlaying(false);
-            setPlayingCardIndex(null);
-          };
           speechSynthesis.speak(utterance);
         }
       }
@@ -180,15 +116,10 @@ export const useTTSManager = () => {
         description: "Could not generate audio for this text.",
         variant: "destructive"
       });
-      setIsPlaying(false);
-      setPlayingCardIndex(null);
     }
-  }, [stopAllTTSPlayback, toast]);
+  }, [toast]);
 
   return {
-    isPlaying,
-    playingCardIndex,
-    stopAllTTSPlayback,
     playTTS
   };
 };

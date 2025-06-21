@@ -1,6 +1,5 @@
 
 import React, { useEffect } from 'react';
-import { useTTSManager } from '@/hooks/useTTSManager';
 import { useInteractionCarouselLogic } from './InteractionCarouselLogic';
 import InteractionCarouselHeader from './InteractionCarouselHeader';
 import InteractionCarouselContent from './InteractionCarouselContent';
@@ -18,7 +17,6 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   onLocationSelect 
 }) => {
   const { user } = useAuth();
-  const { isPlaying, stopAllTTSPlayback } = useTTSManager();
   
   const {
     searchQuery,
@@ -33,13 +31,6 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     handleBackToHistory,
     toggleFavorite
   } = useInteractionCarouselLogic();
-
-  // Stop TTS when dialog is closed
-  useEffect(() => {
-    if (!open && isPlaying) {
-      stopAllTTSPlayback();
-    }
-  }, [open, isPlaying, stopAllTTSPlayback]);
 
   // Load all interactions on mount
   useEffect(() => {
@@ -82,8 +73,8 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
         showingSearchResults={showingSearchResults}
         onToggleFavorite={toggleFavorite}
         onLocationClick={handleLocationClick}
-        isPlaying={isPlaying}
-        stopAllTTSPlayback={stopAllTTSPlayback}
+        isPlaying={false}
+        stopAllTTSPlayback={() => {}}
       />
     </div>
   );
