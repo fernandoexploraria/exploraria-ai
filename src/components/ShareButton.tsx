@@ -75,19 +75,35 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
         };
 
         // Try to include files for native sharing if supported
+        const filesToShare: File[] = [];
+
+        // Add image file if available
         if (interaction.landmark_image_url && navigator.canShare) {
           try {
             const response = await fetch(interaction.landmark_image_url);
             const blob = await response.blob();
             const file = new File([blob], `${interaction.destination}-photo.jpg`, { type: blob.type });
-            
-            // Check if we can share files
-            if (navigator.canShare({ files: [file] })) {
-              shareData.files = [file];
-            }
+            filesToShare.push(file);
           } catch (error) {
             console.log('Could not include image file in share:', error);
           }
+        }
+
+        // Add audio file if available
+        if (interaction.audio_url && navigator.canShare) {
+          try {
+            const response = await fetch(interaction.audio_url);
+            const blob = await response.blob();
+            const file = new File([blob], `${interaction.destination}-audio.mp3`, { type: blob.type });
+            filesToShare.push(file);
+          } catch (error) {
+            console.log('Could not include audio file in share:', error);
+          }
+        }
+
+        // Check if we can share files and add them to shareData
+        if (filesToShare.length > 0 && navigator.canShare({ files: filesToShare })) {
+          shareData.files = filesToShare;
         }
 
         await navigator.share(shareData);
