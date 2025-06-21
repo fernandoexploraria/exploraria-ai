@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +25,7 @@ interface InteractionCardProps {
   isCurrentlyPlaying: boolean;
   onToggleFavorite: (interaction: Interaction) => void;
   onLocationClick: (coordinates: any) => void;
+  onMinimizeDrawer?: () => void;
 }
 
 const InteractionCard: React.FC<InteractionCardProps> = ({
@@ -34,6 +34,7 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
   isCurrentlyPlaying,
   onToggleFavorite,
   onLocationClick,
+  onMinimizeDrawer,
 }) => {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -153,6 +154,11 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
       if (isNaN(coordinates[0]) || isNaN(coordinates[1])) {
         console.log('ERROR: Coordinates are NaN!', coordinates);
         return;
+      }
+      
+      // Minimize the drawer first
+      if (onMinimizeDrawer) {
+        onMinimizeDrawer();
       }
       
       // Call the new navigation function from Map component with interaction data

@@ -71,6 +71,17 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
   };
 
+  // Function to minimize drawer to 7%
+  const handleMinimizeDrawer = () => {
+    // Set the snap point to 7% (0.07)
+    const drawerElement = document.querySelector('[data-vaul-drawer]') as HTMLElement;
+    if (drawerElement) {
+      // Trigger the snap to the smallest point
+      const event = new CustomEvent('vaul-snap', { detail: { snapPoint: 0.07 } });
+      drawerElement.dispatchEvent(event);
+    }
+  };
+
   const currentInteractions = showingSearchResults ? searchResults : interactions;
 
   return (
@@ -102,6 +113,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
             showingSearchResults={showingSearchResults}
             onToggleFavorite={toggleFavorite}
             onLocationClick={handleLocationClick}
+            onMinimizeDrawer={handleMinimizeDrawer}
           />
         </div>
       </DrawerContent>
