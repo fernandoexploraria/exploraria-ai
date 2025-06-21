@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -305,7 +304,7 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
             onClick={handleShare}
           >
             <Share2 className="w-3 h-3 mr-1" />
-            Share Discovery
+            Sharing
           </Button>
         </div>
       </CardContent>
