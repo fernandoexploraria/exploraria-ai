@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 
 interface SplashScreenProps {
@@ -9,6 +8,9 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
+    // Set flag that splash has been seen
+    localStorage.setItem('splash-seen', 'true');
+
     // Auto-dismiss after 5 seconds
     const timer = setTimeout(() => {
       handleDismiss();

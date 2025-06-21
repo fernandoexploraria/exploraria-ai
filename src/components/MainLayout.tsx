@@ -5,6 +5,8 @@ import TopControls from '@/components/TopControls';
 import UserControls from '@/components/UserControls';
 import DialogManager from '@/components/DialogManager';
 import NewTourAssistant from '@/components/NewTourAssistant';
+import OnboardingOverlay from '@/components/OnboardingOverlay';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import { Landmark } from '@/data/landmarks';
 import { User } from '@supabase/supabase-js';
 
@@ -61,6 +63,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   onNewTourAssistantOpenChange,
   tourPlan,
 }) => {
+  const onboarding = useOnboarding();
+
   const handleLocationSelect = () => {
     console.log('Location select called but no action taken');
   };
@@ -74,23 +78,28 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         onVoiceSearchOpen={onVoiceSearchOpen}
         onVoiceAssistantOpen={onVoiceAssistantOpen}
         onLogoClick={onLogoClick}
+        onHelpClick={onboarding.startOnboarding}
         user={user}
         plannedLandmarks={plannedLandmarks}
       />
 
-      <UserControls
-        user={user}
-        onSignOut={onSignOut}
-        onAuthDialogOpen={onAuthDialogOpen}
-      />
+      <div data-onboarding="user-controls">
+        <UserControls
+          user={user}
+          onSignOut={onSignOut}
+          onAuthDialogOpen={onAuthDialogOpen}
+        />
+      </div>
 
-      <Map 
-        mapboxToken={mapboxToken}
-        landmarks={allLandmarks}
-        onSelectLandmark={onSelectLandmark}
-        selectedLandmark={selectedLandmark}
-        plannedLandmarks={[...plannedLandmarks]}
-      />
+      <div data-onboarding="map">
+        <Map 
+          mapboxToken={mapboxToken}
+          landmarks={allLandmarks}
+          onSelectLandmark={onSelectLandmark}
+          selectedLandmark={selectedLandmark}
+          plannedLandmarks={[...plannedLandmarks]}
+        />
+      </div>
 
       <DialogManager
         isTourPlannerOpen={isTourPlannerOpen}
@@ -111,6 +120,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         destination={tourPlan?.destination || ''}
         landmarks={plannedLandmarks}
         systemPrompt={tourPlan?.systemPrompt}
+      />
+
+      <OnboardingOverlay
+        isActive={onboarding.isActive}
+        currentStep={onboarding.currentStep}
+        currentStepData={onboarding.currentStepData}
+        totalSteps={onboarding.totalSteps}
+        onNext={onboarding.nextStep}
+        onPrev={onboarding.prevStep}
+        onSkip={onboarding.skipOnboarding}
       />
     </div>
   );
