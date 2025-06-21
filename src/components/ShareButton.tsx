@@ -1,7 +1,7 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Share2 } from 'lucide-react';
+import { createShortUrl } from '@/utils/urlShortener';
 
 interface Interaction {
   id: string;
@@ -48,13 +48,23 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
       shareText += `AI discovered: ${interaction.assistant_response}\n\n`;
     }
     
-    // Add meaningful links for media
+    // Create short, meaningful URLs for media
     if (interaction.landmark_image_url) {
-      shareText += `📸 View Photo: ${interaction.landmark_image_url}\n`;
+      const shortImageUrl = createShortUrl(
+        interaction.landmark_image_url, 
+        'image', 
+        interaction.destination
+      );
+      shareText += `📸 View Photo: ${shortImageUrl}\n`;
     }
     
     if (interaction.audio_url) {
-      shareText += `🎵 Listen to Audio: ${interaction.audio_url}\n`;
+      const shortAudioUrl = createShortUrl(
+        interaction.audio_url, 
+        'audio', 
+        interaction.destination
+      );
+      shareText += `🎵 Listen to Audio: ${shortAudioUrl}\n`;
     }
     
     if (interaction.landmark_image_url || interaction.audio_url) {
