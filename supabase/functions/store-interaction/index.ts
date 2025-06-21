@@ -21,7 +21,8 @@ serve(async (req) => {
       destination,
       interactionType = 'voice',
       landmarkCoordinates,
-      landmarkImageUrl
+      landmarkImageUrl,
+      audioUrl
     } = await req.json()
     
     console.log('Request body:', { 
@@ -30,7 +31,8 @@ serve(async (req) => {
       destination, 
       interactionType,
       landmarkCoordinates,
-      landmarkImageUrl 
+      landmarkImageUrl,
+      audioUrl 
     });
 
     if (!userInput || !assistantResponse || !destination) {
@@ -146,6 +148,11 @@ serve(async (req) => {
 
     if (landmarkImageUrl) {
       insertData.landmark_image_url = landmarkImageUrl
+    }
+
+    if (audioUrl) {
+      console.log('Adding audio URL to insert data:', audioUrl);
+      insertData.audio_url = audioUrl
     }
 
     // Store the interaction in the database
