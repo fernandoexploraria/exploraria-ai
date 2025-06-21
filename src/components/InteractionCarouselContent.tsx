@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselApi } from '@/components/ui/carousel';
 import { Search } from 'lucide-react';
@@ -33,10 +32,8 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
     const updateCurrentSlide = () => {
       const newSlide = carouselApi.selectedScrollSnap();
       
-      // Stop TTS when slide changes
-      if (newSlide !== currentSlide) {
-        stop();
-      }
+      // Always stop TTS when slide changes (any navigation)
+      stop();
       
       setCurrentSlide(newSlide);
     };
@@ -47,7 +44,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
     return () => {
       carouselApi.off("select", updateCurrentSlide);
     };
-  }, [carouselApi, currentSlide, stop]);
+  }, [carouselApi, stop]);
 
   const scrollToSlide = (index: number) => {
     if (carouselApi) {
