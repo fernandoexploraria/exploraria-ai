@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { Button } from '@/components/ui/button';
 import InteractionSearch from './InteractionSearch';
 
 interface InteractionCarouselHeaderProps {
@@ -22,15 +23,30 @@ const InteractionCarouselHeader: React.FC<InteractionCarouselHeaderProps> = ({
   onBackToHistory,
 }) => {
   return (
-    <div className="space-y-4">
-      <InteractionSearch
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        onSearch={onSearch}
-        isSearching={isSearching}
-        showingSearchResults={showingSearchResults}
-        onBackToHistory={onBackToHistory}
-      />
+    <div className="bg-gray-900 border-b border-gray-700 p-4">
+      <div className="max-w-4xl mx-auto">
+        <div className="flex items-center gap-4 mb-4">
+          <Button
+            variant="ghost"
+            onClick={onClose}
+            className="text-white hover:text-gray-300"
+          >
+            ← Close
+          </Button>
+          <h2 className="text-xl font-semibold text-white">
+            {showingSearchResults ? 'Search Results' : 'Interaction History'}
+          </h2>
+        </div>
+        
+        <InteractionSearch
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          onSearch={onSearch}
+          isSearching={isSearching}
+          showingSearchResults={showingSearchResults}
+          onBackToHistory={onBackToHistory}
+        />
+      </div>
     </div>
   );
 };
