@@ -188,7 +188,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
         <CarouselControls
           currentSlide={currentSlide}
           totalSlides={currentInteractions.length}
-          isPlaying={isPlaying}
+          isPlaying={playingCardIndex === currentSlide && isPlaying}
           onSlideSelect={scrollToSlide}
           onTTSClick={handleTTSClick}
         />
