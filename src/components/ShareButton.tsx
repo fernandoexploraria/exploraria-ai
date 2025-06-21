@@ -21,10 +21,29 @@ interface ShareButtonProps {
 
 const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
   const handleShare = async () => {
+    console.log('=== SHARE BUTTON DEBUG ===');
     console.log('Share button clicked for interaction:', interaction.id);
+    console.log('Interaction type:', interaction.interaction_type);
     console.log('Audio URL found:', interaction.audio_url);
     console.log('Audio URL type:', typeof interaction.audio_url);
-    console.log('Full interaction object:', interaction);
+    console.log('Audio URL value check:', interaction.audio_url === null, interaction.audio_url === undefined);
+    console.log('Full interaction object:', JSON.stringify(interaction, null, 2));
+    
+    // Check if there's audio data in the full_transcript for map marker interactions
+    if (interaction.interaction_type === 'map_marker' && interaction.full_transcript) {
+      console.log('Checking full_transcript for audio data...');
+      console.log('Full transcript:', JSON.stringify(interaction.full_transcript, null, 2));
+      
+      // Look for audio URL in different possible locations
+      if (Array.isArray(interaction.full_transcript)) {
+        const audioEntry = interaction.full_transcript.find((entry: any) => 
+          entry.audio_url || entry.audioUrl || (entry.type === 'audio')
+        );
+        if (audioEntry) {
+          console.log('Found audio in transcript:', audioEntry);
+        }
+      }
+    }
     
     // Create shareable content
     const shareTitle = `Travel Discovery in ${interaction.destination}`;
@@ -63,21 +82,36 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
       shareText += `📸 View ${interaction.destination} Photo:\n${shortImageUrl}\n\n`;
     }
     
-    if (interaction.audio_url) {
-      console.log('Creating audio short URL for:', interaction.audio_url);
+    // Handle audio URL - check multiple possible sources
+    let audioUrlToUse = interaction.audio_url;
+    
+    // If no direct audio_url, check if it's in the transcript (for map marker interactions)
+    if (!audioUrlToUse && interaction.full_transcript && Array.isArray(interaction.full_transcript)) {
+      const audioEntry = interaction.full_transcript.find((entry: any) => 
+        entry.audio_url || entry.audioUrl
+      );
+      if (audioEntry) {
+        audioUrlToUse = audioEntry.audio_url || audioEntry.audioUrl;
+        console.log('Found audio URL in transcript:', audioUrlToUse);
+      }
+    }
+    
+    if (audioUrlToUse) {
+      console.log('Creating audio short URL for:', audioUrlToUse);
       const shortAudioUrl = createShortUrl(
-        interaction.audio_url, 
+        audioUrlToUse, 
         'audio', 
         interaction.destination
       );
       shareText += `🎵 Listen to ${interaction.destination} Audio:\n${shortAudioUrl}\n\n`;
     } else {
-      console.log('No audio URL found - interaction.audio_url is:', interaction.audio_url);
+      console.log('No audio URL found - checked both direct audio_url and transcript');
     }
     
     shareText += `Discovered with Exploraria AI 🗺️✨`;
     
     console.log('Final share text:', shareText);
+    console.log('=== END SHARE DEBUG ===');
     
     const shareUrl = window.location.origin;
 
