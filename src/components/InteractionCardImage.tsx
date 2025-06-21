@@ -2,6 +2,8 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
+import { Camera } from '@capacitor/camera';
+import { Capacitor } from '@capacitor/core';
 
 interface Interaction {
   id: string;
@@ -26,10 +28,61 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
   userInput,
   interaction,
 }) => {
-  const handleImageDownload = (e: React.MouseEvent) => {
+  const handleImageDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    // No functionality - disabled as requested
-    console.log('Download button clicked but functionality disabled');
+    console.log('Download button clicked');
+
+    try {
+      // Check if we're on a native platform (mobile app or PWA with native capabilities)
+      const isNativePlatform = Capacitor.isNativePlatform() || 
+                              (Capacitor.getPlatform() === 'web' && 'serviceWorker' in navigator);
+
+      if (isNativePlatform) {
+        console.log('Attempting native camera roll save...');
+        
+        // Convert image URL to base64
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        const base64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+
+        // Save to camera roll using Capacitor Camera plugin
+        await Camera.savePicture({
+          photos: [base64],
+          albumName: 'Exploraria AI'
+        });
+
+        console.log('Image saved to camera roll successfully');
+        // You could add a toast notification here
+        
+      } else {
+        throw new Error('Native platform not available, using fallback');
+      }
+    } catch (error) {
+      console.log('Native save failed, using fallback download:', error);
+      
+      // Fallback: Standard download approach
+      try {
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `exploraria-${destination.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        window.URL.revokeObjectURL(url);
+        console.log('Image downloaded successfully');
+      } catch (downloadError) {
+        console.error('Download failed:', downloadError);
+      }
+    }
   };
 
   return (
