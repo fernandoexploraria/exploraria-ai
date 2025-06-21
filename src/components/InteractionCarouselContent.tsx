@@ -13,6 +13,7 @@ interface InteractionCarouselContentProps {
   showingSearchResults: boolean;
   onToggleFavorite: (interaction: Interaction) => void;
   onLocationClick: (coordinates: any) => void;
+  onSlideDrawer?: () => void;
 }
 
 const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
@@ -21,6 +22,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
   showingSearchResults,
   onToggleFavorite,
   onLocationClick,
+  onSlideDrawer,
 }) => {
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -114,6 +116,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
                   isCurrentlyPlaying={currentPlayingId === interaction.id}
                   onToggleFavorite={onToggleFavorite}
                   onLocationClick={onLocationClick}
+                  onSlideDrawer={onSlideDrawer}
                 />
               </CarouselItem>
             ))}

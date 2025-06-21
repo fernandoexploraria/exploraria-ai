@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { useInteractionCarouselLogic } from './InteractionCarouselLogic';
 import InteractionCarouselHeader from './InteractionCarouselHeader';
@@ -71,6 +70,16 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
   };
 
+  const handleSlideDrawer = () => {
+    console.log('Sliding drawer to minimum height...');
+    // Instead of closing completely, we'll set a very small open state
+    // This will trigger the drawer to snap to the 0.07 snap point
+    const drawerElement = document.querySelector('[data-vaul-drawer]') as any;
+    if (drawerElement && drawerElement.__vaul_api) {
+      drawerElement.__vaul_api.snapTo(0);
+    }
+  };
+
   const currentInteractions = showingSearchResults ? searchResults : interactions;
 
   return (
@@ -102,6 +111,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
             showingSearchResults={showingSearchResults}
             onToggleFavorite={toggleFavorite}
             onLocationClick={handleLocationClick}
+            onSlideDrawer={handleSlideDrawer}
           />
         </div>
       </DrawerContent>
