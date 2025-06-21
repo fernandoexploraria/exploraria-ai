@@ -14,6 +14,11 @@ interface MapProps {
   selectedLandmark: Landmark | null;
   plannedLandmarks: Landmark[];
   selectedCoordinates?: [number, number] | null;
+  selectedInteractionData?: {
+    user_input: string;
+    landmark_image_url?: string;
+    assistant_response?: string;
+  } | null;
 }
 
 // Google API key
@@ -25,7 +30,8 @@ const Map: React.FC<MapProps> = ({
   onSelectLandmark, 
   selectedLandmark, 
   plannedLandmarks,
-  selectedCoordinates 
+  selectedCoordinates,
+  selectedInteractionData 
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -37,6 +43,7 @@ const Map: React.FC<MapProps> = ({
   const isZooming = useRef<boolean>(false);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
   const selectedCoordinatesMarker = useRef<mapboxgl.Marker | null>(null);
+  const selectedCoordinatesPopup = useRef<mapboxgl.Popup | null>(null);
   const { user } = useAuth();
 
   // Convert top landmarks to Landmark format
@@ -516,10 +523,14 @@ const Map: React.FC<MapProps> = ({
   useEffect(() => {
     if (!map.current) return;
 
-    // Remove existing selected coordinates marker
+    // Remove existing selected coordinates marker and popup
     if (selectedCoordinatesMarker.current) {
       selectedCoordinatesMarker.current.remove();
       selectedCoordinatesMarker.current = null;
+    }
+    if (selectedCoordinatesPopup.current) {
+      selectedCoordinatesPopup.current.remove();
+      selectedCoordinatesPopup.current = null;
     }
 
     // Add new marker if coordinates are provided
@@ -533,6 +544,12 @@ const Map: React.FC<MapProps> = ({
 
       selectedCoordinatesMarker.current = marker;
 
+      // Add click event to show interaction data
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showInteractionPopup();
+      });
+
       // Fly to the selected coordinates
       map.current.flyTo({
         center: selectedCoordinates,
@@ -542,7 +559,80 @@ const Map: React.FC<MapProps> = ({
         easing: (t) => t,
       });
     }
-  }, [selectedCoordinates]);
+  }, [selectedCoordinates, selectedInteractionData]);
+
+  // Function to show interaction popup
+  const showInteractionPopup = () => {
+    if (!map.current || !selectedCoordinates || !selectedInteractionData) return;
+
+    console.log('Showing interaction popup for:', selectedInteractionData.user_input);
+
+    // Remove existing popup
+    if (selectedCoordinatesPopup.current) {
+      selectedCoordinatesPopup.current.remove();
+    }
+
+    // Create new popup
+    const popup = new mapboxgl.Popup({
+      closeButton: true,
+      closeOnClick: false,
+      offset: 25,
+      maxWidth: '450px',
+      className: 'custom-popup'
+    });
+
+    const locationName = selectedInteractionData.user_input || 'Selected Location';
+    const imageUrl = selectedInteractionData.landmark_image_url;
+    const description = selectedInteractionData.assistant_response || 'Information from interaction history';
+
+    // Create popup content
+    const popupContent = `
+      <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
+        <button class="custom-close-btn" onclick="this.closest('.mapboxgl-popup').remove();" style="
+          position: absolute;
+          top: 5px;
+          right: 5px;
+          background: rgba(0, 0, 0, 0.7);
+          color: white;
+          border: none;
+          border-radius: 50%;
+          width: 24px;
+          height: 24px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 14px;
+          font-weight: bold;
+          z-index: 1000;
+          transition: background-color 0.2s;
+        " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
+        <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${locationName}</h3>
+        ${imageUrl ? `
+          <div style="margin-bottom: 10px;">
+            <img src="${imageUrl}" alt="${locationName}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px;" />
+          </div>
+        ` : `
+          <div style="width: 100%; height: 150px; background-color: #f0f0f0; border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; color: #888;">
+            From Interaction History
+          </div>
+        `}
+        <p style="margin: 0; font-size: 14px; color: #666; text-align: left;">${description}</p>
+      </div>
+    `;
+
+    popup
+      .setLngLat(selectedCoordinates)
+      .setHTML(popupContent)
+      .addTo(map.current!);
+
+    selectedCoordinatesPopup.current = popup;
+
+    // Handle popup close event
+    popup.on('close', () => {
+      selectedCoordinatesPopup.current = null;
+    });
+  };
 
   // Update markers when landmarks change
   useEffect(() => {
@@ -663,7 +753,6 @@ const Map: React.FC<MapProps> = ({
         element.style.transform = 'scale(1)';
       }
     });
-
   }, [selectedLandmark]);
 
   // Zooms to fit planned landmarks when a new tour is generated

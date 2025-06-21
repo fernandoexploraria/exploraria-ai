@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import Map from '@/components/Map';
 import SplashScreen from '@/components/SplashScreen';
@@ -26,6 +25,11 @@ const Index: React.FC = () => {
   const [additionalLandmarks, setAdditionalLandmarks] = useState<Landmark[]>([]);
   const [mapboxToken, setMapboxToken] = useState<string>('');
   const [selectedCoordinates, setSelectedCoordinates] = useState<[number, number] | null>(null);
+  const [selectedInteractionData, setSelectedInteractionData] = useState<{
+    user_input: string;
+    landmark_image_url?: string;
+    assistant_response?: string;
+  } | null>(null);
   const { tourPlan, plannedLandmarks, isLoading: isTourLoading, generateTour } = useTourPlanner();
   const { user, signOut } = useAuth();
   
@@ -144,14 +148,24 @@ const Index: React.FC = () => {
     setIsNewTourAssistantOpen(true);
   };
 
-  const handleLocationSelect = useCallback((coordinates: [number, number]) => {
+  const handleLocationSelect = useCallback((coordinates: [number, number], interactionData?: any) => {
     console.log('Location selected from interaction history:', coordinates);
     setSelectedCoordinates(coordinates);
+    
+    // Set interaction data if provided
+    if (interactionData) {
+      setSelectedInteractionData({
+        user_input: interactionData.user_input,
+        landmark_image_url: interactionData.landmark_image_url,
+        assistant_response: interactionData.assistant_response
+      });
+    }
+    
     // Create a temporary landmark at the selected coordinates
     const tempLandmark: Landmark = {
       id: `temp-${Date.now()}`,
-      name: 'Selected Location',
-      description: 'Location from interaction history',
+      name: interactionData?.user_input || 'Selected Location',
+      description: interactionData?.assistant_response || 'Location from interaction history',
       coordinates
     };
     setSelectedLandmark(tempLandmark);
@@ -193,6 +207,7 @@ const Index: React.FC = () => {
         selectedLandmark={selectedLandmark}
         plannedLandmarks={[...plannedLandmarks, ...additionalLandmarks]}
         selectedCoordinates={selectedCoordinates}
+        selectedInteractionData={selectedInteractionData}
       />
 
       <DialogManager
