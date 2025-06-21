@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselApi } from '@/components/ui/carousel';
 import { Search } from 'lucide-react';
@@ -5,6 +6,7 @@ import InteractionCard from './InteractionCard';
 import CarouselControls from './CarouselControls';
 import { Interaction } from './InteractionCarouselLogic';
 import { useTTS } from '@/hooks/useTTS';
+import { toast } from '@/hooks/use-toast';
 
 interface InteractionCarouselContentProps {
   isLoading: boolean;
@@ -32,6 +34,12 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
     const handleSlideChange = () => {
       console.log('Card movement detected');
       
+      // Show toast to debug
+      toast({
+        title: "Swipe detected!",
+        description: `Moved to slide ${carouselApi.selectedScrollSnap() + 1}`,
+      });
+
       // If audio is playing, stop it
       if (isPlaying) {
         console.log('Stopping audio due to card movement');
