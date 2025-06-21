@@ -1,10 +1,15 @@
-
 import React, { useEffect } from 'react';
 import { useInteractionCarouselLogic } from './InteractionCarouselLogic';
 import InteractionCarouselHeader from './InteractionCarouselHeader';
 import InteractionCarouselContent from './InteractionCarouselContent';
 import { useAuth } from './AuthProvider';
 import { useTTSContext } from '@/contexts/TTSContext';
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer';
 
 interface InteractionCarouselProps {
   open: boolean;
@@ -56,36 +61,41 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
         const lng = parseFloat(coordsArray[0]);
         const lat = parseFloat(coordsArray[1]);
         onLocationSelect([lng, lat]);
-        // Close the interaction carousel when showing location on map
-        onOpenChange(false);
+        // Keep the drawer open but minimize it by setting a smaller snap point
+        // The drawer will automatically minimize when the user interacts with the map
       }
     }
   };
 
-  if (!open) return null;
-
   const currentInteractions = showingSearchResults ? searchResults : interactions;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex flex-col">
-      <InteractionCarouselHeader
-        onClose={() => onOpenChange(false)}
-        showingSearchResults={showingSearchResults}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        onSearch={handleSearch}
-        isSearching={isSearching}
-        onBackToHistory={handleBackToHistory}
-      />
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent className="max-h-[85vh]">
+        <DrawerHeader className="pb-2">
+          <DrawerTitle className="sr-only">
+            {showingSearchResults ? 'Search Results' : 'Interaction History'}
+          </DrawerTitle>
+          <InteractionCarouselHeader
+            onClose={() => onOpenChange(false)}
+            showingSearchResults={showingSearchResults}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            onSearch={handleSearch}
+            isSearching={isSearching}
+            onBackToHistory={handleBackToHistory}
+          />
+        </DrawerHeader>
 
-      <InteractionCarouselContent
-        isLoading={isLoading}
-        currentInteractions={currentInteractions}
-        showingSearchResults={showingSearchResults}
-        onToggleFavorite={toggleFavorite}
-        onLocationClick={handleLocationClick}
-      />
-    </div>
+        <InteractionCarouselContent
+          isLoading={isLoading}
+          currentInteractions={currentInteractions}
+          showingSearchResults={showingSearchResults}
+          onToggleFavorite={toggleFavorite}
+          onLocationClick={handleLocationClick}
+        />
+      </DrawerContent>
+    </Drawer>
   );
 };
 

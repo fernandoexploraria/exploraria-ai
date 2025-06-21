@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselApi } from '@/components/ui/carousel';
 import { Search } from 'lucide-react';
@@ -65,18 +66,18 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-white">Loading your interactions...</div>
+      <div className="flex-1 flex items-center justify-center py-8">
+        <div className="text-muted-foreground">Loading your interactions...</div>
       </div>
     );
   }
 
   if (currentInteractions.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center text-gray-400">
+      <div className="flex-1 flex items-center justify-center py-8">
+        <div className="text-center text-muted-foreground">
           <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>
+          <p className="mb-2">
             {showingSearchResults 
               ? "No interactions found matching your search." 
               : "No interactions found."}
@@ -94,8 +95,8 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
   const currentInteraction = currentInteractions[currentSlide];
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-6xl flex flex-col items-center">
+    <div className="flex-1 flex flex-col px-4 pb-4">
+      <div className="w-full flex flex-col items-center">
         <Carousel 
           className="w-full"
           setApi={setCarouselApi}
