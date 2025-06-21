@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Search, ChevronDown, ChevronUp, Menu, HelpCircle } from 'lucide-react';
+import { Sparkles, Search, ChevronDown, ChevronUp, Menu } from 'lucide-react';
 import SearchControl from '@/components/SearchControl';
 import FreeTourCounter from '@/components/FreeTourCounter';
 import ImageAnalysis from '@/components/ImageAnalysis';
@@ -15,7 +15,6 @@ interface TopControlsProps {
   onVoiceSearchOpen: () => void;
   onVoiceAssistantOpen: () => void;
   onLogoClick: () => void;
-  onHelpClick?: () => void;
   user: any;
   plannedLandmarks: Landmark[];
 }
@@ -27,7 +26,6 @@ const TopControls: React.FC<TopControlsProps> = ({
   onVoiceSearchOpen,
   onVoiceAssistantOpen,
   onLogoClick,
-  onHelpClick,
   user,
   plannedLandmarks
 }) => {
@@ -51,9 +49,7 @@ const TopControls: React.FC<TopControlsProps> = ({
         />
         
         {/* Search Control */}
-        <div data-onboarding="search">
-          <SearchControl landmarks={allLandmarks} onSelectLandmark={onSelectLandmark} />
-        </div>
+        <SearchControl landmarks={allLandmarks} onSelectLandmark={onSelectLandmark} />
         
         {/* Collapse Toggle Button */}
         <Button
@@ -75,18 +71,16 @@ const TopControls: React.FC<TopControlsProps> = ({
         {/* Action Buttons - Collapsible */}
         {!isCollapsed && (
           <div className="flex flex-col gap-1 w-full animate-fade-in">
-            <div data-onboarding="plan-tour">
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
-                onClick={onTourPlannerOpen}
-              >
-                <Sparkles className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
-                <span className="lg:hidden">Plan Tour</span>
-                <span className="hidden lg:inline">Plan a Tour</span>
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
+              onClick={onTourPlannerOpen}
+            >
+              <Sparkles className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+              <span className="lg:hidden">Plan Tour</span>
+              <span className="hidden lg:inline">Plan a Tour</span>
+            </Button>
             
             {user && (
               <Button
@@ -112,23 +106,10 @@ const TopControls: React.FC<TopControlsProps> = ({
               </Button>
             )}
 
-            {/* Image Analysis Button */}
+            {/* Image Analysis Button - moved below Voice Guide */}
             <ImageAnalysis plannedLandmarks={plannedLandmarks} />
             
             {user && <FreeTourCounter />}
-            
-            {/* Help Button */}
-            {onHelpClick && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
-                onClick={onHelpClick}
-              >
-                <HelpCircle className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
-                Help & Tutorial
-              </Button>
-            )}
           </div>
         )}
       </div>
