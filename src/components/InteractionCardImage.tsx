@@ -1,8 +1,6 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
-import { Camera } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
 
 interface Interaction {
@@ -37,34 +35,20 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
       const isNativePlatform = Capacitor.isNativePlatform() || 
                               (Capacitor.getPlatform() === 'web' && 'serviceWorker' in navigator);
 
-      if (isNativePlatform) {
-        console.log('Attempting native camera roll save...');
+      if (isNativePlatform && Capacitor.isNativePlatform()) {
+        console.log('Attempting native save...');
         
-        // Convert image URL to base64
-        const response = await fetch(imageUrl);
-        const blob = await response.blob();
-        const base64 = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.readAsDataURL(blob);
-        });
-
-        // Save to camera roll using Capacitor Camera plugin
-        await Camera.savePicture({
-          photos: [base64],
-          albumName: 'Exploraria AI'
-        });
-
-        console.log('Image saved to camera roll successfully');
-        // You could add a toast notification here
+        // For native platforms, we would need a different plugin like @capacitor/filesystem
+        // and @capacitor/share to save to gallery. For now, fall back to download.
+        throw new Error('Native save not implemented yet, using fallback');
         
       } else {
-        throw new Error('Native platform not available, using fallback');
+        throw new Error('Not a native platform, using fallback');
       }
     } catch (error) {
-      console.log('Native save failed, using fallback download:', error);
+      console.log('Using standard download:', error);
       
-      // Fallback: Standard download approach
+      // Standard download approach for all platforms
       try {
         const response = await fetch(imageUrl);
         const blob = await response.blob();
