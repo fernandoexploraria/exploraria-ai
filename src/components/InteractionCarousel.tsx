@@ -74,7 +74,11 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   const currentInteractions = showingSearchResults ? searchResults : interactions;
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
+    <Drawer 
+      open={open} 
+      onOpenChange={onOpenChange}
+      shouldCloseOnOutsideClick={false}
+    >
       <DrawerContent className="h-screen flex flex-col bg-gray-900">
         <DrawerTitle className="sr-only">
           {showingSearchResults ? 'Search Results' : 'Interaction History'}
