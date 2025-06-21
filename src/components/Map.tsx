@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -677,7 +676,21 @@ const Map: React.FC<MapProps> = ({
       curve: 1,
       easing: (t) => t,
     });
-    console.log('Fly command sent');
+
+    // Add a marker at the coordinates
+    const el = document.createElement('div');
+    el.className = 'w-6 h-6 rounded-full bg-red-500 border-3 border-white shadow-lg cursor-pointer animate-pulse';
+    
+    const marker = new mapboxgl.Marker(el)
+      .setLngLat(coordinates)
+      .addTo(map.current);
+
+    // Remove the marker after 5 seconds
+    setTimeout(() => {
+      marker.remove();
+    }, 5000);
+
+    console.log('Fly command sent and marker added');
     console.log('=== End Map Debug ===');
   };
 
