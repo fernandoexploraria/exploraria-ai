@@ -56,6 +56,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
         const lng = parseFloat(coordsArray[0]);
         const lat = parseFloat(coordsArray[1]);
         onLocationSelect([lng, lat]);
+        // Close the interaction carousel when showing location on map
         onOpenChange(false);
       }
     }
