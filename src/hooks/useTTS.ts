@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 export const useTTS = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   const speak = async (text: string, isMemoryNarration: boolean = false) => {
     if (isPlaying) {
@@ -74,23 +75,43 @@ export const useTTS = () => {
     utterance.pitch = 1;
     utterance.volume = 1;
     
-    utterance.onend = () => setIsPlaying(false);
+    utterance.onend = () => {
+      setIsPlaying(false);
+      utteranceRef.current = null;
+    };
     utterance.onerror = () => {
       setIsPlaying(false);
+      utteranceRef.current = null;
       toast.error('Failed to play audio');
     };
+    utterance.onstart = () => {
+      setIsPlaying(true);
+    };
     
+    utteranceRef.current = utterance;
     speechSynthesis.speak(utterance);
   };
 
   const stop = () => {
+    console.log('Stop called - cleaning up all audio sources');
+    
+    // Stop HTML5 audio
     if (audioRef.current) {
+      console.log('Stopping HTML5 audio');
       audioRef.current.pause();
       audioRef.current = null;
     }
+    
+    // Stop speech synthesis
     if ('speechSynthesis' in window) {
+      console.log('Cancelling speech synthesis');
       speechSynthesis.cancel();
     }
+    
+    // Clear utterance reference
+    utteranceRef.current = null;
+    
+    // Update state
     setIsPlaying(false);
   };
 
