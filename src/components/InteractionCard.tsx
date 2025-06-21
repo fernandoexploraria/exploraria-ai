@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -110,15 +109,40 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
     console.log('Button clicked!');
     console.log('Interaction:', interaction);
     console.log('Landmark coordinates:', interaction.landmark_coordinates);
+    console.log('Coordinates type:', typeof interaction.landmark_coordinates);
     console.log('Window navigateToMapCoordinates function exists:', !!(window as any).navigateToMapCoordinates);
     
     if (interaction.landmark_coordinates) {
-      const coordinates = [
-        interaction.landmark_coordinates.x || interaction.landmark_coordinates[0],
-        interaction.landmark_coordinates.y || interaction.landmark_coordinates[1]
-      ] as [number, number];
+      let coordinates: [number, number];
+      
+      // Handle different coordinate formats
+      if (Array.isArray(interaction.landmark_coordinates)) {
+        // If it's already an array [lng, lat]
+        coordinates = [
+          Number(interaction.landmark_coordinates[0]),
+          Number(interaction.landmark_coordinates[1])
+        ];
+      } else if (typeof interaction.landmark_coordinates === 'object') {
+        // If it's an object with x,y or lng,lat or longitude,latitude properties
+        const coords = interaction.landmark_coordinates as any;
+        coordinates = [
+          Number(coords.lng || coords.longitude || coords.x || coords[0]),
+          Number(coords.lat || coords.latitude || coords.y || coords[1])
+        ];
+      } else {
+        console.log('ERROR: Unexpected coordinate format!');
+        return;
+      }
       
       console.log('Processed coordinates:', coordinates);
+      console.log('Coordinate 0 (lng):', coordinates[0], 'type:', typeof coordinates[0]);
+      console.log('Coordinate 1 (lat):', coordinates[1], 'type:', typeof coordinates[1]);
+      
+      // Validate coordinates are actual numbers
+      if (isNaN(coordinates[0]) || isNaN(coordinates[1])) {
+        console.log('ERROR: Coordinates are NaN!', coordinates);
+        return;
+      }
       
       // Call the new navigation function from Map component
       if ((window as any).navigateToMapCoordinates) {
