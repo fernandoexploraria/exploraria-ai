@@ -4,7 +4,7 @@ import { Search } from 'lucide-react';
 import InteractionCard from './InteractionCard';
 import CarouselControls from './CarouselControls';
 import { Interaction } from './InteractionCarouselLogic';
-import { useTTS } from '@/hooks/useTTS';
+import { useTTSContext } from '@/contexts/TTSContext';
 import { toast } from '@/hooks/use-toast';
 
 interface InteractionCarouselContentProps {
@@ -24,7 +24,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
 }) => {
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
-  const { stop } = useTTS();
+  const { stop, isPlaying } = useTTSContext();
 
   // Handle carousel slide changes - stop audio when card moves
   useEffect(() => {
@@ -33,15 +33,11 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
     const handleSlideChange = () => {
       console.log('Card movement detected');
       
-      // Check if the speaker icon is green (audio playing) by looking at the DOM
-      const speakerIcon = document.querySelector('[style*="color: rgb(16, 185, 129)"]') || 
-                         document.querySelector('[style*="color:#10b981"]');
-      const isAudioPlaying = speakerIcon !== null;
+      // Now we can directly check the isPlaying state from context
+      console.log('Audio playing state:', isPlaying);
       
-      console.log('Green speaker icon found:', isAudioPlaying);
-      
-      // If audio is playing (green icon detected), stop it using the same function as the button
-      if (isAudioPlaying) {
+      // If audio is playing, stop it
+      if (isPlaying) {
         console.log('Stopping audio due to card movement');
         stop();
         
@@ -64,7 +60,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
     return () => {
       carouselApi.off("select", handleSlideChange);
     };
-  }, [carouselApi, stop]);
+  }, [carouselApi, stop, isPlaying]);
 
   const scrollToSlide = (index: number) => {
     if (carouselApi) {

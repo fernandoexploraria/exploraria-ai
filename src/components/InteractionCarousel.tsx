@@ -4,7 +4,7 @@ import { useInteractionCarouselLogic } from './InteractionCarouselLogic';
 import InteractionCarouselHeader from './InteractionCarouselHeader';
 import InteractionCarouselContent from './InteractionCarouselContent';
 import { useAuth } from './AuthProvider';
-import { useTTS } from '@/hooks/useTTS';
+import { useTTSContext } from '@/contexts/TTSContext';
 
 interface InteractionCarouselProps {
   open: boolean;
@@ -18,7 +18,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   onLocationSelect 
 }) => {
   const { user } = useAuth();
-  const { stop } = useTTS();
+  const { stop } = useTTSContext();
   
   const {
     searchQuery,

@@ -1,8 +1,7 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Volume2 } from 'lucide-react';
-import { useTTS } from '@/hooks/useTTS';
+import { useTTSContext } from '@/contexts/TTSContext';
 import { Interaction } from './InteractionCarouselLogic';
 
 interface CarouselControlsProps {
@@ -18,7 +17,7 @@ const CarouselControls: React.FC<CarouselControlsProps> = ({
   onSlideSelect,
   currentInteraction,
 }) => {
-  const { speak, isPlaying } = useTTS();
+  const { speak, isPlaying } = useTTSContext();
 
   const handleSpeakerClick = () => {
     if (!currentInteraction) return;
