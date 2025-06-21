@@ -5,7 +5,6 @@ import InteractionCardHeader from './InteractionCardHeader';
 import InteractionCardImage from './InteractionCardImage';
 import InteractionCardContent from './InteractionCardContent';
 import InteractionCardActions from './InteractionCardActions';
-import ShareButton from './ShareButton';
 
 interface Interaction {
   id: string;
@@ -42,8 +41,6 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
         ? 'bg-green-900/20 border-green-500/50 shadow-lg shadow-green-500/20' 
         : 'bg-gray-900'
     }`}>
-      <ShareButton interaction={interaction} />
-      
       <CardContent className="p-3 h-full flex flex-col">
         <InteractionCardHeader 
           interaction={interaction}

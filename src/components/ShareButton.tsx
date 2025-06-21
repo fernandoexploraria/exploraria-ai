@@ -87,11 +87,11 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
     <Button
       variant="ghost"
       size="sm"
-      className="absolute top-2 left-2 h-6 w-6 p-0 bg-black/50 hover:bg-black/70 z-10"
+      className="h-6 w-6 p-0"
       onClick={handleShare}
       title="Share"
     >
-      <Share2 className="w-3 h-3 text-white" />
+      <Share2 className="w-3 h-3" />
     </Button>
   );
 };

@@ -3,13 +3,17 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Star, StarOff, Calendar, Camera, Mic, MapPin } from 'lucide-react';
+import ShareButton from './ShareButton';
 
 interface Interaction {
   id: string;
   destination: string;
+  user_input: string;
+  assistant_response: string;
   is_favorite: boolean;
   created_at: string;
   interaction_type: string;
+  full_transcript: any;
   similarity?: number;
 }
 
@@ -60,18 +64,21 @@ const InteractionCardHeader: React.FC<InteractionCardHeaderProps> = ({
             </Badge>
           )}
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 w-6 p-0"
-          onClick={() => onToggleFavorite(interaction)}
-        >
-          {interaction.is_favorite ? (
-            <Star className="w-3 h-3 text-yellow-500 fill-current" />
-          ) : (
-            <StarOff className="w-3 h-3" />
-          )}
-        </Button>
+        <div className="flex items-center gap-1">
+          <ShareButton interaction={interaction} />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0"
+            onClick={() => onToggleFavorite(interaction)}
+          >
+            {interaction.is_favorite ? (
+              <Star className="w-3 h-3 text-yellow-500 fill-current" />
+            ) : (
+              <StarOff className="w-3 h-3" />
+            )}
+          </Button>
+        </div>
       </div>
       
       <div className="flex items-center text-xs text-gray-400 mb-2">
