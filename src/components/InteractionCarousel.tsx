@@ -1,10 +1,12 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useInteractionCarouselLogic } from './InteractionCarouselLogic';
 import InteractionCarouselHeader from './InteractionCarouselHeader';
 import InteractionCarouselContent from './InteractionCarouselContent';
 import { useAuth } from './AuthProvider';
 import { useTTSContext } from '@/contexts/TTSContext';
+import { useDrawerHelp } from '@/utils/askGeminiForDrawerHelp';
+import { Button } from '@/components/ui/button';
 import {
   Drawer,
   DrawerContent,
@@ -25,6 +27,8 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
 }) => {
   const { user } = useAuth();
   const { stop } = useTTSContext();
+  const { askForDrawerHelp, isLoading: geminiLoading } = useDrawerHelp();
+  const [geminiResponse, setGeminiResponse] = useState<string>('');
   
   console.log('InteractionCarousel render - open:', open);
   console.log('Drawer should be visible:', open);
@@ -71,45 +75,72 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
   };
 
+  const handleAskGemini = async () => {
+    const response = await askForDrawerHelp();
+    if (response) {
+      setGeminiResponse(response);
+    }
+  };
+
   const currentInteractions = showingSearchResults ? searchResults : interactions;
 
   return (
-    <Drawer 
-      open={open} 
-      onOpenChange={onOpenChange}
-      modal={true}
-    >
-      <DrawerContent className="h-screen flex flex-col bg-gray-900">
-        <DrawerTitle className="sr-only">
-          {showingSearchResults ? 'Search Results' : 'Interaction History'}
-        </DrawerTitle>
-        <DrawerDescription className="sr-only">
-          {showingSearchResults 
-            ? 'Your search results for previous conversations' 
-            : 'Your conversation history with the AI assistant'}
-        </DrawerDescription>
-        
-        <InteractionCarouselHeader
-          onClose={() => onOpenChange(false)}
-          showingSearchResults={showingSearchResults}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          onSearch={handleSearch}
-          isSearching={isSearching}
-          onBackToHistory={handleBackToHistory}
-        />
+    <div>
+      {/* Gemini Help Section */}
+      <div className="fixed top-4 left-4 z-[200] bg-white p-4 rounded-lg shadow-lg max-w-md">
+        <h3 className="font-semibold mb-2">Ask Gemini for Drawer Help</h3>
+        <Button 
+          onClick={handleAskGemini} 
+          disabled={geminiLoading}
+          className="mb-2"
+        >
+          {geminiLoading ? 'Asking Gemini...' : 'Get Drawer Help'}
+        </Button>
+        {geminiResponse && (
+          <div className="text-sm bg-gray-50 p-2 rounded max-h-32 overflow-y-auto">
+            <strong>Gemini says:</strong>
+            <div className="mt-1 whitespace-pre-wrap">{geminiResponse}</div>
+          </div>
+        )}
+      </div>
 
-        <div className="flex-1 overflow-hidden">
-          <InteractionCarouselContent
-            isLoading={isLoading}
-            currentInteractions={currentInteractions}
+      <Drawer 
+        open={open} 
+        onOpenChange={onOpenChange}
+        modal={true}
+      >
+        <DrawerContent className="h-screen flex flex-col bg-gray-900">
+          <DrawerTitle className="sr-only">
+            {showingSearchResults ? 'Search Results' : 'Interaction History'}
+          </DrawerTitle>
+          <DrawerDescription className="sr-only">
+            {showingSearchResults 
+              ? 'Your search results for previous conversations' 
+              : 'Your conversation history with the AI assistant'}
+          </DrawerDescription>
+          
+          <InteractionCarouselHeader
+            onClose={() => onOpenChange(false)}
             showingSearchResults={showingSearchResults}
-            onToggleFavorite={toggleFavorite}
-            onLocationClick={handleLocationClick}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            onSearch={handleSearch}
+            isSearching={isSearching}
+            onBackToHistory={handleBackToHistory}
           />
-        </div>
-      </DrawerContent>
-    </Drawer>
+
+          <div className="flex-1 overflow-hidden">
+            <InteractionCarouselContent
+              isLoading={isLoading}
+              currentInteractions={currentInteractions}
+              showingSearchResults={showingSearchResults}
+              onToggleFavorite={toggleFavorite}
+              onLocationClick={handleLocationClick}
+            />
+          </div>
+        </DrawerContent>
+      </Drawer>
+    </div>
   );
 };
 
