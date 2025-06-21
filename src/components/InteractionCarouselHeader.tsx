@@ -33,7 +33,7 @@ const InteractionCarouselHeader: React.FC<InteractionCarouselHeaderProps> = ({
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-white">
-            {showingSearchResults ? 'Search Results' : 'Interaction History'}
+            {showingSearchResults ? 'Search Results' : 'Travel Log'}
             {showFavoritesOnly && !showingSearchResults && (
               <span className="text-sm text-yellow-400 ml-2">(Favorites Only)</span>
             )}

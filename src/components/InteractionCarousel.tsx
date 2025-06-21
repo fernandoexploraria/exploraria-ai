@@ -99,12 +99,12 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     >
       <DrawerContent className="h-screen flex flex-col bg-gray-900">
         <DrawerTitle className="sr-only">
-          {showingSearchResults ? 'Search Results' : 'Interaction History'}
+          {showingSearchResults ? 'Search Results' : 'Travel Log'}
         </DrawerTitle>
         <DrawerDescription className="sr-only">
           {showingSearchResults 
             ? 'Your search results for previous conversations' 
-            : 'Your conversation history with the AI assistant'}
+            : 'Your travel conversation history with the AI assistant'}
         </DrawerDescription>
         
         <InteractionCarouselHeader

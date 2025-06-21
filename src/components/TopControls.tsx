@@ -90,7 +90,7 @@ const TopControls: React.FC<TopControlsProps> = ({
                 onClick={onVoiceSearchOpen}
               >
                 <Search className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
-                History
+                Travel Log
               </Button>
             )}
             
