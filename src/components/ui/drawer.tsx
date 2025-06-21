@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import { Drawer as DrawerPrimitive } from "vaul"
 
@@ -9,8 +10,8 @@ const Drawer = ({
 }: React.ComponentProps<typeof DrawerPrimitive.Root>) => (
   <DrawerPrimitive.Root
     shouldScaleBackground={shouldScaleBackground}
-    snapPoints={[0.07, 0.8]}
-    activeSnapPoint={0.8}
+    snapPoints={[0.07, 0.7]}
+    activeSnapPoint={0.7}
     {...props}
   />
 )
