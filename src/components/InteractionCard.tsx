@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -105,19 +106,31 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
 
   // New function specifically for handling "Show on Map" button click
   const handleShowOnMap = () => {
+    console.log('=== Show on Map Debug ===');
+    console.log('Button clicked!');
+    console.log('Interaction:', interaction);
+    console.log('Landmark coordinates:', interaction.landmark_coordinates);
+    console.log('Window navigateToMapCoordinates function exists:', !!(window as any).navigateToMapCoordinates);
+    
     if (interaction.landmark_coordinates) {
       const coordinates = [
         interaction.landmark_coordinates.x || interaction.landmark_coordinates[0],
         interaction.landmark_coordinates.y || interaction.landmark_coordinates[1]
       ] as [number, number];
       
-      console.log('Show on Map button clicked for coordinates:', coordinates);
+      console.log('Processed coordinates:', coordinates);
       
       // Call the new navigation function from Map component
       if ((window as any).navigateToMapCoordinates) {
+        console.log('Calling navigateToMapCoordinates...');
         (window as any).navigateToMapCoordinates(coordinates);
+      } else {
+        console.log('ERROR: navigateToMapCoordinates function not found on window!');
       }
+    } else {
+      console.log('ERROR: No landmark coordinates found!');
     }
+    console.log('=== End Debug ===');
   };
 
   return (

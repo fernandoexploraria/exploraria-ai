@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -659,10 +660,16 @@ const Map: React.FC<MapProps> = ({
 
   // New function specifically for "Show on Map" button
   const navigateToCoordinates = (coordinates: [number, number]) => {
-    if (!map.current) return;
+    console.log('=== Map Navigate Debug ===');
+    console.log('navigateToCoordinates called with:', coordinates);
+    console.log('Map current exists:', !!map.current);
     
-    console.log('Navigating to coordinates:', coordinates);
+    if (!map.current) {
+      console.log('ERROR: Map not initialized!');
+      return;
+    }
     
+    console.log('Flying to coordinates...');
     map.current.flyTo({
       center: coordinates,
       zoom: 14,
@@ -670,13 +677,17 @@ const Map: React.FC<MapProps> = ({
       curve: 1,
       easing: (t) => t,
     });
+    console.log('Fly command sent');
+    console.log('=== End Map Debug ===');
   };
 
   // Expose the function globally so InteractionCard can call it
   React.useEffect(() => {
+    console.log('Setting up navigateToMapCoordinates on window');
     (window as any).navigateToMapCoordinates = navigateToCoordinates;
     
     return () => {
+      console.log('Cleaning up navigateToMapCoordinates from window');
       delete (window as any).navigateToMapCoordinates;
     };
   }, []);
