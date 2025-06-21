@@ -32,18 +32,23 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
 
     const handleSlideChange = () => {
       console.log('Card movement detected');
-      console.log('isPlaying state:', isPlaying);
-      console.log('speechSynthesis speaking:', 'speechSynthesis' in window ? window.speechSynthesis.speaking : 'not available');
       
-      // Show toast to debug with detailed audio status
+      // Check if the speaker icon is green (audio playing) by looking at the DOM
+      const speakerIcon = document.querySelector('[style*="color: rgb(16, 185, 129)"]') || 
+                         document.querySelector('[style*="color:#10b981"]');
+      const isAudioPlaying = speakerIcon !== null;
+      
+      // Show toast with visual state detection
       toast({
         title: "Swipe detected!",
-        description: `Moved to slide ${carouselApi.selectedScrollSnap() + 1}. TTS isPlaying: ${isPlaying ? 'YES' : 'NO'}. Browser speech: ${('speechSynthesis' in window && window.speechSynthesis.speaking) ? 'YES' : 'NO'}`,
+        description: `Moved to slide ${carouselApi.selectedScrollSnap() + 1}. Green speaker icon found: ${isAudioPlaying ? 'YES' : 'NO'}`,
       });
 
-      // Always call stop regardless of isPlaying state to ensure audio stops
-      console.log('Calling stop() function');
-      stop();
+      // Stop audio if we detect the green speaker icon (indicating audio is playing)
+      if (isAudioPlaying) {
+        console.log('Green speaker icon detected - stopping audio');
+        stop();
+      }
       
       // Update current slide
       setCurrentSlide(carouselApi.selectedScrollSnap());
@@ -58,7 +63,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
     return () => {
       carouselApi.off("select", handleSlideChange);
     };
-  }, [carouselApi, stop]); // Removed isPlaying from dependencies
+  }, [carouselApi, stop]);
 
   const scrollToSlide = (index: number) => {
     if (carouselApi) {
