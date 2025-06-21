@@ -14,12 +14,6 @@ interface MapProps {
   onSelectLandmark: (landmark: Landmark) => void;
   selectedLandmark: Landmark | null;
   plannedLandmarks: Landmark[];
-  selectedCoordinates?: [number, number] | null;
-  selectedInteractionData?: {
-    user_input: string;
-    landmark_image_url?: string;
-    assistant_response?: string;
-  } | null;
 }
 
 // Google API key
@@ -30,9 +24,7 @@ const Map: React.FC<MapProps> = ({
   landmarks, 
   onSelectLandmark, 
   selectedLandmark, 
-  plannedLandmarks,
-  selectedCoordinates,
-  selectedInteractionData 
+  plannedLandmarks
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -43,8 +35,6 @@ const Map: React.FC<MapProps> = ({
   const pendingPopupLandmark = useRef<Landmark | null>(null);
   const isZooming = useRef<boolean>(false);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
-  const selectedCoordinatesMarker = useRef<mapboxgl.Marker | null>(null);
-  const selectedCoordinatesPopup = useRef<mapboxgl.Popup | null>(null);
   const { user } = useAuth();
 
   // Convert top landmarks to Landmark format
@@ -519,142 +509,6 @@ const Map: React.FC<MapProps> = ({
       `);
     }
   };
-
-  // Function to show interaction popup (separate from landmark popup)
-  const showInteractionPopup = () => {
-    if (!map.current || !selectedCoordinates || !selectedInteractionData) return;
-
-    console.log('*** SHOWING INTERACTION POPUP ***');
-    console.log('Selected coordinates:', selectedCoordinates);
-    console.log('Selected interaction data:', selectedInteractionData);
-
-    // Remove existing popup
-    if (selectedCoordinatesPopup.current) {
-      selectedCoordinatesPopup.current.remove();
-    }
-
-    // Create new popup
-    const popup = new mapboxgl.Popup({
-      closeButton: true,
-      closeOnClick: false,
-      offset: 25,
-      maxWidth: '450px',
-      className: 'custom-popup'
-    });
-
-    const locationName = selectedInteractionData.user_input || 'Selected Location';
-    const imageUrl = selectedInteractionData.landmark_image_url;
-    const description = selectedInteractionData.assistant_response || 'Information from interaction history';
-
-    console.log('Popup data - Location:', locationName, 'Image:', imageUrl, 'Description:', description);
-
-    // Create popup content with existing interaction data - NO NEW API CALLS
-    const popupContent = `
-      <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
-        <button class="custom-close-btn" onclick="this.closest('.mapboxgl-popup').remove();" style="
-          position: absolute;
-          top: 5px;
-          right: 5px;
-          background: rgba(0, 0, 0, 0.7);
-          color: white;
-          border: none;
-          border-radius: 50%;
-          width: 24px;
-          height: 24px;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 14px;
-          font-weight: bold;
-          z-index: 1000;
-          transition: background-color 0.2s;
-        " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
-        <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${locationName}</h3>
-        ${imageUrl ? `
-          <div style="margin-bottom: 10px;">
-            <img src="${imageUrl}" alt="${locationName}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px;" />
-          </div>
-        ` : `
-          <div style="width: 100%; height: 150px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px;">
-            <div style="text-align: center;">
-              <div style="font-size: 24px; margin-bottom: 5px;">📍</div>
-              <div>From Interaction History</div>
-            </div>
-          </div>
-        `}
-        <p style="margin: 0; font-size: 14px; color: #666; text-align: left; line-height: 1.4;">${description}</p>
-      </div>
-    `;
-
-    popup
-      .setLngLat(selectedCoordinates)
-      .setHTML(popupContent)
-      .addTo(map.current!);
-
-    selectedCoordinatesPopup.current = popup;
-
-    // Handle popup close event
-    popup.on('close', () => {
-      selectedCoordinatesPopup.current = null;
-    });
-
-    console.log('*** INTERACTION POPUP CREATED ***');
-  };
-
-  // Handle selected coordinates marker
-  useEffect(() => {
-    if (!map.current) return;
-
-    console.log('*** SELECTED COORDINATES EFFECT TRIGGERED ***');
-    console.log('selectedCoordinates:', selectedCoordinates);
-    console.log('selectedInteractionData:', selectedInteractionData);
-
-    // Remove existing selected coordinates marker and popup
-    if (selectedCoordinatesMarker.current) {
-      selectedCoordinatesMarker.current.remove();
-      selectedCoordinatesMarker.current = null;
-    }
-    if (selectedCoordinatesPopup.current) {
-      selectedCoordinatesPopup.current.remove();
-      selectedCoordinatesPopup.current = null;
-    }
-
-    // Add new marker if coordinates are provided
-    if (selectedCoordinates) {
-      console.log('*** CREATING SELECTED COORDINATES MARKER ***');
-      const el = document.createElement('div');
-      el.className = 'w-6 h-6 rounded-full bg-red-500 border-4 border-white shadow-lg cursor-pointer animate-pulse';
-      
-      const marker = new mapboxgl.Marker(el)
-        .setLngLat(selectedCoordinates)
-        .addTo(map.current!);
-
-      selectedCoordinatesMarker.current = marker;
-
-      // Add click event to show interaction data
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        console.log('*** MARKER CLICKED - CALLING showInteractionPopup ***');
-        showInteractionPopup();
-      });
-
-      // Fly to the selected coordinates
-      map.current.flyTo({
-        center: selectedCoordinates,
-        zoom: 14,
-        speed: 0.7,
-        curve: 1,
-        easing: (t) => t,
-      });
-
-      // Show popup instantly when marker is created
-      setTimeout(() => {
-        console.log('*** TIMEOUT TRIGGERED - CALLING showInteractionPopup ***');
-        showInteractionPopup();
-      }, 1000); // Small delay to let the fly animation start
-    }
-  }, [selectedCoordinates, selectedInteractionData]);
 
   // Update markers when landmarks change
   useEffect(() => {

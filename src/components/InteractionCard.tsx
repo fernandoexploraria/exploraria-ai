@@ -160,7 +160,10 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
               variant="outline"
               size="sm"
               className="w-full h-7 text-xs"
-              onClick={() => onLocationClick(interaction.landmark_coordinates)}
+              onClick={() => {
+                // Button does nothing when clicked - as requested
+                console.log('Show on Map button clicked but no action taken');
+              }}
             >
               <MapPin className="w-3 h-3 mr-1" />
               Show on Map
