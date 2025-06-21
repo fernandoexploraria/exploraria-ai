@@ -42,8 +42,8 @@ serve(async (req) => {
 
     console.log('Exchanging Instagram code for token...');
 
-    // Step 1: Exchange code for short-lived access token
-    const tokenResponse = await fetch('https://api.instagram.com/oauth/access_token', {
+    // Exchange code for Facebook access token (which works with Instagram Graph API)
+    const tokenResponse = await fetch('https://graph.facebook.com/oauth/access_token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -51,9 +51,8 @@ serve(async (req) => {
       body: new URLSearchParams({
         client_id: clientId,
         client_secret: clientSecret,
-        grant_type: 'authorization_code',
-        redirect_uri: redirectUri,
         code: code,
+        redirect_uri: redirectUri,
       }),
     });
 
@@ -70,30 +69,32 @@ serve(async (req) => {
     }
 
     const tokenData = await tokenResponse.json();
-    console.log('Short-lived token obtained');
+    console.log('Access token obtained');
 
-    // Step 2: Exchange short-lived token for long-lived token
-    const longLivedResponse = await fetch(`https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${clientSecret}&access_token=${tokenData.access_token}`, {
-      method: 'GET',
-    });
+    // Try to exchange for long-lived token
+    try {
+      const longLivedResponse = await fetch(`https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id=${clientId}&client_secret=${clientSecret}&fb_exchange_token=${tokenData.access_token}`, {
+        method: 'GET',
+      });
 
-    if (!longLivedResponse.ok) {
-      console.error('Failed to get long-lived token');
-      // Return short-lived token if long-lived exchange fails
-      return new Response(
-        JSON.stringify({ access_token: tokenData.access_token }),
-        { 
-          status: 200, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+      if (longLivedResponse.ok) {
+        const longLivedData = await longLivedResponse.json();
+        console.log('Long-lived token obtained');
+        return new Response(
+          JSON.stringify({ access_token: longLivedData.access_token }),
+          { 
+            status: 200, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+    } catch (error) {
+      console.log('Long-lived token exchange failed, using short-lived token');
     }
 
-    const longLivedData = await longLivedResponse.json();
-    console.log('Long-lived token obtained');
-
+    // Return short-lived token if long-lived exchange fails
     return new Response(
-      JSON.stringify({ access_token: longLivedData.access_token }),
+      JSON.stringify({ access_token: tokenData.access_token }),
       { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

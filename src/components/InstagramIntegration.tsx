@@ -3,7 +3,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Instagram, Camera, MapPin, Loader2, Unlink } from 'lucide-react';
+import { Instagram, Camera, MapPin, Loader2, Unlink, AlertCircle } from 'lucide-react';
 import { useInstagram } from '@/hooks/useInstagram';
 
 interface InstagramIntegrationProps {
@@ -46,9 +46,19 @@ const InstagramIntegration: React.FC<InstagramIntegrationProps> = ({
         {!isConnected ? (
           <div className="flex flex-col items-center justify-center py-12 space-y-4">
             <Instagram className="h-16 w-16 text-pink-500" />
-            <h3 className="text-xl font-semibold">Connect Your Instagram</h3>
+            <h3 className="text-xl font-semibold">Connect Your Instagram Business Account</h3>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 max-w-md">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertCircle className="h-4 w-4 text-amber-600" />
+                <span className="font-medium text-amber-800">Business Account Required</span>
+              </div>
+              <p className="text-sm text-amber-700">
+                Instagram now requires a Business or Creator account to access posts through their API. 
+                Please convert your personal account to a Business account in your Instagram settings.
+              </p>
+            </div>
             <p className="text-muted-foreground text-center max-w-md">
-              Connect your Instagram account to see your travel photos on the map and create a visual timeline of your adventures.
+              Connect your Instagram Business account to see your travel photos on the map and create a visual timeline of your adventures.
             </p>
             <Button 
               onClick={connectInstagram}
@@ -60,7 +70,7 @@ const InstagramIntegration: React.FC<InstagramIntegrationProps> = ({
               ) : (
                 <Instagram className="mr-2 h-4 w-4" />
               )}
-              Connect Instagram
+              Connect Instagram Business Account
             </Button>
           </div>
         ) : (
@@ -75,7 +85,7 @@ const InstagramIntegration: React.FC<InstagramIntegrationProps> = ({
                   <div>
                     <p className="font-semibold">@{user.username}</p>
                     <p className="text-sm text-muted-foreground">
-                      {user.media_count} posts
+                      {user.media_count} posts • {user.account_type}
                     </p>
                   </div>
                 </div>
