@@ -76,6 +76,11 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
   };
 
+  // Wrapper function to bridge the type mismatch
+  const handleSnapPointChange = (snapPoint: string | number) => {
+    setActiveSnapPoint(typeof snapPoint === 'string' ? parseFloat(snapPoint) : snapPoint);
+  };
+
   const currentInteractions = showingSearchResults ? searchResults : interactions;
 
   return (
@@ -83,7 +88,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
       open={open} 
       onOpenChange={onOpenChange}
       activeSnapPoint={activeSnapPoint}
-      setActiveSnapPoint={setActiveSnapPoint}
+      setActiveSnapPoint={handleSnapPointChange}
     >
       <DrawerContent className="max-h-[85vh]">
         <DrawerHeader className="pb-2">
