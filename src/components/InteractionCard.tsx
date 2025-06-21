@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -105,37 +106,32 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
     );
   };
 
-  // New function specifically for handling "Show on Map" button click
+  // Function specifically for handling "Show on Map" button click
   const handleShowOnMap = () => {
     console.log('=== Show on Map Debug ===');
     console.log('Button clicked!');
     console.log('Interaction:', interaction);
     console.log('Landmark coordinates:', interaction.landmark_coordinates);
-    console.log('Coordinates type:', typeof interaction.landmark_coordinates);
-    console.log('Window navigateToMapCoordinates function exists:', !!(window as any).navigateToMapCoordinates);
     
     if (interaction.landmark_coordinates) {
       let coordinates: [number, number];
       
       // Handle different coordinate formats
       if (typeof interaction.landmark_coordinates === 'string') {
-        // Handle string format like "(-99.1706976631243,19.3494767782822)"
-        const coordString = interaction.landmark_coordinates.replace(/[()]/g, ''); // Remove parentheses
+        const coordString = interaction.landmark_coordinates.replace(/[()]/g, '');
         const parts = coordString.split(',');
         if (parts.length === 2) {
           coordinates = [Number(parts[0].trim()), Number(parts[1].trim())];
         } else {
-          console.log('ERROR: Invalid string coordinate format!', interaction.landmark_coordinates);
+          console.log('ERROR: Invalid string coordinate format!');
           return;
         }
       } else if (Array.isArray(interaction.landmark_coordinates)) {
-        // If it's already an array [lng, lat]
         coordinates = [
           Number(interaction.landmark_coordinates[0]),
           Number(interaction.landmark_coordinates[1])
         ];
       } else if (typeof interaction.landmark_coordinates === 'object') {
-        // If it's an object with x,y or lng,lat or longitude,latitude properties
         const coords = interaction.landmark_coordinates as any;
         coordinates = [
           Number(coords.lng || coords.longitude || coords.x || coords[0]),
@@ -147,26 +143,28 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
       }
       
       console.log('Processed coordinates:', coordinates);
-      console.log('Coordinate 0 (lng):', coordinates[0], 'type:', typeof coordinates[0]);
-      console.log('Coordinate 1 (lat):', coordinates[1], 'type:', typeof coordinates[1]);
       
-      // Validate coordinates are actual numbers
       if (isNaN(coordinates[0]) || isNaN(coordinates[1])) {
-        console.log('ERROR: Coordinates are NaN!', coordinates);
+        console.log('ERROR: Coordinates are NaN!');
         return;
       }
       
       // Minimize the drawer first
       if (onMinimizeDrawer) {
+        console.log('Calling onMinimizeDrawer...');
         onMinimizeDrawer();
-      }
-      
-      // Call the new navigation function from Map component with interaction data
-      if ((window as any).navigateToMapCoordinates) {
-        console.log('Calling navigateToMapCoordinates with interaction data...');
-        (window as any).navigateToMapCoordinates(coordinates, interaction);
+        
+        // Small delay to ensure drawer animation starts before map navigation
+        setTimeout(() => {
+          if ((window as any).navigateToMapCoordinates) {
+            console.log('Calling navigateToMapCoordinates...');
+            (window as any).navigateToMapCoordinates(coordinates, interaction);
+          } else {
+            console.log('ERROR: navigateToMapCoordinates function not found!');
+          }
+        }, 100);
       } else {
-        console.log('ERROR: navigateToMapCoordinates function not found on window!');
+        console.log('ERROR: onMinimizeDrawer function not provided!');
       }
     } else {
       console.log('ERROR: No landmark coordinates found!');

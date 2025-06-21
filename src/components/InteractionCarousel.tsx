@@ -71,14 +71,18 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
   };
 
-  // Function to minimize drawer to 7%
+  // Function to minimize drawer to 7% using Vaul's setActiveSnapPoint
   const handleMinimizeDrawer = () => {
-    // Set the snap point to 7% (0.07)
-    const drawerElement = document.querySelector('[data-vaul-drawer]') as HTMLElement;
+    console.log('Minimizing drawer to 7%');
+    // Find the drawer element and get its snap function
+    const drawerElement = document.querySelector('[data-vaul-drawer-wrapper]');
     if (drawerElement) {
-      // Trigger the snap to the smallest point
-      const event = new CustomEvent('vaul-snap', { detail: { snapPoint: 0.07 } });
-      drawerElement.dispatchEvent(event);
+      // Use Vaul's built-in snap functionality
+      const snapEvent = new CustomEvent('vaul-snap-to', { 
+        detail: { snapPoint: 0.07 },
+        bubbles: true 
+      });
+      drawerElement.dispatchEvent(snapEvent);
     }
   };
 
