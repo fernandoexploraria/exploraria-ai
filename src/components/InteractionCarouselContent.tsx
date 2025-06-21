@@ -1,11 +1,22 @@
 
-import React, { useState, useEffect } from 'react';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselApi } from '@/components/ui/carousel';
-import { Search } from 'lucide-react';
+import React from 'react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import InteractionCard from './InteractionCard';
-import CarouselControls from './CarouselControls';
-import { Interaction } from './InteractionCarouselLogic';
 import { useTTSContext } from '@/contexts/TTSContext';
+
+interface Interaction {
+  id: string;
+  destination: string;
+  user_input: string;
+  assistant_response: string;
+  is_favorite: boolean;
+  created_at: string;
+  interaction_type: string;
+  landmark_coordinates: any;
+  landmark_image_url: string | null;
+  full_transcript: any;
+  similarity?: number;
+}
 
 interface InteractionCarouselContentProps {
   isLoading: boolean;
@@ -13,6 +24,7 @@ interface InteractionCarouselContentProps {
   showingSearchResults: boolean;
   onToggleFavorite: (interaction: Interaction) => void;
   onLocationClick: (coordinates: any) => void;
+  isMinimized?: boolean;
 }
 
 const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
@@ -21,115 +33,57 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
   showingSearchResults,
   onToggleFavorite,
   onLocationClick,
+  isMinimized = false,
 }) => {
-  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const { stop, isPlaying, currentPlayingId } = useTTSContext();
+  const { currentlyPlayingId } = useTTSContext();
 
-  // Handle carousel slide changes - stop audio when card moves
-  useEffect(() => {
-    if (!carouselApi) return;
-
-    const handleSlideChange = () => {
-      console.log('Card movement detected');
-      
-      // Now we can directly check the isPlaying state from context
-      console.log('Audio playing state:', isPlaying);
-      
-      // If audio is playing, stop it
-      if (isPlaying) {
-        console.log('Stopping audio due to card movement');
-        stop();
-      }
-      
-      // Update current slide
-      setCurrentSlide(carouselApi.selectedScrollSnap());
-    };
-
-    // Listen for slide changes
-    carouselApi.on("select", handleSlideChange);
-    
-    // Set initial slide
-    setCurrentSlide(carouselApi.selectedScrollSnap());
-
-    return () => {
-      carouselApi.off("select", handleSlideChange);
-    };
-  }, [carouselApi, stop, isPlaying]);
-
-  const scrollToSlide = (index: number) => {
-    if (carouselApi) {
-      console.log('Manually scrolling to slide:', index);
-      carouselApi.scrollTo(index);
-    }
-  };
+  // Don't render content when minimized to save resources
+  if (isMinimized) {
+    return null;
+  }
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-white">Loading your interactions...</div>
+      <div className="flex items-center justify-center h-full">
+        <div className="text-white">Loading interactions...</div>
       </div>
     );
   }
 
   if (currentInteractions.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex items-center justify-center h-full">
         <div className="text-center text-gray-400">
-          <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>
-            {showingSearchResults 
-              ? "No interactions found matching your search." 
-              : "No interactions found."}
+          <p className="text-lg mb-2">
+            {showingSearchResults ? 'No search results found' : 'No interactions yet'}
           </p>
           <p className="text-sm">
-            {showingSearchResults 
-              ? "Try different keywords or check your spelling." 
-              : "Start a conversation to see your history here."}
+            {showingSearchResults
+              ? 'Try searching for something else'
+              : 'Start a conversation to see your history here'}
           </p>
         </div>
       </div>
     );
   }
 
-  const currentInteraction = currentInteractions[currentSlide];
-
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-2">
-      <div className="w-full max-w-6xl flex flex-col items-center">
-        <Carousel 
-          className="w-full"
-          setApi={setCarouselApi}
-          opts={{
-            align: "center",
-            loop: false,
-          }}
-        >
-          <CarouselContent className="-ml-2 md:-ml-4">
-            {currentInteractions.map((interaction, index) => (
-              <CarouselItem key={interaction.id} className="pl-2 md:pl-4 basis-4/5 md:basis-3/5 lg:basis-2/5">
-                <InteractionCard
-                  interaction={interaction}
-                  index={index}
-                  isCurrentlyPlaying={currentPlayingId === interaction.id}
-                  onToggleFavorite={onToggleFavorite}
-                  onLocationClick={onLocationClick}
-                />
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-          <CarouselPrevious className="hidden md:flex" />
-          <CarouselNext className="hidden md:flex" />
-        </Carousel>
-        
-        <CarouselControls
-          currentSlide={currentSlide}
-          totalSlides={currentInteractions.length}
-          onSlideSelect={scrollToSlide}
-          currentInteraction={currentInteraction}
-        />
+    <ScrollArea className="h-full">
+      <div className="p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-w-7xl mx-auto">
+          {currentInteractions.map((interaction, index) => (
+            <InteractionCard
+              key={interaction.id}
+              interaction={interaction}
+              index={index}
+              isCurrentlyPlaying={currentlyPlayingId === interaction.id}
+              onToggleFavorite={onToggleFavorite}
+              onLocationClick={onLocationClick}
+            />
+          ))}
+        </div>
       </div>
-    </div>
+    </ScrollArea>
   );
 };
 
