@@ -55,7 +55,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
         'image', 
         interaction.destination
       );
-      shareText += `📸 View Photo: ${shortImageUrl}\n`;
+      shareText += `📸 View ${interaction.destination} Photo: ${shortImageUrl}\n`;
     }
     
     if (interaction.audio_url) {
@@ -64,7 +64,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
         'audio', 
         interaction.destination
       );
-      shareText += `🎵 Listen to Audio: ${shortAudioUrl}\n`;
+      shareText += `🎵 Listen to ${interaction.destination} Audio: ${shortAudioUrl}\n`;
     }
     
     if (interaction.landmark_image_url || interaction.audio_url) {
