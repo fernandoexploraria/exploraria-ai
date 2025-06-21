@@ -1,80 +1,42 @@
 
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import Map from '@/components/Map';
+import React, { useState, useMemo, useCallback } from 'react';
 import SplashScreen from '@/components/SplashScreen';
-import NewTourAssistant from '@/components/NewTourAssistant';
+import MainLayout from '@/components/MainLayout';
 import { landmarks as staticLandmarks, Landmark } from '@/data/landmarks';
 import { useTourPlanner } from '@/hooks/useTourPlanner';
 import { useAuth } from '@/components/AuthProvider';
-import TopControls from '@/components/TopControls';
-import UserControls from '@/components/UserControls';
-import DialogManager from '@/components/DialogManager';
-import { supabase } from '@/integrations/supabase/client';
-
-const PENDING_DESTINATION_KEY = 'pendingTourDestination';
+import { useMapboxToken } from '@/hooks/useMapboxToken';
+import { usePendingDestination } from '@/hooks/usePendingDestination';
+import { useDialogStates } from '@/hooks/useDialogStates';
 
 const Index: React.FC = () => {
   const [showSplash, setShowSplash] = useState(true);
-  const [selectedLandmark, setSelectedLandmark] = useState<Landmark | null>(null);
-  const [isTourPlannerOpen, setIsTourPlannerOpen] = useState(false);
-  const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false);
-  const [isInteractionHistoryOpen, setIsInteractionHistoryOpen] = useState(false);
-  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
-  const [isNewTourAssistantOpen, setIsNewTourAssistantOpen] = useState(false);
-  const [pendingDestination, setPendingDestination] = useState<string>('');
   const [additionalLandmarks, setAdditionalLandmarks] = useState<Landmark[]>([]);
-  const [mapboxToken, setMapboxToken] = useState<string>('');
+  
   const { tourPlan, plannedLandmarks, isLoading: isTourLoading, generateTour } = useTourPlanner();
   const { user, signOut } = useAuth();
+  const mapboxToken = useMapboxToken();
+  const { handleTourAuthRequired } = usePendingDestination(user, isTourLoading, generateTour);
+  const {
+    selectedLandmark,
+    setSelectedLandmark,
+    isTourPlannerOpen,
+    setIsTourPlannerOpen,
+    isInteractionHistoryOpen,
+    setIsInteractionHistoryOpen,
+    isAuthDialogOpen,
+    setIsAuthDialogOpen,
+    isNewTourAssistantOpen,
+    setIsNewTourAssistantOpen,
+  } = useDialogStates();
   
   const allLandmarks = useMemo(() => {
     return [...staticLandmarks, ...plannedLandmarks, ...additionalLandmarks];
   }, [plannedLandmarks, additionalLandmarks]);
 
-  // Fetch Mapbox token from Supabase secrets
-  useEffect(() => {
-    const fetchMapboxToken = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke('get-mapbox-token');
-        if (error) {
-          console.error('Error fetching Mapbox token:', error);
-          // Fallback to hardcoded token if secret fetch fails
-          setMapboxToken('pk.eyJ1IjoiZm9icmVnb25hIiwiYSI6ImNtMGlnYzFlYTBtYnUybG9tMGRuczNoMzkifQ.n_n-sCR4Zm-dCV5ijeXiDg');
-        } else {
-          setMapboxToken(data.token);
-        }
-      } catch (error) {
-        console.error('Error fetching Mapbox token:', error);
-        // Fallback to hardcoded token
-        setMapboxToken('pk.eyJ1IjoiZm9icmVnb25hIiwiYSI6ImNtMGlnYzFlYTBtYnUybG9tMGRuczNoMzkifQ.n_n-sCR4Zm-dCV5ijeXiDg');
-      }
-    };
-
-    fetchMapboxToken();
-  }, []);
-
-  // Handle post-authentication tour generation
-  useEffect(() => {
-    if (user && !isTourLoading) {
-      // Check both state and localStorage for pending destination
-      const storedDestination = localStorage.getItem(PENDING_DESTINATION_KEY);
-      const destinationToUse = pendingDestination || storedDestination;
-      
-      if (destinationToUse) {
-        console.log('User signed in with pending destination:', destinationToUse);
-        // Clear from localStorage
-        localStorage.removeItem(PENDING_DESTINATION_KEY);
-        // Automatically generate tour and open tour planner
-        setIsTourPlannerOpen(true);
-        handleGenerateTour(destinationToUse);
-        setPendingDestination('');
-      }
-    }
-  }, [user, pendingDestination, isTourLoading]);
-
   const handleSelectLandmark = useCallback((landmark: Landmark) => {
     setSelectedLandmark(landmark);
-  }, []);
+  }, [setSelectedLandmark]);
 
   const handleGenerateTour = async (destination: string) => {
     await generateTour(destination);
@@ -86,14 +48,6 @@ const Index: React.FC = () => {
     }, 1000);
   };
 
-  const handleTourAuthRequired = (destination: string) => {
-    console.log('Auth required for destination:', destination);
-    // Store in both state and localStorage for OAuth persistence
-    setPendingDestination(destination);
-    localStorage.setItem(PENDING_DESTINATION_KEY, destination);
-    setIsAuthDialogOpen(true);
-  };
-
   const handleAuthDialogClose = (open: boolean) => {
     setIsAuthDialogOpen(open);
   };
@@ -103,7 +57,7 @@ const Index: React.FC = () => {
       setIsAuthDialogOpen(true);
       return;
     }
-    setIsVoiceAssistantOpen(true);
+    setIsInteractionHistoryOpen(true);
   };
 
   const handleInteractionHistoryOpen = () => {
@@ -122,10 +76,6 @@ const Index: React.FC = () => {
     setShowSplash(true);
   };
 
-  const handleAddLandmarks = useCallback((newLandmarks: Landmark[]) => {
-    setAdditionalLandmarks(prev => [...prev, ...newLandmarks]);
-  }, []);
-
   const handleNewTourAssistantOpen = () => {
     if (!user) {
       setIsAuthDialogOpen(true);
@@ -133,11 +83,6 @@ const Index: React.FC = () => {
     }
     setIsNewTourAssistantOpen(true);
   };
-
-  // Empty function for location select since we removed the functionality
-  const handleLocationSelect = useCallback(() => {
-    console.log('Location select called but no action taken');
-  }, []);
 
   if (showSplash) {
     return <SplashScreen onDismiss={handleSplashDismiss} />;
@@ -149,53 +94,32 @@ const Index: React.FC = () => {
   }
 
   return (
-    <div className="w-screen h-screen relative">
-      <TopControls
-        allLandmarks={allLandmarks}
-        onSelectLandmark={handleSelectLandmark}
-        onTourPlannerOpen={() => setIsTourPlannerOpen(true)}
-        onVoiceSearchOpen={handleInteractionHistoryOpen}
-        onVoiceAssistantOpen={handleNewTourAssistantOpen}
-        onLogoClick={handleLogoClick}
-        user={user}
-        plannedLandmarks={plannedLandmarks}
-      />
-
-      <UserControls
-        user={user}
-        onSignOut={signOut}
-        onAuthDialogOpen={() => setIsAuthDialogOpen(true)}
-      />
-
-      <Map 
-        mapboxToken={mapboxToken}
-        landmarks={allLandmarks}
-        onSelectLandmark={handleSelectLandmark}
-        selectedLandmark={selectedLandmark}
-        plannedLandmarks={[...plannedLandmarks, ...additionalLandmarks]}
-      />
-
-      <DialogManager
-        isTourPlannerOpen={isTourPlannerOpen}
-        onTourPlannerOpenChange={setIsTourPlannerOpen}
-        onGenerateTour={handleGenerateTour}
-        onTourAuthRequired={handleTourAuthRequired}
-        isTourLoading={isTourLoading}
-        isVoiceSearchOpen={isInteractionHistoryOpen}
-        onVoiceSearchOpenChange={setIsInteractionHistoryOpen}
-        isAuthDialogOpen={isAuthDialogOpen}
-        onAuthDialogOpenChange={handleAuthDialogClose}
-        onLocationSelect={handleLocationSelect}
-      />
-
-      <NewTourAssistant
-        open={isNewTourAssistantOpen}
-        onOpenChange={setIsNewTourAssistantOpen}
-        destination={tourPlan?.destination || ''}
-        landmarks={plannedLandmarks}
-        systemPrompt={tourPlan?.systemPrompt}
-      />
-    </div>
+    <MainLayout
+      mapboxToken={mapboxToken}
+      allLandmarks={allLandmarks}
+      selectedLandmark={selectedLandmark}
+      plannedLandmarks={plannedLandmarks}
+      user={user}
+      onSelectLandmark={handleSelectLandmark}
+      onTourPlannerOpen={() => setIsTourPlannerOpen(true)}
+      onVoiceSearchOpen={handleInteractionHistoryOpen}
+      onVoiceAssistantOpen={handleNewTourAssistantOpen}
+      onLogoClick={handleLogoClick}
+      onSignOut={signOut}
+      onAuthDialogOpen={() => setIsAuthDialogOpen(true)}
+      isTourPlannerOpen={isTourPlannerOpen}
+      onTourPlannerOpenChange={setIsTourPlannerOpen}
+      onGenerateTour={handleGenerateTour}
+      onTourAuthRequired={handleTourAuthRequired}
+      isTourLoading={isTourLoading}
+      isVoiceSearchOpen={isInteractionHistoryOpen}
+      onVoiceSearchOpenChange={setIsInteractionHistoryOpen}
+      isAuthDialogOpen={isAuthDialogOpen}
+      onAuthDialogOpenChange={handleAuthDialogClose}
+      isNewTourAssistantOpen={isNewTourAssistantOpen}
+      onNewTourAssistantOpenChange={setIsNewTourAssistantOpen}
+      tourPlan={tourPlan}
+    />
   );
 };
 
