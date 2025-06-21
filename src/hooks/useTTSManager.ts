@@ -39,11 +39,7 @@ export const useTTSManager = () => {
     // Always stop any currently playing audio first
     stopAllTTSPlayback();
 
-    // If we were already playing the current card, just stop (toggle behavior)
-    if (playingCardIndex === cardIndex && isPlaying) {
-      return;
-    }
-
+    // Set playing state immediately
     setIsPlaying(true);
     setPlayingCardIndex(cardIndex);
 
@@ -187,7 +183,7 @@ export const useTTSManager = () => {
       setIsPlaying(false);
       setPlayingCardIndex(null);
     }
-  }, [stopAllTTSPlayback, playingCardIndex, isPlaying, toast]);
+  }, [stopAllTTSPlayback, toast]);
 
   return {
     isPlaying,
