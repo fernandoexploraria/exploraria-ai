@@ -212,6 +212,14 @@ export type Database = {
           assistant_response: string
           is_favorite: boolean
           created_at: string
+          interaction_type: string
+          landmark_coordinates: unknown
+          landmark_image_url: string
+          full_transcript: Json
+          conversation_id: string
+          conversation_duration: number
+          audio_url: string
+          agent_id: string
           similarity: number
         }[]
       }
