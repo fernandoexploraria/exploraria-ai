@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useInteractionCarouselLogic } from './InteractionCarouselLogic';
 import InteractionCarouselHeader from './InteractionCarouselHeader';
@@ -74,7 +75,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="h-screen flex flex-col bg-gray-900">
+      <DrawerContent className="h-[85vh] flex flex-col bg-gray-900">
         <DrawerTitle className="sr-only">
           {showingSearchResults ? 'Search Results' : 'Interaction History'}
         </DrawerTitle>
