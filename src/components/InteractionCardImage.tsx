@@ -7,14 +7,12 @@ interface InteractionCardImageProps {
   imageUrl: string;
   destination: string;
   userInput: string;
-  onImageClick: (e: React.MouseEvent) => void;
 }
 
 const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
   imageUrl,
   destination,
   userInput,
-  onImageClick,
 }) => {
   const handleImageDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -48,8 +46,7 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
       <img 
         src={imageUrl} 
         alt="Landmark" 
-        className="w-full h-20 object-cover rounded cursor-pointer hover:opacity-90 transition-opacity"
-        onClick={onImageClick}
+        className="w-full h-20 object-cover rounded"
       />
       <Button
         variant="ghost"
