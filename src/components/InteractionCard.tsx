@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -104,6 +103,23 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
     );
   };
 
+  // New function specifically for handling "Show on Map" button click
+  const handleShowOnMap = () => {
+    if (interaction.landmark_coordinates) {
+      const coordinates = [
+        interaction.landmark_coordinates.x || interaction.landmark_coordinates[0],
+        interaction.landmark_coordinates.y || interaction.landmark_coordinates[1]
+      ] as [number, number];
+      
+      console.log('Show on Map button clicked for coordinates:', coordinates);
+      
+      // Call the new navigation function from Map component
+      if ((window as any).navigateToMapCoordinates) {
+        (window as any).navigateToMapCoordinates(coordinates);
+      }
+    }
+  };
+
   return (
     <Card className={`w-full max-w-xs mx-auto border-gray-700 h-96 transition-all duration-300 ${
       isCurrentlyPlaying 
@@ -160,10 +176,7 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
               variant="outline"
               size="sm"
               className="w-full h-7 text-xs"
-              onClick={() => {
-                // Button does nothing when clicked - as requested
-                console.log('Show on Map button clicked but no action taken');
-              }}
+              onClick={handleShowOnMap}
             >
               <MapPin className="w-3 h-3 mr-1" />
               Show on Map

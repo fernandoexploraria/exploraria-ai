@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -657,6 +656,30 @@ const Map: React.FC<MapProps> = ({
       });
     }
   }, [plannedLandmarks]);
+
+  // New function specifically for "Show on Map" button
+  const navigateToCoordinates = (coordinates: [number, number]) => {
+    if (!map.current) return;
+    
+    console.log('Navigating to coordinates:', coordinates);
+    
+    map.current.flyTo({
+      center: coordinates,
+      zoom: 14,
+      speed: 0.8,
+      curve: 1,
+      easing: (t) => t,
+    });
+  };
+
+  // Expose the function globally so InteractionCard can call it
+  React.useEffect(() => {
+    (window as any).navigateToMapCoordinates = navigateToCoordinates;
+    
+    return () => {
+      delete (window as any).navigateToMapCoordinates;
+    };
+  }, []);
 
   return <div ref={mapContainer} className="absolute inset-0" />;
 };
