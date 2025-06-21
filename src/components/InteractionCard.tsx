@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -116,7 +117,17 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
       let coordinates: [number, number];
       
       // Handle different coordinate formats
-      if (Array.isArray(interaction.landmark_coordinates)) {
+      if (typeof interaction.landmark_coordinates === 'string') {
+        // Handle string format like "(-99.1706976631243,19.3494767782822)"
+        const coordString = interaction.landmark_coordinates.replace(/[()]/g, ''); // Remove parentheses
+        const parts = coordString.split(',');
+        if (parts.length === 2) {
+          coordinates = [Number(parts[0].trim()), Number(parts[1].trim())];
+        } else {
+          console.log('ERROR: Invalid string coordinate format!', interaction.landmark_coordinates);
+          return;
+        }
+      } else if (Array.isArray(interaction.landmark_coordinates)) {
         // If it's already an array [lng, lat]
         coordinates = [
           Number(interaction.landmark_coordinates[0]),
