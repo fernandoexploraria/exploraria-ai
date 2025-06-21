@@ -4,6 +4,7 @@ import { useInteractionCarouselLogic } from './InteractionCarouselLogic';
 import InteractionCarouselHeader from './InteractionCarouselHeader';
 import InteractionCarouselContent from './InteractionCarouselContent';
 import { useAuth } from './AuthProvider';
+import { useTTS } from '@/hooks/useTTS';
 
 interface InteractionCarouselProps {
   open: boolean;
@@ -17,6 +18,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   onLocationSelect 
 }) => {
   const { user } = useAuth();
+  const { stop } = useTTS();
   
   const {
     searchQuery,
@@ -38,6 +40,14 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
       loadAllInteractions();
     }
   }, [open, user]);
+
+  // Stop audio when carousel is closed
+  useEffect(() => {
+    if (!open) {
+      console.log('Interaction carousel closed - stopping audio');
+      stop();
+    }
+  }, [open, stop]);
 
   const handleLocationClick = (coordinates: any) => {
     if (coordinates && onLocationSelect) {
