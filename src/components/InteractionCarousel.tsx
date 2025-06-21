@@ -5,6 +5,10 @@ import InteractionCarouselHeader from './InteractionCarouselHeader';
 import InteractionCarouselContent from './InteractionCarouselContent';
 import { useAuth } from './AuthProvider';
 import { useTTSContext } from '@/contexts/TTSContext';
+import {
+  Drawer,
+  DrawerContent,
+} from "@/components/ui/drawer"
 
 interface InteractionCarouselProps {
   open: boolean;
@@ -61,30 +65,30 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
   };
 
-  if (!open) return null;
-
   const currentInteractions = showingSearchResults ? searchResults : interactions;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex flex-col">
-      <InteractionCarouselHeader
-        onClose={() => onOpenChange(false)}
-        showingSearchResults={showingSearchResults}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        onSearch={handleSearch}
-        isSearching={isSearching}
-        onBackToHistory={handleBackToHistory}
-      />
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent className="h-[85vh] flex flex-col">
+        <InteractionCarouselHeader
+          onClose={() => onOpenChange(false)}
+          showingSearchResults={showingSearchResults}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          onSearch={handleSearch}
+          isSearching={isSearching}
+          onBackToHistory={handleBackToHistory}
+        />
 
-      <InteractionCarouselContent
-        isLoading={isLoading}
-        currentInteractions={currentInteractions}
-        showingSearchResults={showingSearchResults}
-        onToggleFavorite={toggleFavorite}
-        onLocationClick={handleLocationClick}
-      />
-    </div>
+        <InteractionCarouselContent
+          isLoading={isLoading}
+          currentInteractions={currentInteractions}
+          showingSearchResults={showingSearchResults}
+          onToggleFavorite={toggleFavorite}
+          onLocationClick={handleLocationClick}
+        />
+      </DrawerContent>
+    </Drawer>
   );
 };
 
