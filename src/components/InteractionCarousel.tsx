@@ -25,7 +25,6 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
 }) => {
   const { user } = useAuth();
   const { stop } = useTTSContext();
-  const [activeSnapPoint, setActiveSnapPoint] = useState<number>(0.85);
   
   const {
     searchQuery,
@@ -56,13 +55,6 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
   }, [open, stop]);
 
-  // Reset to 85% when opening
-  useEffect(() => {
-    if (open) {
-      setActiveSnapPoint(0.85);
-    }
-  }, [open]);
-
   const handleLocationClick = (coordinates: any) => {
     if (coordinates && onLocationSelect) {
       const coordsArray = coordinates.toString().replace(/[()]/g, '').split(',');
@@ -70,15 +62,8 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
         const lng = parseFloat(coordsArray[0]);
         const lat = parseFloat(coordsArray[1]);
         onLocationSelect([lng, lat]);
-        // Minimize to 15% when location is selected
-        setActiveSnapPoint(0.15);
       }
     }
-  };
-
-  // Wrapper function to bridge the type mismatch
-  const handleSnapPointChange = (snapPoint: string | number) => {
-    setActiveSnapPoint(typeof snapPoint === 'string' ? parseFloat(snapPoint) : snapPoint);
   };
 
   const currentInteractions = showingSearchResults ? searchResults : interactions;
@@ -87,8 +72,6 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     <Drawer 
       open={open} 
       onOpenChange={onOpenChange}
-      activeSnapPoint={activeSnapPoint}
-      setActiveSnapPoint={handleSnapPointChange}
     >
       <DrawerContent className="max-h-[85vh]">
         <DrawerHeader className="pb-2">
