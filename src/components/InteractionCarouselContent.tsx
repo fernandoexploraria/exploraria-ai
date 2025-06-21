@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselApi } from '@/components/ui/carousel';
-import { Search } from 'lucide-react';
+import { Search, Star } from 'lucide-react';
 import InteractionCard from './InteractionCard';
 import CarouselControls from './CarouselControls';
 import { Interaction } from './InteractionCarouselLogic';
@@ -13,6 +13,7 @@ interface InteractionCarouselContentProps {
   showingSearchResults: boolean;
   onToggleFavorite: (interaction: Interaction) => void;
   onLocationClick: (coordinates: any) => void;
+  showFavoritesOnly?: boolean;
 }
 
 const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
@@ -21,6 +22,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
   showingSearchResults,
   onToggleFavorite,
   onLocationClick,
+  showFavoritesOnly = false,
 }) => {
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -76,17 +78,31 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center text-gray-400">
-          <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>
-            {showingSearchResults 
-              ? "No interactions found matching your search." 
-              : "No interactions found."}
-          </p>
-          <p className="text-sm">
-            {showingSearchResults 
-              ? "Try different keywords or check your spelling." 
-              : "Start a conversation to see your history here."}
-          </p>
+          {showFavoritesOnly ? (
+            <>
+              <Star className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>No favorite interactions found.</p>
+              <p className="text-sm">
+                Mark interactions as favorites by clicking the star icon on any card.
+              </p>
+            </>
+          ) : showingSearchResults ? (
+            <>
+              <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>No interactions found matching your search.</p>
+              <p className="text-sm">
+                Try different keywords or check your spelling.
+              </p>
+            </>
+          ) : (
+            <>
+              <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>No interactions found.</p>
+              <p className="text-sm">
+                Start a conversation to see your history here.
+              </p>
+            </>
+          )}
         </div>
       </div>
     );

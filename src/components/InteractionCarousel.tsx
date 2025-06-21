@@ -25,6 +25,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
 }) => {
   const { user } = useAuth();
   const { stop } = useTTSContext();
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   
   console.log('InteractionCarousel render - open:', open);
   console.log('Drawer should be visible:', open);
@@ -71,7 +72,24 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
   };
 
-  const currentInteractions = showingSearchResults ? searchResults : interactions;
+  const handleToggleFavoritesFilter = (show: boolean) => {
+    setShowFavoritesOnly(show);
+  };
+
+  // Filter interactions based on favorites toggle
+  const getFilteredInteractions = () => {
+    if (showingSearchResults) {
+      return searchResults;
+    }
+    
+    if (showFavoritesOnly) {
+      return interactions.filter(interaction => interaction.is_favorite);
+    }
+    
+    return interactions;
+  };
+
+  const currentInteractions = getFilteredInteractions();
 
   return (
     <Drawer 
@@ -97,6 +115,8 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
           onSearch={handleSearch}
           isSearching={isSearching}
           onBackToHistory={handleBackToHistory}
+          showFavoritesOnly={showFavoritesOnly}
+          onToggleFavoritesFilter={handleToggleFavoritesFilter}
         />
 
         <div className="flex-1 overflow-hidden">
