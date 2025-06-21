@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselApi } from '@/components/ui/carousel';
 import { Search } from 'lucide-react';
@@ -26,23 +25,24 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
   const [currentSlide, setCurrentSlide] = useState(0);
   const { stop, isPlaying } = useTTS();
 
-  // Handle carousel slide changes - detect any movement and stop audio if playing
+  // Handle carousel slide changes - stop audio when card moves
   useEffect(() => {
     if (!carouselApi) return;
 
     const handleSlideChange = () => {
-      const newSlide = carouselApi.selectedScrollSnap();
-      console.log('Card movement detected - slide changed from', currentSlide, 'to', newSlide);
+      console.log('Card movement detected');
       
-      // Check if audio is playing and stop it
+      // If audio is playing, stop it
       if (isPlaying) {
-        console.log('Audio is playing, stopping it due to card movement');
+        console.log('Stopping audio due to card movement');
         stop();
       }
       
-      setCurrentSlide(newSlide);
+      // Update current slide
+      setCurrentSlide(carouselApi.selectedScrollSnap());
     };
 
+    // Listen for slide changes
     carouselApi.on("select", handleSlideChange);
     
     // Set initial slide
@@ -51,7 +51,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
     return () => {
       carouselApi.off("select", handleSlideChange);
     };
-  }, [carouselApi, isPlaying, stop, currentSlide]);
+  }, [carouselApi, isPlaying, stop]);
 
   const scrollToSlide = (index: number) => {
     if (carouselApi) {
