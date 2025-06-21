@@ -34,6 +34,7 @@ const Map: React.FC<MapProps> = ({
   const pendingPopupLandmark = useRef<Landmark | null>(null);
   const isZooming = useRef<boolean>(false);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
+  const navigationMarkers = useRef<mapboxgl.Marker[]>([]); // Store navigation markers
   const { user } = useAuth();
 
   // Convert top landmarks to Landmark format
@@ -677,7 +678,7 @@ const Map: React.FC<MapProps> = ({
       easing: (t) => t,
     });
 
-    // Add a marker at the coordinates
+    // Add a permanent marker at the coordinates
     const el = document.createElement('div');
     el.className = 'w-6 h-6 rounded-full bg-red-500 border-3 border-white shadow-lg cursor-pointer animate-pulse';
     
@@ -685,12 +686,10 @@ const Map: React.FC<MapProps> = ({
       .setLngLat(coordinates)
       .addTo(map.current);
 
-    // Remove the marker after 5 seconds
-    setTimeout(() => {
-      marker.remove();
-    }, 5000);
+    // Store the marker so it can be managed later if needed
+    navigationMarkers.current.push(marker);
 
-    console.log('Fly command sent and marker added');
+    console.log('Fly command sent and permanent marker added');
     console.log('=== End Map Debug ===');
   };
 
