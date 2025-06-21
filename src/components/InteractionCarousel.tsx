@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useInteractionCarouselLogic } from './InteractionCarouselLogic';
 import InteractionCarouselHeader from './InteractionCarouselHeader';
@@ -85,6 +84,12 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     setActiveSnapPoint(0.78);
   };
 
+  // Wrapper function to handle Vaul's setActiveSnapPoint callback
+  const handleSnapPointChange = (snapPoint: string | number) => {
+    const numericSnapPoint = typeof snapPoint === 'string' ? parseFloat(snapPoint) : snapPoint;
+    setActiveSnapPoint(numericSnapPoint);
+  };
+
   const currentInteractions = showingSearchResults ? searchResults : interactions;
 
   return (
@@ -94,7 +99,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
       modal={false}
       snapPoints={snapPoints}
       activeSnapPoint={activeSnapPoint}
-      setActiveSnapPoint={setActiveSnapPoint}
+      setActiveSnapPoint={handleSnapPointChange}
     >
       <DrawerContent className="h-screen flex flex-col bg-gray-900">
         <DrawerTitle className="sr-only">
