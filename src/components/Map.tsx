@@ -679,9 +679,10 @@ const Map: React.FC<MapProps> = ({
       easing: (t) => t,
     });
 
-    // Add a permanent marker at the coordinates
+    // Add a permanent marker at the coordinates with same style as other markers but in red
     const el = document.createElement('div');
-    el.className = 'w-6 h-6 rounded-full bg-red-500 border-3 border-white shadow-lg cursor-pointer animate-pulse';
+    el.className = 'w-4 h-4 rounded-full bg-red-400 border-2 border-white shadow-lg cursor-pointer transition-transform duration-300 hover:scale-125';
+    el.style.transition = 'background-color 0.3s, transform 0.3s';
     
     const marker = new mapboxgl.Marker(el)
       .setLngLat(coordinates)
