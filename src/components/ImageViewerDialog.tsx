@@ -19,18 +19,25 @@ const ImageViewerDialog: React.FC<ImageViewerDialogProps> = ({
 }) => {
   const handleDownload = async () => {
     try {
-      const response = await fetch(imageUrl);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      // Create a temporary link element for download
       const link = document.createElement('a');
-      link.href = url;
+      link.href = imageUrl;
       link.download = `${imageName.replace(/[^a-zA-Z0-9]/g, '_')}.jpg`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      link.target = '_blank';
+      
+      // For mobile devices, open in new tab so users can long-press and save
+      if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+        window.open(imageUrl, '_blank');
+      } else {
+        // For desktop, try direct download
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
     } catch (error) {
       console.error('Error downloading image:', error);
+      // Fallback: open image in new tab
+      window.open(imageUrl, '_blank');
     }
   };
 

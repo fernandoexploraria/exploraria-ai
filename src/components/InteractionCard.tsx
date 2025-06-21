@@ -243,25 +243,35 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
     if (!interaction.landmark_image_url) return;
 
     try {
-      const response = await fetch(interaction.landmark_image_url);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      // Create a temporary link element for download
       const link = document.createElement('a');
-      link.href = url;
+      link.href = interaction.landmark_image_url;
       link.download = `${interaction.destination}_${interaction.user_input.replace(/[^a-zA-Z0-9]/g, '_')}.jpg`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      link.target = '_blank'; // Open in new tab on mobile if direct download fails
+      
+      // For mobile devices, we'll open the image in a new tab
+      // Users can then long-press and save to photos
+      if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+        window.open(interaction.landmark_image_url, '_blank');
+      } else {
+        // For desktop, try direct download
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
     } catch (error) {
       console.error('Error downloading image:', error);
+      // Fallback: open image in new tab
+      window.open(interaction.landmark_image_url, '_blank');
     }
   };
 
   const handleImageClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     console.log('Image clicked, opening viewer...');
+    console.log('Current isImageViewerOpen state:', isImageViewerOpen);
     setIsImageViewerOpen(true);
+    console.log('Setting isImageViewerOpen to true');
   };
 
   return (
@@ -306,7 +316,7 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
               <img 
                 src={interaction.landmark_image_url} 
                 alt="Landmark" 
-                className="w-full h-20 object-cover rounded cursor-pointer"
+                className="w-full h-20 object-cover rounded cursor-pointer hover:opacity-90 transition-opacity"
                 onClick={handleImageClick}
               />
               <Button
@@ -354,7 +364,10 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
       {interaction.landmark_image_url && (
         <ImageViewerDialog
           open={isImageViewerOpen}
-          onOpenChange={setIsImageViewerOpen}
+          onOpenChange={(open) => {
+            console.log('Dialog onOpenChange called with:', open);
+            setIsImageViewerOpen(open);
+          }}
           imageUrl={interaction.landmark_image_url}
           imageName={`${interaction.destination} - ${interaction.user_input}`}
         />
