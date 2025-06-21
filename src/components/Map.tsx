@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -34,7 +35,7 @@ const Map: React.FC<MapProps> = ({
   const pendingPopupLandmark = useRef<Landmark | null>(null);
   const isZooming = useRef<boolean>(false);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
-  const navigationMarkers = useRef<mapboxgl.Marker[]>([]); // Store navigation markers
+  const navigationMarkers = useRef<{ marker: mapboxgl.Marker; interaction: any }[]>([]); // Store navigation markers with interaction data
   const { user } = useAuth();
 
   // Convert top landmarks to Landmark format
@@ -111,7 +112,7 @@ const Map: React.FC<MapProps> = ({
     map.current.on('click', (e) => {
       // Check if the click was on a marker by looking for our marker class
       const clickedElement = e.originalEvent.target as HTMLElement;
-      const isMarkerClick = clickedElement.closest('.w-4.h-4.rounded-full');
+      const isMarkerClick = clickedElement.closest('.w-4.h-4.rounded-full') || clickedElement.closest('.w-6.h-6.rounded-full');
       
       if (!isMarkerClick) {
         // Stop any playing audio
@@ -659,9 +660,10 @@ const Map: React.FC<MapProps> = ({
   }, [plannedLandmarks]);
 
   // New function specifically for "Show on Map" button
-  const navigateToCoordinates = (coordinates: [number, number]) => {
+  const navigateToCoordinates = (coordinates: [number, number], interaction?: any) => {
     console.log('=== Map Navigate Debug ===');
     console.log('navigateToCoordinates called with:', coordinates);
+    console.log('Interaction data:', interaction);
     console.log('Map current exists:', !!map.current);
     
     if (!map.current) {
@@ -686,11 +688,72 @@ const Map: React.FC<MapProps> = ({
       .setLngLat(coordinates)
       .addTo(map.current);
 
+    // Add click handler to the navigation marker if interaction data is provided
+    if (interaction) {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showInteractionPopup(coordinates, interaction);
+      });
+    }
+
     // Store the marker so it can be managed later if needed
-    navigationMarkers.current.push(marker);
+    navigationMarkers.current.push({ marker, interaction });
 
     console.log('Fly command sent and permanent marker added');
     console.log('=== End Map Debug ===');
+  };
+
+  // Function to show interaction popup
+  const showInteractionPopup = (coordinates: [number, number], interaction: any) => {
+    if (!map.current) return;
+    
+    console.log('Showing interaction popup for:', interaction.user_input);
+    
+    // Close any existing popups
+    const existingPopups = document.querySelectorAll('.mapboxgl-popup');
+    existingPopups.forEach(popup => popup.remove());
+    
+    // Create popup content
+    const popupContent = `
+      <div style="text-align: center; padding: 10px; max-width: 300px; position: relative;">
+        <button class="custom-close-btn" onclick="this.closest('.mapboxgl-popup').remove();" style="
+          position: absolute;
+          top: 5px;
+          right: 5px;
+          background: rgba(0, 0, 0, 0.7);
+          color: white;
+          border: none;
+          border-radius: 50%;
+          width: 24px;
+          height: 24px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 14px;
+          font-weight: bold;
+          z-index: 1000;
+        ">×</button>
+        <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${interaction.user_input}</h3>
+        ${interaction.landmark_image_url ? `
+          <div style="margin-bottom: 10px;">
+            <img src="${interaction.landmark_image_url}" alt="Landmark" style="width: 100%; height: 120px; object-fit: cover; border-radius: 8px;" />
+          </div>
+        ` : ''}
+      </div>
+    `;
+    
+    // Create and show popup
+    const popup = new mapboxgl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+      offset: 25,
+      maxWidth: '350px',
+      className: 'custom-popup'
+    })
+      .setLngLat(coordinates)
+      .setHTML(popupContent)
+      .addTo(map.current);
   };
 
   // Expose the function globally so InteractionCard can call it
