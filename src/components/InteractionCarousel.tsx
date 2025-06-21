@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useInteractionCarouselLogic } from './InteractionCarouselLogic';
 import InteractionCarouselHeader from './InteractionCarouselHeader';
@@ -7,6 +8,8 @@ import { useTTSContext } from '@/contexts/TTSContext';
 import {
   Drawer,
   DrawerContent,
+  DrawerTitle,
+  DrawerDescription,
 } from "@/components/ui/drawer"
 
 interface InteractionCarouselProps {
@@ -73,6 +76,15 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="h-[85vh] flex flex-col bg-gray-900">
+        <DrawerTitle className="sr-only">
+          {showingSearchResults ? 'Search Results' : 'Interaction History'}
+        </DrawerTitle>
+        <DrawerDescription className="sr-only">
+          {showingSearchResults 
+            ? 'Your search results for previous conversations' 
+            : 'Your conversation history with the AI assistant'}
+        </DrawerDescription>
+        
         <InteractionCarouselHeader
           onClose={() => onOpenChange(false)}
           showingSearchResults={showingSearchResults}
