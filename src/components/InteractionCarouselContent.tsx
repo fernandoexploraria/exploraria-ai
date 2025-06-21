@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselApi } from '@/components/ui/carousel';
 import { Search } from 'lucide-react';
@@ -23,7 +24,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
 }) => {
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
-  const { stop } = useTTS();
+  const { stop, isPlaying } = useTTS();
 
   // Handle carousel slide changes
   useEffect(() => {
@@ -31,9 +32,14 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
 
     const updateCurrentSlide = () => {
       const newSlide = carouselApi.selectedScrollSnap();
+      console.log('Carousel slide changed from', currentSlide, 'to', newSlide);
+      console.log('TTS is currently playing:', isPlaying);
       
       // Always stop TTS when slide changes (any navigation)
-      stop();
+      if (isPlaying) {
+        console.log('Stopping TTS due to slide change');
+        stop();
+      }
       
       setCurrentSlide(newSlide);
     };
@@ -44,10 +50,11 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
     return () => {
       carouselApi.off("select", updateCurrentSlide);
     };
-  }, [carouselApi, stop]);
+  }, [carouselApi, stop, isPlaying, currentSlide]);
 
   const scrollToSlide = (index: number) => {
     if (carouselApi) {
+      console.log('Manually scrolling to slide:', index);
       carouselApi.scrollTo(index);
     }
   };
