@@ -155,10 +155,10 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
         return;
       }
       
-      // Call the new navigation function from Map component
+      // Call the new navigation function from Map component with interaction data
       if ((window as any).navigateToMapCoordinates) {
-        console.log('Calling navigateToMapCoordinates...');
-        (window as any).navigateToMapCoordinates(coordinates);
+        console.log('Calling navigateToMapCoordinates with interaction data...');
+        (window as any).navigateToMapCoordinates(coordinates, interaction);
       } else {
         console.log('ERROR: navigateToMapCoordinates function not found on window!');
       }
