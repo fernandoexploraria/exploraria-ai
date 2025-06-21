@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselApi } from '@/components/ui/carousel';
 import { Search } from 'lucide-react';
-import { useTTSManager } from '@/hooks/useTTSManager';
 import InteractionCard from './InteractionCard';
 import CarouselControls from './CarouselControls';
 import { Interaction } from './InteractionCarouselLogic';
@@ -13,8 +12,6 @@ interface InteractionCarouselContentProps {
   showingSearchResults: boolean;
   onToggleFavorite: (interaction: Interaction) => void;
   onLocationClick: (coordinates: any) => void;
-  isPlaying: boolean;
-  stopAllTTSPlayback: () => void;
 }
 
 const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
@@ -26,7 +23,6 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
 }) => {
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
-  const { playTTS } = useTTSManager();
 
   // Handle carousel slide changes
   useEffect(() => {
@@ -44,12 +40,6 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
       carouselApi.off("select", updateCurrentSlide);
     };
   }, [carouselApi, currentSlide]);
-
-  const handleTTSClick = async () => {
-    const currentInteraction = currentInteractions[currentSlide];
-    if (!currentInteraction) return;
-    await playTTS(currentInteraction, currentSlide);
-  };
 
   const scrollToSlide = (index: number) => {
     if (carouselApi) {
@@ -116,9 +106,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
         <CarouselControls
           currentSlide={currentSlide}
           totalSlides={currentInteractions.length}
-          isPlaying={false}
           onSlideSelect={scrollToSlide}
-          onTTSClick={handleTTSClick}
         />
       </div>
     </div>

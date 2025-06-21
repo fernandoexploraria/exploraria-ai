@@ -73,8 +73,6 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
         showingSearchResults={showingSearchResults}
         onToggleFavorite={toggleFavorite}
         onLocationClick={handleLocationClick}
-        isPlaying={false}
-        stopAllTTSPlayback={() => {}}
       />
     </div>
   );
