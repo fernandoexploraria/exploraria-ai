@@ -1,4 +1,5 @@
 
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -91,12 +92,12 @@ serve(async (req) => {
     const queryEmbedding = embeddingData.embedding.values
     console.log('Generated embedding with dimensions:', queryEmbedding.length);
 
-    // Use the search function with much lower threshold for testing (was 0.5, now 0.1)
+    // Use the search function with standard threshold for production
     console.log('Calling search function...');
     const { data: searchResults, error: searchError } = await supabaseClient
       .rpc('search_interactions', {
         query_embedding: queryEmbedding,
-        match_threshold: 0.1, // Lowered from 0.5 for testing - remember to change back!
+        match_threshold: 0.5, // Standard threshold balancing precision and recall
         match_count: 20,
         user_id: user.id
       })
@@ -133,3 +134,4 @@ serve(async (req) => {
     )
   }
 })
+
