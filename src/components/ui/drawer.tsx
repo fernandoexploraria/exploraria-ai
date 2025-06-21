@@ -10,8 +10,8 @@ const Drawer = ({
 }: React.ComponentProps<typeof DrawerPrimitive.Root>) => (
   <DrawerPrimitive.Root
     shouldScaleBackground={shouldScaleBackground}
-    snapPoints={[0.1, 0.75]}
-    activeSnapPoint={0.75}
+    snapPoints={[0.1, 0.8]}
+    activeSnapPoint={0.8}
     {...props}
   />
 )
