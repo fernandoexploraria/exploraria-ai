@@ -91,12 +91,12 @@ serve(async (req) => {
     const queryEmbedding = embeddingData.embedding.values
     console.log('Generated embedding with dimensions:', queryEmbedding.length);
 
-    // Use the search function with proper filtering
+    // Use the search function with much lower threshold for testing (was 0.5, now 0.1)
     console.log('Calling search function...');
     const { data: searchResults, error: searchError } = await supabaseClient
       .rpc('search_interactions', {
         query_embedding: queryEmbedding,
-        match_threshold: 0.5, // Lower threshold for better recall
+        match_threshold: 0.1, // Lowered from 0.5 for testing - remember to change back!
         match_count: 20,
         user_id: user.id
       })
