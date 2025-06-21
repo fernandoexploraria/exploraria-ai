@@ -35,7 +35,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
   onLocationClick,
   isMinimized = false,
 }) => {
-  const { currentlyPlayingId } = useTTSContext();
+  const { currentPlayingId } = useTTSContext();
 
   // Don't render content when minimized to save resources
   if (isMinimized) {
@@ -76,7 +76,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
               key={interaction.id}
               interaction={interaction}
               index={index}
-              isCurrentlyPlaying={currentlyPlayingId === interaction.id}
+              isCurrentlyPlaying={currentPlayingId === interaction.id}
               onToggleFavorite={onToggleFavorite}
               onLocationClick={onLocationClick}
             />

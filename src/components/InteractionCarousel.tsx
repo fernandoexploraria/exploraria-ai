@@ -94,7 +94,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
       modal={false}
       snapPoints={snapPoints}
       activeSnapPoint={activeSnapPoint}
-      onSnapChange={setActiveSnapPoint}
+      setActiveSnapPoint={setActiveSnapPoint}
     >
       <DrawerContent className="h-screen flex flex-col bg-gray-900">
         <DrawerTitle className="sr-only">
