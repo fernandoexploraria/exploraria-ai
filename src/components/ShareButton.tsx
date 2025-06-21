@@ -10,6 +10,8 @@ interface Interaction {
   assistant_response: string;
   interaction_type: string;
   full_transcript: any;
+  landmark_image_url?: string | null;
+  audio_url?: string | null;
 }
 
 interface ShareButtonProps {
@@ -46,18 +48,45 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
       shareText += `AI discovered: ${interaction.assistant_response}\n\n`;
     }
     
+    // Add media links if available
+    if (interaction.landmark_image_url) {
+      shareText += `📸 Photo: ${interaction.landmark_image_url}\n\n`;
+    }
+    
+    if (interaction.audio_url) {
+      shareText += `🎵 Audio: ${interaction.audio_url}\n\n`;
+    }
+    
     shareText += `Discovered with Exploraria AI 🗺️✨`;
     
     const shareUrl = window.location.origin;
 
     try {
+      // For Web Share API, we can include files if supported
       if (navigator.share) {
-        // Use Web Share API if available (mobile)
-        await navigator.share({
+        const shareData: any = {
           title: shareTitle,
           text: shareText,
           url: shareUrl,
-        });
+        };
+
+        // Try to include files for native sharing if supported
+        if (interaction.landmark_image_url && navigator.canShare) {
+          try {
+            const response = await fetch(interaction.landmark_image_url);
+            const blob = await response.blob();
+            const file = new File([blob], `${interaction.destination}-photo.jpg`, { type: blob.type });
+            
+            // Check if we can share files
+            if (navigator.canShare({ files: [file] })) {
+              shareData.files = [file];
+            }
+          } catch (error) {
+            console.log('Could not include image file in share:', error);
+          }
+        }
+
+        await navigator.share(shareData);
         console.log('Content shared successfully');
       } else {
         // Fallback for desktop - copy to clipboard
