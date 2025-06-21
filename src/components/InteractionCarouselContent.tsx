@@ -32,18 +32,18 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
 
     const handleSlideChange = () => {
       console.log('Card movement detected');
+      console.log('isPlaying state:', isPlaying);
+      console.log('speechSynthesis speaking:', 'speechSynthesis' in window ? window.speechSynthesis.speaking : 'not available');
       
-      // Show toast to debug with audio status
+      // Show toast to debug with detailed audio status
       toast({
         title: "Swipe detected!",
-        description: `Moved to slide ${carouselApi.selectedScrollSnap() + 1}. Audio playing: ${isPlaying ? 'YES' : 'NO'}`,
+        description: `Moved to slide ${carouselApi.selectedScrollSnap() + 1}. TTS isPlaying: ${isPlaying ? 'YES' : 'NO'}. Browser speech: ${('speechSynthesis' in window && window.speechSynthesis.speaking) ? 'YES' : 'NO'}`,
       });
 
-      // If audio is playing, stop it
-      if (isPlaying) {
-        console.log('Stopping audio due to card movement');
-        stop();
-      }
+      // Always call stop regardless of isPlaying state to ensure audio stops
+      console.log('Calling stop() function');
+      stop();
       
       // Update current slide
       setCurrentSlide(carouselApi.selectedScrollSnap());
@@ -58,7 +58,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
     return () => {
       carouselApi.off("select", handleSlideChange);
     };
-  }, [carouselApi, isPlaying, stop]);
+  }, [carouselApi, stop]); // Removed isPlaying from dependencies
 
   const scrollToSlide = (index: number) => {
     if (carouselApi) {
