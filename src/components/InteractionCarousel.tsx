@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useInteractionCarouselLogic } from './InteractionCarouselLogic';
 import InteractionCarouselHeader from './InteractionCarouselHeader';
@@ -25,13 +26,8 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   const { user } = useAuth();
   const { stop } = useTTSContext();
   
-  // Controlled snap point state
-  const [activeSnapPoint, setActiveSnapPoint] = useState(0.78);
-  const snapPoints = [0.07, 0.78]; // Minimized (7%) and Expanded (78%)
-  
   console.log('InteractionCarousel render - open:', open);
   console.log('Drawer should be visible:', open);
-  console.log('Active snap point:', activeSnapPoint);
   
   const {
     searchQuery,
@@ -70,24 +66,9 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
         const lng = parseFloat(coordsArray[0]);
         const lat = parseFloat(coordsArray[1]);
         onLocationSelect([lng, lat]);
-        
-        // Automatically minimize drawer to 7% when showing location
-        console.log('Minimizing drawer to 7% for map view');
-        setActiveSnapPoint(0.07);
+        onOpenChange(false);
       }
     }
-  };
-
-  // Function to expand drawer back to full size
-  const handleExpandDrawer = () => {
-    console.log('Expanding drawer to 78%');
-    setActiveSnapPoint(0.78);
-  };
-
-  // Wrapper function to handle Vaul's setActiveSnapPoint callback
-  const handleSnapPointChange = (snapPoint: string | number) => {
-    const numericSnapPoint = typeof snapPoint === 'string' ? parseFloat(snapPoint) : snapPoint;
-    setActiveSnapPoint(numericSnapPoint);
   };
 
   const currentInteractions = showingSearchResults ? searchResults : interactions;
@@ -97,9 +78,6 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
       open={open} 
       onOpenChange={onOpenChange}
       modal={false}
-      snapPoints={snapPoints}
-      activeSnapPoint={activeSnapPoint}
-      setActiveSnapPoint={handleSnapPointChange}
     >
       <DrawerContent className="h-screen flex flex-col bg-gray-900">
         <DrawerTitle className="sr-only">
@@ -119,8 +97,6 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
           onSearch={handleSearch}
           isSearching={isSearching}
           onBackToHistory={handleBackToHistory}
-          isMinimized={activeSnapPoint === 0.07}
-          onExpand={handleExpandDrawer}
         />
 
         <div className="flex-1 overflow-hidden">
@@ -130,7 +106,6 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
             showingSearchResults={showingSearchResults}
             onToggleFavorite={toggleFavorite}
             onLocationClick={handleLocationClick}
-            isMinimized={activeSnapPoint === 0.07}
           />
         </div>
       </DrawerContent>
