@@ -29,6 +29,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
   const isZooming = useRef<boolean>(false);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
   const { user } = useAuth();
+  const simpleMarker = useRef<mapboxgl.Marker | null>(null);
 
   // Convert top landmarks to Landmark format
   const allLandmarksWithTop = React.useMemo(() => {
