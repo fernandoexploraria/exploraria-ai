@@ -77,7 +77,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     <Drawer 
       open={open} 
       onOpenChange={onOpenChange}
-      shouldCloseOnOutsideClick={false}
+      shouldCloseOnInteractOutside={false}
     >
       <DrawerContent className="h-screen flex flex-col bg-gray-900">
         <DrawerTitle className="sr-only">
