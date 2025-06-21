@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -523,7 +524,9 @@ const Map: React.FC<MapProps> = ({
   const showInteractionPopup = () => {
     if (!map.current || !selectedCoordinates || !selectedInteractionData) return;
 
-    console.log('Showing interaction popup for:', selectedInteractionData.user_input);
+    console.log('*** SHOWING INTERACTION POPUP ***');
+    console.log('Selected coordinates:', selectedCoordinates);
+    console.log('Selected interaction data:', selectedInteractionData);
 
     // Remove existing popup
     if (selectedCoordinatesPopup.current) {
@@ -542,6 +545,8 @@ const Map: React.FC<MapProps> = ({
     const locationName = selectedInteractionData.user_input || 'Selected Location';
     const imageUrl = selectedInteractionData.landmark_image_url;
     const description = selectedInteractionData.assistant_response || 'Information from interaction history';
+
+    console.log('Popup data - Location:', locationName, 'Image:', imageUrl, 'Description:', description);
 
     // Create popup content
     const popupContent = `
@@ -590,11 +595,17 @@ const Map: React.FC<MapProps> = ({
     popup.on('close', () => {
       selectedCoordinatesPopup.current = null;
     });
+
+    console.log('*** INTERACTION POPUP CREATED ***');
   };
 
   // Handle selected coordinates marker
   useEffect(() => {
     if (!map.current) return;
+
+    console.log('*** SELECTED COORDINATES EFFECT TRIGGERED ***');
+    console.log('selectedCoordinates:', selectedCoordinates);
+    console.log('selectedInteractionData:', selectedInteractionData);
 
     // Remove existing selected coordinates marker and popup
     if (selectedCoordinatesMarker.current) {
@@ -608,6 +619,7 @@ const Map: React.FC<MapProps> = ({
 
     // Add new marker if coordinates are provided
     if (selectedCoordinates) {
+      console.log('*** CREATING SELECTED COORDINATES MARKER ***');
       const el = document.createElement('div');
       el.className = 'w-6 h-6 rounded-full bg-red-500 border-4 border-white shadow-lg cursor-pointer animate-pulse';
       
@@ -620,6 +632,7 @@ const Map: React.FC<MapProps> = ({
       // Add click event to show interaction data
       el.addEventListener('click', (e) => {
         e.stopPropagation();
+        console.log('*** MARKER CLICKED - CALLING showInteractionPopup ***');
         showInteractionPopup();
       });
 
@@ -634,6 +647,7 @@ const Map: React.FC<MapProps> = ({
 
       // Show popup instantly when marker is created
       setTimeout(() => {
+        console.log('*** TIMEOUT TRIGGERED - CALLING showInteractionPopup ***');
         showInteractionPopup();
       }, 1000); // Small delay to let the fly animation start
     }
