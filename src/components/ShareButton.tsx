@@ -48,13 +48,17 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
       shareText += `AI discovered: ${interaction.assistant_response}\n\n`;
     }
     
-    // Add media links if available
+    // Add descriptive text for media instead of URLs
     if (interaction.landmark_image_url) {
-      shareText += `📸 Photo: ${interaction.landmark_image_url}\n\n`;
+      shareText += `📸 Photo included\n`;
     }
     
     if (interaction.audio_url) {
-      shareText += `🎵 Audio: ${interaction.audio_url}\n\n`;
+      shareText += `🎵 Audio included\n`;
+    }
+    
+    if (interaction.landmark_image_url || interaction.audio_url) {
+      shareText += `\n`;
     }
     
     shareText += `Discovered with Exploraria AI 🗺️✨`;
