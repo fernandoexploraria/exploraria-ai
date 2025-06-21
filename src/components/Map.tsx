@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { Volume2, VolumeX } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
+import LandmarkDetail from './LandmarkDetail';
+import { Volume2, VolumeX } from 'lucide-react';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
@@ -883,7 +884,17 @@ const Map: React.FC<MapProps> = ({
     };
   }, []);
 
-  return <div ref={mapContainer} className="absolute inset-0" />;
+  return (
+    <div className="relative w-full h-full">
+      <div ref={mapContainer} className="w-full h-full" />
+      
+      {selectedLandmark && (
+        <div className="absolute top-4 right-4 z-10 max-h-[calc(100vh-2rem)] overflow-y-auto">
+          <LandmarkDetail landmark={selectedLandmark} />
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default Map;
