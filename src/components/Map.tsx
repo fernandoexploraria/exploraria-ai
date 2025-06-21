@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -709,11 +708,14 @@ const Map: React.FC<MapProps> = ({
     
     console.log('Showing interaction popup for:', interaction.user_input);
     
+    // Stop any playing audio when showing new popup
+    stopCurrentAudio();
+    
     // Close any existing popups
     const existingPopups = document.querySelectorAll('.mapboxgl-popup');
     existingPopups.forEach(popup => popup.remove());
     
-    // Create popup content
+    // Create popup content with TTS button
     const popupContent = `
       <div style="text-align: center; padding: 10px; max-width: 300px; position: relative;">
         <button class="custom-close-btn" onclick="this.closest('.mapboxgl-popup').remove();" style="
@@ -736,10 +738,68 @@ const Map: React.FC<MapProps> = ({
         ">×</button>
         <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${interaction.user_input}</h3>
         ${interaction.landmark_image_url ? `
-          <div style="margin-bottom: 10px;">
+          <div style="margin-bottom: 10px; position: relative;">
             <img src="${interaction.landmark_image_url}" alt="Landmark" style="width: 100%; height: 120px; object-fit: cover; border-radius: 8px;" />
+            <button 
+              class="interaction-listen-btn-${interaction.id}" 
+              onclick="window.handleInteractionListen('${interaction.id}')"
+              style="
+                position: absolute;
+                bottom: 10px;
+                right: 10px;
+                background: rgba(0, 0, 0, 0.9);
+                color: white;
+                border: 3px solid rgba(255, 255, 255, 0.9);
+                border-radius: 50%;
+                width: 56px;
+                height: 56px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 24px;
+                transition: all 0.3s ease;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+              "
+              onmouseover="this.style.backgroundColor='rgba(59, 130, 246, 0.95)'; this.style.borderColor='white'; this.style.transform='scale(1.15)'; this.style.boxShadow='0 6px 20px rgba(0, 0, 0, 0.5)'"
+              onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'; this.style.borderColor='rgba(255, 255, 255, 0.9)'; this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.4)'"
+              title="Listen to description"
+            >
+              🔊
+            </button>
           </div>
-        ` : ''}
+        ` : `
+          <div style="width: 100%; height: 120px; background-color: #f0f0f0; border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; color: #888; position: relative;">
+            No image available
+            <button 
+              class="interaction-listen-btn-${interaction.id}" 
+              onclick="window.handleInteractionListen('${interaction.id}')"
+              style="
+                position: absolute;
+                bottom: 10px;
+                right: 10px;
+                background: rgba(0, 0, 0, 0.9);
+                color: white;
+                border: 3px solid rgba(255, 255, 255, 0.9);
+                border-radius: 50%;
+                width: 56px;
+                height: 56px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 24px;
+                transition: all 0.3s ease;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+              "
+              onmouseover="this.style.backgroundColor='rgba(59, 130, 246, 0.95)'; this.style.borderColor='white'; this.style.transform='scale(1.15)'; this.style.boxShadow='0 6px 20px rgba(0, 0, 0, 0.5)'"
+              onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'; this.style.borderColor='rgba(255, 255, 255, 0.9)'; this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.4)'"
+              title="Listen to description"
+            >
+              🔊
+            </button>
+          </div>
+        `}
       </div>
     `;
     
@@ -754,6 +814,41 @@ const Map: React.FC<MapProps> = ({
       .setLngLat(coordinates)
       .setHTML(popupContent)
       .addTo(map.current);
+
+    // Handle popup close event - stop audio when popup closes
+    popup.on('close', () => {
+      stopCurrentAudio();
+    });
+  };
+
+  // Function to handle text-to-speech for interactions
+  const handleTextToSpeechForInteraction = async (assistantResponse: string) => {
+    // Stop any currently playing audio
+    stopCurrentAudio();
+
+    try {
+      console.log('Calling Google Cloud TTS via edge function for interaction:', assistantResponse.substring(0, 50) + '...');
+      
+      // Call the same edge function used by the voice assistant
+      const { data, error } = await supabase.functions.invoke('gemini-tts', {
+        body: { text: assistantResponse }
+      });
+
+      if (error) {
+        console.error('Google Cloud TTS error:', error);
+        return;
+      }
+
+      if (data?.audioContent && !data.fallbackToBrowser) {
+        console.log('Playing audio from Google Cloud TTS for interaction');
+        await playAudioFromBase64(data.audioContent);
+      } else {
+        console.log('No audio content received for interaction');
+      }
+      
+    } catch (error) {
+      console.error('Error with Google Cloud TTS for interaction:', error);
+    }
   };
 
   // Expose the function globally so InteractionCard can call it
@@ -761,9 +856,19 @@ const Map: React.FC<MapProps> = ({
     console.log('Setting up navigateToMapCoordinates on window');
     (window as any).navigateToMapCoordinates = navigateToCoordinates;
     
+    // Add global handler for interaction listen button
+    (window as any).handleInteractionListen = (interactionId: string) => {
+      // Find the interaction by ID from navigation markers
+      const markerData = navigationMarkers.current.find(m => m.interaction?.id === interactionId);
+      if (markerData?.interaction?.assistant_response) {
+        handleTextToSpeechForInteraction(markerData.interaction.assistant_response);
+      }
+    };
+    
     return () => {
       console.log('Cleaning up navigateToMapCoordinates from window');
       delete (window as any).navigateToMapCoordinates;
+      delete (window as any).handleInteractionListen;
     };
   }, []);
 
