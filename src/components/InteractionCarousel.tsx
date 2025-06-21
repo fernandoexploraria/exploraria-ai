@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { useInteractionCarouselLogic } from './InteractionCarouselLogic';
 import InteractionCarouselHeader from './InteractionCarouselHeader';
@@ -25,6 +24,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   const { stop } = useTTSContext();
   
   console.log('InteractionCarousel render - open:', open);
+  console.log('Drawer should be visible:', open);
   
   const {
     searchQuery,
@@ -72,7 +72,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="h-[85vh] flex flex-col">
+      <DrawerContent className="h-[85vh] flex flex-col bg-gray-900">
         <InteractionCarouselHeader
           onClose={() => onOpenChange(false)}
           showingSearchResults={showingSearchResults}

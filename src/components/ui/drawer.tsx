@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import { Drawer as DrawerPrimitive } from "vaul"
 
@@ -9,8 +10,6 @@ const Drawer = ({
 }: React.ComponentProps<typeof DrawerPrimitive.Root>) => (
   <DrawerPrimitive.Root
     shouldScaleBackground={shouldScaleBackground}
-    snapPoints={[80, Math.floor(window.innerHeight * 0.85)]}
-    activeSnapPoint={Math.floor(window.innerHeight * 0.85)}
     {...props}
   />
 )
@@ -43,7 +42,7 @@ const DrawerContent = React.forwardRef<
     <DrawerPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-[60] mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
+        "fixed inset-x-0 bottom-0 z-[100] mt-24 flex h-[85vh] flex-col rounded-t-[10px] border bg-background",
         className
       )}
       {...props}
