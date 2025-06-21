@@ -1,9 +1,11 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Star, StarOff, Calendar, MapPin, Camera, Mic, Share2 } from 'lucide-react';
+import { Star, StarOff, Calendar, MapPin, Camera, Mic, Share2, Download } from 'lucide-react';
+import ImageViewerDialog from './ImageViewerDialog';
 
 interface Interaction {
   id: string;
@@ -34,6 +36,8 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
   onToggleFavorite,
   onLocationClick,
 }) => {
+  const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
@@ -234,81 +238,127 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
     }
   };
 
+  const handleImageDownload = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!interaction.landmark_image_url) return;
+
+    try {
+      const response = await fetch(interaction.landmark_image_url);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${interaction.destination}_${interaction.user_input.replace(/[^a-zA-Z0-9]/g, '_')}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading image:', error);
+    }
+  };
+
+  const handleImageClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsImageViewerOpen(true);
+  };
+
   return (
-    <Card className={`w-full max-w-xs mx-auto border-gray-700 h-96 transition-all duration-300 ${
-      isCurrentlyPlaying 
-        ? 'bg-green-900/20 border-green-500/50 shadow-lg shadow-green-500/20' 
-        : 'bg-gray-900'
-    }`}>
-      <CardContent className="p-3 h-full flex flex-col">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1">
-            <IconComponent className={`w-3 h-3 ${iconColor}`} />
-            <Badge variant="outline" className="text-xs px-1 py-0">{interaction.destination}</Badge>
-            {interaction.similarity && (
-              <Badge variant="secondary" className="text-xs px-1 py-0">
-                {Math.round(interaction.similarity * 100)}% match
-              </Badge>
-            )}
+    <>
+      <Card className={`w-full max-w-xs mx-auto border-gray-700 h-96 transition-all duration-300 ${
+        isCurrentlyPlaying 
+          ? 'bg-green-900/20 border-green-500/50 shadow-lg shadow-green-500/20' 
+          : 'bg-gray-900'
+      }`}>
+        <CardContent className="p-3 h-full flex flex-col">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1">
+              <IconComponent className={`w-3 h-3 ${iconColor}`} />
+              <Badge variant="outline" className="text-xs px-1 py-0">{interaction.destination}</Badge>
+              {interaction.similarity && (
+                <Badge variant="secondary" className="text-xs px-1 py-0">
+                  {Math.round(interaction.similarity * 100)}% match
+                </Badge>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0"
+              onClick={() => onToggleFavorite(interaction)}
+            >
+              {interaction.is_favorite ? (
+                <Star className="w-3 h-3 text-yellow-500 fill-current" />
+              ) : (
+                <StarOff className="w-3 h-3" />
+              )}
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0"
-            onClick={() => onToggleFavorite(interaction)}
-          >
-            {interaction.is_favorite ? (
-              <Star className="w-3 h-3 text-yellow-500 fill-current" />
-            ) : (
-              <StarOff className="w-3 h-3" />
-            )}
-          </Button>
-        </div>
-        
-        <div className="flex items-center text-xs text-gray-400 mb-2">
-          <Calendar className="w-3 h-3 mr-1" />
-          {formatDate(interaction.created_at)}
-        </div>
-
-        {interaction.landmark_image_url && (
-          <div className="mb-2 flex-shrink-0">
-            <img 
-              src={interaction.landmark_image_url} 
-              alt="Landmark" 
-              className="w-full h-20 object-cover rounded"
-            />
+          
+          <div className="flex items-center text-xs text-gray-400 mb-2">
+            <Calendar className="w-3 h-3 mr-1" />
+            {formatDate(interaction.created_at)}
           </div>
-        )}
 
-        <ScrollArea className="flex-1 w-full">
-          {renderContent()}
-        </ScrollArea>
+          {interaction.landmark_image_url && (
+            <div className="mb-2 flex-shrink-0 relative group">
+              <img 
+                src={interaction.landmark_image_url} 
+                alt="Landmark" 
+                className="w-full h-20 object-cover rounded cursor-pointer"
+                onClick={handleImageClick}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute top-1 right-1 h-6 w-6 p-0 bg-black/50 hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={handleImageDownload}
+                title="Download image"
+              >
+                <Download className="w-3 h-3 text-white" />
+              </Button>
+            </div>
+          )}
 
-        <div className="mt-2 flex-shrink-0 space-y-1">
-          {interaction.landmark_coordinates && (
+          <ScrollArea className="flex-1 w-full">
+            {renderContent()}
+          </ScrollArea>
+
+          <div className="mt-2 flex-shrink-0 space-y-1">
+            {interaction.landmark_coordinates && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full h-7 text-xs"
+                onClick={handleShowOnMap}
+              >
+                <MapPin className="w-3 h-3 mr-1" />
+                Show on Map
+              </Button>
+            )}
+            
             <Button
               variant="outline"
               size="sm"
               className="w-full h-7 text-xs"
-              onClick={handleShowOnMap}
+              onClick={handleShare}
             >
-              <MapPin className="w-3 h-3 mr-1" />
-              Show on Map
+              <Share2 className="w-3 h-3 mr-1" />
+              Sharing
             </Button>
-          )}
-          
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full h-7 text-xs"
-            onClick={handleShare}
-          >
-            <Share2 className="w-3 h-3 mr-1" />
-            Sharing
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+          </div>
+        </CardContent>
+      </Card>
+
+      {interaction.landmark_image_url && (
+        <ImageViewerDialog
+          open={isImageViewerOpen}
+          onOpenChange={setIsImageViewerOpen}
+          imageUrl={interaction.landmark_image_url}
+          imageName={`${interaction.destination} - ${interaction.user_input}`}
+        />
+      )}
+    </>
   );
 };
 
