@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -14,12 +13,20 @@ interface MapProps {
   onSelectLandmark: (landmark: Landmark) => void;
   selectedLandmark: Landmark | null;
   plannedLandmarks: Landmark[];
+  selectedCoordinates?: [number, number] | null;
 }
 
 // Google API key
 const GOOGLE_API_KEY = 'AIzaSyCjQKg2W9uIrIx4EmRnyf3WCkO4eeEvpyg';
 
-const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, selectedLandmark, plannedLandmarks }) => {
+const Map: React.FC<MapProps> = ({ 
+  mapboxToken, 
+  landmarks, 
+  onSelectLandmark, 
+  selectedLandmark, 
+  plannedLandmarks,
+  selectedCoordinates 
+}) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<{ [key: string]: mapboxgl.Marker }>({});
@@ -29,6 +36,7 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
   const pendingPopupLandmark = useRef<Landmark | null>(null);
   const isZooming = useRef<boolean>(false);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
+  const selectedCoordinatesMarker = useRef<mapboxgl.Marker | null>(null);
   const { user } = useAuth();
 
   // Convert top landmarks to Landmark format
@@ -503,6 +511,38 @@ const Map: React.FC<MapProps> = ({ mapboxToken, landmarks, onSelectLandmark, sel
       `);
     }
   };
+
+  // Handle selected coordinates marker
+  useEffect(() => {
+    if (!map.current) return;
+
+    // Remove existing selected coordinates marker
+    if (selectedCoordinatesMarker.current) {
+      selectedCoordinatesMarker.current.remove();
+      selectedCoordinatesMarker.current = null;
+    }
+
+    // Add new marker if coordinates are provided
+    if (selectedCoordinates) {
+      const el = document.createElement('div');
+      el.className = 'w-6 h-6 rounded-full bg-red-500 border-4 border-white shadow-lg cursor-pointer animate-pulse';
+      
+      const marker = new mapboxgl.Marker(el)
+        .setLngLat(selectedCoordinates)
+        .addTo(map.current!);
+
+      selectedCoordinatesMarker.current = marker;
+
+      // Fly to the selected coordinates
+      map.current.flyTo({
+        center: selectedCoordinates,
+        zoom: 14,
+        speed: 0.7,
+        curve: 1,
+        easing: (t) => t,
+      });
+    }
+  }, [selectedCoordinates]);
 
   // Update markers when landmarks change
   useEffect(() => {

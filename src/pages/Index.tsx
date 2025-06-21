@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import Map from '@/components/Map';
 import SplashScreen from '@/components/SplashScreen';
@@ -24,6 +25,7 @@ const Index: React.FC = () => {
   const [pendingDestination, setPendingDestination] = useState<string>('');
   const [additionalLandmarks, setAdditionalLandmarks] = useState<Landmark[]>([]);
   const [mapboxToken, setMapboxToken] = useState<string>('');
+  const [selectedCoordinates, setSelectedCoordinates] = useState<[number, number] | null>(null);
   const { tourPlan, plannedLandmarks, isLoading: isTourLoading, generateTour } = useTourPlanner();
   const { user, signOut } = useAuth();
   
@@ -143,6 +145,8 @@ const Index: React.FC = () => {
   };
 
   const handleLocationSelect = useCallback((coordinates: [number, number]) => {
+    console.log('Location selected from interaction history:', coordinates);
+    setSelectedCoordinates(coordinates);
     // Create a temporary landmark at the selected coordinates
     const tempLandmark: Landmark = {
       id: `temp-${Date.now()}`,
@@ -188,6 +192,7 @@ const Index: React.FC = () => {
         onSelectLandmark={handleSelectLandmark}
         selectedLandmark={selectedLandmark}
         plannedLandmarks={[...plannedLandmarks, ...additionalLandmarks]}
+        selectedCoordinates={selectedCoordinates}
       />
 
       <DialogManager
