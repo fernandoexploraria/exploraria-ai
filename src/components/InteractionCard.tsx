@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Star, StarOff, Calendar, MapPin, Camera, Mic } from 'lucide-react';
+import { Star, StarOff, Calendar, MapPin, Camera, Mic, Share2 } from 'lucide-react';
 
 interface Interaction {
   id: string;
@@ -168,6 +168,73 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
     console.log('=== End Debug ===');
   };
 
+  // New function for handling share functionality
+  const handleShare = async () => {
+    console.log('Share button clicked for interaction:', interaction.id);
+    
+    // Create shareable content
+    const shareTitle = `Travel Discovery in ${interaction.destination}`;
+    let shareText = `Check out what I discovered in ${interaction.destination}!\n\n`;
+    
+    // Add the main interaction content
+    if (interaction.interaction_type === 'voice' && interaction.full_transcript && Array.isArray(interaction.full_transcript)) {
+      // For voice interactions, use the transcript
+      const userMessages = interaction.full_transcript
+        .filter((entry: any) => entry.role === 'user' && entry.message)
+        .map((entry: any) => entry.message);
+      const assistantMessages = interaction.full_transcript
+        .filter((entry: any) => entry.role === 'agent' && entry.message)
+        .map((entry: any) => entry.message);
+      
+      if (userMessages.length > 0) {
+        shareText += `My question: ${userMessages[0]}\n\n`;
+      }
+      if (assistantMessages.length > 0) {
+        shareText += `AI discovered: ${assistantMessages[0]}\n\n`;
+      }
+    } else {
+      // For other interactions, use user_input and assistant_response
+      shareText += `My question: ${interaction.user_input}\n\n`;
+      shareText += `AI discovered: ${interaction.assistant_response}\n\n`;
+    }
+    
+    shareText += `Discovered with Exploraria AI 🗺️✨`;
+    
+    const shareUrl = window.location.origin;
+
+    try {
+      if (navigator.share) {
+        // Use Web Share API if available (mobile)
+        await navigator.share({
+          title: shareTitle,
+          text: shareText,
+          url: shareUrl,
+        });
+        console.log('Content shared successfully');
+      } else {
+        // Fallback for desktop - copy to clipboard
+        const fullShareContent = `${shareTitle}\n\n${shareText}\n\n${shareUrl}`;
+        await navigator.clipboard.writeText(fullShareContent);
+        console.log('Content copied to clipboard');
+        
+        // You could add a toast notification here if needed
+        alert('Content copied to clipboard! You can now paste it wherever you want to share.');
+      }
+    } catch (error) {
+      console.error('Error sharing content:', error);
+      
+      // Final fallback - try clipboard
+      try {
+        const fullShareContent = `${shareTitle}\n\n${shareText}\n\n${shareUrl}`;
+        await navigator.clipboard.writeText(fullShareContent);
+        alert('Content copied to clipboard!');
+      } catch (clipboardError) {
+        console.error('Error copying to clipboard:', clipboardError);
+        alert('Unable to share content. Please try again.');
+      }
+    }
+  };
+
   return (
     <Card className={`w-full max-w-xs mx-auto border-gray-700 h-96 transition-all duration-300 ${
       isCurrentlyPlaying 
@@ -218,8 +285,8 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
           {renderContent()}
         </ScrollArea>
 
-        {interaction.landmark_coordinates && (
-          <div className="mt-2 flex-shrink-0">
+        <div className="mt-2 flex-shrink-0 space-y-1">
+          {interaction.landmark_coordinates && (
             <Button
               variant="outline"
               size="sm"
@@ -229,8 +296,18 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
               <MapPin className="w-3 h-3 mr-1" />
               Show on Map
             </Button>
-          </div>
-        )}
+          )}
+          
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full h-7 text-xs"
+            onClick={handleShare}
+          >
+            <Share2 className="w-3 h-3 mr-1" />
+            Share Discovery
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
