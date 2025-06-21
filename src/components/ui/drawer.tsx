@@ -11,8 +11,8 @@ const Drawer = ({
   <DrawerPrimitive.Root
     shouldScaleBackground={shouldScaleBackground}
     snapPoints={[0.15, 0.85]}
-    fadeFromIndex={1}
-    activeSnapPoint={props.open ? 0.85 : 0.15}
+    fadeFromIndex={0}
+    activeSnapPoint={props.open ? 0.85 : undefined}
     setActiveSnapPoint={() => {}}
     {...props}
   />
