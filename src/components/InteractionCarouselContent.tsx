@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselApi } from '@/components/ui/carousel';
 import { Search } from 'lucide-react';
@@ -94,7 +95,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
   const currentInteraction = currentInteractions[currentSlide];
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-4">
+    <div className="flex-1 flex flex-col items-center justify-center p-2">
       <div className="w-full max-w-6xl flex flex-col items-center">
         <Carousel 
           className="w-full"

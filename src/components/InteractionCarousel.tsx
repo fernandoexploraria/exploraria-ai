@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useInteractionCarouselLogic } from './InteractionCarouselLogic';
 import InteractionCarouselHeader from './InteractionCarouselHeader';
@@ -94,13 +95,15 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
           onBackToHistory={handleBackToHistory}
         />
 
-        <InteractionCarouselContent
-          isLoading={isLoading}
-          currentInteractions={currentInteractions}
-          showingSearchResults={showingSearchResults}
-          onToggleFavorite={toggleFavorite}
-          onLocationClick={handleLocationClick}
-        />
+        <div className="flex-1 overflow-hidden">
+          <InteractionCarouselContent
+            isLoading={isLoading}
+            currentInteractions={currentInteractions}
+            showingSearchResults={showingSearchResults}
+            onToggleFavorite={toggleFavorite}
+            onLocationClick={handleLocationClick}
+          />
+        </div>
       </DrawerContent>
     </Drawer>
   );
