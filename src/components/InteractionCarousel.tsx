@@ -24,6 +24,8 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   const { user } = useAuth();
   const { stop } = useTTSContext();
   
+  console.log('InteractionCarousel render - open:', open);
+  
   const {
     searchQuery,
     setSearchQuery,
@@ -41,6 +43,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   // Load all interactions on mount
   useEffect(() => {
     if (open && user) {
+      console.log('Loading interactions for user:', user.id);
       loadAllInteractions();
     }
   }, [open, user]);
