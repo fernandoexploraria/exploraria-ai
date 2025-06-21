@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+
+import React from 'react';
 import Map from '@/components/Map';
 import TopControls from '@/components/TopControls';
 import UserControls from '@/components/UserControls';
 import DialogManager from '@/components/DialogManager';
 import NewTourAssistant from '@/components/NewTourAssistant';
-import InstagramIntegration from './InstagramIntegration';
-import { toast } from 'sonner';
 import { Landmark } from '@/data/landmarks';
 import { User } from '@supabase/supabase-js';
 
@@ -62,31 +61,21 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   onNewTourAssistantOpenChange,
   tourPlan,
 }) => {
-  const [isInstagramOpen, setIsInstagramOpen] = useState(false);
-
   const handleLocationSelect = () => {
     console.log('Location select called but no action taken');
   };
 
-  const handleInstagramOpen = () => {
-    setIsInstagramOpen(true);
-  };
-
-  const handleInstagramPostSelect = (post: any) => {
-    // If the post has location data, we could add it to the map
-    console.log('Selected Instagram post:', post);
-    toast.success(`Selected post: ${post.caption || 'Instagram post'}`);
-    setIsInstagramOpen(false);
-  };
-
   return (
-    <div className="relative w-full h-screen overflow-hidden">
+    <div className="w-screen h-screen relative">
       <TopControls
-        plannedLandmarks={plannedLandmarks}
+        allLandmarks={allLandmarks}
+        onSelectLandmark={onSelectLandmark}
         onTourPlannerOpen={onTourPlannerOpen}
         onVoiceSearchOpen={onVoiceSearchOpen}
         onVoiceAssistantOpen={onVoiceAssistantOpen}
-        onInstagramOpen={handleInstagramOpen}
+        onLogoClick={onLogoClick}
+        user={user}
+        plannedLandmarks={plannedLandmarks}
       />
 
       <UserControls
@@ -122,12 +111,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         destination={tourPlan?.destination || ''}
         landmarks={plannedLandmarks}
         systemPrompt={tourPlan?.systemPrompt}
-      />
-
-      <InstagramIntegration
-        isOpen={isInstagramOpen}
-        onOpenChange={setIsInstagramOpen}
-        onPostSelect={handleInstagramPostSelect}
       />
     </div>
   );
