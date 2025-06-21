@@ -519,49 +519,7 @@ const Map: React.FC<MapProps> = ({
     }
   };
 
-  // Handle selected coordinates marker
-  useEffect(() => {
-    if (!map.current) return;
-
-    // Remove existing selected coordinates marker and popup
-    if (selectedCoordinatesMarker.current) {
-      selectedCoordinatesMarker.current.remove();
-      selectedCoordinatesMarker.current = null;
-    }
-    if (selectedCoordinatesPopup.current) {
-      selectedCoordinatesPopup.current.remove();
-      selectedCoordinatesPopup.current = null;
-    }
-
-    // Add new marker if coordinates are provided
-    if (selectedCoordinates) {
-      const el = document.createElement('div');
-      el.className = 'w-6 h-6 rounded-full bg-red-500 border-4 border-white shadow-lg cursor-pointer animate-pulse';
-      
-      const marker = new mapboxgl.Marker(el)
-        .setLngLat(selectedCoordinates)
-        .addTo(map.current!);
-
-      selectedCoordinatesMarker.current = marker;
-
-      // Add click event to show interaction data
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        showInteractionPopup();
-      });
-
-      // Fly to the selected coordinates
-      map.current.flyTo({
-        center: selectedCoordinates,
-        zoom: 14,
-        speed: 0.7,
-        curve: 1,
-        easing: (t) => t,
-      });
-    }
-  }, [selectedCoordinates, selectedInteractionData]);
-
-  // Function to show interaction popup
+  // Function to show interaction popup (separate from landmark popup)
   const showInteractionPopup = () => {
     if (!map.current || !selectedCoordinates || !selectedInteractionData) return;
 
@@ -633,6 +591,53 @@ const Map: React.FC<MapProps> = ({
       selectedCoordinatesPopup.current = null;
     });
   };
+
+  // Handle selected coordinates marker
+  useEffect(() => {
+    if (!map.current) return;
+
+    // Remove existing selected coordinates marker and popup
+    if (selectedCoordinatesMarker.current) {
+      selectedCoordinatesMarker.current.remove();
+      selectedCoordinatesMarker.current = null;
+    }
+    if (selectedCoordinatesPopup.current) {
+      selectedCoordinatesPopup.current.remove();
+      selectedCoordinatesPopup.current = null;
+    }
+
+    // Add new marker if coordinates are provided
+    if (selectedCoordinates) {
+      const el = document.createElement('div');
+      el.className = 'w-6 h-6 rounded-full bg-red-500 border-4 border-white shadow-lg cursor-pointer animate-pulse';
+      
+      const marker = new mapboxgl.Marker(el)
+        .setLngLat(selectedCoordinates)
+        .addTo(map.current!);
+
+      selectedCoordinatesMarker.current = marker;
+
+      // Add click event to show interaction data
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showInteractionPopup();
+      });
+
+      // Fly to the selected coordinates
+      map.current.flyTo({
+        center: selectedCoordinates,
+        zoom: 14,
+        speed: 0.7,
+        curve: 1,
+        easing: (t) => t,
+      });
+
+      // Show popup instantly when marker is created
+      setTimeout(() => {
+        showInteractionPopup();
+      }, 1000); // Small delay to let the fly animation start
+    }
+  }, [selectedCoordinates, selectedInteractionData]);
 
   // Update markers when landmarks change
   useEffect(() => {
