@@ -22,6 +22,9 @@ interface ShareButtonProps {
 const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
   const handleShare = async () => {
     console.log('Share button clicked for interaction:', interaction.id);
+    console.log('Audio URL found:', interaction.audio_url);
+    console.log('Audio URL type:', typeof interaction.audio_url);
+    console.log('Full interaction object:', interaction);
     
     // Create shareable content
     const shareTitle = `Travel Discovery in ${interaction.destination}`;
@@ -51,6 +54,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
     
     // Create short, meaningful URLs for media with descriptive text
     if (interaction.landmark_image_url) {
+      console.log('Creating image short URL for:', interaction.landmark_image_url);
       const shortImageUrl = createShortUrl(
         interaction.landmark_image_url, 
         'image', 
@@ -60,15 +64,20 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
     }
     
     if (interaction.audio_url) {
+      console.log('Creating audio short URL for:', interaction.audio_url);
       const shortAudioUrl = createShortUrl(
         interaction.audio_url, 
         'audio', 
         interaction.destination
       );
       shareText += `🎵 Listen to ${interaction.destination} Audio:\n${shortAudioUrl}\n\n`;
+    } else {
+      console.log('No audio URL found - interaction.audio_url is:', interaction.audio_url);
     }
     
     shareText += `Discovered with Exploraria AI 🗺️✨`;
+    
+    console.log('Final share text:', shareText);
     
     const shareUrl = window.location.origin;
 
