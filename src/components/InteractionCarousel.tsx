@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+
+import React, { useEffect, useState } from 'react';
 import { useInteractionCarouselLogic } from './InteractionCarouselLogic';
 import InteractionCarouselHeader from './InteractionCarouselHeader';
 import InteractionCarouselContent from './InteractionCarouselContent';
@@ -24,6 +25,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
 }) => {
   const { user } = useAuth();
   const { stop } = useTTSContext();
+  const [activeSnapPoint, setActiveSnapPoint] = useState<number>(0.85);
   
   const {
     searchQuery,
@@ -54,6 +56,13 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
   }, [open, stop]);
 
+  // Reset to 85% when opening
+  useEffect(() => {
+    if (open) {
+      setActiveSnapPoint(0.85);
+    }
+  }, [open]);
+
   const handleLocationClick = (coordinates: any) => {
     if (coordinates && onLocationSelect) {
       const coordsArray = coordinates.toString().replace(/[()]/g, '').split(',');
@@ -61,8 +70,8 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
         const lng = parseFloat(coordsArray[0]);
         const lat = parseFloat(coordsArray[1]);
         onLocationSelect([lng, lat]);
-        // Keep the drawer open but minimize it by setting a smaller snap point
-        // The drawer will automatically minimize when the user interacts with the map
+        // Minimize to 15% when location is selected
+        setActiveSnapPoint(0.15);
       }
     }
   };
@@ -70,7 +79,12 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   const currentInteractions = showingSearchResults ? searchResults : interactions;
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
+    <Drawer 
+      open={open} 
+      onOpenChange={onOpenChange}
+      activeSnapPoint={activeSnapPoint}
+      setActiveSnapPoint={setActiveSnapPoint}
+    >
       <DrawerContent className="max-h-[85vh]">
         <DrawerHeader className="pb-2">
           <DrawerTitle className="sr-only">
