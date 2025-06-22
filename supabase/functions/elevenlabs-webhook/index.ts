@@ -95,7 +95,8 @@ serve(async (req) => {
       conversation_id,
       transcript,
       metadata,
-      conversation_initiation_client_data
+      conversation_initiation_client_data,
+      summary // Extract the summary field from the webhook data
     } = webhookData.data || {};
 
     if (!conversation_id || !transcript) {
@@ -118,7 +119,7 @@ serve(async (req) => {
     const userId = dynamicVariables?.user_id;
     const destination = dynamicVariables?.destination || 'Unknown';
 
-    console.log('Extracted variables:', { userId, destination });
+    console.log('Extracted variables:', { userId, destination, summary });
     console.log('Full dynamic variables:', JSON.stringify(dynamicVariables, null, 2));
 
     if (!userId) {
@@ -179,23 +180,32 @@ serve(async (req) => {
     // Generate embedding for assistant response
     const assistantResponseEmbedding = await generateGeminiEmbedding(assistantResponse, geminiApiKey)
 
+    // Prepare the data for insertion
+    const insertData: any = {
+      user_id: userId,
+      destination: destination,
+      user_input: userInput,
+      assistant_response: assistantResponse,
+      conversation_id: conversation_id,
+      conversation_duration: duration_seconds,
+      audio_url: audio_url,
+      agent_id: agent_id,
+      full_transcript: transcript,
+      user_input_embedding: userInputEmbedding,
+      assistant_response_embedding: assistantResponseEmbedding
+    }
+
+    // Add conversation summary if available
+    if (summary) {
+      insertData.conversation_summary = summary;
+      console.log('Added conversation summary:', summary);
+    }
+
     // Store the conversation in the database
     console.log('Storing conversation in database...');
     const { data, error } = await supabaseClient
       .from('interactions')
-      .insert({
-        user_id: userId,
-        destination: destination,
-        user_input: userInput,
-        assistant_response: assistantResponse,
-        conversation_id: conversation_id,
-        conversation_duration: duration_seconds,
-        audio_url: audio_url,
-        agent_id: agent_id,
-        full_transcript: transcript,
-        user_input_embedding: userInputEmbedding,
-        assistant_response_embedding: assistantResponseEmbedding
-      })
+      .insert(insertData)
 
     if (error) {
       console.error('Database error:', error)
@@ -211,7 +221,8 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         message: 'Conversation processed and stored successfully',
-        conversation_id: conversation_id
+        conversation_id: conversation_id,
+        summary_included: !!summary
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

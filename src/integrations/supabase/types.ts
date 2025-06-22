@@ -17,6 +17,7 @@ export type Database = {
           audio_url: string | null
           conversation_duration: number | null
           conversation_id: string | null
+          conversation_summary: string | null
           created_at: string
           destination: string
           full_transcript: Json | null
@@ -36,6 +37,7 @@ export type Database = {
           audio_url?: string | null
           conversation_duration?: number | null
           conversation_id?: string | null
+          conversation_summary?: string | null
           created_at?: string
           destination: string
           full_transcript?: Json | null
@@ -55,6 +57,7 @@ export type Database = {
           audio_url?: string | null
           conversation_duration?: number | null
           conversation_id?: string | null
+          conversation_summary?: string | null
           created_at?: string
           destination?: string
           full_transcript?: Json | null
