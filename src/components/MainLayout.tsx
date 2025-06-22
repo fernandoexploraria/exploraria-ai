@@ -12,10 +12,15 @@ import CameraCapture from './CameraCapture';
 import ProximitySystem from './ProximitySystem';
 import { useDialogStates } from '@/hooks/useDialogStates';
 import { usePendingDestination } from '@/hooks/usePendingDestination';
+import { landmarks } from '@/data/landmarks';
+import { useMapboxToken } from '@/hooks/useMapboxToken';
+import { useTourPlanner } from '@/hooks/useTourPlanner';
 
 const MainLayout: React.FC = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const mapboxToken = useMapboxToken();
   const [selectedCoordinates, setSelectedCoordinates] = useState<[number, number] | null>(null);
+  const [selectedLandmark, setSelectedLandmark] = useState<any>(null);
   
   const {
     tourPlannerOpen,
@@ -31,6 +36,9 @@ const MainLayout: React.FC = () => {
   } = useDialogStates();
 
   const { pendingDestination, setPendingDestination } = usePendingDestination();
+  const { tourPlan, plannedLandmarks, isLoading: isTourLoading, generateTour } = useTourPlanner();
+
+  const allLandmarks = [...landmarks, ...plannedLandmarks];
 
   const handleLocationSelect = useCallback((coordinates: [number, number]) => {
     console.log('Location selected:', coordinates);
@@ -46,16 +54,56 @@ const MainLayout: React.FC = () => {
     setTourPlannerOpen(true);
   }, [setPendingDestination, setTourPlannerOpen]);
 
+  const handleSelectLandmark = useCallback((landmark: any) => {
+    setSelectedLandmark(landmark);
+  }, []);
+
+  const handleGenerateTour = async (destination: string) => {
+    await generateTour(destination);
+  };
+
+  const handleTourAuthRequired = (destination: string) => {
+    setPendingDestination(destination);
+    // This would open auth dialog in a real implementation
+  };
+
+  const handleCameraCapture = (imageData: string) => {
+    console.log('Camera captured:', imageData);
+  };
+
+  if (!mapboxToken) {
+    return <div className="w-screen h-screen flex items-center justify-center">Loading map...</div>;
+  }
+
   return (
     <div className="relative h-screen w-full overflow-hidden">
       {/* Map Layer */}
-      <Map />
+      <Map 
+        mapboxToken={mapboxToken}
+        landmarks={allLandmarks}
+        onSelectLandmark={handleSelectLandmark}
+        selectedLandmark={selectedLandmark}
+        plannedLandmarks={plannedLandmarks}
+      />
       
       {/* Top Controls */}
-      <TopControls />
+      <TopControls 
+        allLandmarks={allLandmarks}
+        onSelectLandmark={handleSelectLandmark}
+        onTourPlannerOpen={() => setTourPlannerOpen(true)}
+        onVoiceSearchOpen={() => setVoiceSearchOpen(true)}
+        onVoiceAssistantOpen={() => {}} // Placeholder
+        onLogoClick={() => {}} // Placeholder
+        user={user}
+        plannedLandmarks={plannedLandmarks}
+      />
       
       {/* User Controls */}
-      <UserControls />
+      <UserControls 
+        user={user}
+        onSignOut={signOut}
+        onAuthDialogOpen={() => {}} // Placeholder
+      />
 
       {/* Proximity System */}
       {user && <ProximitySystem />}
@@ -64,6 +112,9 @@ const MainLayout: React.FC = () => {
       <TourPlannerDialog
         open={tourPlannerOpen}
         onOpenChange={setTourPlannerOpen}
+        onGenerateTour={handleGenerateTour}
+        onAuthRequired={handleTourAuthRequired}
+        isLoading={isTourLoading}
       />
       
       <VoiceSearchDialog
@@ -74,11 +125,14 @@ const MainLayout: React.FC = () => {
       <ImageViewerDialog
         open={imageViewerOpen}
         onOpenChange={setImageViewerOpen}
+        imageUrl=""
+        imageName=""
       />
 
       <CameraCapture
         isOpen={cameraOpen}
         onClose={() => setCameraOpen(false)}
+        onCapture={handleCameraCapture}
       />
       
       <InteractionCarousel

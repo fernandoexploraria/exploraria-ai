@@ -7,6 +7,7 @@ export const useDialogStates = () => {
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [interactionCarouselOpen, setInteractionCarouselOpen] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [selectedLandmark, setSelectedLandmark] = useState<any>(null);
 
   return {
     tourPlannerOpen,
@@ -18,6 +19,8 @@ export const useDialogStates = () => {
     interactionCarouselOpen,
     setInteractionCarouselOpen,
     cameraOpen,
-    setCameraOpen
+    setCameraOpen,
+    selectedLandmark,
+    setSelectedLandmark
   };
 };

@@ -1,23 +1,11 @@
+
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import InteractionCardHeader from './InteractionCardHeader';
 import InteractionCardImage from './InteractionCardImage';
 import InteractionCardContent from './InteractionCardContent';
 import InteractionCardActions from './InteractionCardActions';
-
-interface Interaction {
-  id: string;
-  destination: string;
-  user_input: string;
-  assistant_response: string;
-  is_favorite: boolean;
-  created_at: string;
-  interaction_type: string;
-  landmark_coordinates: any;
-  landmark_image_url: string | null;
-  full_transcript: any;
-  similarity?: number;
-}
+import { Interaction } from './InteractionCarouselLogic';
 
 interface InteractionCardProps {
   interaction: Interaction;
@@ -43,7 +31,6 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
       <CardContent className="p-3 h-full flex flex-col">
         <InteractionCardHeader 
           interaction={interaction}
-          onToggleFavorite={onToggleFavorite}
         />
 
         {interaction.landmark_image_url && (
