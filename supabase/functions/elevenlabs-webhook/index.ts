@@ -76,6 +76,74 @@ async function analyzeConversationQuality(userInput: string, assistantResponse: 
   return analysis;
 }
 
+async function generateConversationSummary(transcript: any[], geminiApiKey: string): Promise<string> {
+  if (!Array.isArray(transcript) || transcript.length === 0) {
+    return "No conversation content available to summarize.";
+  }
+
+  // Extract conversation text from transcript
+  const conversationText = transcript
+    .filter(entry => entry.message && entry.message.trim())
+    .map(entry => `${entry.role === 'user' ? 'Tourist' : 'Guide'}: ${entry.message}`)
+    .join('\n');
+
+  if (!conversationText.trim()) {
+    return "No meaningful conversation content to summarize.";
+  }
+
+  console.log('Generating conversation summary with Gemini...');
+
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: `Please provide a concise summary of this tourist guide conversation. Focus on the key destinations discussed, main questions asked, and guidance provided. Keep it under 200 words.
+
+Conversation:
+${conversationText}`
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.3,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 500,
+        }
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Gemini API error for summary:', response.status, errorText);
+      return "Summary generation failed due to API error.";
+    }
+
+    const data = await response.json();
+    
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+      console.error('Invalid Gemini response structure for summary:', data);
+      return "Summary generation failed due to invalid response.";
+    }
+
+    const summary = data.candidates[0].content.parts[0].text.trim();
+    console.log('Conversation summary generated successfully');
+    return summary;
+
+  } catch (error) {
+    console.error('Error generating conversation summary:', error);
+    return "Summary generation failed due to unexpected error.";
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -226,6 +294,11 @@ serve(async (req) => {
     // Generate embedding for assistant response
     const assistantResponseEmbedding = await generateGeminiEmbedding(assistantResponse, geminiApiKey)
 
+    // Generate conversation summary using Gemini
+    console.log('Generating conversation summary...');
+    const generatedSummary = await generateConversationSummary(transcript, geminiApiKey);
+    console.log('Summary generated:', generatedSummary.substring(0, 100) + '...');
+
     // Extract points of interest mentioned in conversation
     const pointsOfInterest = await extractPointsOfInterest(transcript);
     console.log('Points of interest extracted:', pointsOfInterest);
@@ -247,7 +320,7 @@ serve(async (req) => {
       full_transcript: transcript,
       user_input_embedding: userInputEmbedding,
       assistant_response_embedding: assistantResponseEmbedding,
-      conversation_summary: summary, // Add the summary to the insert data
+      conversation_summary: generatedSummary, // Use the generated summary instead of the undefined one
       // New analytics fields - use actual status from ElevenLabs payload
       call_status: status || 'unknown',
       start_time: callStartTime,
@@ -283,12 +356,10 @@ serve(async (req) => {
       user_satisfaction_explanation: qualityAnalysis.user_satisfaction_explanation
     }
 
-    // Generate embedding for conversation summary if available
-    if (summary) {
-      console.log('Generating embedding for conversation summary...');
-      insertData.conversation_summary_embedding = await generateGeminiEmbedding(summary, geminiApiKey);
-      console.log('Conversation summary embedding generated');
-    }
+    // Generate embedding for conversation summary
+    console.log('Generating embedding for conversation summary...');
+    insertData.conversation_summary_embedding = await generateGeminiEmbedding(generatedSummary, geminiApiKey);
+    console.log('Conversation summary embedding generated');
 
     // Generate embedding for points of interest if any were found
     if (pointsOfInterest.length > 0) {
@@ -326,11 +397,12 @@ serve(async (req) => {
         message: 'Conversation processed and stored successfully',
         conversation_id: conversation_id,
         call_status: status || 'unknown',
-        summary_included: !!summary,
+        summary_generated: true,
+        summary_preview: generatedSummary.substring(0, 100) + '...',
         points_of_interest_count: pointsOfInterest.length,
         quality_analysis_completed: true,
         embeddings_generated: {
-          conversation_summary: !!summary,
+          conversation_summary: true,
           points_of_interest: pointsOfInterest.length > 0,
           evaluation_criteria: true
         }
