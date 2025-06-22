@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -34,17 +33,23 @@ async function verifyHmacSignature(body: string, signature: string, secret: stri
 }
 
 async function extractPointsOfInterest(transcript: any[], geminiApiKey: string): Promise<string[]> {
-  if (!Array.isArray(transcript)) return [];
+  if (!Array.isArray(transcript) || transcript.length === 0) {
+    console.log('No transcript available for POI extraction');
+    return [];
+  }
   
   // Only extract text from user messages, not assistant responses
   const userInput = transcript
-    .filter(entry => entry.role === 'user' && entry.message)
-    .map(entry => entry.message)
+    .filter(entry => entry && entry.role === 'user' && entry.message && entry.message.trim())
+    .map(entry => entry.message.trim())
     .join(' ');
 
-  if (!userInput.trim()) return [];
+  if (!userInput.trim()) {
+    console.log('No user input found for POI extraction');
+    return [];
+  }
 
-  console.log('Extracting points of interest with Gemini AI...');
+  console.log('Extracting points of interest with Gemini AI... User input length:', userInput.length);
 
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
@@ -59,11 +64,13 @@ async function extractPointsOfInterest(transcript: any[], geminiApiKey: string):
               {
                 text: `Extract all landmarks, tourist attractions, places, and points of interest mentioned in this user input. Return ONLY a JSON array of strings with the names of the places mentioned. If no places are mentioned, return an empty array [].
 
+IMPORTANT: Your response must be ONLY valid JSON, no other text.
+
 Examples:
-- "I want to visit the Statue of Liberty and Times Square" → ["Statue of Liberty", "Times Square"]
-- "Take me to Central Park" → ["Central Park"]
-- "Where is the Empire State Building?" → ["Empire State Building"]
-- "Hello, how are you?" → []
+- Input: "I want to visit the Statue of Liberty and Times Square" → ["Statue of Liberty", "Times Square"]
+- Input: "Take me to Central Park" → ["Central Park"]
+- Input: "Where is the Empire State Building?" → ["Empire State Building"]
+- Input: "Hello, how are you?" → []
 
 User input: "${userInput}"`
               }
@@ -87,8 +94,8 @@ User input: "${userInput}"`
 
     const data = await response.json();
     
-    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-      console.error('Invalid Gemini response structure for POI extraction:', data);
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0]) {
+      console.error('Invalid Gemini response structure for POI extraction:', JSON.stringify(data, null, 2));
       return [];
     }
 
@@ -98,17 +105,23 @@ User input: "${userInput}"`
     // Parse the JSON response, handling markdown code blocks
     try {
       // Remove markdown code block formatting if present
-      const cleanedResponse = responseText.replace(/```json\n?|\n?```/g, '').trim();
+      const cleanedResponse = responseText.replace(/```json\n?|\n?```|```/g, '').trim();
+      console.log('Cleaned POI response:', cleanedResponse);
+      
       const pointsOfInterest = JSON.parse(cleanedResponse);
       if (Array.isArray(pointsOfInterest)) {
-        return pointsOfInterest.filter(poi => typeof poi === 'string' && poi.trim().length > 0);
+        const validPOIs = pointsOfInterest.filter(poi => typeof poi === 'string' && poi.trim().length > 0);
+        console.log('Valid POIs extracted:', validPOIs);
+        return validPOIs;
+      } else {
+        console.error('POI response is not an array:', pointsOfInterest);
+        return [];
       }
     } catch (parseError) {
       console.error('Failed to parse POI JSON response:', parseError);
-      console.log('Raw response:', responseText);
+      console.log('Raw response that failed to parse:', responseText);
+      return [];
     }
-
-    return [];
 
   } catch (error) {
     console.error('Error extracting points of interest with Gemini:', error);
@@ -154,16 +167,34 @@ async function analyzeConversationQuality(transcript: any[], duration: number, g
     };
   }
 
-  // Format conversation for AI analysis
+  // Format conversation for AI analysis - filter out empty messages
   const conversationText = transcript
-    .filter(entry => entry.message && entry.message.trim())
-    .map(entry => `${entry.role === 'user' ? 'Tourist' : 'Guide'}: ${entry.message}`)
+    .filter(entry => entry && entry.message && entry.message.trim())
+    .map(entry => `${entry.role === 'user' ? 'Tourist' : 'Guide'}: ${entry.message.trim()}`)
     .join('\n');
 
-  const userMessageCount = transcript.filter(t => t.role === 'user').length;
-  const agentMessageCount = transcript.filter(t => t.role === 'assistant' || t.role === 'agent').length;
+  if (!conversationText.trim()) {
+    console.log('No meaningful conversation content for AI analysis');
+    return {
+      info_accuracy_status: 'poor',
+      info_accuracy_explanation: 'No meaningful conversation content available',
+      navigation_effectiveness_status: 'poor',
+      navigation_effectiveness_explanation: 'No meaningful conversation content available',
+      engagement_interactivity_status: 'poor',
+      engagement_interactivity_explanation: 'No meaningful conversation content available',
+      problem_resolution_status: 'poor',
+      problem_resolution_explanation: 'No meaningful conversation content available',
+      efficiency_conciseness_status: 'poor',
+      efficiency_conciseness_explanation: 'No meaningful conversation content available',
+      user_satisfaction_status: 'poor',
+      user_satisfaction_explanation: 'No meaningful conversation content available'
+    };
+  }
 
-  console.log('Analyzing conversation quality with AI...');
+  const userMessageCount = transcript.filter(t => t && t.role === 'user').length;
+  const agentMessageCount = transcript.filter(t => t && (t.role === 'assistant' || t.role === 'agent')).length;
+
+  console.log('Analyzing conversation quality with AI... Conversation length:', conversationText.length);
 
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
@@ -176,7 +207,9 @@ async function analyzeConversationQuality(transcript: any[], duration: number, g
           {
             parts: [
               {
-                text: `Analyze this tour guide conversation and evaluate it across 6 criteria. For each criterion, provide a status (excellent/good/fair/poor) and a 2-3 sentence explanation with specific examples.
+                text: `IMPORTANT: Return ONLY valid JSON, no other text or explanations.
+
+Analyze this tour guide conversation and evaluate it across 6 criteria. For each criterion, provide a status (excellent/good/fair/poor) and a 2-3 sentence explanation.
 
 CONVERSATION METADATA:
 - Duration: ${duration} seconds
@@ -184,54 +217,10 @@ CONVERSATION METADATA:
 - Guide responses: ${agentMessageCount}
 - Total turns: ${transcript.length}
 
-EVALUATION CRITERIA:
-
-1. Information Accuracy & Completeness:
-Was all factual information provided by the guide accurate and up-to-date? Did the guide provide comprehensive answers to tourist questions about tours, destinations, or related topics?
-- Excellent: All information accurate, comprehensive answers with relevant details
-- Good: Mostly accurate information, adequately comprehensive responses
-- Fair: Generally accurate but some gaps or minor inaccuracies
-- Poor: Significant inaccuracies or incomplete information
-
-2. Navigation & Guidance Effectiveness:
-Did the guide effectively help the tourist navigate their tour experience? Did it provide clear, actionable directions or recommendations relevant to the tourist's interests?
-- Excellent: Clear, specific directions and highly relevant recommendations
-- Good: Generally clear guidance with mostly relevant suggestions
-- Fair: Basic guidance provided but could be clearer or more specific
-- Poor: Confusing directions or irrelevant recommendations
-
-3. Engagement & Interactivity:
-Was the conversation engaging and did the guide encourage interaction beyond simple Q&A? Did it maintain a pleasant, helpful tone and feel like a natural conversation?
-- Excellent: Highly engaging, descriptive language, natural conversation flow
-- Good: Generally engaging with good conversational tone
-- Fair: Adequate engagement but somewhat mechanical
-- Poor: Robotic, terse responses, poor conversational flow
-
-4. Problem Resolution & Adaptability:
-If the tourist encountered problems or needed to adapt plans, did the guide successfully understand issues and offer appropriate solutions?
-- Excellent: Quickly identified problems and provided excellent solutions
-- Good: Generally good at problem identification and resolution
-- Fair: Basic problem-solving with adequate solutions
-- Poor: Failed to understand or address problems effectively
-
-5. Efficiency & Conciseness:
-Did the guide provide information efficiently without being overly verbose? Did the tourist achieve their goals in reasonable time?
-- Excellent: Perfectly concise, direct answers, efficient goal achievement
-- Good: Generally efficient with appropriate level of detail
-- Fair: Somewhat verbose or inefficient but acceptable
-- Poor: Long-winded, repetitive, or required excessive back-and-forth
-
-6. User Satisfaction (Inferred):
-Based on tone, language, and successful completion of requests, did the tourist appear satisfied with the interaction and tour experience?
-- Excellent: Clear expressions of satisfaction, enthusiasm, gratitude
-- Good: Generally positive tone, successful completion of goals
-- Fair: Neutral tone, basic goals met
-- Poor: Signs of frustration, abrupt ending, unmet goals
-
 CONVERSATION:
 ${conversationText}
 
-Return ONLY a JSON object with this exact structure:
+Return ONLY this JSON structure:
 {
   "info_accuracy_status": "excellent|good|fair|poor",
   "info_accuracy_explanation": "explanation text",
@@ -281,18 +270,20 @@ Return ONLY a JSON object with this exact structure:
 
     const data = await response.json();
     
-    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-      console.error('Invalid Gemini response structure for quality analysis:', data);
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0]) {
+      console.error('Invalid Gemini response structure for quality analysis:', JSON.stringify(data, null, 2));
       throw new Error('Invalid API response structure');
     }
 
     const responseText = data.candidates[0].content.parts[0].text.trim();
-    console.log('AI quality analysis response:', responseText.substring(0, 200) + '...');
+    console.log('AI quality analysis response preview:', responseText.substring(0, 200) + '...');
 
     // Parse the JSON response, handling markdown code blocks
     try {
       // Remove markdown code block formatting if present
-      const cleanedResponse = responseText.replace(/```json\n?|\n?```/g, '').trim();
+      const cleanedResponse = responseText.replace(/```json\n?|\n?```|```/g, '').trim();
+      console.log('Cleaned analysis response length:', cleanedResponse.length);
+      
       const analysis = JSON.parse(cleanedResponse);
       
       // Validate that all required fields are present
@@ -316,7 +307,7 @@ Return ONLY a JSON object with this exact structure:
 
     } catch (parseError) {
       console.error('Failed to parse AI quality analysis JSON:', parseError);
-      console.log('Raw AI response:', responseText);
+      console.log('Raw AI response that failed to parse:', responseText);
       throw parseError;
     }
 
@@ -347,8 +338,8 @@ async function generateConversationSummary(transcript: any[], geminiApiKey: stri
 
   // Extract conversation text from transcript
   const conversationText = transcript
-    .filter(entry => entry.message && entry.message.trim())
-    .map(entry => `${entry.role === 'user' ? 'Tourist' : 'Guide'}: ${entry.message}`)
+    .filter(entry => entry && entry.message && entry.message.trim())
+    .map(entry => `${entry.role === 'user' ? 'Tourist' : 'Guide'}: ${entry.message.trim()}`)
     .join('\n');
 
   if (!conversationText.trim()) {
@@ -519,9 +510,9 @@ serve(async (req) => {
       const assistantMessages = []
 
       transcript.forEach(entry => {
-        if (entry.role === 'user' && entry.message) {
+        if (entry && entry.role === 'user' && entry.message) {
           userMessages.push(entry.message)
-        } else if ((entry.role === 'assistant' || entry.role === 'agent') && entry.message) {
+        } else if (entry && (entry.role === 'assistant' || entry.role === 'agent') && entry.message) {
           assistantMessages.push(entry.message)
         }
       })
@@ -564,10 +555,12 @@ serve(async (req) => {
     console.log('Summary generated:', generatedSummary.substring(0, 100) + '...');
 
     // Extract points of interest mentioned in conversation using Gemini AI
+    console.log('Extracting points of interest...');
     const pointsOfInterest = await extractPointsOfInterest(transcript, geminiApiKey);
-    console.log('Points of interest extracted:', pointsOfInterest);
+    console.log('Points of interest extracted:', pointsOfInterest.length, 'items:', pointsOfInterest);
 
     // Analyze conversation quality using AI
+    console.log('Starting AI quality analysis...');
     const qualityAnalysis = await analyzeConversationQuality(transcript, duration_seconds, geminiApiKey);
     console.log('AI quality analysis completed:', Object.keys(qualityAnalysis));
 
@@ -616,6 +609,8 @@ serve(async (req) => {
       console.log('Generating embedding for points of interest...');
       insertData.points_of_interest_embedding = await generateGeminiEmbedding(pointsOfInterestText, geminiApiKey);
       console.log('Points of interest embedding generated');
+    } else {
+      console.log('No points of interest found, skipping POI embedding');
     }
 
     // Generate embedding for evaluation criteria summary
@@ -649,6 +644,7 @@ serve(async (req) => {
         summary_generated: true,
         summary_preview: generatedSummary.substring(0, 100) + '...',
         points_of_interest_count: pointsOfInterest.length,
+        points_of_interest: pointsOfInterest,
         ai_quality_analysis_completed: true,
         analysis_preview: {
           info_accuracy: qualityAnalysis.info_accuracy_status,
