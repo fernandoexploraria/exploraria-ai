@@ -92,64 +92,89 @@ const Map: React.FC<MapProps> = ({
 
   // Initialize map (runs once)
   useEffect(() => {
-    if (!mapboxToken || !mapContainer.current || map.current) return;
+    console.log('🗺️ [Map] useEffect triggered with token:', mapboxToken ? 'TOKEN_PRESENT' : 'TOKEN_EMPTY');
+    
+    if (!mapboxToken) {
+      console.log('🗺️ [Map] No mapbox token, skipping map initialization');
+      return;
+    }
+    
+    if (!mapContainer.current) {
+      console.log('🗺️ [Map] No map container ref, skipping initialization');
+      return;
+    }
+    
+    if (map.current) {
+      console.log('🗺️ [Map] Map already exists, skipping initialization');
+      return;
+    }
 
-    mapboxgl.accessToken = mapboxToken;
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/dark-v11',
-      projection: { name: 'globe' },
-      zoom: 1.5,
-      center: [0, 20],
-    });
+    console.log('🗺️ [Map] Starting map initialization...');
+    
+    try {
+      mapboxgl.accessToken = mapboxToken;
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/dark-v11',
+        projection: { name: 'globe' },
+        zoom: 1.5,
+        center: [0, 20],
+      });
 
-    map.current.on('style.load', () => {
-      map.current?.setFog({}); // Add a sky layer and atmosphere
-    });
+      console.log('🗺️ [Map] Map instance created successfully');
 
-    // Close all popups when clicking on the map
-    map.current.on('click', (e) => {
-      // Check if the click was on a marker by looking for our marker class
-      const clickedElement = e.originalEvent.target as HTMLElement;
-      const isMarkerClick = clickedElement.closest('.w-4.h-4.rounded-full') || clickedElement.closest('.w-6.h-6.rounded-full');
-      
-      if (!isMarkerClick) {
-        // Stop any playing audio
+      map.current.on('style.load', () => {
+        console.log('🗺️ [Map] Map style loaded, adding fog...');
+        map.current?.setFog({}); // Add a sky layer and atmosphere
+      });
+
+      // Close all popups when clicking on the map
+      map.current.on('click', (e) => {
+        // Check if the click was on a marker by looking for our marker class
+        const clickedElement = e.originalEvent.target as HTMLElement;
+        const isMarkerClick = clickedElement.closest('.w-4.h-4.rounded-full') || clickedElement.closest('.w-6.h-6.rounded-full');
+        
+        if (!isMarkerClick) {
+          // Stop any playing audio
+          stopCurrentAudio();
+          
+          // Close all photo popups
+          Object.values(photoPopups.current).forEach(popup => {
+            popup.remove();
+          });
+          photoPopups.current = {};
+          
+          // Also close any Mapbox popups that might be open
+          const mapboxPopups = document.querySelectorAll('.mapboxgl-popup');
+          mapboxPopups.forEach(popup => {
+            popup.remove();
+          });
+        }
+      });
+
+      // Handle moveend event to show popup after zoom completes
+      map.current.on('moveend', () => {
+        if (pendingPopupLandmark.current && isZooming.current) {
+          const landmark = pendingPopupLandmark.current;
+          pendingPopupLandmark.current = null;
+          isZooming.current = false;
+          
+          // Small delay to ensure zoom animation is fully complete
+          setTimeout(() => {
+            showLandmarkPopup(landmark);
+          }, 100);
+        }
+      });
+
+      return () => {
+        console.log('🗺️ [Map] Cleanup function called');
         stopCurrentAudio();
-        
-        // Close all photo popups
-        Object.values(photoPopups.current).forEach(popup => {
-          popup.remove();
-        });
-        photoPopups.current = {};
-        
-        // Also close any Mapbox popups that might be open
-        const mapboxPopups = document.querySelectorAll('.mapboxgl-popup');
-        mapboxPopups.forEach(popup => {
-          popup.remove();
-        });
-      }
-    });
-
-    // Handle moveend event to show popup after zoom completes
-    map.current.on('moveend', () => {
-      if (pendingPopupLandmark.current && isZooming.current) {
-        const landmark = pendingPopupLandmark.current;
-        pendingPopupLandmark.current = null;
-        isZooming.current = false;
-        
-        // Small delay to ensure zoom animation is fully complete
-        setTimeout(() => {
-          showLandmarkPopup(landmark);
-        }, 100);
-      }
-    });
-
-    return () => {
-      stopCurrentAudio();
-      map.current?.remove();
-      map.current = null;
-    };
+        map.current?.remove();
+        map.current = null;
+      };
+    } catch (error) {
+      console.error('🗺️ [Map] Error during map initialization:', error);
+    }
   }, [mapboxToken]);
 
   // Function to handle text-to-speech using Google Cloud TTS via edge function
