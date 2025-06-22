@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Share2 } from 'lucide-react';
@@ -11,7 +12,7 @@ interface Interaction {
   full_transcript: any;
   conversation_summary?: string;
   landmark_image_url?: string;
-  landmark_coordinates?: [number, number] | { x: number; y: number };
+  landmark_coordinates?: any; // Add this property to match the actual data structure
 }
 
 interface ShareButtonProps {
@@ -60,14 +61,39 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
   };
 
   // Generate location links for map interactions
-  const generateLocationLinks = (coordinates: [number, number] | { x: number; y: number }) => {
+  const generateLocationLinks = (coordinates: any) => {
     let lat: number, lng: number;
     
-    if (Array.isArray(coordinates)) {
-      [lng, lat] = coordinates; // Note: coordinates are stored as [lng, lat]
+    // Handle different coordinate formats (same logic as InteractionCardHeader)
+    if (typeof coordinates === 'string') {
+      // Handle string format like "(-99.1706976631243,19.3494767782822)"
+      const coordString = coordinates.replace(/[()]/g, ''); // Remove parentheses
+      const parts = coordString.split(',');
+      if (parts.length === 2) {
+        lng = Number(parts[0].trim());
+        lat = Number(parts[1].trim());
+      } else {
+        console.log('ERROR: Invalid string coordinate format!', coordinates);
+        return '';
+      }
+    } else if (Array.isArray(coordinates)) {
+      // If it's already an array [lng, lat]
+      lng = Number(coordinates[0]);
+      lat = Number(coordinates[1]);
+    } else if (typeof coordinates === 'object') {
+      // If it's an object with x,y or lng,lat or longitude,latitude properties
+      const coords = coordinates as any;
+      lng = Number(coords.lng || coords.longitude || coords.x || coords[0]);
+      lat = Number(coords.lat || coords.latitude || coords.y || coords[1]);
     } else {
-      lat = coordinates.y;
-      lng = coordinates.x;
+      console.log('ERROR: Unexpected coordinate format!', coordinates);
+      return '';
+    }
+    
+    // Validate coordinates are actual numbers
+    if (isNaN(lng) || isNaN(lat)) {
+      console.log('ERROR: Coordinates are NaN!', { lng, lat, original: coordinates });
+      return '';
     }
     
     const googleMapsUrl = `https://maps.google.com/?q=${lat},${lng}`;
@@ -113,7 +139,10 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
     
     // Add location links for map interactions
     if (interaction.interaction_type === 'map_marker' && interaction.landmark_coordinates) {
-      shareText += generateLocationLinks(interaction.landmark_coordinates);
+      const locationLinks = generateLocationLinks(interaction.landmark_coordinates);
+      if (locationLinks) {
+        shareText += locationLinks;
+      }
     }
     
     shareText += `\nDiscovered with Exploraria AI 🗺️✨`;
@@ -124,6 +153,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
       // For map interactions, don't try to share files - just share the text with location links
       if (interaction.interaction_type === 'map_marker') {
         console.log('Sharing map interaction with location links...');
+        console.log('Coordinates being shared:', interaction.landmark_coordinates);
         
         if (navigator.share) {
           await navigator.share({
