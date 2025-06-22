@@ -35,8 +35,9 @@ async function verifyHmacSignature(body: string, signature: string, secret: stri
 async function extractPointsOfInterest(transcript: any[]): Promise<string[]> {
   if (!Array.isArray(transcript)) return [];
   
-  const conversationText = transcript
-    .filter(entry => entry.message)
+  // Only extract text from user messages, not assistant responses
+  const userInput = transcript
+    .filter(entry => entry.role === 'user' && entry.message)
     .map(entry => entry.message)
     .join(' ');
 
@@ -50,7 +51,7 @@ async function extractPointsOfInterest(transcript: any[]): Promise<string[]> {
   ];
 
   const mentionedLandmarks = commonLandmarks.filter(landmark => 
-    conversationText.toLowerCase().includes(landmark.toLowerCase())
+    userInput.toLowerCase().includes(landmark.toLowerCase())
   );
 
   return mentionedLandmarks;
