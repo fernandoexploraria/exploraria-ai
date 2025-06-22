@@ -52,15 +52,17 @@ const ProximityControls: React.FC<ProximityControlsProps> = ({
   const getDistanceOptions = () => {
     if (units === 'imperial') {
       return [
-        { value: 164, label: '164 ft' }, // ~50m
-        { value: 328, label: '328 ft' }, // ~100m
-        { value: 656, label: '656 ft' }  // ~200m
+        { value: 160, label: '160 ft' },
+        { value: 320, label: '320 ft' },
+        { value: 650, label: '650 ft' },
+        { value: 1000, label: '1,000 ft' }
       ];
     }
     return [
       { value: 50, label: '50m' },
       { value: 100, label: '100m' },
-      { value: 200, label: '200m' }
+      { value: 200, label: '200m' },
+      { value: 500, label: '500m' }
     ];
   };
 
