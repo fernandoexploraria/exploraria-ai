@@ -1,8 +1,7 @@
-
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Camera, Mic, MapPin, PersonStanding, Star, Map } from 'lucide-react';
+import { Camera, Mic, MapPin, PersonStanding, Star } from 'lucide-react';
 import ShareButton from './ShareButton';
 import { Interaction } from './InteractionCarouselLogic';
 
@@ -119,7 +118,7 @@ const InteractionCardHeader: React.FC<InteractionCardHeaderProps> = ({
               onClick={handleLocationClick}
               title="View on Map"
             >
-              <Map className="w-3 h-3" />
+              <MapPin className="w-3 h-3" />
             </Button>
           )}
           
