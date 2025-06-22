@@ -60,7 +60,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
   };
 
   const handleShare = async () => {
-    console.log('Share button clicked for interaction:', interaction.id);
+    console.log('Share button clicked for interaction:', interaction.id, 'Type:', interaction.interaction_type);
     
     // Create shareable content
     const shareTitle = `Travel Discovery in ${interaction.destination}`;
@@ -99,24 +99,29 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
     const shareUrl = window.location.origin;
 
     try {
-      // Prepare files array for sharing
-      const files: File[] = [];
+      // Check if Web Share API is available and can share files
+      const canShareFiles = navigator.share && navigator.canShare && interaction.landmark_image_url;
       
-      // Convert and add image file if available
-      if (interaction.landmark_image_url) {
-        console.log('Converting image for sharing...');
-        const imageBlob = await convertImageToWebP(interaction.landmark_image_url);
+      if (canShareFiles) {
+        console.log('Attempting to share with Web Share API including files...');
         
-        if (imageBlob) {
-          const fileName = `exploraria-${interaction.destination.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.webp`;
-          const imageFile = new File([imageBlob], fileName, { type: 'image/webp' });
-          files.push(imageFile);
-          console.log('Image file prepared for sharing:', fileName, 'Size:', imageBlob.size);
+        // Prepare files array for sharing
+        const files: File[] = [];
+        
+        // Convert and add image file if available
+        if (interaction.landmark_image_url) {
+          console.log('Converting image for sharing...');
+          const imageBlob = await convertImageToWebP(interaction.landmark_image_url);
+          
+          if (imageBlob) {
+            const fileName = `exploraria-${interaction.destination.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.webp`;
+            const imageFile = new File([imageBlob], fileName, { type: 'image/webp' });
+            files.push(imageFile);
+            console.log('Image file prepared for sharing:', fileName, 'Size:', imageBlob.size);
+          }
         }
-      }
 
-      if (navigator.share && navigator.canShare && navigator.canShare({ files })) {
-        // Use Web Share API with files if available (mobile)
+        // Test if we can share with files
         const shareData: any = {
           title: shareTitle,
           text: shareText,
@@ -126,21 +131,41 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
         if (files.length > 0) {
           shareData.files = files;
         }
-        
-        await navigator.share(shareData);
-        console.log('Content and files shared successfully');
-      } else {
-        // Fallback for desktop - copy to clipboard and download image
-        const fullShareContent = `${shareTitle}\n\n${shareText}\n\n${shareUrl}`;
-        await navigator.clipboard.writeText(fullShareContent);
-        
-        // Download the WebP image if available
-        if (files.length > 0) {
-          const imageFile = files[0];
-          const downloadUrl = URL.createObjectURL(imageFile);
+
+        // Try sharing with files first
+        if (files.length > 0 && navigator.canShare(shareData)) {
+          await navigator.share(shareData);
+          console.log('Content and files shared successfully via Web Share API');
+          return;
+        }
+      }
+
+      // Fallback to Web Share API without files
+      if (navigator.share) {
+        console.log('Sharing without files via Web Share API...');
+        await navigator.share({
+          title: shareTitle,
+          text: shareText,
+          url: shareUrl,
+        });
+        console.log('Content shared successfully via Web Share API');
+        return;
+      }
+
+      // Final fallback - copy to clipboard and download image separately
+      console.log('Using clipboard + download fallback...');
+      const fullShareContent = `${shareTitle}\n\n${shareText}\n\n${shareUrl}`;
+      await navigator.clipboard.writeText(fullShareContent);
+      
+      // Download the WebP image if available
+      if (interaction.landmark_image_url) {
+        const imageBlob = await convertImageToWebP(interaction.landmark_image_url);
+        if (imageBlob) {
+          const fileName = `exploraria-${interaction.destination.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.webp`;
+          const downloadUrl = URL.createObjectURL(imageBlob);
           const link = document.createElement('a');
           link.href = downloadUrl;
-          link.download = imageFile.name;
+          link.download = fileName;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
@@ -149,17 +174,22 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
           console.log('Content copied to clipboard and image downloaded');
           alert('Content copied to clipboard and image downloaded!');
         } else {
-          console.log('Content copied to clipboard');
-          alert('Content copied to clipboard! You can now paste it wherever you want to share.');
+          console.log('Content copied to clipboard (image conversion failed)');
+          alert('Content copied to clipboard! (Image could not be processed)');
         }
+      } else {
+        console.log('Content copied to clipboard');
+        alert('Content copied to clipboard! You can now paste it wherever you want to share.');
       }
+
     } catch (error) {
       console.error('Error sharing content:', error);
       
-      // Final fallback - try clipboard only
+      // Ultimate fallback - try clipboard only
       try {
         const fullShareContent = `${shareTitle}\n\n${shareText}\n\n${shareUrl}`;
         await navigator.clipboard.writeText(fullShareContent);
+        console.log('Fallback: Content copied to clipboard');
         alert('Content copied to clipboard!');
       } catch (clipboardError) {
         console.error('Error copying to clipboard:', clipboardError);
