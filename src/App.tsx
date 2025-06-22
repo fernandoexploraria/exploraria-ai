@@ -7,7 +7,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./components/AuthProvider";
 import { TTSProvider } from "./contexts/TTSContext";
 import Index from "./pages/Index";
-import MediaRedirect from "./components/MediaRedirect";
 
 const queryClient = new QueryClient();
 
@@ -21,7 +20,6 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
-              <Route path="/media/:shortCode" element={<MediaRedirect />} />
             </Routes>
           </BrowserRouter>
         </TooltipProvider>

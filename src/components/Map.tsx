@@ -49,18 +49,17 @@ const Map: React.FC<MapProps> = ({
     return [...landmarks, ...topLandmarksConverted];
   }, [landmarks]);
 
-  // Function to store map marker interaction (called only once per marker click)
+  // Function to store map marker interaction
   const storeMapMarkerInteraction = async (landmark: Landmark, imageUrl?: string) => {
     if (!user) {
       console.log('User not authenticated, skipping interaction storage');
-      return null;
+      return;
     }
 
     try {
       console.log('Storing map marker interaction for:', landmark.name);
-      console.log('With image URL:', imageUrl ? 'Yes' : 'No');
       
-      const { data, error } = await supabase.functions.invoke('store-interaction', {
+      const { error } = await supabase.functions.invoke('store-interaction', {
         body: {
           userInput: `Clicked on map marker: ${landmark.name}`,
           assistantResponse: landmark.description,
@@ -73,14 +72,11 @@ const Map: React.FC<MapProps> = ({
 
       if (error) {
         console.error('Error storing map marker interaction:', error);
-        return null;
       } else {
         console.log('Map marker interaction stored successfully');
-        return data;
       }
     } catch (error) {
       console.error('Error storing map marker interaction:', error);
-      return null;
     }
   };
 
@@ -93,6 +89,68 @@ const Map: React.FC<MapProps> = ({
     }
     setPlayingAudio({});
   };
+
+  // Initialize map (runs once)
+  useEffect(() => {
+    if (!mapboxToken || !mapContainer.current || map.current) return;
+
+    mapboxgl.accessToken = mapboxToken;
+    map.current = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: 'mapbox://styles/mapbox/dark-v11',
+      projection: { name: 'globe' },
+      zoom: 1.5,
+      center: [0, 20],
+    });
+
+    map.current.on('style.load', () => {
+      map.current?.setFog({}); // Add a sky layer and atmosphere
+    });
+
+    // Close all popups when clicking on the map
+    map.current.on('click', (e) => {
+      // Check if the click was on a marker by looking for our marker class
+      const clickedElement = e.originalEvent.target as HTMLElement;
+      const isMarkerClick = clickedElement.closest('.w-4.h-4.rounded-full') || clickedElement.closest('.w-6.h-6.rounded-full');
+      
+      if (!isMarkerClick) {
+        // Stop any playing audio
+        stopCurrentAudio();
+        
+        // Close all photo popups
+        Object.values(photoPopups.current).forEach(popup => {
+          popup.remove();
+        });
+        photoPopups.current = {};
+        
+        // Also close any Mapbox popups that might be open
+        const mapboxPopups = document.querySelectorAll('.mapboxgl-popup');
+        mapboxPopups.forEach(popup => {
+          popup.remove();
+        });
+      }
+    });
+
+    // Handle moveend event to show popup after zoom completes
+    map.current.on('moveend', () => {
+      if (pendingPopupLandmark.current && isZooming.current) {
+        const landmark = pendingPopupLandmark.current;
+        pendingPopupLandmark.current = null;
+        isZooming.current = false;
+        
+        // Small delay to ensure zoom animation is fully complete
+        setTimeout(() => {
+          showLandmarkPopup(landmark);
+        }, 100);
+      }
+    });
+
+    return () => {
+      stopCurrentAudio();
+      map.current?.remove();
+      map.current = null;
+    };
+  }, [mapboxToken]);
 
   // Function to handle text-to-speech using Google Cloud TTS via edge function
   const handleTextToSpeech = async (landmark: Landmark) => {
@@ -313,7 +371,7 @@ const Map: React.FC<MapProps> = ({
       const imageUrl = await fetchLandmarkImage(landmark);
       const isPlaying = playingAudio[landmark.id] || false;
       
-      // Store the interaction with the fetched image URL (only once)
+      // Store the interaction with the fetched image URL
       await storeMapMarkerInteraction(landmark, imageUrl);
       
       photoPopup.setHTML(`
@@ -339,7 +397,7 @@ const Map: React.FC<MapProps> = ({
             font-weight: bold;
             z-index: 1000;
             transition: background-color 0.2s;
-          " onmouseover="this.style.backgroundColor='rgba(59, 130, 246, 0.95)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
+          " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
           <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
           <div style="position: relative; margin-bottom: 10px;">
             <img src="${imageUrl}" alt="${landmark.name}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px;" />
@@ -378,10 +436,10 @@ const Map: React.FC<MapProps> = ({
 
       // Add global handler for listen button if it doesn't exist
       if (!(window as any).handleLandmarkListen) {
-        (window as any).handleLandmarkListen = async (landmarkId: string) => {
+        (window as any).handleLandmarkListen = (landmarkId: string) => {
           const targetLandmark = allLandmarksWithTop.find(l => l.id === landmarkId);
           if (targetLandmark) {
-            await handleTextToSpeech(targetLandmark);
+            handleTextToSpeech(targetLandmark);
           }
         };
       }
@@ -490,6 +548,9 @@ const Map: React.FC<MapProps> = ({
           e.stopPropagation(); // Prevent map click event
           
           console.log('Marker clicked:', landmark.name);
+          
+          // Store the interaction immediately when marker is clicked
+          await storeMapMarkerInteraction(landmark);
           
           // Check current zoom level and zoom in if needed
           const currentZoom = map.current?.getZoom() || 1.5;
