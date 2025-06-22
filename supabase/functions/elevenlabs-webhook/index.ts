@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -140,7 +139,8 @@ serve(async (req) => {
       transcript,
       metadata,
       conversation_initiation_client_data,
-      summary // Extract the summary field from the webhook data
+      summary, // Extract the summary field from the webhook data
+      status // Extract the actual call status from ElevenLabs
     } = webhookData.data || {};
 
     if (!conversation_id || !transcript) {
@@ -165,7 +165,7 @@ serve(async (req) => {
     const callStartTime = dynamicVariables?.system__time_utc ? 
       new Date(dynamicVariables.system__time_utc).getTime() : null;
 
-    console.log('Extracted variables:', { userId, destination, summary });
+    console.log('Extracted variables:', { userId, destination, summary, status });
     console.log('Full dynamic variables:', JSON.stringify(dynamicVariables, null, 2));
 
     if (!userId) {
@@ -247,8 +247,8 @@ serve(async (req) => {
       full_transcript: transcript,
       user_input_embedding: userInputEmbedding,
       assistant_response_embedding: assistantResponseEmbedding,
-      // New analytics fields
-      call_status: 'completed',
+      // New analytics fields - use actual status from ElevenLabs payload
+      call_status: status || 'unknown',
       start_time: callStartTime,
       end_time: callStartTime ? callStartTime + (duration_seconds * 1000) : null,
       data_collection: {
@@ -325,6 +325,7 @@ serve(async (req) => {
         success: true, 
         message: 'Conversation processed and stored successfully',
         conversation_id: conversation_id,
+        call_status: status || 'unknown',
         summary_included: !!summary,
         points_of_interest_count: pointsOfInterest.length,
         quality_analysis_completed: true,
