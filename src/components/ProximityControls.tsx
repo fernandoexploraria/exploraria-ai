@@ -168,12 +168,12 @@ const ProximityControls: React.FC<ProximityControlsProps> = ({
                     <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-gray-800 border-gray-600">
+                    <SelectContent className="bg-gray-800 border-gray-600 z-50">
                       {getDistanceOptions().map((option) => (
                         <SelectItem 
                           key={option.value} 
                           value={option.value.toString()}
-                          className="text-white hover:bg-gray-700"
+                          className="text-white hover:bg-gray-700 focus:bg-gray-700 focus:text-white"
                         >
                           {option.label}
                         </SelectItem>
