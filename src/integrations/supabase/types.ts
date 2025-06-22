@@ -129,6 +129,41 @@ export type Database = {
         }
         Relationships: []
       }
+      shared_urls: {
+        Row: {
+          created_at: string
+          id: string
+          interaction_id: string | null
+          original_url: string
+          short_code: string
+          url_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          interaction_id?: string | null
+          original_url: string
+          short_code: string
+          url_type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          interaction_id?: string | null
+          original_url?: string
+          short_code?: string
+          url_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shared_urls_interaction_id_fkey"
+            columns: ["interaction_id"]
+            isOneToOne: false
+            referencedRelation: "interactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscribers: {
         Row: {
           created_at: string
