@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Share2 } from 'lucide-react';
@@ -12,6 +11,7 @@ interface Interaction {
   full_transcript: any;
   conversation_summary?: string;
   landmark_image_url?: string;
+  landmark_coordinates?: [number, number] | { x: number; y: number };
 }
 
 interface ShareButtonProps {
@@ -59,6 +59,23 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
     }
   };
 
+  // Generate location links for map interactions
+  const generateLocationLinks = (coordinates: [number, number] | { x: number; y: number }) => {
+    let lat: number, lng: number;
+    
+    if (Array.isArray(coordinates)) {
+      [lng, lat] = coordinates; // Note: coordinates are stored as [lng, lat]
+    } else {
+      lat = coordinates.y;
+      lng = coordinates.x;
+    }
+    
+    const googleMapsUrl = `https://maps.google.com/?q=${lat},${lng}`;
+    const appleMapsUrl = `https://maps.apple.com/?q=${lat},${lng}`;
+    
+    return `\n📍 View location:\n• Google Maps: ${googleMapsUrl}\n• Apple Maps: ${appleMapsUrl}\n`;
+  };
+
   const handleShare = async () => {
     console.log('Share button clicked for interaction:', interaction.id, 'Type:', interaction.interaction_type);
     
@@ -94,11 +111,39 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
       }
     }
     
-    shareText += `Discovered with Exploraria AI 🗺️✨`;
+    // Add location links for map interactions
+    if (interaction.interaction_type === 'map_marker' && interaction.landmark_coordinates) {
+      shareText += generateLocationLinks(interaction.landmark_coordinates);
+    }
+    
+    shareText += `\nDiscovered with Exploraria AI 🗺️✨`;
     
     const shareUrl = window.location.origin;
 
     try {
+      // For map interactions, don't try to share files - just share the text with location links
+      if (interaction.interaction_type === 'map_marker') {
+        console.log('Sharing map interaction with location links...');
+        
+        if (navigator.share) {
+          await navigator.share({
+            title: shareTitle,
+            text: shareText,
+            url: shareUrl,
+          });
+          console.log('Map interaction shared successfully via Web Share API');
+          return;
+        } else {
+          // Fallback to clipboard for map interactions
+          const fullShareContent = `${shareTitle}\n\n${shareText}\n\n${shareUrl}`;
+          await navigator.clipboard.writeText(fullShareContent);
+          console.log('Map interaction content copied to clipboard');
+          alert('Content with location links copied to clipboard!');
+          return;
+        }
+      }
+
+      // For other interaction types, keep the existing image sharing logic
       // Check if Web Share API is available and can share files
       const canShareFiles = navigator.share && navigator.canShare && interaction.landmark_image_url;
       
@@ -157,7 +202,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
       const fullShareContent = `${shareTitle}\n\n${shareText}\n\n${shareUrl}`;
       await navigator.clipboard.writeText(fullShareContent);
       
-      // Download the WebP image if available
+      // Download the WebP image if available (for non-map interactions)
       if (interaction.landmark_image_url) {
         const imageBlob = await convertImageToWebP(interaction.landmark_image_url);
         if (imageBlob) {
