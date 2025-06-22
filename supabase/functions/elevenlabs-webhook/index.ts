@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -94,9 +95,11 @@ User input: "${userInput}"`
     const responseText = data.candidates[0].content.parts[0].text.trim();
     console.log('Gemini POI extraction response:', responseText);
 
-    // Parse the JSON response
+    // Parse the JSON response, handling markdown code blocks
     try {
-      const pointsOfInterest = JSON.parse(responseText);
+      // Remove markdown code block formatting if present
+      const cleanedResponse = responseText.replace(/```json\n?|\n?```/g, '').trim();
+      const pointsOfInterest = JSON.parse(cleanedResponse);
       if (Array.isArray(pointsOfInterest)) {
         return pointsOfInterest.filter(poi => typeof poi === 'string' && poi.trim().length > 0);
       }
@@ -286,9 +289,11 @@ Return ONLY a JSON object with this exact structure:
     const responseText = data.candidates[0].content.parts[0].text.trim();
     console.log('AI quality analysis response:', responseText.substring(0, 200) + '...');
 
-    // Parse the JSON response
+    // Parse the JSON response, handling markdown code blocks
     try {
-      const analysis = JSON.parse(responseText);
+      // Remove markdown code block formatting if present
+      const cleanedResponse = responseText.replace(/```json\n?|\n?```/g, '').trim();
+      const analysis = JSON.parse(cleanedResponse);
       
       // Validate that all required fields are present
       const requiredFields = [
@@ -579,26 +584,11 @@ serve(async (req) => {
       full_transcript: transcript,
       user_input_embedding: userInputEmbedding,
       assistant_response_embedding: assistantResponseEmbedding,
-      conversation_summary: generatedSummary, // Use the generated summary instead of the undefined one
+      conversation_summary: generatedSummary,
       // New analytics fields - use actual status from ElevenLabs payload
       call_status: status || 'unknown',
       start_time: callStartTime,
       end_time: callStartTime ? callStartTime + (duration_seconds * 1000) : null,
-      data_collection: {
-        webhook_timestamp: Date.now(),
-        conversation_metadata: metadata,
-        dynamic_variables: dynamicVariables
-      },
-      analysis_results: {
-        quality_analysis: qualityAnalysis,
-        conversation_metrics: {
-          user_message_count: transcript.filter(t => t.role === 'user').length,
-          assistant_message_count: transcript.filter(t => t.role === 'assistant' || t.role === 'agent').length,
-          total_duration: duration_seconds,
-          user_input_length: userInput.length,
-          assistant_response_length: assistantResponse.length
-        }
-      },
       points_of_interest_mentioned: pointsOfInterest,
       // Quality analysis fields from AI
       info_accuracy_status: qualityAnalysis.info_accuracy_status,

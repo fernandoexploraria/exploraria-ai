@@ -12,7 +12,6 @@ export type Database = {
       interactions: {
         Row: {
           agent_id: string | null
-          analysis_results: Json | null
           assistant_response: string
           assistant_response_embedding: string | null
           audio_url: string | null
@@ -22,7 +21,6 @@ export type Database = {
           conversation_summary: string | null
           conversation_summary_embedding: string | null
           created_at: string
-          data_collection: Json | null
           destination: string
           efficiency_conciseness_explanation: string | null
           efficiency_conciseness_status: string | null
@@ -53,7 +51,6 @@ export type Database = {
         }
         Insert: {
           agent_id?: string | null
-          analysis_results?: Json | null
           assistant_response: string
           assistant_response_embedding?: string | null
           audio_url?: string | null
@@ -63,7 +60,6 @@ export type Database = {
           conversation_summary?: string | null
           conversation_summary_embedding?: string | null
           created_at?: string
-          data_collection?: Json | null
           destination: string
           efficiency_conciseness_explanation?: string | null
           efficiency_conciseness_status?: string | null
@@ -94,7 +90,6 @@ export type Database = {
         }
         Update: {
           agent_id?: string | null
-          analysis_results?: Json | null
           assistant_response?: string
           assistant_response_embedding?: string | null
           audio_url?: string | null
@@ -104,7 +99,6 @@ export type Database = {
           conversation_summary?: string | null
           conversation_summary_embedding?: string | null
           created_at?: string
-          data_collection?: Json | null
           destination?: string
           efficiency_conciseness_explanation?: string | null
           efficiency_conciseness_status?: string | null

@@ -15,7 +15,7 @@ async function analyzeTextInteractionQuality(userInput: string, assistantRespons
     navigation_effectiveness_status: 'good',
     navigation_effectiveness_explanation: 'Clear guidance provided for requested destination',
     engagement_interactivity_status: userInput.split(' ').length > 10 ? 'excellent' : 'good',
-    engagement_interactivity_explanation: userInput.split(' ').length > 10 ? 'User provided detailed query' : 'User engaged with specific question',
+    engagement_interactivity_explanation: userInput.split(' ').length > 10 ? 'User provide detailed query' : 'User engaged with specific question',
     problem_resolution_status: 'good',
     problem_resolution_explanation: 'User query addressed comprehensively',
     efficiency_conciseness_status: assistantResponse.length < 800 ? 'excellent' : 'good',
@@ -164,19 +164,6 @@ serve(async (req) => {
       call_status: 'completed',
       start_time: Date.now(),
       end_time: Date.now(),
-      data_collection: {
-        interaction_timestamp: Date.now(),
-        interaction_source: 'web_app',
-        user_agent: req.headers.get('user-agent') || 'unknown'
-      },
-      analysis_results: {
-        quality_analysis: qualityAnalysis,
-        interaction_metrics: {
-          user_input_length: userInput.length,
-          assistant_response_length: assistantResponse.length,
-          interaction_type: interactionType
-        }
-      },
       points_of_interest_mentioned: [destination], // At minimum, the destination is a point of interest
       // Quality analysis fields
       info_accuracy_status: qualityAnalysis.info_accuracy_status,
