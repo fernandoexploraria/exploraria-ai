@@ -18,10 +18,6 @@ interface Interaction {
   conversation_duration: number | null;
   audio_url: string | null;
   agent_id: string | null;
-  // Proximity-specific properties
-  discovery_distance?: number | null;
-  transportation_mode?: string | null;
-  user_location?: any;
   similarity?: number;
 }
 

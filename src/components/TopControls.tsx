@@ -13,7 +13,6 @@ interface TopControlsProps {
   onSelectLandmark: (landmark: Landmark) => void;
   onTourPlannerOpen: () => void;
   onVoiceSearchOpen: () => void;
-  onTravelLogOpen: () => void;
   onVoiceAssistantOpen: () => void;
   onLogoClick: () => void;
   user: any;
@@ -25,7 +24,6 @@ const TopControls: React.FC<TopControlsProps> = ({
   onSelectLandmark,
   onTourPlannerOpen,
   onVoiceSearchOpen,
-  onTravelLogOpen,
   onVoiceAssistantOpen,
   onLogoClick,
   user,
@@ -89,7 +87,7 @@ const TopControls: React.FC<TopControlsProps> = ({
                 variant="outline"
                 size="sm"
                 className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
-                onClick={onTravelLogOpen}
+                onClick={onVoiceSearchOpen}
               >
                 <Search className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
                 Travel Log

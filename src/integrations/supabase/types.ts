@@ -22,7 +22,6 @@ export type Database = {
           conversation_summary_embedding: string | null
           created_at: string
           destination: string
-          discovery_distance: number | null
           efficiency_conciseness_explanation: string | null
           efficiency_conciseness_status: string | null
           end_time: number | null
@@ -44,11 +43,9 @@ export type Database = {
           problem_resolution_explanation: string | null
           problem_resolution_status: string | null
           start_time: number | null
-          transportation_mode: string | null
           user_id: string | null
           user_input: string
           user_input_embedding: string | null
-          user_location: unknown | null
           user_satisfaction_explanation: string | null
           user_satisfaction_status: string | null
         }
@@ -64,7 +61,6 @@ export type Database = {
           conversation_summary_embedding?: string | null
           created_at?: string
           destination: string
-          discovery_distance?: number | null
           efficiency_conciseness_explanation?: string | null
           efficiency_conciseness_status?: string | null
           end_time?: number | null
@@ -86,11 +82,9 @@ export type Database = {
           problem_resolution_explanation?: string | null
           problem_resolution_status?: string | null
           start_time?: number | null
-          transportation_mode?: string | null
           user_id?: string | null
           user_input: string
           user_input_embedding?: string | null
-          user_location?: unknown | null
           user_satisfaction_explanation?: string | null
           user_satisfaction_status?: string | null
         }
@@ -106,7 +100,6 @@ export type Database = {
           conversation_summary_embedding?: string | null
           created_at?: string
           destination?: string
-          discovery_distance?: number | null
           efficiency_conciseness_explanation?: string | null
           efficiency_conciseness_status?: string | null
           end_time?: number | null
@@ -128,11 +121,9 @@ export type Database = {
           problem_resolution_explanation?: string | null
           problem_resolution_status?: string | null
           start_time?: number | null
-          transportation_mode?: string | null
           user_id?: string | null
           user_input?: string
           user_input_embedding?: string | null
-          user_location?: unknown | null
           user_satisfaction_explanation?: string | null
           user_satisfaction_status?: string | null
         }
