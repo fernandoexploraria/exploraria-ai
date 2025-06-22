@@ -72,6 +72,13 @@ const ProximityControls: React.FC<ProximityControlsProps> = ({
     onProximityDistanceChange(metersDistance);
   };
 
+  // Get the current display value for the SelectValue component
+  const getCurrentDisplayValue = () => {
+    const displayDistance = getDisplayDistance(proximityDistance);
+    const option = getDistanceOptions().find(opt => opt.value === displayDistance);
+    return option ? option.label : `${displayDistance}${units === 'imperial' ? ' ft' : 'm'}`;
+  };
+
   return (
     <div className="fixed bottom-20 left-4 z-40">
       <Card className="bg-gray-900/95 border-gray-700 backdrop-blur-sm">
@@ -166,7 +173,9 @@ const ProximityControls: React.FC<ProximityControlsProps> = ({
                     onValueChange={handleDistanceChange}
                   >
                     <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
-                      <SelectValue />
+                      <SelectValue placeholder={getCurrentDisplayValue()}>
+                        {getCurrentDisplayValue()}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent className="bg-gray-800 border-gray-600 z-50">
                       {getDistanceOptions().map((option) => (
