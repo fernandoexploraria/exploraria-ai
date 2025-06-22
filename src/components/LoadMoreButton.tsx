@@ -28,10 +28,10 @@ const LoadMoreButton: React.FC<LoadMoreButtonProps> = ({
         Showing {currentCount} recent conversations
       </p>
       <Button
-        variant="outline"
+        variant="secondary"
         onClick={onLoadMore}
         disabled={isLoading}
-        className="text-white border-gray-600 hover:bg-gray-800"
+        className="bg-gray-800 text-white border border-gray-600 hover:bg-gray-700 hover:border-gray-500"
       >
         {isLoading ? (
           <>
