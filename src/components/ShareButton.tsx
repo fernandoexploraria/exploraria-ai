@@ -2,7 +2,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Share2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 
 interface Interaction {
   id: string;
@@ -20,6 +19,46 @@ interface ShareButtonProps {
 }
 
 const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
+  // Convert image to WebP format for better compression
+  const convertImageToWebP = async (imageUrl: string): Promise<Blob | null> => {
+    try {
+      console.log('Converting image to WebP:', imageUrl);
+      
+      // Create a canvas to convert the image
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      return new Promise((resolve) => {
+        img.onload = () => {
+          // Set canvas dimensions to match image
+          canvas.width = img.width;
+          canvas.height = img.height;
+          
+          // Draw image on canvas
+          ctx?.drawImage(img, 0, 0);
+          
+          // Convert to WebP with 80% quality for good compression
+          canvas.toBlob((blob) => {
+            console.log('Image converted to WebP, size:', blob?.size);
+            resolve(blob);
+          }, 'image/webp', 0.8);
+        };
+        
+        img.onerror = () => {
+          console.error('Failed to load image for conversion');
+          resolve(null);
+        };
+        
+        img.crossOrigin = 'anonymous';
+        img.src = imageUrl;
+      });
+    } catch (error) {
+      console.error('Error converting image to WebP:', error);
+      return null;
+    }
+  };
+
   const handleShare = async () => {
     console.log('Share button clicked for interaction:', interaction.id);
     
@@ -46,43 +85,12 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
         shareText += `AI discovered: ${assistantMessages[0]}\n\n`;
       }
     } else {
-      // For map marker, image recognition, and other interactions, use user_input and assistant_response
+      // For map marker, image recognition, and other interactions
       if (interaction.user_input && interaction.user_input.trim()) {
         shareText += `My question: ${interaction.user_input}\n\n`;
       }
       if (interaction.assistant_response && interaction.assistant_response.trim()) {
         shareText += `AI discovered: ${interaction.assistant_response}\n\n`;
-      }
-
-      // Add shortened image URL for map marker and image recognition interactions
-      if (interaction.landmark_image_url && 
-          (interaction.interaction_type === 'map_marker' || interaction.interaction_type === 'image_recognition')) {
-        try {
-          console.log('Creating short URL for image:', interaction.landmark_image_url);
-          
-          // Get the current session to include auth header
-          const { data: { session } } = await supabase.auth.getSession();
-          
-          const { data, error } = await supabase.functions.invoke('create-short-url', {
-            body: {
-              originalUrl: interaction.landmark_image_url,
-              urlType: 'image',
-              interactionId: interaction.id
-            },
-            headers: session?.access_token ? {
-              Authorization: `Bearer ${session.access_token}`
-            } : {}
-          });
-
-          if (data && data.shortUrl) {
-            shareText += `📸 View image: ${data.shortUrl}\n\n`;
-            console.log('Short URL created:', data.shortUrl);
-          } else {
-            console.error('Failed to create short URL:', error);
-          }
-        } catch (error) {
-          console.error('Error creating short URL:', error);
-        }
       }
     }
     
@@ -91,27 +99,65 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
     const shareUrl = window.location.origin;
 
     try {
-      if (navigator.share) {
-        // Use Web Share API if available (mobile)
-        await navigator.share({
+      // Prepare files array for sharing
+      const files: File[] = [];
+      
+      // Convert and add image file if available for map marker and image recognition
+      if (interaction.landmark_image_url && 
+          (interaction.interaction_type === 'map_marker' || interaction.interaction_type === 'image_recognition')) {
+        console.log('Converting image for sharing...');
+        const imageBlob = await convertImageToWebP(interaction.landmark_image_url);
+        
+        if (imageBlob) {
+          const fileName = `exploraria-${interaction.destination.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.webp`;
+          const imageFile = new File([imageBlob], fileName, { type: 'image/webp' });
+          files.push(imageFile);
+          console.log('Image file prepared for sharing:', fileName, 'Size:', imageBlob.size);
+        }
+      }
+
+      if (navigator.share && navigator.canShare && navigator.canShare({ files })) {
+        // Use Web Share API with files if available (mobile)
+        const shareData: any = {
           title: shareTitle,
           text: shareText,
           url: shareUrl,
-        });
-        console.log('Content shared successfully');
+        };
+        
+        if (files.length > 0) {
+          shareData.files = files;
+        }
+        
+        await navigator.share(shareData);
+        console.log('Content and files shared successfully');
       } else {
-        // Fallback for desktop - copy to clipboard
+        // Fallback for desktop - copy to clipboard and download image
         const fullShareContent = `${shareTitle}\n\n${shareText}\n\n${shareUrl}`;
         await navigator.clipboard.writeText(fullShareContent);
-        console.log('Content copied to clipboard');
         
-        // You could add a toast notification here if needed
-        alert('Content copied to clipboard! You can now paste it wherever you want to share.');
+        // Download the WebP image if available
+        if (files.length > 0) {
+          const imageFile = files[0];
+          const downloadUrl = URL.createObjectURL(imageFile);
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = imageFile.name;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(downloadUrl);
+          
+          console.log('Content copied to clipboard and image downloaded');
+          alert('Content copied to clipboard and image downloaded!');
+        } else {
+          console.log('Content copied to clipboard');
+          alert('Content copied to clipboard! You can now paste it wherever you want to share.');
+        }
       }
     } catch (error) {
       console.error('Error sharing content:', error);
       
-      // Final fallback - try clipboard
+      // Final fallback - try clipboard only
       try {
         const fullShareContent = `${shareTitle}\n\n${shareText}\n\n${shareUrl}`;
         await navigator.clipboard.writeText(fullShareContent);
