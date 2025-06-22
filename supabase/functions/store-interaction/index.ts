@@ -193,6 +193,17 @@ serve(async (req) => {
       user_satisfaction_explanation: qualityAnalysis.user_satisfaction_explanation
     }
 
+    // Generate embedding for points of interest (destination)
+    console.log('Generating embedding for points of interest...');
+    insertData.points_of_interest_embedding = await generateGeminiEmbedding(destination, geminiApiKey);
+    console.log('Points of interest embedding generated');
+
+    // Generate embedding for evaluation criteria summary
+    const evaluationCriteriaText = `Information Accuracy: ${qualityAnalysis.info_accuracy_status} - ${qualityAnalysis.info_accuracy_explanation}. Navigation Effectiveness: ${qualityAnalysis.navigation_effectiveness_status} - ${qualityAnalysis.navigation_effectiveness_explanation}. User Engagement: ${qualityAnalysis.engagement_interactivity_status} - ${qualityAnalysis.engagement_interactivity_explanation}.`;
+    console.log('Generating embedding for evaluation criteria...');
+    insertData.evaluation_criteria_embedding = await generateGeminiEmbedding(evaluationCriteriaText, geminiApiKey);
+    console.log('Evaluation criteria embedding generated');
+
     // Add optional fields if provided
     if (landmarkCoordinates && Array.isArray(landmarkCoordinates) && landmarkCoordinates.length === 2) {
       // Convert [lng, lat] to PostgreSQL POINT format
@@ -235,7 +246,16 @@ serve(async (req) => {
     console.log('Interaction stored successfully:', data);
 
     return new Response(
-      JSON.stringify({ success: true, data }),
+      JSON.stringify({ 
+        success: true, 
+        data,
+        embeddings_generated: {
+          user_input: true,
+          assistant_response: true,
+          points_of_interest: true,
+          evaluation_criteria: true
+        }
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200 

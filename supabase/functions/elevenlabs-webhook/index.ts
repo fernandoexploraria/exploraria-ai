@@ -282,11 +282,27 @@ serve(async (req) => {
       user_satisfaction_explanation: qualityAnalysis.user_satisfaction_explanation
     }
 
-    // Add conversation summary if available
+    // Add conversation summary and its embedding if available
     if (summary) {
       insertData.conversation_summary = summary;
-      console.log('Added conversation summary:', summary);
+      console.log('Generating embedding for conversation summary...');
+      insertData.conversation_summary_embedding = await generateGeminiEmbedding(summary, geminiApiKey);
+      console.log('Conversation summary embedding generated');
     }
+
+    // Generate embedding for points of interest if any were found
+    if (pointsOfInterest.length > 0) {
+      const pointsOfInterestText = pointsOfInterest.join(', ');
+      console.log('Generating embedding for points of interest...');
+      insertData.points_of_interest_embedding = await generateGeminiEmbedding(pointsOfInterestText, geminiApiKey);
+      console.log('Points of interest embedding generated');
+    }
+
+    // Generate embedding for evaluation criteria summary
+    const evaluationCriteriaText = `Information Accuracy: ${qualityAnalysis.info_accuracy_status} - ${qualityAnalysis.info_accuracy_explanation}. Navigation Effectiveness: ${qualityAnalysis.navigation_effectiveness_status} - ${qualityAnalysis.navigation_effectiveness_explanation}. User Engagement: ${qualityAnalysis.engagement_interactivity_status} - ${qualityAnalysis.engagement_interactivity_explanation}.`;
+    console.log('Generating embedding for evaluation criteria...');
+    insertData.evaluation_criteria_embedding = await generateGeminiEmbedding(evaluationCriteriaText, geminiApiKey);
+    console.log('Evaluation criteria embedding generated');
 
     // Store the conversation in the database
     console.log('Storing conversation in database...');
@@ -311,7 +327,12 @@ serve(async (req) => {
         conversation_id: conversation_id,
         summary_included: !!summary,
         points_of_interest_count: pointsOfInterest.length,
-        quality_analysis_completed: true
+        quality_analysis_completed: true,
+        embeddings_generated: {
+          conversation_summary: !!summary,
+          points_of_interest: pointsOfInterest.length > 0,
+          evaluation_criteria: true
+        }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

@@ -20,6 +20,7 @@ export type Database = {
           conversation_duration: number | null
           conversation_id: string | null
           conversation_summary: string | null
+          conversation_summary_embedding: string | null
           created_at: string
           data_collection: Json | null
           destination: string
@@ -28,6 +29,7 @@ export type Database = {
           end_time: number | null
           engagement_interactivity_explanation: string | null
           engagement_interactivity_status: string | null
+          evaluation_criteria_embedding: string | null
           full_transcript: Json | null
           id: string
           info_accuracy_explanation: string | null
@@ -38,6 +40,7 @@ export type Database = {
           landmark_image_url: string | null
           navigation_effectiveness_explanation: string | null
           navigation_effectiveness_status: string | null
+          points_of_interest_embedding: string | null
           points_of_interest_mentioned: string[] | null
           problem_resolution_explanation: string | null
           problem_resolution_status: string | null
@@ -58,6 +61,7 @@ export type Database = {
           conversation_duration?: number | null
           conversation_id?: string | null
           conversation_summary?: string | null
+          conversation_summary_embedding?: string | null
           created_at?: string
           data_collection?: Json | null
           destination: string
@@ -66,6 +70,7 @@ export type Database = {
           end_time?: number | null
           engagement_interactivity_explanation?: string | null
           engagement_interactivity_status?: string | null
+          evaluation_criteria_embedding?: string | null
           full_transcript?: Json | null
           id?: string
           info_accuracy_explanation?: string | null
@@ -76,6 +81,7 @@ export type Database = {
           landmark_image_url?: string | null
           navigation_effectiveness_explanation?: string | null
           navigation_effectiveness_status?: string | null
+          points_of_interest_embedding?: string | null
           points_of_interest_mentioned?: string[] | null
           problem_resolution_explanation?: string | null
           problem_resolution_status?: string | null
@@ -96,6 +102,7 @@ export type Database = {
           conversation_duration?: number | null
           conversation_id?: string | null
           conversation_summary?: string | null
+          conversation_summary_embedding?: string | null
           created_at?: string
           data_collection?: Json | null
           destination?: string
@@ -104,6 +111,7 @@ export type Database = {
           end_time?: number | null
           engagement_interactivity_explanation?: string | null
           engagement_interactivity_status?: string | null
+          evaluation_criteria_embedding?: string | null
           full_transcript?: Json | null
           id?: string
           info_accuracy_explanation?: string | null
@@ -114,6 +122,7 @@ export type Database = {
           landmark_image_url?: string | null
           navigation_effectiveness_explanation?: string | null
           navigation_effectiveness_status?: string | null
+          points_of_interest_embedding?: string | null
           points_of_interest_mentioned?: string[] | null
           problem_resolution_explanation?: string | null
           problem_resolution_status?: string | null
