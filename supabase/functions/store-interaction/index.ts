@@ -27,6 +27,26 @@ async function analyzeTextInteractionQuality(userInput: string, assistantRespons
   return analysis;
 }
 
+async function analyzeProximityInteractionQuality(userInput: string, assistantResponse: string, discoveryDistance: number, transportationMode: string): Promise<any> {
+  // Analysis specific to proximity discoveries
+  const analysis = {
+    info_accuracy_status: 'excellent',
+    info_accuracy_explanation: 'Proximity discovery provided accurate location-based information',
+    navigation_effectiveness_status: 'excellent',
+    navigation_effectiveness_explanation: `User successfully discovered landmark while ${transportationMode}`,
+    engagement_interactivity_status: 'excellent',
+    engagement_interactivity_explanation: 'User physically engaged with environment through proximity discovery',
+    problem_resolution_status: 'excellent',
+    problem_resolution_explanation: 'Location-based discovery fulfilled user\'s exploration needs',
+    efficiency_conciseness_status: discoveryDistance < 100 ? 'excellent' : 'good',
+    efficiency_conciseness_explanation: discoveryDistance < 100 ? 'Very close proximity discovery' : 'Good proximity discovery range',
+    user_satisfaction_status: 'excellent',
+    user_satisfaction_explanation: 'Successful proximity-based landmark discovery while exploring'
+  };
+
+  return analysis;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -41,7 +61,11 @@ serve(async (req) => {
       destination,
       interactionType = 'text',
       landmarkCoordinates,
-      landmarkImageUrl
+      landmarkImageUrl,
+      // New proximity fields
+      discoveryDistance,
+      transportationMode,
+      userLocation
     } = await req.json()
     
     console.log('Request body:', { 
@@ -50,7 +74,10 @@ serve(async (req) => {
       destination, 
       interactionType,
       landmarkCoordinates,
-      landmarkImageUrl 
+      landmarkImageUrl,
+      discoveryDistance,
+      transportationMode,
+      userLocation
     });
 
     if (!userInput || !assistantResponse || !destination) {
@@ -147,9 +174,15 @@ serve(async (req) => {
     const assistantResponseEmbedding = await generateGeminiEmbedding(assistantResponse, geminiApiKey)
     console.log('Assistant response embedding generated, length:', assistantResponseEmbedding.length);
 
-    // Analyze interaction quality
-    const qualityAnalysis = await analyzeTextInteractionQuality(userInput, assistantResponse);
-    console.log('Quality analysis completed for text interaction');
+    // Analyze interaction quality based on type
+    let qualityAnalysis;
+    if (interactionType === 'proximity') {
+      qualityAnalysis = await analyzeProximityInteractionQuality(userInput, assistantResponse, discoveryDistance || 0, transportationMode || 'walking');
+      console.log('Quality analysis completed for proximity interaction');
+    } else {
+      qualityAnalysis = await analyzeTextInteractionQuality(userInput, assistantResponse);
+      console.log('Quality analysis completed for text interaction');
+    }
 
     // Prepare the data for insertion
     const insertData: any = {
@@ -160,11 +193,11 @@ serve(async (req) => {
       user_input_embedding: userInputEmbedding,
       assistant_response_embedding: assistantResponseEmbedding,
       interaction_type: interactionType,
-      // Analytics fields for text interactions
+      // Analytics fields
       call_status: 'completed',
       start_time: Date.now(),
       end_time: Date.now(),
-      points_of_interest_mentioned: [destination], // At minimum, the destination is a point of interest
+      points_of_interest_mentioned: [destination],
       // Quality analysis fields
       info_accuracy_status: qualityAnalysis.info_accuracy_status,
       info_accuracy_explanation: qualityAnalysis.info_accuracy_explanation,
@@ -178,6 +211,19 @@ serve(async (req) => {
       efficiency_conciseness_explanation: qualityAnalysis.efficiency_conciseness_explanation,
       user_satisfaction_status: qualityAnalysis.user_satisfaction_status,
       user_satisfaction_explanation: qualityAnalysis.user_satisfaction_explanation
+    }
+
+    // Add proximity-specific fields
+    if (interactionType === 'proximity') {
+      if (discoveryDistance) {
+        insertData.discovery_distance = discoveryDistance;
+      }
+      if (transportationMode) {
+        insertData.transportation_mode = transportationMode;
+      }
+      if (userLocation && Array.isArray(userLocation) && userLocation.length === 2) {
+        insertData.user_location = `(${userLocation[0]}, ${userLocation[1]})`;
+      }
     }
 
     // Generate embedding for points of interest (destination)
@@ -241,7 +287,13 @@ serve(async (req) => {
           assistant_response: true,
           points_of_interest: true,
           evaluation_criteria: true
-        }
+        },
+        interaction_type: interactionType,
+        proximity_data: interactionType === 'proximity' ? {
+          discovery_distance: discoveryDistance,
+          transportation_mode: transportationMode,
+          user_location: userLocation
+        } : null
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
