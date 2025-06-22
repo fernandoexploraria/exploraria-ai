@@ -371,7 +371,7 @@ const Map: React.FC<MapProps> = ({
       const imageUrl = await fetchLandmarkImage(landmark);
       const isPlaying = playingAudio[landmark.id] || false;
       
-      // Store the interaction with the fetched image URL
+      // Store the interaction ONLY ONCE with the fetched image URL
       await storeMapMarkerInteraction(landmark, imageUrl);
       
       photoPopup.setHTML(`
@@ -548,9 +548,6 @@ const Map: React.FC<MapProps> = ({
           e.stopPropagation(); // Prevent map click event
           
           console.log('Marker clicked:', landmark.name);
-          
-          // Store the interaction immediately when marker is clicked
-          await storeMapMarkerInteraction(landmark);
           
           // Check current zoom level and zoom in if needed
           const currentZoom = map.current?.getZoom() || 1.5;
