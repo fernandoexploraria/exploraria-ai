@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -93,7 +94,14 @@ const InteractionCardHeader: React.FC<InteractionCardHeaderProps> = ({
 
   const handleLocationClick = () => {
     if (interaction.landmark_coordinates) {
-      onLocationClick(interaction.landmark_coordinates);
+      // Call the global map navigation function directly
+      if ((window as any).navigateToMapCoordinates) {
+        console.log('Calling navigateToMapCoordinates with:', interaction.landmark_coordinates, interaction);
+        (window as any).navigateToMapCoordinates(interaction.landmark_coordinates, interaction);
+      } else {
+        console.log('navigateToMapCoordinates not available, falling back to onLocationClick');
+        onLocationClick(interaction.landmark_coordinates);
+      }
     }
   };
 
@@ -152,3 +160,4 @@ const InteractionCardHeader: React.FC<InteractionCardHeaderProps> = ({
 };
 
 export default InteractionCardHeader;
+
