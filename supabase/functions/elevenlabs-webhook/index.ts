@@ -32,7 +32,7 @@ async function verifyHmacSignature(body: string, signature: string, secret: stri
   }
 }
 
-async function extractPointsOfInterest(transcript: any[]): Promise<string[]> {
+async function extractPointsOfInterest(transcript: any[], geminiApiKey: string): Promise<string[]> {
   if (!Array.isArray(transcript)) return [];
   
   // Only extract text from user messages, not assistant responses
@@ -41,20 +41,76 @@ async function extractPointsOfInterest(transcript: any[]): Promise<string[]> {
     .map(entry => entry.message)
     .join(' ');
 
-  // Extract common landmarks and points of interest mentioned
-  const commonLandmarks = [
-    'Statue of Liberty', 'Empire State Building', 'Times Square', 'Central Park',
-    'Brooklyn Bridge', 'Metropolitan Museum', 'Met Museum', 'Guggenheim',
-    'Rockefeller Center', 'One World Trade Center', 'High Line', 'Grand Central',
-    'Wall Street', 'Chinatown', 'Little Italy', 'SoHo', 'Greenwich Village',
-    'Broadway', 'Madison Square Garden', 'Yankee Stadium', 'Coney Island'
-  ];
+  if (!userInput.trim()) return [];
 
-  const mentionedLandmarks = commonLandmarks.filter(landmark => 
-    userInput.toLowerCase().includes(landmark.toLowerCase())
-  );
+  console.log('Extracting points of interest with Gemini AI...');
 
-  return mentionedLandmarks;
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: `Extract all landmarks, tourist attractions, places, and points of interest mentioned in this user input. Return ONLY a JSON array of strings with the names of the places mentioned. If no places are mentioned, return an empty array [].
+
+Examples:
+- "I want to visit the Statue of Liberty and Times Square" → ["Statue of Liberty", "Times Square"]
+- "Take me to Central Park" → ["Central Park"]
+- "Where is the Empire State Building?" → ["Empire State Building"]
+- "Hello, how are you?" → []
+
+User input: "${userInput}"`
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.1,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 500,
+        }
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Gemini API error for POI extraction:', response.status, errorText);
+      return [];
+    }
+
+    const data = await response.json();
+    
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+      console.error('Invalid Gemini response structure for POI extraction:', data);
+      return [];
+    }
+
+    const responseText = data.candidates[0].content.parts[0].text.trim();
+    console.log('Gemini POI extraction response:', responseText);
+
+    // Parse the JSON response
+    try {
+      const pointsOfInterest = JSON.parse(responseText);
+      if (Array.isArray(pointsOfInterest)) {
+        return pointsOfInterest.filter(poi => typeof poi === 'string' && poi.trim().length > 0);
+      }
+    } catch (parseError) {
+      console.error('Failed to parse POI JSON response:', parseError);
+      console.log('Raw response:', responseText);
+    }
+
+    return [];
+
+  } catch (error) {
+    console.error('Error extracting points of interest with Gemini:', error);
+    return [];
+  }
 }
 
 async function analyzeConversationQuality(userInput: string, assistantResponse: string, duration: number): Promise<any> {
@@ -300,8 +356,8 @@ serve(async (req) => {
     const generatedSummary = await generateConversationSummary(transcript, geminiApiKey);
     console.log('Summary generated:', generatedSummary.substring(0, 100) + '...');
 
-    // Extract points of interest mentioned in conversation
-    const pointsOfInterest = await extractPointsOfInterest(transcript);
+    // Extract points of interest mentioned in conversation using Gemini AI
+    const pointsOfInterest = await extractPointsOfInterest(transcript, geminiApiKey);
     console.log('Points of interest extracted:', pointsOfInterest);
 
     // Analyze conversation quality
