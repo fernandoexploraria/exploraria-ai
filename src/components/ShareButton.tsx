@@ -10,6 +10,7 @@ interface Interaction {
   assistant_response: string;
   interaction_type: string;
   full_transcript: any;
+  conversation_summary?: string;
 }
 
 interface ShareButtonProps {
@@ -24,9 +25,11 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
     const shareTitle = `Travel Discovery in ${interaction.destination}`;
     let shareText = `Check out what I discovered in ${interaction.destination}!\n\n`;
     
-    // Add the main interaction content
-    if (interaction.interaction_type === 'voice' && interaction.full_transcript && Array.isArray(interaction.full_transcript)) {
-      // For voice interactions, use the transcript
+    // For voice interactions, use conversation summary if available
+    if (interaction.interaction_type === 'voice' && interaction.conversation_summary) {
+      shareText += `${interaction.conversation_summary}\n\n`;
+    } else if (interaction.interaction_type === 'voice' && interaction.full_transcript && Array.isArray(interaction.full_transcript)) {
+      // Fallback to transcript if no summary is available
       const userMessages = interaction.full_transcript
         .filter((entry: any) => entry.role === 'user' && entry.message)
         .map((entry: any) => entry.message);
