@@ -82,7 +82,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
         shareText += `${userMessages[0]}\n\n`;
       }
       if (assistantMessages.length > 0) {
-        shareText += `AI discovered: ${assistantMessages[0]}\n\n`;
+        shareText += `${assistantMessages[0]}\n\n`;
       }
     } else {
       // For map marker, image recognition, and other interactions
@@ -90,7 +90,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
         shareText += `${interaction.user_input}\n\n`;
       }
       if (interaction.assistant_response && interaction.assistant_response.trim()) {
-        shareText += `AI discovered: ${interaction.assistant_response}\n\n`;
+        shareText += `${interaction.assistant_response}\n\n`;
       }
     }
     
