@@ -12,63 +12,117 @@ export type Database = {
       interactions: {
         Row: {
           agent_id: string | null
+          analysis_results: Json | null
           assistant_response: string
           assistant_response_embedding: string | null
           audio_url: string | null
+          call_status: string | null
           conversation_duration: number | null
           conversation_id: string | null
           conversation_summary: string | null
           created_at: string
+          data_collection: Json | null
           destination: string
+          efficiency_conciseness_explanation: string | null
+          efficiency_conciseness_status: string | null
+          end_time: number | null
+          engagement_interactivity_explanation: string | null
+          engagement_interactivity_status: string | null
           full_transcript: Json | null
           id: string
+          info_accuracy_explanation: string | null
+          info_accuracy_status: string | null
           interaction_type: string | null
           is_favorite: boolean | null
           landmark_coordinates: unknown | null
           landmark_image_url: string | null
+          navigation_effectiveness_explanation: string | null
+          navigation_effectiveness_status: string | null
+          points_of_interest_mentioned: string[] | null
+          problem_resolution_explanation: string | null
+          problem_resolution_status: string | null
+          start_time: number | null
           user_id: string | null
           user_input: string
           user_input_embedding: string | null
+          user_satisfaction_explanation: string | null
+          user_satisfaction_status: string | null
         }
         Insert: {
           agent_id?: string | null
+          analysis_results?: Json | null
           assistant_response: string
           assistant_response_embedding?: string | null
           audio_url?: string | null
+          call_status?: string | null
           conversation_duration?: number | null
           conversation_id?: string | null
           conversation_summary?: string | null
           created_at?: string
+          data_collection?: Json | null
           destination: string
+          efficiency_conciseness_explanation?: string | null
+          efficiency_conciseness_status?: string | null
+          end_time?: number | null
+          engagement_interactivity_explanation?: string | null
+          engagement_interactivity_status?: string | null
           full_transcript?: Json | null
           id?: string
+          info_accuracy_explanation?: string | null
+          info_accuracy_status?: string | null
           interaction_type?: string | null
           is_favorite?: boolean | null
           landmark_coordinates?: unknown | null
           landmark_image_url?: string | null
+          navigation_effectiveness_explanation?: string | null
+          navigation_effectiveness_status?: string | null
+          points_of_interest_mentioned?: string[] | null
+          problem_resolution_explanation?: string | null
+          problem_resolution_status?: string | null
+          start_time?: number | null
           user_id?: string | null
           user_input: string
           user_input_embedding?: string | null
+          user_satisfaction_explanation?: string | null
+          user_satisfaction_status?: string | null
         }
         Update: {
           agent_id?: string | null
+          analysis_results?: Json | null
           assistant_response?: string
           assistant_response_embedding?: string | null
           audio_url?: string | null
+          call_status?: string | null
           conversation_duration?: number | null
           conversation_id?: string | null
           conversation_summary?: string | null
           created_at?: string
+          data_collection?: Json | null
           destination?: string
+          efficiency_conciseness_explanation?: string | null
+          efficiency_conciseness_status?: string | null
+          end_time?: number | null
+          engagement_interactivity_explanation?: string | null
+          engagement_interactivity_status?: string | null
           full_transcript?: Json | null
           id?: string
+          info_accuracy_explanation?: string | null
+          info_accuracy_status?: string | null
           interaction_type?: string | null
           is_favorite?: boolean | null
           landmark_coordinates?: unknown | null
           landmark_image_url?: string | null
+          navigation_effectiveness_explanation?: string | null
+          navigation_effectiveness_status?: string | null
+          points_of_interest_mentioned?: string[] | null
+          problem_resolution_explanation?: string | null
+          problem_resolution_status?: string | null
+          start_time?: number | null
           user_id?: string | null
           user_input?: string
           user_input_embedding?: string | null
+          user_satisfaction_explanation?: string | null
+          user_satisfaction_status?: string | null
         }
         Relationships: []
       }
