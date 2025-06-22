@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -93,15 +91,26 @@ const InteractionCardHeader: React.FC<InteractionCardHeaderProps> = ({
   };
 
   const handleLocationClick = () => {
+    console.log('Location button clicked for interaction:', interaction.id);
+    console.log('Coordinates:', interaction.landmark_coordinates);
+    
     if (interaction.landmark_coordinates) {
-      // Call the global map navigation function directly
-      if ((window as any).navigateToMapCoordinates) {
-        console.log('Calling navigateToMapCoordinates with:', interaction.landmark_coordinates, interaction);
-        (window as any).navigateToMapCoordinates(interaction.landmark_coordinates, interaction);
-      } else {
-        console.log('navigateToMapCoordinates not available, falling back to onLocationClick');
-        onLocationClick(interaction.landmark_coordinates);
-      }
+      // First close the interaction carousel by calling the original onLocationClick
+      console.log('Calling onLocationClick to close carousel');
+      onLocationClick(interaction.landmark_coordinates);
+      
+      // Then navigate to the map location with a small delay to ensure carousel closes first
+      setTimeout(() => {
+        console.log('Attempting to call navigateToMapCoordinates');
+        if ((window as any).navigateToMapCoordinates) {
+          console.log('navigateToMapCoordinates function found, calling it');
+          (window as any).navigateToMapCoordinates(interaction.landmark_coordinates, interaction);
+        } else {
+          console.error('navigateToMapCoordinates function not found on window');
+        }
+      }, 100);
+    } else {
+      console.log('No landmark coordinates available for this interaction');
     }
   };
 
@@ -160,4 +169,3 @@ const InteractionCardHeader: React.FC<InteractionCardHeaderProps> = ({
 };
 
 export default InteractionCardHeader;
-
