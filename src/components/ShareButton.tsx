@@ -2,6 +2,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Share2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Interaction {
   id: string;
@@ -11,6 +12,7 @@ interface Interaction {
   interaction_type: string;
   full_transcript: any;
   conversation_summary?: string;
+  landmark_image_url?: string;
 }
 
 interface ShareButtonProps {
@@ -50,6 +52,31 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
       }
       if (interaction.assistant_response && interaction.assistant_response.trim()) {
         shareText += `AI discovered: ${interaction.assistant_response}\n\n`;
+      }
+
+      // Add shortened image URL for map marker and image recognition interactions
+      if (interaction.landmark_image_url && 
+          (interaction.interaction_type === 'map_marker' || interaction.interaction_type === 'image_recognition')) {
+        try {
+          console.log('Creating short URL for image:', interaction.landmark_image_url);
+          
+          const { data, error } = await supabase.functions.invoke('create-short-url', {
+            body: {
+              originalUrl: interaction.landmark_image_url,
+              urlType: 'image',
+              interactionId: interaction.id
+            }
+          });
+
+          if (data && data.shortUrl) {
+            shareText += `📸 View image: ${data.shortUrl}\n\n`;
+            console.log('Short URL created:', data.shortUrl);
+          } else {
+            console.error('Failed to create short URL:', error);
+          }
+        } catch (error) {
+          console.error('Error creating short URL:', error);
+        }
       }
     }
     
