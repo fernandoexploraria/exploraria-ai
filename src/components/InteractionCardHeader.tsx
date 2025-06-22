@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -118,7 +119,7 @@ const InteractionCardHeader: React.FC<InteractionCardHeaderProps> = ({
               onClick={handleLocationClick}
               title="View on Map"
             >
-              <MapPin className="w-3 h-3" />
+              <MapPin className="w-3 h-3 text-red-400" />
             </Button>
           )}
           
