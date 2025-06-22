@@ -102,9 +102,8 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
       // Prepare files array for sharing
       const files: File[] = [];
       
-      // Convert and add image file if available for map marker and image recognition
-      if (interaction.landmark_image_url && 
-          (interaction.interaction_type === 'map_marker' || interaction.interaction_type === 'image_recognition')) {
+      // Convert and add image file if available
+      if (interaction.landmark_image_url) {
         console.log('Converting image for sharing...');
         const imageBlob = await convertImageToWebP(interaction.landmark_image_url);
         
