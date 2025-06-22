@@ -37,7 +37,19 @@ export const useProximityAlerts = () => {
       }
 
       if (data) {
-        setProximitySettings(data);
+        // Cast the data to match our interface types
+        const settings: ProximitySettings = {
+          id: data.id,
+          user_id: data.user_id,
+          is_enabled: data.is_enabled,
+          default_distance: data.default_distance,
+          unit: data.unit as 'metric' | 'imperial',
+          notification_enabled: data.notification_enabled,
+          sound_enabled: data.sound_enabled,
+          created_at: data.created_at,
+          updated_at: data.updated_at,
+        };
+        setProximitySettings(settings);
       } else {
         // Create default settings if none exist
         const defaultSettings = getDefaultProximitySettings(user.id);
@@ -64,7 +76,20 @@ export const useProximityAlerts = () => {
         return;
       }
 
-      setProximityAlerts(data || []);
+      // Cast the data to match our interface types
+      const alerts: ProximityAlert[] = (data || []).map(item => ({
+        id: item.id,
+        user_id: item.user_id,
+        landmark_id: item.landmark_id,
+        distance: item.distance,
+        is_enabled: item.is_enabled,
+        unit: item.unit as 'metric' | 'imperial',
+        last_triggered: item.last_triggered || undefined,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+      }));
+
+      setProximityAlerts(alerts);
     } catch (error) {
       console.error('Error in loadProximityAlerts:', error);
     }
