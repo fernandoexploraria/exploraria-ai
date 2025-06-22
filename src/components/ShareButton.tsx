@@ -44,9 +44,13 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
         shareText += `AI discovered: ${assistantMessages[0]}\n\n`;
       }
     } else {
-      // For other interactions, use user_input and assistant_response
-      shareText += `My question: ${interaction.user_input}\n\n`;
-      shareText += `AI discovered: ${interaction.assistant_response}\n\n`;
+      // For map marker, image recognition, and other interactions, use user_input and assistant_response
+      if (interaction.user_input && interaction.user_input.trim()) {
+        shareText += `My question: ${interaction.user_input}\n\n`;
+      }
+      if (interaction.assistant_response && interaction.assistant_response.trim()) {
+        shareText += `AI discovered: ${interaction.assistant_response}\n\n`;
+      }
     }
     
     shareText += `Discovered with Exploraria AI 🗺️✨`;
