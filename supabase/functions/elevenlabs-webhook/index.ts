@@ -113,24 +113,226 @@ User input: "${userInput}"`
   }
 }
 
-async function analyzeConversationQuality(userInput: string, assistantResponse: string, duration: number): Promise<any> {
-  // Basic analysis based on conversation characteristics
-  const analysis = {
-    info_accuracy_status: 'good',
-    info_accuracy_explanation: 'Response provided relevant information about requested destinations',
-    navigation_effectiveness_status: duration > 60 ? 'good' : 'fair',
-    navigation_effectiveness_explanation: duration > 60 ? 'Comprehensive guidance provided' : 'Brief but direct guidance',
-    engagement_interactivity_status: userInput.split(' ').length > 5 ? 'good' : 'fair',
-    engagement_interactivity_explanation: userInput.split(' ').length > 5 ? 'User actively engaged in conversation' : 'Limited user engagement',
-    problem_resolution_status: 'good',
-    problem_resolution_explanation: 'Tourist query addressed appropriately',
-    efficiency_conciseness_status: assistantResponse.length < 1000 ? 'good' : 'fair',
-    efficiency_conciseness_explanation: assistantResponse.length < 1000 ? 'Concise and focused response' : 'Detailed but potentially lengthy response',
-    user_satisfaction_status: 'good',
-    user_satisfaction_explanation: 'Conversation completed successfully without interruption'
-  };
+async function analyzeConversationQuality(transcript: any[], duration: number, geminiApiKey: string): Promise<any> {
+  // Skip AI analysis for conversations shorter than 30 seconds
+  if (duration < 30) {
+    console.log('Conversation too short for AI analysis, using basic fallback');
+    return {
+      info_accuracy_status: 'fair',
+      info_accuracy_explanation: 'Conversation too short for meaningful accuracy assessment',
+      navigation_effectiveness_status: 'fair',
+      navigation_effectiveness_explanation: 'Limited interaction time for navigation guidance',
+      engagement_interactivity_status: 'fair',
+      engagement_interactivity_explanation: 'Brief interaction with limited engagement opportunity',
+      problem_resolution_status: 'fair',
+      problem_resolution_explanation: 'Short conversation with minimal problem-solving context',
+      efficiency_conciseness_status: 'good',
+      efficiency_conciseness_explanation: 'Quick resolution appropriate for brief interaction',
+      user_satisfaction_status: 'fair',
+      user_satisfaction_explanation: 'Limited interaction time to assess satisfaction'
+    };
+  }
 
-  return analysis;
+  if (!Array.isArray(transcript) || transcript.length === 0) {
+    console.log('No transcript available for AI analysis');
+    return {
+      info_accuracy_status: 'poor',
+      info_accuracy_explanation: 'No conversation content available for analysis',
+      navigation_effectiveness_status: 'poor',
+      navigation_effectiveness_explanation: 'No conversation content available for analysis',
+      engagement_interactivity_status: 'poor',
+      engagement_interactivity_explanation: 'No conversation content available for analysis',
+      problem_resolution_status: 'poor',
+      problem_resolution_explanation: 'No conversation content available for analysis',
+      efficiency_conciseness_status: 'poor',
+      efficiency_conciseness_explanation: 'No conversation content available for analysis',
+      user_satisfaction_status: 'poor',
+      user_satisfaction_explanation: 'No conversation content available for analysis'
+    };
+  }
+
+  // Format conversation for AI analysis
+  const conversationText = transcript
+    .filter(entry => entry.message && entry.message.trim())
+    .map(entry => `${entry.role === 'user' ? 'Tourist' : 'Guide'}: ${entry.message}`)
+    .join('\n');
+
+  const userMessageCount = transcript.filter(t => t.role === 'user').length;
+  const agentMessageCount = transcript.filter(t => t.role === 'assistant' || t.role === 'agent').length;
+
+  console.log('Analyzing conversation quality with AI...');
+
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: `Analyze this tour guide conversation and evaluate it across 6 criteria. For each criterion, provide a status (excellent/good/fair/poor) and a 2-3 sentence explanation with specific examples.
+
+CONVERSATION METADATA:
+- Duration: ${duration} seconds
+- Tourist messages: ${userMessageCount}
+- Guide responses: ${agentMessageCount}
+- Total turns: ${transcript.length}
+
+EVALUATION CRITERIA:
+
+1. Information Accuracy & Completeness:
+Was all factual information provided by the guide accurate and up-to-date? Did the guide provide comprehensive answers to tourist questions about tours, destinations, or related topics?
+- Excellent: All information accurate, comprehensive answers with relevant details
+- Good: Mostly accurate information, adequately comprehensive responses
+- Fair: Generally accurate but some gaps or minor inaccuracies
+- Poor: Significant inaccuracies or incomplete information
+
+2. Navigation & Guidance Effectiveness:
+Did the guide effectively help the tourist navigate their tour experience? Did it provide clear, actionable directions or recommendations relevant to the tourist's interests?
+- Excellent: Clear, specific directions and highly relevant recommendations
+- Good: Generally clear guidance with mostly relevant suggestions
+- Fair: Basic guidance provided but could be clearer or more specific
+- Poor: Confusing directions or irrelevant recommendations
+
+3. Engagement & Interactivity:
+Was the conversation engaging and did the guide encourage interaction beyond simple Q&A? Did it maintain a pleasant, helpful tone and feel like a natural conversation?
+- Excellent: Highly engaging, descriptive language, natural conversation flow
+- Good: Generally engaging with good conversational tone
+- Fair: Adequate engagement but somewhat mechanical
+- Poor: Robotic, terse responses, poor conversational flow
+
+4. Problem Resolution & Adaptability:
+If the tourist encountered problems or needed to adapt plans, did the guide successfully understand issues and offer appropriate solutions?
+- Excellent: Quickly identified problems and provided excellent solutions
+- Good: Generally good at problem identification and resolution
+- Fair: Basic problem-solving with adequate solutions
+- Poor: Failed to understand or address problems effectively
+
+5. Efficiency & Conciseness:
+Did the guide provide information efficiently without being overly verbose? Did the tourist achieve their goals in reasonable time?
+- Excellent: Perfectly concise, direct answers, efficient goal achievement
+- Good: Generally efficient with appropriate level of detail
+- Fair: Somewhat verbose or inefficient but acceptable
+- Poor: Long-winded, repetitive, or required excessive back-and-forth
+
+6. User Satisfaction (Inferred):
+Based on tone, language, and successful completion of requests, did the tourist appear satisfied with the interaction and tour experience?
+- Excellent: Clear expressions of satisfaction, enthusiasm, gratitude
+- Good: Generally positive tone, successful completion of goals
+- Fair: Neutral tone, basic goals met
+- Poor: Signs of frustration, abrupt ending, unmet goals
+
+CONVERSATION:
+${conversationText}
+
+Return ONLY a JSON object with this exact structure:
+{
+  "info_accuracy_status": "excellent|good|fair|poor",
+  "info_accuracy_explanation": "explanation text",
+  "navigation_effectiveness_status": "excellent|good|fair|poor",
+  "navigation_effectiveness_explanation": "explanation text",
+  "engagement_interactivity_status": "excellent|good|fair|poor",
+  "engagement_interactivity_explanation": "explanation text",
+  "problem_resolution_status": "excellent|good|fair|poor",
+  "problem_resolution_explanation": "explanation text",
+  "efficiency_conciseness_status": "excellent|good|fair|poor",
+  "efficiency_conciseness_explanation": "explanation text",
+  "user_satisfaction_status": "excellent|good|fair|poor",
+  "user_satisfaction_explanation": "explanation text"
+}`
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.2,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 1000,
+        }
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Gemini API error for quality analysis:', response.status, errorText);
+      // Return fallback analysis
+      return {
+        info_accuracy_status: 'fair',
+        info_accuracy_explanation: 'Unable to analyze accuracy due to API error',
+        navigation_effectiveness_status: 'fair',
+        navigation_effectiveness_explanation: 'Unable to analyze navigation effectiveness due to API error',
+        engagement_interactivity_status: 'fair',
+        engagement_interactivity_explanation: 'Unable to analyze engagement due to API error',
+        problem_resolution_status: 'fair',
+        problem_resolution_explanation: 'Unable to analyze problem resolution due to API error',
+        efficiency_conciseness_status: 'fair',
+        efficiency_conciseness_explanation: 'Unable to analyze efficiency due to API error',
+        user_satisfaction_status: 'fair',
+        user_satisfaction_explanation: 'Unable to analyze satisfaction due to API error'
+      };
+    }
+
+    const data = await response.json();
+    
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+      console.error('Invalid Gemini response structure for quality analysis:', data);
+      throw new Error('Invalid API response structure');
+    }
+
+    const responseText = data.candidates[0].content.parts[0].text.trim();
+    console.log('AI quality analysis response:', responseText.substring(0, 200) + '...');
+
+    // Parse the JSON response
+    try {
+      const analysis = JSON.parse(responseText);
+      
+      // Validate that all required fields are present
+      const requiredFields = [
+        'info_accuracy_status', 'info_accuracy_explanation',
+        'navigation_effectiveness_status', 'navigation_effectiveness_explanation',
+        'engagement_interactivity_status', 'engagement_interactivity_explanation',
+        'problem_resolution_status', 'problem_resolution_explanation',
+        'efficiency_conciseness_status', 'efficiency_conciseness_explanation',
+        'user_satisfaction_status', 'user_satisfaction_explanation'
+      ];
+
+      const missingFields = requiredFields.filter(field => !analysis[field]);
+      if (missingFields.length > 0) {
+        console.error('Missing fields in AI analysis:', missingFields);
+        throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+      }
+
+      console.log('AI quality analysis completed successfully');
+      return analysis;
+
+    } catch (parseError) {
+      console.error('Failed to parse AI quality analysis JSON:', parseError);
+      console.log('Raw AI response:', responseText);
+      throw parseError;
+    }
+
+  } catch (error) {
+    console.error('Error in AI quality analysis:', error);
+    // Return fallback analysis
+    return {
+      info_accuracy_status: 'fair',
+      info_accuracy_explanation: 'Analysis failed due to processing error',
+      navigation_effectiveness_status: 'fair',  
+      navigation_effectiveness_explanation: 'Analysis failed due to processing error',
+      engagement_interactivity_status: 'fair',
+      engagement_interactivity_explanation: 'Analysis failed due to processing error',
+      problem_resolution_status: 'fair',
+      problem_resolution_explanation: 'Analysis failed due to processing error',
+      efficiency_conciseness_status: 'fair',
+      efficiency_conciseness_explanation: 'Analysis failed due to processing error',
+      user_satisfaction_status: 'fair',
+      user_satisfaction_explanation: 'Analysis failed due to processing error'
+    };
+  }
 }
 
 async function generateConversationSummary(transcript: any[], geminiApiKey: string): Promise<string> {
@@ -360,9 +562,9 @@ serve(async (req) => {
     const pointsOfInterest = await extractPointsOfInterest(transcript, geminiApiKey);
     console.log('Points of interest extracted:', pointsOfInterest);
 
-    // Analyze conversation quality
-    const qualityAnalysis = await analyzeConversationQuality(userInput, assistantResponse, duration_seconds);
-    console.log('Quality analysis completed:', qualityAnalysis);
+    // Analyze conversation quality using AI
+    const qualityAnalysis = await analyzeConversationQuality(transcript, duration_seconds, geminiApiKey);
+    console.log('AI quality analysis completed:', Object.keys(qualityAnalysis));
 
     // Prepare the data for insertion
     const insertData: any = {
@@ -398,7 +600,7 @@ serve(async (req) => {
         }
       },
       points_of_interest_mentioned: pointsOfInterest,
-      // Quality analysis fields
+      // Quality analysis fields from AI
       info_accuracy_status: qualityAnalysis.info_accuracy_status,
       info_accuracy_explanation: qualityAnalysis.info_accuracy_explanation,
       navigation_effectiveness_status: qualityAnalysis.navigation_effectiveness_status,
@@ -457,7 +659,13 @@ serve(async (req) => {
         summary_generated: true,
         summary_preview: generatedSummary.substring(0, 100) + '...',
         points_of_interest_count: pointsOfInterest.length,
-        quality_analysis_completed: true,
+        ai_quality_analysis_completed: true,
+        analysis_preview: {
+          info_accuracy: qualityAnalysis.info_accuracy_status,
+          navigation_effectiveness: qualityAnalysis.navigation_effectiveness_status,
+          engagement: qualityAnalysis.engagement_interactivity_status,
+          satisfaction: qualityAnalysis.user_satisfaction_status
+        },
         embeddings_generated: {
           conversation_summary: true,
           points_of_interest: pointsOfInterest.length > 0,
