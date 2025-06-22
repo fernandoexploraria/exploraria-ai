@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -95,20 +96,14 @@ const InteractionCardHeader: React.FC<InteractionCardHeaderProps> = ({
     console.log('Coordinates:', interaction.landmark_coordinates);
     
     if (interaction.landmark_coordinates) {
-      // First close the interaction carousel by calling the original onLocationClick
-      console.log('Calling onLocationClick to close carousel');
-      onLocationClick(interaction.landmark_coordinates);
-      
-      // Then navigate to the map location with a small delay to ensure carousel closes first
-      setTimeout(() => {
-        console.log('Attempting to call navigateToMapCoordinates');
-        if ((window as any).navigateToMapCoordinates) {
-          console.log('navigateToMapCoordinates function found, calling it');
-          (window as any).navigateToMapCoordinates(interaction.landmark_coordinates, interaction);
-        } else {
-          console.error('navigateToMapCoordinates function not found on window');
-        }
-      }, 100);
+      // Call the global map navigation function directly without closing carousel
+      console.log('Attempting to call navigateToMapCoordinates');
+      if ((window as any).navigateToMapCoordinates) {
+        console.log('navigateToMapCoordinates function found, calling it');
+        (window as any).navigateToMapCoordinates(interaction.landmark_coordinates, interaction);
+      } else {
+        console.error('navigateToMapCoordinates function not found on window');
+      }
     } else {
       console.log('No landmark coordinates available for this interaction');
     }
