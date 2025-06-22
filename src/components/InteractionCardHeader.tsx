@@ -1,16 +1,27 @@
 
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Camera, Mic, MapPin, PersonStanding } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Camera, Mic, MapPin, PersonStanding, Star, Map } from 'lucide-react';
+import ShareButton from './ShareButton';
 import { Interaction } from './InteractionCarouselLogic';
 
 interface InteractionCardHeaderProps {
   interaction: Interaction;
+  onToggleFavorite: (interaction: Interaction) => void;
+  onLocationClick: (coordinates: any) => void;
 }
 
-const InteractionCardHeader: React.FC<InteractionCardHeaderProps> = ({ interaction }) => {
+const InteractionCardHeader: React.FC<InteractionCardHeaderProps> = ({ 
+  interaction, 
+  onToggleFavorite,
+  onLocationClick 
+}) => {
   const getInteractionTypeInfo = () => {
-    switch (interaction.interaction_type) {
+    // Handle different possible interaction type values
+    const type = interaction.interaction_type?.toLowerCase() || 'voice';
+    
+    switch (type) {
       case 'voice':
         return {
           icon: Mic,
@@ -19,6 +30,7 @@ const InteractionCardHeader: React.FC<InteractionCardHeaderProps> = ({ interacti
           bgColor: 'bg-blue-500/10'
         };
       case 'image':
+      case 'image_recognition':
         return {
           icon: Camera,
           label: 'Image Analysis',
@@ -26,6 +38,7 @@ const InteractionCardHeader: React.FC<InteractionCardHeaderProps> = ({ interacti
           bgColor: 'bg-purple-500/10'
         };
       case 'map':
+      case 'map_marker':
         return {
           icon: MapPin,
           label: 'Map Search',
@@ -67,9 +80,8 @@ const InteractionCardHeader: React.FC<InteractionCardHeaderProps> = ({ interacti
   const getProximitySubtitle = () => {
     if (interaction.interaction_type !== 'proximity') return null;
     
-    // These properties might not exist on all interaction types, so we need to handle them safely
-    const mode = (interaction as any).transportation_mode || 'walking';
-    const distance = (interaction as any).discovery_distance;
+    const mode = interaction.transportation_mode || 'walking';
+    const distance = interaction.discovery_distance;
     
     let subtitle = `Discovered while ${mode}`;
     if (distance) {
@@ -79,15 +91,52 @@ const InteractionCardHeader: React.FC<InteractionCardHeaderProps> = ({ interacti
     return subtitle;
   };
 
+  const handleLocationClick = () => {
+    if (interaction.landmark_coordinates) {
+      onLocationClick(interaction.landmark_coordinates);
+    }
+  };
+
   return (
-    <div className="flex items-center justify-between mb-4">
-      <div className="flex items-center gap-3">
+    <div className="flex flex-col gap-2 mb-4">
+      {/* Top row - Type badge and action buttons */}
+      <div className="flex items-center justify-between">
         <Badge variant="secondary" className={`${bgColor} ${color} border-0`}>
           <Icon className="w-3 h-3 mr-1" />
           {label}
         </Badge>
+        
+        <div className="flex items-center gap-1">
+          {/* Share Button */}
+          <ShareButton interaction={interaction} />
+          
+          {/* Location Button - only show if coordinates exist */}
+          {interaction.landmark_coordinates && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0"
+              onClick={handleLocationClick}
+              title="View on Map"
+            >
+              <Map className="w-3 h-3" />
+            </Button>
+          )}
+          
+          {/* Favorite Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0"
+            onClick={() => onToggleFavorite(interaction)}
+            title={interaction.is_favorite ? "Remove from Favorites" : "Add to Favorites"}
+          >
+            <Star className={`w-3 h-3 ${interaction.is_favorite ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`} />
+          </Button>
+        </div>
       </div>
       
+      {/* Bottom row - Date and subtitle */}
       <div className="text-right">
         <div className="text-sm text-gray-400">
           {formatDate(interaction.created_at)}

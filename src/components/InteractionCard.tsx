@@ -31,6 +31,8 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
       <CardContent className="p-3 h-full flex flex-col">
         <InteractionCardHeader 
           interaction={interaction}
+          onToggleFavorite={onToggleFavorite}
+          onLocationClick={onLocationClick}
         />
 
         {interaction.landmark_image_url && (
@@ -44,7 +46,9 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
 
         <InteractionCardContent interaction={interaction} />
 
-        <InteractionCardActions interaction={interaction} />
+        <InteractionCardActions 
+          interaction={interaction}
+        />
       </CardContent>
     </Card>
   );
