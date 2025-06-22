@@ -50,12 +50,32 @@ const InteractionCarouselHeader: React.FC<InteractionCarouselHeaderProps> = ({
     <div className="bg-gray-900 border-b border-gray-700 p-4">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-white">
-            {showingSearchResults ? 'Search Results' : 'Travel Log'}
-            {showFavoritesOnly && !showingSearchResults && (
-              <span className="text-sm text-yellow-400 ml-2">(Favorites Only)</span>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-semibold text-white">
+              {showingSearchResults ? 'Search Results' : 'Travel Log'}
+              {showFavoritesOnly && !showingSearchResults && (
+                <span className="text-sm text-yellow-400 ml-2">(Favorites Only)</span>
+              )}
+            </h2>
+            
+            {/* Load More Button between title and favorites */}
+            {shouldShowLoadMore && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onLoadMore}
+                disabled={isLoadingMore}
+                className="bg-gray-800 text-white border border-gray-600 hover:bg-gray-700 hover:border-gray-500"
+              >
+                {isLoadingMore ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  `+ (${nextLimit})`
+                )}
+              </Button>
             )}
-          </h2>
+          </div>
+          
           <div className="flex items-center gap-2">
             {!showingSearchResults && (
               <Toggle
@@ -86,30 +106,6 @@ const InteractionCarouselHeader: React.FC<InteractionCarouselHeaderProps> = ({
           showingSearchResults={showingSearchResults}
           onBackToHistory={onBackToHistory}
         />
-
-        {/* Load More Button in Header */}
-        {shouldShowLoadMore && (
-          <div className="flex justify-center mt-4">
-            <Button
-              variant="secondary"
-              onClick={onLoadMore}
-              disabled={isLoadingMore}
-              className="bg-gray-800 text-white border border-gray-600 hover:bg-gray-700 hover:border-gray-500"
-            >
-              {isLoadingMore ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Loading...
-                </>
-              ) : (
-                <>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Load More ({nextLimit})
-                </>
-              )}
-            </Button>
-          </div>
-        )}
       </div>
     </div>
   );
