@@ -28,18 +28,20 @@ export const useInteractionCarouselLogic = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [showingSearchResults, setShowingSearchResults] = useState(false);
+  const [currentLimit, setCurrentLimit] = useState(10);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const loadAllInteractions = async () => {
+  const loadAllInteractions = async (limit: number = currentLimit) => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('interactions')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(limit);
 
       if (error) {
         console.error('Error loading interactions:', error);
@@ -56,6 +58,36 @@ export const useInteractionCarouselLogic = () => {
       console.error('Error loading interactions:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadMoreInteractions = async () => {
+    setIsLoadingMore(true);
+    const nextLimit = currentLimit === 10 ? 20 : 50;
+    
+    try {
+      const { data, error } = await supabase
+        .from('interactions')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(nextLimit);
+
+      if (error) {
+        console.error('Error loading more interactions:', error);
+        toast({
+          title: "Failed to load more",
+          description: "Could not retrieve additional interactions.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setInteractions(data || []);
+      setCurrentLimit(nextLimit);
+    } catch (error) {
+      console.error('Error loading more interactions:', error);
+    } finally {
+      setIsLoadingMore(false);
     }
   };
 
@@ -208,7 +240,10 @@ export const useInteractionCarouselLogic = () => {
     isLoading,
     isSearching,
     showingSearchResults,
+    currentLimit,
+    isLoadingMore,
     loadAllInteractions,
+    loadMoreInteractions,
     handleSearch,
     handleBackToHistory,
     toggleFavorite

@@ -38,7 +38,10 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     isLoading,
     isSearching,
     showingSearchResults,
+    currentLimit,
+    isLoadingMore,
     loadAllInteractions,
+    loadMoreInteractions,
     handleSearch,
     handleBackToHistory,
     toggleFavorite
@@ -126,6 +129,10 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
             showingSearchResults={showingSearchResults}
             onToggleFavorite={toggleFavorite}
             onLocationClick={handleLocationClick}
+            showFavoritesOnly={showFavoritesOnly}
+            currentLimit={currentLimit}
+            isLoadingMore={isLoadingMore}
+            onLoadMore={loadMoreInteractions}
           />
         </div>
       </DrawerContent>

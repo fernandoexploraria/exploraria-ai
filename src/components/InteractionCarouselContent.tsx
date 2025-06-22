@@ -4,6 +4,7 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { Search, Star } from 'lucide-react';
 import InteractionCard from './InteractionCard';
 import CarouselControls from './CarouselControls';
+import LoadMoreButton from './LoadMoreButton';
 import { Interaction } from './InteractionCarouselLogic';
 import { useTTSContext } from '@/contexts/TTSContext';
 
@@ -14,6 +15,9 @@ interface InteractionCarouselContentProps {
   onToggleFavorite: (interaction: Interaction) => void;
   onLocationClick: (coordinates: any) => void;
   showFavoritesOnly?: boolean;
+  currentLimit: number;
+  isLoadingMore: boolean;
+  onLoadMore: () => void;
 }
 
 const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
@@ -23,6 +27,9 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
   onToggleFavorite,
   onLocationClick,
   showFavoritesOnly = false,
+  currentLimit,
+  isLoadingMore,
+  onLoadMore,
 }) => {
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -144,6 +151,15 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
           onSlideSelect={scrollToSlide}
           currentInteraction={currentInteraction}
         />
+
+        {!showingSearchResults && !showFavoritesOnly && (
+          <LoadMoreButton
+            currentCount={currentInteractions.length}
+            currentLimit={currentLimit}
+            isLoading={isLoadingMore}
+            onLoadMore={onLoadMore}
+          />
+        )}
       </div>
     </div>
   );
