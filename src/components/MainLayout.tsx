@@ -100,6 +100,7 @@ const MainLayout: React.FC = () => {
         onSelectLandmark={handleSelectLandmark}
         onTourPlannerOpen={() => setTourPlannerOpen(true)}
         onVoiceSearchOpen={() => setVoiceSearchOpen(true)}
+        onTravelLogOpen={() => setInteractionCarouselOpen(true)}
         onVoiceAssistantOpen={() => {}} // Placeholder
         onLogoClick={() => {}} // Placeholder
         user={user}
