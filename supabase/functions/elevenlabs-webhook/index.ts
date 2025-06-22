@@ -247,6 +247,7 @@ serve(async (req) => {
       full_transcript: transcript,
       user_input_embedding: userInputEmbedding,
       assistant_response_embedding: assistantResponseEmbedding,
+      conversation_summary: summary, // Add the summary to the insert data
       // New analytics fields - use actual status from ElevenLabs payload
       call_status: status || 'unknown',
       start_time: callStartTime,
@@ -282,9 +283,8 @@ serve(async (req) => {
       user_satisfaction_explanation: qualityAnalysis.user_satisfaction_explanation
     }
 
-    // Add conversation summary and its embedding if available
+    // Generate embedding for conversation summary if available
     if (summary) {
-      insertData.conversation_summary = summary;
       console.log('Generating embedding for conversation summary...');
       insertData.conversation_summary_embedding = await generateGeminiEmbedding(summary, geminiApiKey);
       console.log('Conversation summary embedding generated');
