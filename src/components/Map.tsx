@@ -49,8 +49,8 @@ const Map: React.FC<MapProps> = ({
     return [...landmarks, ...topLandmarksConverted];
   }, [landmarks]);
 
-  // Function to store map marker interaction
-  const storeMapMarkerInteraction = async (landmark: Landmark, imageUrl?: string, audioUrl?: string) => {
+  // Function to store map marker interaction (called only once per marker click)
+  const storeMapMarkerInteraction = async (landmark: Landmark, imageUrl?: string) => {
     if (!user) {
       console.log('User not authenticated, skipping interaction storage');
       return null;
@@ -59,7 +59,6 @@ const Map: React.FC<MapProps> = ({
     try {
       console.log('Storing map marker interaction for:', landmark.name);
       console.log('With image URL:', imageUrl ? 'Yes' : 'No');
-      console.log('With audio URL:', audioUrl ? 'Yes' : 'No');
       
       const { data, error } = await supabase.functions.invoke('store-interaction', {
         body: {
@@ -68,8 +67,7 @@ const Map: React.FC<MapProps> = ({
           destination: 'Map',
           interactionType: 'map_marker',
           landmarkCoordinates: landmark.coordinates,
-          landmarkImageUrl: imageUrl,
-          audioUrl: audioUrl
+          landmarkImageUrl: imageUrl
         }
       });
 
@@ -101,7 +99,7 @@ const Map: React.FC<MapProps> = ({
     const landmarkId = landmark.id;
     
     if (playingAudio[landmarkId]) {
-      return null; // Already playing
+      return; // Already playing
     }
 
     // Stop any currently playing audio
@@ -120,36 +118,18 @@ const Map: React.FC<MapProps> = ({
 
       if (error) {
         console.error('Google Cloud TTS error:', error);
-        return null;
+        return;
       }
 
       if (data?.audioContent && !data.fallbackToBrowser) {
         console.log('Playing audio from Google Cloud TTS for map marker');
-        
-        // Convert base64 to blob URL for storage
-        const binaryString = atob(data.audioContent);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        const blob = new Blob([bytes], { type: 'audio/mp3' });
-        const audioUrl = URL.createObjectURL(blob);
-        
-        console.log('Generated audio URL for storage:', audioUrl);
-        
-        // Play the audio
         await playAudioFromBase64(data.audioContent);
-        
-        // Return the audio URL so it can be stored
-        return audioUrl;
       } else {
         console.log('No audio content received for map marker');
-        return null;
       }
       
     } catch (error) {
       console.error('Error with Google Cloud TTS for map marker:', error);
-      return null;
     } finally {
       setPlayingAudio(prev => ({ ...prev, [landmarkId]: false }));
     }
@@ -333,8 +313,8 @@ const Map: React.FC<MapProps> = ({
       const imageUrl = await fetchLandmarkImage(landmark);
       const isPlaying = playingAudio[landmark.id] || false;
       
-      // Store the interaction with the fetched image URL (but no audio URL yet)
-      const interactionData = await storeMapMarkerInteraction(landmark, imageUrl);
+      // Store the interaction with the fetched image URL (only once)
+      await storeMapMarkerInteraction(landmark, imageUrl);
       
       photoPopup.setHTML(`
         <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
@@ -401,14 +381,7 @@ const Map: React.FC<MapProps> = ({
         (window as any).handleLandmarkListen = async (landmarkId: string) => {
           const targetLandmark = allLandmarksWithTop.find(l => l.id === landmarkId);
           if (targetLandmark) {
-            const audioUrl = await handleTextToSpeech(targetLandmark);
-            if (audioUrl && interactionData) {
-              // Update the stored interaction with the audio URL
-              console.log('Updating interaction with audio URL:', audioUrl);
-              // Note: We would need to create an update function to add the audio URL to the existing interaction
-              // For now, we'll store a new interaction with the audio URL
-              await storeMapMarkerInteraction(targetLandmark, imageUrl, audioUrl);
-            }
+            await handleTextToSpeech(targetLandmark);
           }
         };
       }
@@ -517,8 +490,6 @@ const Map: React.FC<MapProps> = ({
           e.stopPropagation(); // Prevent map click event
           
           console.log('Marker clicked:', landmark.name);
-          
-          // Don't store interaction here - wait for popup to be shown with image
           
           // Check current zoom level and zoom in if needed
           const currentZoom = map.current?.getZoom() || 1.5;
