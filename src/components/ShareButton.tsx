@@ -60,12 +60,18 @@ const ShareButton: React.FC<ShareButtonProps> = ({ interaction }) => {
         try {
           console.log('Creating short URL for image:', interaction.landmark_image_url);
           
+          // Get the current session to include auth header
+          const { data: { session } } = await supabase.auth.getSession();
+          
           const { data, error } = await supabase.functions.invoke('create-short-url', {
             body: {
               originalUrl: interaction.landmark_image_url,
               urlType: 'image',
               interactionId: interaction.id
-            }
+            },
+            headers: session?.access_token ? {
+              Authorization: `Bearer ${session.access_token}`
+            } : {}
           });
 
           if (data && data.shortUrl) {
