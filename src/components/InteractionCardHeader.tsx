@@ -25,7 +25,7 @@ const InteractionCardHeader: React.FC<InteractionCardHeaderProps> = ({
       case 'voice':
         return {
           icon: Mic,
-          label: 'Voice Chat',
+          label: 'Voice',
           color: 'text-blue-400',
           bgColor: 'bg-blue-500/10'
         };
@@ -33,7 +33,7 @@ const InteractionCardHeader: React.FC<InteractionCardHeaderProps> = ({
       case 'image_recognition':
         return {
           icon: Camera,
-          label: 'Image Analysis',
+          label: 'Image',
           color: 'text-purple-400',
           bgColor: 'bg-purple-500/10'
         };
@@ -41,7 +41,7 @@ const InteractionCardHeader: React.FC<InteractionCardHeaderProps> = ({
       case 'map_marker':
         return {
           icon: MapPin,
-          label: 'Map Search',
+          label: 'Map',
           color: 'text-red-400',
           bgColor: 'bg-red-500/10'
         };
