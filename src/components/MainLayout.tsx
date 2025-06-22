@@ -9,6 +9,7 @@ import TourPlannerDialog from './TourPlannerDialog';
 import VoiceSearchDialog from './VoiceSearchDialog';
 import ImageViewerDialog from './ImageViewerDialog';
 import CameraCapture from './CameraCapture';
+import AuthDialog from './AuthDialog';
 import ProximitySystem from './ProximitySystem';
 import { useDialogStates } from '@/hooks/useDialogStates';
 import { usePendingDestination } from '@/hooks/usePendingDestination';
@@ -32,7 +33,9 @@ const MainLayout: React.FC = () => {
     interactionCarouselOpen,
     setInteractionCarouselOpen,
     cameraOpen,
-    setCameraOpen
+    setCameraOpen,
+    authDialogOpen,
+    setAuthDialogOpen
   } = useDialogStates();
 
   const { pendingDestination, setPendingDestination } = usePendingDestination();
@@ -64,7 +67,12 @@ const MainLayout: React.FC = () => {
 
   const handleTourAuthRequired = (destination: string) => {
     setPendingDestination(destination);
-    // This would open auth dialog in a real implementation
+    setTourPlannerOpen(false);
+    setAuthDialogOpen(true);
+  };
+
+  const handleAuthDialogOpen = () => {
+    setAuthDialogOpen(true);
   };
 
   const handleCameraCapture = (imageData: string) => {
@@ -102,13 +110,18 @@ const MainLayout: React.FC = () => {
       <UserControls 
         user={user}
         onSignOut={signOut}
-        onAuthDialogOpen={() => {}} // Placeholder
+        onAuthDialogOpen={handleAuthDialogOpen}
       />
 
       {/* Proximity System */}
       {user && <ProximitySystem />}
       
       {/* Dialogs */}
+      <AuthDialog
+        open={authDialogOpen}
+        onOpenChange={setAuthDialogOpen}
+      />
+      
       <TourPlannerDialog
         open={tourPlannerOpen}
         onOpenChange={setTourPlannerOpen}
