@@ -82,18 +82,6 @@ const TopControls: React.FC<TopControlsProps> = ({
               <span className="hidden lg:inline">Plan a Tour</span>
             </Button>
             
-            {user && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
-                onClick={onVoiceSearchOpen}
-              >
-                <Search className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
-                Travel Log
-              </Button>
-            )}
-            
             {plannedLandmarks.length > 0 && (
               <Button
                 variant="outline"
@@ -105,8 +93,20 @@ const TopControls: React.FC<TopControlsProps> = ({
                 Tour Guide
               </Button>
             )}
+            
+            {user && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
+                onClick={onVoiceSearchOpen}
+              >
+                <Search className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+                Travel Log
+              </Button>
+            )}
 
-            {/* Image Analysis Button - moved below Voice Guide */}
+            {/* Image Analysis Button - moved below Travel Log */}
             <ImageAnalysis plannedLandmarks={plannedLandmarks} />
             
             {user && <FreeTourCounter />}
