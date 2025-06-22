@@ -2,22 +2,22 @@
 import { useState } from 'react';
 
 export const useDialogStates = () => {
-  const [selectedLandmark, setSelectedLandmark] = useState(null);
-  const [isTourPlannerOpen, setIsTourPlannerOpen] = useState(false);
-  const [isInteractionHistoryOpen, setIsInteractionHistoryOpen] = useState(false);
-  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
-  const [isNewTourAssistantOpen, setIsNewTourAssistantOpen] = useState(false);
+  const [tourPlannerOpen, setTourPlannerOpen] = useState(false);
+  const [voiceSearchOpen, setVoiceSearchOpen] = useState(false);
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [interactionCarouselOpen, setInteractionCarouselOpen] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   return {
-    selectedLandmark,
-    setSelectedLandmark,
-    isTourPlannerOpen,
-    setIsTourPlannerOpen,
-    isInteractionHistoryOpen,
-    setIsInteractionHistoryOpen,
-    isAuthDialogOpen,
-    setIsAuthDialogOpen,
-    isNewTourAssistantOpen,
-    setIsNewTourAssistantOpen,
+    tourPlannerOpen,
+    setTourPlannerOpen,
+    voiceSearchOpen,
+    setVoiceSearchOpen,
+    imageViewerOpen,
+    setImageViewerOpen,
+    interactionCarouselOpen,
+    setInteractionCarouselOpen,
+    cameraOpen,
+    setCameraOpen
   };
 };

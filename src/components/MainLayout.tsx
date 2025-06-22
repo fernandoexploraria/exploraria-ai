@@ -49,22 +49,13 @@ const MainLayout: React.FC = () => {
   return (
     <div className="relative h-screen w-full overflow-hidden">
       {/* Map Layer */}
-      <Map 
-        selectedCoordinates={selectedCoordinates}
-        onLocationSelect={handleLocationSelect}
-      />
+      <Map />
       
       {/* Top Controls */}
-      <TopControls onDestinationSelect={handleDestinationSelect} />
+      <TopControls />
       
       {/* User Controls */}
-      <UserControls
-        onTourPlannerClick={() => setTourPlannerOpen(true)}
-        onVoiceSearchClick={() => setVoiceSearchOpen(true)}
-        onImageViewerClick={() => setImageViewerOpen(true)}
-        onCameraClick={() => setCameraOpen(true)}
-        onInteractionHistoryClick={() => setInteractionCarouselOpen(true)}
-      />
+      <UserControls />
 
       {/* Proximity System */}
       {user && <ProximitySystem />}
@@ -73,26 +64,21 @@ const MainLayout: React.FC = () => {
       <TourPlannerDialog
         open={tourPlannerOpen}
         onOpenChange={setTourPlannerOpen}
-        pendingDestination={pendingDestination}
-        onDestinationClear={() => setPendingDestination(null)}
       />
       
       <VoiceSearchDialog
         open={voiceSearchOpen}
         onOpenChange={setVoiceSearchOpen}
-        onLocationSelect={handleLocationSelect}
       />
       
       <ImageViewerDialog
         open={imageViewerOpen}
         onOpenChange={setImageViewerOpen}
-        onLocationSelect={handleLocationSelect}
       />
 
       <CameraCapture
-        open={cameraOpen}
-        onOpenChange={setCameraOpen}
-        onLocationSelect={handleLocationSelect}
+        isOpen={cameraOpen}
+        onClose={() => setCameraOpen(false)}
       />
       
       <InteractionCarousel

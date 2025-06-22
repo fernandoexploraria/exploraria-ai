@@ -67,8 +67,9 @@ const InteractionCardHeader: React.FC<InteractionCardHeaderProps> = ({ interacti
   const getProximitySubtitle = () => {
     if (interaction.interaction_type !== 'proximity') return null;
     
-    const mode = interaction.transportation_mode || 'walking';
-    const distance = interaction.discovery_distance;
+    // These properties might not exist on all interaction types, so we need to handle them safely
+    const mode = (interaction as any).transportation_mode || 'walking';
+    const distance = (interaction as any).discovery_distance;
     
     let subtitle = `Discovered while ${mode}`;
     if (distance) {
@@ -91,10 +92,7 @@ const InteractionCardHeader: React.FC<InteractionCardHeaderProps> = ({ interacti
         <div className="text-sm text-gray-400">
           {formatDate(interaction.created_at)}
         </div>
-        {getProximitySubt
-
-
-() && (
+        {getProximitySubtitle() && (
           <div className="text-xs text-gray-500 mt-1">
             {getProximitySubtitle()}
           </div>
