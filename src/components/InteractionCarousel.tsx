@@ -120,6 +120,10 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
           onBackToHistory={handleBackToHistory}
           showFavoritesOnly={showFavoritesOnly}
           onToggleFavoritesFilter={handleToggleFavoritesFilter}
+          currentCount={currentInteractions.length}
+          currentLimit={currentLimit}
+          isLoadingMore={isLoadingMore}
+          onLoadMore={loadMoreInteractions}
         />
 
         <div className="flex-1 overflow-hidden">
@@ -130,9 +134,6 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
             onToggleFavorite={toggleFavorite}
             onLocationClick={handleLocationClick}
             showFavoritesOnly={showFavoritesOnly}
-            currentLimit={currentLimit}
-            isLoadingMore={isLoadingMore}
-            onLoadMore={loadMoreInteractions}
           />
         </div>
       </DrawerContent>

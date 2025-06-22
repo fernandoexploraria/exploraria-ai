@@ -3,7 +3,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Toggle } from '@/components/ui/toggle';
 import InteractionSearch from './InteractionSearch';
-import { X, Star } from 'lucide-react';
+import { X, Star, Plus, Loader2 } from 'lucide-react';
 
 interface InteractionCarouselHeaderProps {
   onClose: () => void;
@@ -15,6 +15,11 @@ interface InteractionCarouselHeaderProps {
   onBackToHistory: () => void;
   showFavoritesOnly: boolean;
   onToggleFavoritesFilter: (show: boolean) => void;
+  // Load More props
+  currentCount?: number;
+  currentLimit?: number;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 const InteractionCarouselHeader: React.FC<InteractionCarouselHeaderProps> = ({
@@ -27,7 +32,20 @@ const InteractionCarouselHeader: React.FC<InteractionCarouselHeaderProps> = ({
   onBackToHistory,
   showFavoritesOnly,
   onToggleFavoritesFilter,
+  currentCount = 0,
+  currentLimit = 10,
+  isLoadingMore = false,
+  onLoadMore,
 }) => {
+  // Determine if Load More button should be shown
+  const shouldShowLoadMore = !showingSearchResults && 
+                           !showFavoritesOnly && 
+                           currentLimit < 50 && 
+                           currentCount >= currentLimit &&
+                           onLoadMore;
+
+  const nextLimit = currentLimit === 10 ? 20 : 50;
+
   return (
     <div className="bg-gray-900 border-b border-gray-700 p-4">
       <div className="max-w-4xl mx-auto">
@@ -68,6 +86,30 @@ const InteractionCarouselHeader: React.FC<InteractionCarouselHeaderProps> = ({
           showingSearchResults={showingSearchResults}
           onBackToHistory={onBackToHistory}
         />
+
+        {/* Load More Button in Header */}
+        {shouldShowLoadMore && (
+          <div className="flex justify-center mt-4">
+            <Button
+              variant="secondary"
+              onClick={onLoadMore}
+              disabled={isLoadingMore}
+              className="bg-gray-800 text-white border border-gray-600 hover:bg-gray-700 hover:border-gray-500"
+            >
+              {isLoadingMore ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Load More ({nextLimit})
+                </>
+              )}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
