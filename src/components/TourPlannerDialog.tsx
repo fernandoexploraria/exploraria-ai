@@ -45,7 +45,7 @@ const TourPlannerDialog: React.FC<TourPlannerDialogProps> = ({
         <DialogHeader>
           <DialogTitle>AI Tour Planner</DialogTitle>
           <DialogDescription>
-            Enter a destination, and we'll suggest some landmarks for your trip. This feature uses Perplexity AI.
+            Enter a destination, and we'll suggest some landmarks for your trip. This feature uses Gemini AI.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
