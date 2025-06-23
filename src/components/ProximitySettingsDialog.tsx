@@ -10,8 +10,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Save, MapPin, Loader2 } from 'lucide-react';
+import { MapPin, Loader2 } from 'lucide-react';
 import { formatDistance } from '@/utils/proximityUtils';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useToast } from '@/hooks/use-toast';
@@ -33,15 +32,14 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   // Local form state - initialize with database value if available
   const [formEnabled, setFormEnabled] = useState(false);
   const [formDistance, setFormDistance] = useState(proximitySettings?.default_distance ?? 50);
-  const [hasEnabledChanges, setHasEnabledChanges] = useState(false);
   const [isDistanceSaving, setIsDistanceSaving] = useState(false);
+  const [isToggleSaving, setIsToggleSaving] = useState(false);
 
   // Initialize form state when settings become available for the first time
   useEffect(() => {
     if (proximitySettings) {
       setFormEnabled(proximitySettings.is_enabled);
       setFormDistance(proximitySettings.default_distance);
-      setHasEnabledChanges(false);
     }
   }, [proximitySettings]);
 
@@ -50,17 +48,8 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     if (proximitySettings && open) {
       setFormEnabled(proximitySettings.is_enabled);
       setFormDistance(proximitySettings.default_distance);
-      setHasEnabledChanges(false);
     }
   }, [proximitySettings, open]);
-
-  // Detect enabled changes (only track toggle changes now)
-  useEffect(() => {
-    if (proximitySettings) {
-      const enabledChanged = formEnabled !== proximitySettings.is_enabled;
-      setHasEnabledChanges(enabledChanged);
-    }
-  }, [formEnabled, proximitySettings]);
 
   // Auto-save distance with debouncing
   useEffect(() => {
@@ -87,8 +76,38 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     return () => clearTimeout(timeoutId);
   }, [formDistance, proximitySettings, updateDefaultDistance, toast]);
 
-  const handleEnabledChange = (enabled: boolean) => {
+  const handleEnabledChange = async (enabled: boolean) => {
+    if (!proximitySettings) return;
+
     setFormEnabled(enabled);
+    setIsToggleSaving(true);
+
+    try {
+      await updateProximityEnabled(enabled);
+      
+      if (enabled && !proximitySettings.is_enabled) {
+        toast({
+          title: "Proximity Alerts Enabled",
+          description: "Settings saved successfully. Location tracking will begin automatically.",
+        });
+      } else if (!enabled && proximitySettings.is_enabled) {
+        toast({
+          title: "Proximity Alerts Disabled",
+          description: "Settings saved successfully.",
+        });
+      }
+    } catch (error) {
+      console.error('Error saving proximity enabled setting:', error);
+      // Revert the local state on error
+      setFormEnabled(proximitySettings.is_enabled);
+      toast({
+        title: "Error",
+        description: "Failed to save settings. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsToggleSaving(false);
+    }
   };
 
   const handleDistanceChange = (value: number[]) => {
@@ -97,41 +116,6 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
 
   const handlePresetDistance = (distance: number) => {
     setFormDistance(distance);
-  };
-
-  const handleSaveEnabled = async () => {
-    if (!proximitySettings) return;
-
-    try {
-      await updateProximityEnabled(formEnabled);
-      setHasEnabledChanges(false);
-      
-      if (formEnabled && !proximitySettings.is_enabled) {
-        toast({
-          title: "Proximity Alerts Enabled",
-          description: "Settings saved successfully. Location tracking will begin automatically.",
-        });
-      } else if (!formEnabled && proximitySettings.is_enabled) {
-        toast({
-          title: "Proximity Alerts Disabled",
-          description: "Settings saved successfully.",
-        });
-      }
-    } catch (error) {
-      console.error('Error saving proximity enabled setting:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save settings. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleResetEnabled = () => {
-    if (proximitySettings) {
-      setFormEnabled(proximitySettings.is_enabled);
-      setHasEnabledChanges(false);
-    }
   };
 
   if (!proximitySettings) {
@@ -163,13 +147,8 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
               <div className="text-base font-medium flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
                 Enable Proximity Alerts
-                {hasEnabledChanges && (
-                  <Badge variant="outline" className="text-xs">
-                    {formEnabled !== proximitySettings.is_enabled 
-                      ? (formEnabled ? 'Will Enable' : 'Will Disable')
-                      : 'Modified'
-                    }
-                  </Badge>
+                {isToggleSaving && (
+                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
                 )}
               </div>
               <div className="text-sm text-muted-foreground">
@@ -179,7 +158,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
             <Switch
               checked={formEnabled}
               onCheckedChange={handleEnabledChange}
-              disabled={isSaving}
+              disabled={isToggleSaving || isSaving}
             />
           </div>
 
@@ -225,27 +204,6 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
               </span>
             </div>
           </div>
-
-          {/* Save/Reset Buttons for Enable Toggle Only */}
-          {hasEnabledChanges && (
-            <div className="flex gap-3 p-4 bg-muted/30 rounded-lg border border-dashed">
-              <Button 
-                onClick={handleSaveEnabled} 
-                disabled={isSaving}
-                className="flex-1"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                Save Enable/Disable
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={handleResetEnabled}
-                disabled={isSaving}
-              >
-                Reset
-              </Button>
-            </div>
-          )}
         </div>
       </SheetContent>
     </Sheet>
