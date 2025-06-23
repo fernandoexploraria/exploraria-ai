@@ -10,6 +10,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
   const [isVisible, setIsVisible] = useState(true);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageUrl, setImageUrl] = useState<string>('');
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     // Get the public URL for the splash background image
@@ -24,13 +25,18 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
       const img = new Image();
       img.onload = () => {
         setImageLoaded(true);
-        console.log('Splash background image loaded successfully');
+        setImageError(false);
+        console.log('Splash background image loaded successfully from Supabase Storage');
       };
       img.onerror = () => {
-        console.warn('Failed to load splash background image, using gradient fallback');
+        console.warn('Failed to load splash background image from Supabase Storage, using gradient fallback');
         setImageLoaded(false);
+        setImageError(true);
       };
       img.src = data.publicUrl;
+    } else {
+      console.warn('Could not get public URL for splash background image');
+      setImageError(true);
     }
 
     // Auto-dismiss after 5 seconds
@@ -63,16 +69,19 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
     }, 300); // Wait for fade out animation
   };
 
+  // Determine background style - use image if loaded successfully, otherwise use gradient
+  const backgroundStyle = imageLoaded && imageUrl && !imageError ? {
+    backgroundImage: `url("${imageUrl}")`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat'
+  } : {};
+
   if (!isVisible) {
     return (
       <div 
         className="fixed inset-0 z-50 flex items-center justify-center animate-fade-out pointer-events-none bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900"
-        style={{
-          backgroundImage: imageLoaded && imageUrl ? `url("${imageUrl}")` : undefined,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
-        }}
+        style={backgroundStyle}
       >
         <div className="absolute inset-0 bg-background/80 backdrop-blur-sm"></div>
         <div className="relative text-center animate-scale-out z-10">
@@ -93,12 +102,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
   return (
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900"
-      style={{
-        backgroundImage: imageLoaded && imageUrl ? `url("${imageUrl}")` : undefined,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
-      }}
+      style={backgroundStyle}
     >
       <div className="absolute inset-0 bg-background/80 backdrop-blur-sm"></div>
       <div className="relative text-center animate-scale-in z-10">

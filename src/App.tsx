@@ -7,7 +7,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./components/AuthProvider";
 import { TTSProvider } from "./contexts/TTSContext";
 import Index from "./pages/Index";
-import TempImageUploader from "./components/TempImageUploader";
 
 const queryClient = new QueryClient();
 
@@ -23,7 +22,6 @@ function App() {
               <Routes>
                 <Route path="/" element={<Index />} />
               </Routes>
-              <TempImageUploader />
             </TTSProvider>
           </AuthProvider>
         </BrowserRouter>
