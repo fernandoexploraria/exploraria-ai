@@ -1,11 +1,12 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Search, ChevronDown, ChevronUp, Menu, Bell } from 'lucide-react';
+import { Sparkles, Search, ChevronDown, ChevronUp, Menu, Bell, Bug } from 'lucide-react';
 import SearchControl from '@/components/SearchControl';
 import FreeTourCounter from '@/components/FreeTourCounter';
 import ImageAnalysis from '@/components/ImageAnalysis';
 import ProximityControlPanel from '@/components/ProximityControlPanel';
+import LandmarksDebugWindow from '@/components/LandmarksDebugWindow';
 import { Landmark } from '@/data/landmarks';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -41,6 +42,7 @@ const TopControls: React.FC<TopControlsProps> = ({
 }) => {
   const isMobile = useIsMobile();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isDebugOpen, setIsDebugOpen] = useState(false);
   const { proximitySettings, proximityAlerts } = useProximityAlerts();
 
   const toggleCollapse = () => {
@@ -157,6 +159,20 @@ const TopControls: React.FC<TopControlsProps> = ({
               </Sheet>
             )}
 
+            {/* Debug Window Button - Only show when proximity is enabled */}
+            {user && isProximityEnabled && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-amber-100/80 hover:bg-amber-200/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 border-amber-300"
+                onClick={() => setIsDebugOpen(true)}
+              >
+                <Bug className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4 text-amber-700" />
+                <span className="lg:hidden text-amber-700">Debug</span>
+                <span className="hidden lg:inline text-amber-700">Debug: Show Landmarks</span>
+              </Button>
+            )}
+
             {/* Image Analysis Button */}
             <ImageAnalysis plannedLandmarks={plannedLandmarks} />
             
@@ -164,6 +180,12 @@ const TopControls: React.FC<TopControlsProps> = ({
           </div>
         )}
       </div>
+
+      {/* Debug Window */}
+      <LandmarksDebugWindow
+        open={isDebugOpen}
+        onOpenChange={setIsDebugOpen}
+      />
     </div>
   );
 };
