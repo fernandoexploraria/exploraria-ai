@@ -65,17 +65,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     console.log('Location select called but no action taken');
   };
 
-  // Handler for when location is found through My Location button
-  const handleLocationFound = (location: { latitude: number; longitude: number; accuracy?: number }) => {
-    console.log('Location found in MainLayout:', location);
-    
-    // We could potentially trigger map actions here
-    // For now, we'll let the Map component handle this through the global window function
-    if ((window as any).navigateToMapCoordinates) {
-      (window as any).navigateToMapCoordinates([location.longitude, location.latitude]);
-    }
-  };
-
   return (
     <div className="w-screen h-screen relative">
       <TopControls
@@ -85,7 +74,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         onVoiceSearchOpen={onVoiceSearchOpen}
         onVoiceAssistantOpen={onVoiceAssistantOpen}
         onLogoClick={onLogoClick}
-        onLocationFound={handleLocationFound}
         user={user}
         plannedLandmarks={plannedLandmarks}
       />
