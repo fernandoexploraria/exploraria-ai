@@ -91,7 +91,8 @@ const ProximityControlPanel: React.FC = () => {
       return {
         icon: <MapPin className="h-4 w-4 text-muted-foreground" />,
         status: 'Location tracking disabled',
-        variant: 'outline' as const
+        variant: 'outline' as const,
+        accuracy: null
       };
     }
 
@@ -99,15 +100,18 @@ const ProximityControlPanel: React.FC = () => {
       return {
         icon: <AlertTriangle className="h-4 w-4 text-destructive" />,
         status: `Error: ${locationState.error}`,
-        variant: 'destructive' as const
+        variant: 'destructive' as const,
+        accuracy: null
       };
     }
 
     if (locationState.isTracking && userLocation) {
+      const accuracy = userLocation.accuracy ? Math.round(userLocation.accuracy) : null;
       return {
         icon: <Activity className="h-4 w-4 text-green-600" />,
         status: 'Active',
-        variant: 'default' as const
+        variant: 'default' as const,
+        accuracy: accuracy
       };
     }
 
@@ -115,14 +119,16 @@ const ProximityControlPanel: React.FC = () => {
       return {
         icon: <Activity className="h-4 w-4 text-amber-600 animate-pulse" />,
         status: 'Locating...',
-        variant: 'secondary' as const
+        variant: 'secondary' as const,
+        accuracy: null
       };
     }
 
     return {
       icon: <MapPin className="h-4 w-4 text-muted-foreground" />,
       status: 'Inactive',
-      variant: 'outline' as const
+      variant: 'outline' as const,
+      accuracy: null
     };
   };
 
@@ -259,8 +265,13 @@ const ProximityControlPanel: React.FC = () => {
                 </div>
               </div>
               <div className="text-right">
+                {locationInfo.accuracy && (
+                  <Badge variant="outline" className="text-xs">
+                    ±{locationInfo.accuracy}m
+                  </Badge>
+                )}
                 {locationState.lastUpdate && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground mt-1">
                     Updated {locationState.lastUpdate.toLocaleTimeString()}
                   </p>
                 )}
