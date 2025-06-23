@@ -69,19 +69,30 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
     }, 300); // Wait for fade out animation
   };
 
-  // Determine background style - use image if loaded successfully, otherwise use gradient
-  const backgroundStyle = imageLoaded && imageUrl && !imageError ? {
-    backgroundImage: `url("${imageUrl}")`,
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    backgroundRepeat: 'no-repeat'
-  } : {};
+  // Build the complete background style - always include gradient, optionally layer image on top
+  const getBackgroundStyle = () => {
+    const baseStyle = {
+      background: 'linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #3730a3 100%)'
+    };
+
+    if (imageLoaded && imageUrl && !imageError) {
+      return {
+        ...baseStyle,
+        backgroundImage: `url("${imageUrl}"), linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #3730a3 100%)`,
+        backgroundSize: 'cover, cover',
+        backgroundPosition: 'center, center',
+        backgroundRepeat: 'no-repeat, no-repeat'
+      };
+    }
+
+    return baseStyle;
+  };
 
   if (!isVisible) {
     return (
       <div 
-        className="fixed inset-0 z-50 flex items-center justify-center animate-fade-out pointer-events-none bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900"
-        style={backgroundStyle}
+        className="fixed inset-0 z-50 flex items-center justify-center animate-fade-out pointer-events-none"
+        style={getBackgroundStyle()}
       >
         <div className="absolute inset-0 bg-background/80 backdrop-blur-sm"></div>
         <div className="relative text-center animate-scale-out z-10">
@@ -101,8 +112,8 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900"
-      style={backgroundStyle}
+      className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in"
+      style={getBackgroundStyle()}
     >
       <div className="absolute inset-0 bg-background/80 backdrop-blur-sm"></div>
       <div className="relative text-center animate-scale-in z-10">
