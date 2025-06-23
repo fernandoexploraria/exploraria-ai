@@ -30,13 +30,22 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   const { toast } = useToast();
   const { proximitySettings, updateProximityEnabled, updateDefaultDistance, isSaving } = useProximityAlerts();
   
-  // Local form state
+  // Local form state - initialize with database value if available
   const [formEnabled, setFormEnabled] = useState(false);
-  const [formDistance, setFormDistance] = useState(50);
+  const [formDistance, setFormDistance] = useState(proximitySettings?.default_distance ?? 50);
   const [hasEnabledChanges, setHasEnabledChanges] = useState(false);
   const [isDistanceSaving, setIsDistanceSaving] = useState(false);
 
-  // Initialize form state when settings load or dialog opens
+  // Initialize form state when settings become available for the first time
+  useEffect(() => {
+    if (proximitySettings) {
+      setFormEnabled(proximitySettings.is_enabled);
+      setFormDistance(proximitySettings.default_distance);
+      setHasEnabledChanges(false);
+    }
+  }, [proximitySettings]);
+
+  // Re-initialize form state when dialog opens (if settings are already loaded)
   useEffect(() => {
     if (proximitySettings && open) {
       setFormEnabled(proximitySettings.is_enabled);
