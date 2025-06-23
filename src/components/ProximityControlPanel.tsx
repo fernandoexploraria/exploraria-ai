@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -153,7 +152,7 @@ const ProximityControlPanel: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Settings Dialog */}
+      {/* Settings Sheet */}
       <ProximitySettingsDialog
         open={isSettingsOpen}
         onOpenChange={setIsSettingsOpen}

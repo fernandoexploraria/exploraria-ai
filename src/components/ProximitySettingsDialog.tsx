@@ -1,11 +1,11 @@
 import React from 'react';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
@@ -62,14 +62,14 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
 
   if (!proximitySettings) {
     return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[600px]">
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent className="sm:max-w-[500px]">
           <div className="flex items-center justify-center p-8">
             <Loader2 className="h-8 w-8 animate-spin" />
             <span className="ml-2">Loading settings...</span>
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     );
   }
 
@@ -257,11 +257,11 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
         onContinue={handleOnboardingContinue}
       />
 
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Proximity Alert Settings</DialogTitle>
-            <DialogDescription>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent className="sm:max-w-[500px] overflow-y-auto">
+          <SheetHeader className="pb-6">
+            <SheetTitle>Proximity Alert Settings</SheetTitle>
+            <SheetDescription>
               Configure proximity alerts to get notified when you're near landmarks.
               {isSaving && (
                 <span className="flex items-center mt-2 text-sm text-muted-foreground">
@@ -269,8 +269,8 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
                   Saving changes...
                 </span>
               )}
-            </DialogDescription>
-          </DialogHeader>
+            </SheetDescription>
+          </SheetHeader>
 
           <div className="space-y-6">
             {/* Recovery Mode Warning Banner */}
@@ -411,8 +411,8 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
               </div>
             )}
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </>
   );
 };
