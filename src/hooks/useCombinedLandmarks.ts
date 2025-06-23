@@ -1,5 +1,5 @@
 
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS, TopLandmark } from '@/data/topLandmarks';
 import { getGlobalTourLandmarks } from '@/data/tourLandmarks';
@@ -15,10 +15,25 @@ const convertTopLandmarkToLandmark = (topLandmark: TopLandmark): Landmark => {
 };
 
 export const useCombinedLandmarks = (): Landmark[] => {
+  const [tourLandmarks, setTourLandmarks] = useState<Landmark[]>([]);
+
+  // Poll for tour landmarks changes (since it's a global store)
+  useEffect(() => {
+    const updateTourLandmarks = () => {
+      const currentTourLandmarks = getGlobalTourLandmarks();
+      setTourLandmarks(currentTourLandmarks);
+    };
+
+    // Initial load
+    updateTourLandmarks();
+
+    // Poll every 500ms to check for changes
+    const interval = setInterval(updateTourLandmarks, 500);
+
+    return () => clearInterval(interval);
+  }, []);
+
   return useMemo(() => {
-    // Get current tour landmarks from global store
-    const tourLandmarks = getGlobalTourLandmarks();
-    
     console.log(`🔍 DEBUG MODE: Returning only tour-generated landmarks`);
     console.log(`📍 Tour landmarks count: ${tourLandmarks.length}`);
     
@@ -33,5 +48,5 @@ export const useCombinedLandmarks = (): Landmark[] => {
     
     // Return only tour landmarks for debugging
     return tourLandmarks;
-  }, []); // No dependencies needed since we read from global store
+  }, [tourLandmarks]);
 };
