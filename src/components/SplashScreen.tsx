@@ -7,8 +7,16 @@ interface SplashScreenProps {
 
 const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
   const [isVisible, setIsVisible] = useState(true);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   useEffect(() => {
+    // Preload the background image
+    const img = new Image();
+    img.onload = () => {
+      setImageLoaded(true);
+    };
+    img.src = '/splash-bg.jpg';
+
     // Auto-dismiss after 5 seconds
     const timer = setTimeout(() => {
       handleDismiss();
@@ -42,9 +50,9 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
   if (!isVisible) {
     return (
       <div 
-        className="fixed inset-0 z-50 flex items-center justify-center animate-fade-out pointer-events-none"
+        className="fixed inset-0 z-50 flex items-center justify-center animate-fade-out pointer-events-none bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900"
         style={{
-          backgroundImage: 'url("https://images.unsplash.com/photo-1449824913935-59a10b8d2000?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80")',
+          backgroundImage: imageLoaded ? 'url("/splash-bg.jpg")' : undefined,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat'
@@ -68,9 +76,9 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900"
       style={{
-        backgroundImage: 'url("https://images.unsplash.com/photo-1449824913935-59a10b8d2000?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80")',
+        backgroundImage: imageLoaded ? 'url("/splash-bg.jpg")' : undefined,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat'
