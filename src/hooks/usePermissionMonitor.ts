@@ -1,0 +1,187 @@
+
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { debounce } from '@/utils/proximityUtils';
+
+export interface PermissionState {
+  state: 'granted' | 'denied' | 'prompt' | 'unknown';
+  isMonitoring: boolean;
+  lastChecked: Date | null;
+  hasPermissionAPI: boolean;
+}
+
+interface PermissionMonitorHook {
+  permissionState: PermissionState;
+  checkPermission: () => Promise<'granted' | 'denied' | 'prompt' | 'unknown'>;
+  startMonitoring: () => void;
+  stopMonitoring: () => void;
+  requestPermission: () => Promise<boolean>;
+}
+
+const PERMISSION_CHECK_INTERVAL = 30000; // 30 seconds
+const PERMISSION_CACHE_DURATION = 10000; // 10 seconds
+
+export const usePermissionMonitor = (): PermissionMonitorHook => {
+  const [permissionState, setPermissionState] = useState<PermissionState>({
+    state: 'unknown',
+    isMonitoring: false,
+    lastChecked: null,
+    hasPermissionAPI: 'permissions' in navigator,
+  });
+
+  const monitorIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const cacheRef = useRef<{ state: string; timestamp: number } | null>(null);
+
+  const checkPermission = useCallback(async (): Promise<'granted' | 'denied' | 'prompt' | 'unknown'> => {
+    // Check cache first
+    const now = Date.now();
+    if (cacheRef.current && (now - cacheRef.current.timestamp) < PERMISSION_CACHE_DURATION) {
+      return cacheRef.current.state as 'granted' | 'denied' | 'prompt' | 'unknown';
+    }
+
+    if (!navigator.geolocation) {
+      const result = 'denied';
+      cacheRef.current = { state: result, timestamp: now };
+      return result;
+    }
+
+    try {
+      if ('permissions' in navigator) {
+        const permission = await navigator.permissions.query({ name: 'geolocation' });
+        const result = permission.state as 'granted' | 'denied' | 'prompt';
+        cacheRef.current = { state: result, timestamp: now };
+        return result;
+      }
+      
+      // Fallback: try to get position to check permission
+      return new Promise((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          () => {
+            const result = 'granted';
+            cacheRef.current = { state: result, timestamp: now };
+            resolve(result);
+          },
+          (error) => {
+            let result: 'granted' | 'denied' | 'prompt' | 'unknown';
+            if (error.code === error.PERMISSION_DENIED) {
+              result = 'denied';
+            } else {
+              result = 'unknown';
+            }
+            cacheRef.current = { state: result, timestamp: now };
+            resolve(result);
+          },
+          { timeout: 5000 }
+        );
+      });
+    } catch (error) {
+      console.error('Error checking permission:', error);
+      const result = 'unknown';
+      cacheRef.current = { state: result, timestamp: now };
+      return result;
+    }
+  }, []);
+
+  const updatePermissionState = useCallback(async () => {
+    const state = await checkPermission();
+    setPermissionState(prev => ({
+      ...prev,
+      state,
+      lastChecked: new Date(),
+    }));
+  }, [checkPermission]);
+
+  const debouncedUpdatePermissionState = useCallback(
+    debounce(updatePermissionState, 1000),
+    [updatePermissionState]
+  );
+
+  const startMonitoring = useCallback(() => {
+    if (monitorIntervalRef.current) return;
+
+    setPermissionState(prev => ({ ...prev, isMonitoring: true }));
+    
+    // Initial check
+    updatePermissionState();
+    
+    // Set up periodic checks
+    monitorIntervalRef.current = setInterval(() => {
+      debouncedUpdatePermissionState();
+    }, PERMISSION_CHECK_INTERVAL);
+
+    console.log('Started permission monitoring');
+  }, [updatePermissionState, debouncedUpdatePermissionState]);
+
+  const stopMonitoring = useCallback(() => {
+    if (monitorIntervalRef.current) {
+      clearInterval(monitorIntervalRef.current);
+      monitorIntervalRef.current = null;
+    }
+
+    setPermissionState(prev => ({ ...prev, isMonitoring: false }));
+    console.log('Stopped permission monitoring');
+  }, []);
+
+  const requestPermission = useCallback(async (): Promise<boolean> => {
+    if (!navigator.geolocation) {
+      console.warn('Geolocation is not supported by this browser');
+      return false;
+    }
+
+    try {
+      console.log('Requesting location permission...');
+      
+      return new Promise((resolve) => {
+        const timeoutId = setTimeout(() => {
+          console.log('Permission request timed out');
+          resolve(false);
+        }, 15000);
+
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            clearTimeout(timeoutId);
+            console.log('Permission granted successfully');
+            
+            // Clear cache to force fresh check
+            cacheRef.current = null;
+            updatePermissionState();
+            
+            resolve(true);
+          },
+          (error) => {
+            clearTimeout(timeoutId);
+            console.log('Permission request failed:', error.message);
+            
+            // Clear cache to force fresh check
+            cacheRef.current = null;
+            updatePermissionState();
+            
+            resolve(error.code !== error.PERMISSION_DENIED);
+          },
+          { 
+            timeout: 12000,
+            enableHighAccuracy: false,
+            maximumAge: 300000
+          }
+        );
+      });
+    } catch (error) {
+      console.error('Error requesting permission:', error);
+      return false;
+    }
+  }, [updatePermissionState]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopMonitoring();
+    };
+  }, [stopMonitoring]);
+
+  return {
+    permissionState,
+    checkPermission,
+    startMonitoring,
+    stopMonitoring,
+    requestPermission,
+  };
+};

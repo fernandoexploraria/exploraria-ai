@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { UserLocation } from '@/types/proximityAlerts';
 import { calculateDistance, debounce } from '@/utils/proximityUtils';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
+import { usePermissionMonitor } from '@/hooks/usePermissionMonitor';
 import { useToast } from '@/hooks/use-toast';
 
 interface LocationTrackingState {
@@ -38,6 +39,7 @@ const FAR_LANDMARK_THRESHOLD = 5000; // 5km
 export const useLocationTracking = (): LocationTrackingHook => {
   const { toast } = useToast();
   const { proximitySettings, proximityAlerts, setUserLocation } = useProximityAlerts();
+  const { permissionState, checkPermission } = usePermissionMonitor();
   
   const [locationState, setLocationState] = useState<LocationTrackingState>({
     isTracking: false,
@@ -49,10 +51,8 @@ export const useLocationTracking = (): LocationTrackingHook => {
   
   const [userLocation, setCurrentUserLocation] = useState<UserLocation | null>(null);
   const watchIdRef = useRef<number | null>(null);
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastLocationRef = useRef<UserLocation | null>(null);
   const isPageVisibleRef = useRef<boolean>(true);
-  const permissionCacheRef = useRef<{ hasPermission: boolean; timestamp: number } | null>(null);
   const lastToastRef = useRef<number>(0);
 
   // Debounced toast to prevent spam
@@ -67,6 +67,20 @@ export const useLocationTracking = (): LocationTrackingHook => {
     [toast]
   );
 
+  // Monitor permission state changes and stop tracking if permission is revoked
+  useEffect(() => {
+    if (permissionState.state === 'denied' && locationState.isTracking) {
+      console.log('Permission was revoked, stopping location tracking');
+      stopTracking();
+      
+      debouncedToast(
+        "Location Permission Lost",
+        "Proximity alerts have been paused because location permission was revoked. Please re-enable location access.",
+        "destructive"
+      );
+    }
+  }, [permissionState.state, locationState.isTracking, debouncedToast]);
+
   // Check if user has moved significantly
   const detectMovement = useCallback((newLocation: UserLocation, lastLocation: UserLocation | null): boolean => {
     if (!lastLocation) return true;
@@ -80,43 +94,6 @@ export const useLocationTracking = (): LocationTrackingHook => {
     
     return distance > MOVEMENT_THRESHOLD;
   }, []);
-
-  // Calculate optimal polling interval based on proximity to landmarks
-  const calculatePollingInterval = useCallback((location: UserLocation): number => {
-    if (!proximitySettings?.is_enabled) return POLLING_INTERVALS.DEFAULT;
-    if (!isPageVisibleRef.current) return POLLING_INTERVALS.BACKGROUND;
-
-    // Find nearest landmark
-    let nearestDistance = Infinity;
-    
-    proximityAlerts.forEach(alert => {
-      if (!alert.is_enabled) return;
-      
-      // For now, we'll use a placeholder coordinate since we need landmark coordinates
-      // This would be enhanced to get actual landmark coordinates
-      const mockLandmarkCoords = { lat: 0, lng: 0 }; // TODO: Get from landmarks data
-      
-      const distance = calculateDistance(
-        location.latitude,
-        location.longitude,
-        mockLandmarkCoords.lat,
-        mockLandmarkCoords.lng
-      );
-      
-      if (distance < nearestDistance) {
-        nearestDistance = distance;
-      }
-    });
-
-    // Determine interval based on proximity
-    if (nearestDistance < (proximitySettings.default_distance * NEAR_LANDMARK_MULTIPLIER)) {
-      return POLLING_INTERVALS.NEAR_LANDMARKS;
-    } else if (nearestDistance > FAR_LANDMARK_THRESHOLD) {
-      return POLLING_INTERVALS.FAR_FROM_LANDMARKS;
-    }
-    
-    return POLLING_INTERVALS.DEFAULT;
-  }, [proximitySettings, proximityAlerts]);
 
   // Handle location update
   const handleLocationUpdate = useCallback((position: GeolocationPosition) => {
@@ -138,6 +115,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
       lastUpdate: new Date(),
       movementDetected,
       error: null,
+      isPermissionGranted: true,
     }));
 
     console.log('Location updated:', newLocation);
@@ -151,8 +129,6 @@ export const useLocationTracking = (): LocationTrackingHook => {
       case error.PERMISSION_DENIED:
         errorMessage = 'Location permission denied';
         setLocationState(prev => ({ ...prev, isPermissionGranted: false }));
-        // Clear permission cache on denial
-        permissionCacheRef.current = null;
         break;
       case error.POSITION_UNAVAILABLE:
         errorMessage = 'Location information unavailable';
@@ -170,50 +146,11 @@ export const useLocationTracking = (): LocationTrackingHook => {
     console.error('Location error:', errorMessage, error);
   }, []);
 
-  // Check permission status with caching
+  // Check permission status with permission monitor
   const hasLocationPermission = useCallback(async (): Promise<boolean> => {
-    if (!navigator.geolocation) return false;
-    
-    // Check cache first (valid for 30 seconds)
-    const now = Date.now();
-    if (permissionCacheRef.current && (now - permissionCacheRef.current.timestamp) < 30000) {
-      console.log('Using cached permission status:', permissionCacheRef.current.hasPermission);
-      return permissionCacheRef.current.hasPermission;
-    }
-    
-    try {
-      if ('permissions' in navigator) {
-        const permission = await navigator.permissions.query({ name: 'geolocation' });
-        const hasPermission = permission.state === 'granted';
-        
-        // Cache the result
-        permissionCacheRef.current = { hasPermission, timestamp: now };
-        console.log('Permission check result:', hasPermission);
-        
-        return hasPermission;
-      }
-      
-      // Fallback: try to get position to check permission
-      return new Promise((resolve) => {
-        navigator.geolocation.getCurrentPosition(
-          () => {
-            const hasPermission = true;
-            permissionCacheRef.current = { hasPermission, timestamp: now };
-            resolve(true);
-          },
-          () => {
-            const hasPermission = false;
-            permissionCacheRef.current = { hasPermission, timestamp: now };
-            resolve(false);
-          },
-          { timeout: 5000 }
-        );
-      });
-    } catch (error) {
-      console.error('Error checking location permission:', error);
-      return false;
-    }
-  }, []);
+    const state = await checkPermission();
+    return state === 'granted';
+  }, [checkPermission]);
 
   // Request current location (one-time)
   const requestCurrentLocation = useCallback(async (): Promise<UserLocation | null> => {
@@ -264,9 +201,6 @@ export const useLocationTracking = (): LocationTrackingHook => {
     }
 
     console.log('Starting location tracking with permission already granted');
-
-    // Update permission cache to granted
-    permissionCacheRef.current = { hasPermission: true, timestamp: Date.now() };
 
     setLocationState(prev => ({
       ...prev,
@@ -321,11 +255,6 @@ export const useLocationTracking = (): LocationTrackingHook => {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
     }
-    
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
-    }
 
     setLocationState(prev => ({
       ...prev,
@@ -346,8 +275,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  // Manual tracking control based on proximity settings (REMOVED AUTO-START)
-  // This effect only responds to explicit user actions, not automatic starts
+  // Stop tracking when proximity is disabled
   useEffect(() => {
     if (!proximitySettings?.is_enabled && locationState.isTracking) {
       console.log('Proximity disabled, stopping tracking');

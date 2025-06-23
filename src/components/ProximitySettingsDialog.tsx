@@ -11,10 +11,12 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, MapPin, Navigation, AlertTriangle } from 'lucide-react';
-import { formatDistance, requestGeolocationPermission } from '@/utils/proximityUtils';
+import { formatDistance } from '@/utils/proximityUtils';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
+import { usePermissionMonitor } from '@/hooks/usePermissionMonitor';
 import { useToast } from '@/hooks/use-toast';
+import PermissionStatus from './PermissionStatus';
 
 interface ProximitySettingsDialogProps {
   open: boolean;
@@ -36,6 +38,16 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   } = useProximityAlerts();
   
   const { locationState, userLocation, startTrackingWithPermission, stopTracking } = useLocationTracking();
+  const { permissionState, requestPermission, startMonitoring, stopMonitoring } = usePermissionMonitor();
+
+  // Start/stop permission monitoring based on dialog state and proximity settings
+  React.useEffect(() => {
+    if (open && proximitySettings?.is_enabled) {
+      startMonitoring();
+    } else {
+      stopMonitoring();
+    }
+  }, [open, proximitySettings?.is_enabled, startMonitoring, stopMonitoring]);
 
   if (!proximitySettings) {
     return (
@@ -52,16 +64,16 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
 
   const handleEnableProximityAlerts = async (enabled: boolean) => {
     if (enabled) {
-      console.log('Enabling proximity alerts - requesting permission...');
+      console.log('Enabling proximity alerts - checking permission...');
       
-      // Request geolocation permission when enabling proximity alerts
-      const hasPermission = await requestGeolocationPermission();
+      // Always attempt to request permission when enabling
+      const hasPermission = await requestPermission();
       
       if (!hasPermission) {
-        console.log('Permission denied, showing error toast');
+        console.log('Permission not granted');
         toast({
           title: "Location Permission Required",
-          description: "Please allow location access to use proximity alerts. You can enable it in your browser settings.",
+          description: "Proximity alerts need location access to work. Please allow location access and try again.",
           variant: "destructive",
         });
         return;
@@ -70,16 +82,12 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
       console.log('Permission granted, updating settings and starting tracking...');
       
       try {
-        // Update the proximity settings first
         await updateProximityEnabled(enabled);
-        
-        // Start location tracking immediately after settings update
-        console.log('Starting location tracking after settings update...');
         await startTrackingWithPermission();
         
         toast({
           title: "Proximity Alerts Enabled",
-          description: "You'll now receive notifications and sound alerts when you're near landmarks.",
+          description: "You'll now receive notifications when you're near landmarks.",
         });
       } catch (error) {
         console.error('Error enabling proximity alerts:', error);
@@ -92,19 +100,28 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     } else {
       try {
         console.log('Disabling proximity alerts...');
-        
-        // Stop tracking first
         stopTracking();
-        
-        // Then update settings
         await updateProximityEnabled(enabled);
         
         toast({
           title: "Proximity Alerts Disabled",
-          description: "You won't receive any proximity notifications. Location tracking has stopped.",
+          description: "Location tracking has stopped.",
         });
       } catch (error) {
         console.error('Error disabling proximity alerts:', error);
+      }
+    }
+  };
+
+  const handleRetryPermission = async () => {
+    if (proximitySettings.is_enabled) {
+      const hasPermission = await requestPermission();
+      if (hasPermission) {
+        await startTrackingWithPermission();
+        toast({
+          title: "Permission Granted",
+          description: "Location tracking has been restored.",
+        });
       }
     }
   };
@@ -131,6 +148,15 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
         icon: <MapPin className="h-4 w-4 text-muted-foreground" />,
         text: "Location tracking disabled",
         variant: "outline" as const
+      };
+    }
+    
+    // Show permission-related errors first
+    if (permissionState.state === 'denied') {
+      return {
+        icon: <AlertTriangle className="h-4 w-4 text-destructive" />,
+        text: "Permission denied",
+        variant: "destructive" as const
       };
     }
     
@@ -193,7 +219,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
                 Enable Proximity Alerts
               </div>
               <div className="text-sm text-muted-foreground">
-                Turn on proximity alerts for landmarks (includes notifications and automatic location tracking)
+                Turn on proximity alerts for landmarks (requires location access)
               </div>
             </div>
             <Switch
@@ -202,6 +228,14 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
               disabled={isSaving}
             />
           </div>
+
+          {/* Permission Status */}
+          {proximitySettings.is_enabled && (
+            <PermissionStatus
+              onRetryPermission={handleRetryPermission}
+              showRetryButton={permissionState.state !== 'granted'}
+            />
+          )}
 
           {/* Location Tracking Status */}
           {proximitySettings.is_enabled && (
