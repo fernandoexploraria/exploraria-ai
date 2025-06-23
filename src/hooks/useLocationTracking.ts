@@ -7,6 +7,7 @@ interface LocationTrackingState {
   isTracking: boolean;
   error: string | null;
   lastUpdate: Date | null;
+  pollInterval: number; // current polling interval in ms
 }
 
 interface LocationTrackingHook {
@@ -24,10 +25,12 @@ export const useLocationTracking = (): LocationTrackingHook => {
     isTracking: false,
     error: null,
     lastUpdate: null,
+    pollInterval: 5000, // 5 seconds for testing
   });
   
   const [userLocation, setCurrentUserLocation] = useState<UserLocation | null>(null);
-  const watchIdRef = useRef<number | null>(null);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollCountRef = useRef<number>(0);
 
   // Handle location update
   const handleLocationUpdate = useCallback((position: GeolocationPosition) => {
@@ -38,10 +41,12 @@ export const useLocationTracking = (): LocationTrackingHook => {
       timestamp: Date.now(),
     };
 
-    console.log('📍 Location updated:', {
+    pollCountRef.current += 1;
+    console.log(`📍 Location poll #${pollCountRef.current} updated:`, {
       lat: newLocation.latitude.toFixed(6),
       lng: newLocation.longitude.toFixed(6),
-      accuracy: newLocation.accuracy ? `${Math.round(newLocation.accuracy)}m` : 'unknown'
+      accuracy: newLocation.accuracy ? `${Math.round(newLocation.accuracy)}m` : 'unknown',
+      time: new Date().toLocaleTimeString()
     });
 
     setCurrentUserLocation(newLocation);
@@ -70,7 +75,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
         break;
     }
     
-    console.error('❌ Location error:', errorMessage);
+    console.error(`❌ Location poll #${pollCountRef.current + 1} error:`, errorMessage);
     
     setLocationState(prev => ({
       ...prev,
@@ -115,14 +120,33 @@ export const useLocationTracking = (): LocationTrackingHook => {
     });
   }, [handleLocationUpdate, handleLocationError]);
 
-  // Start continuous tracking
+  // Location polling function
+  const pollLocation = useCallback(() => {
+    const pollNumber = pollCountRef.current + 1;
+    console.log(`🔄 Starting location poll #${pollNumber} at ${new Date().toLocaleTimeString()}`);
+    
+    navigator.geolocation.getCurrentPosition(
+      handleLocationUpdate,
+      handleLocationError,
+      {
+        enableHighAccuracy: false, // Faster response for testing
+        timeout: 8000, // 8 second timeout
+        maximumAge: 0, // Always get fresh location data
+      }
+    );
+  }, [handleLocationUpdate, handleLocationError]);
+
+  // Start continuous tracking with interval-based polling
   const startTracking = useCallback(async (): Promise<void> => {
-    console.log('🚀 Starting location tracking...');
+    console.log(`🚀 Starting location tracking with ${locationState.pollInterval}ms polling interval...`);
     
     if (!navigator.geolocation) {
       console.error('❌ Geolocation not supported');
       return;
     }
+
+    // Reset poll counter
+    pollCountRef.current = 0;
 
     // Check permission first
     try {
@@ -138,28 +162,23 @@ export const useLocationTracking = (): LocationTrackingHook => {
       error: null,
     }));
 
-    // Start watching position
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      handleLocationUpdate,
-      handleLocationError,
-      {
-        enableHighAccuracy: false,
-        timeout: 15000,
-        maximumAge: 30000,
-      }
-    );
+    // Start interval-based polling
+    pollIntervalRef.current = setInterval(pollLocation, locationState.pollInterval);
 
-    console.log('✅ Location tracking started with watchId:', watchIdRef.current);
-  }, [handleLocationUpdate, handleLocationError, requestCurrentLocation]);
+    console.log(`✅ Location tracking started with ${locationState.pollInterval}ms interval`);
+  }, [locationState.pollInterval, requestCurrentLocation, pollLocation]);
 
   // Stop tracking
   const stopTracking = useCallback(() => {
     console.log('🛑 Stopping location tracking...');
     
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
+    if (pollIntervalRef.current !== null) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
     }
+
+    // Reset poll counter
+    pollCountRef.current = 0;
 
     setLocationState(prev => ({
       ...prev,

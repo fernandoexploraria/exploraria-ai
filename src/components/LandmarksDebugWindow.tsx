@@ -10,7 +10,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MapPin, Navigation, Filter, List } from 'lucide-react';
+import { MapPin, Navigation, Filter, List, Clock } from 'lucide-react';
 import { useSortedLandmarks } from '@/hooks/useSortedLandmarks';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -67,6 +67,17 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
                   {locationState.isTracking ? 'Active' : 'Inactive'}
                 </Badge>
               </div>
+              
+              {/* Polling Information */}
+              {locationState.isTracking && (
+                <div className="mt-2 flex items-center gap-2">
+                  <Clock className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">
+                    Polling every {locationState.pollInterval / 1000}s
+                  </span>
+                </div>
+              )}
+              
               {userLocation && (
                 <div className="mt-2 text-xs text-muted-foreground">
                   Lat: {userLocation.latitude.toFixed(6)}, 
