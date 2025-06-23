@@ -4,21 +4,6 @@ import { ProximityAlert, ProximitySettings, UserLocation } from '@/types/proximi
 import { useAuth } from '@/components/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
 
-// Debounce utility
-const useDebounce = (callback: Function, delay: number) => {
-  const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout>();
-
-  const debouncedCallback = useCallback((...args: any[]) => {
-    if (debounceTimer) {
-      clearTimeout(debounceTimer);
-    }
-    const newTimer = setTimeout(() => callback(...args), delay);
-    setDebounceTimer(newTimer);
-  }, [callback, delay, debounceTimer]);
-
-  return debouncedCallback;
-};
-
 // Global state management for proximity settings
 const globalProximityState = {
   settings: null as ProximitySettings | null,
@@ -265,14 +250,10 @@ export const useProximityAlerts = () => {
           description: "Failed to save proximity settings. Please try again.",
           variant: "destructive",
         });
-        return;
+        throw error;
       }
 
       // The real-time subscription will update the state automatically
-      toast({
-        title: "Settings saved",
-        description: "Your proximity alert settings have been updated.",
-      });
     } catch (error) {
       console.error('Error in saveProximitySettings:', error);
       toast({
@@ -280,36 +261,11 @@ export const useProximityAlerts = () => {
         description: "Failed to save proximity settings. Please try again.",
         variant: "destructive",
       });
+      throw error;
     } finally {
       setIsSaving(false);
     }
   };
-
-  // Individual setting update functions
-  const updateSetting = async (key: keyof ProximitySettings, value: any) => {
-    if (!proximitySettings || !user) return;
-
-    console.log(`Updating setting ${key} to:`, value);
-
-    // Optimistic update for immediate UI feedback
-    const updatedSettings = {
-      ...proximitySettings,
-      [key]: value,
-      updated_at: new Date().toISOString(),
-    };
-    notifySubscribers(updatedSettings);
-
-    // Save to database
-    await saveProximitySettings(updatedSettings);
-  };
-
-  // Debounced version for slider changes
-  const debouncedUpdateSetting = useDebounce(updateSetting, 500);
-
-  const updateIsEnabled = (enabled: boolean) => updateSetting('is_enabled', enabled);
-  const updateDefaultDistance = (distance: number) => debouncedUpdateSetting('default_distance', distance);
-  const updateNotificationEnabled = (enabled: boolean) => updateSetting('notification_enabled', enabled);
-  const updateSoundEnabled = (enabled: boolean) => updateSetting('sound_enabled', enabled);
 
   const updateUserLocation = (location: UserLocation) => {
     setUserLocation(location);
@@ -334,10 +290,5 @@ export const useProximityAlerts = () => {
     loadProximitySettings,
     loadProximityAlerts,
     saveProximitySettings,
-    // Individual update functions
-    updateIsEnabled,
-    updateDefaultDistance,
-    updateNotificationEnabled,
-    updateSoundEnabled,
   };
 };
