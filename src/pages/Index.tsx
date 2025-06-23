@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback } from 'react';
 import SplashScreen from '@/components/SplashScreen';
 import MainLayout from '@/components/MainLayout';
@@ -16,7 +15,7 @@ const Index: React.FC = () => {
   const { tourPlan, plannedLandmarks, isLoading: isTourLoading, generateTour } = useTourPlanner();
   const { user, signOut } = useAuth();
   const mapboxToken = useMapboxToken();
-  const { handleTourAuthRequired } = usePendingDestination(user, isTourLoading, generateTour);
+  const { handleTourAuthRequired: storePendingDestination } = usePendingDestination(user, isTourLoading, generateTour);
   const {
     selectedLandmark,
     setSelectedLandmark,
@@ -82,6 +81,13 @@ const Index: React.FC = () => {
       return;
     }
     setIsNewTourAssistantOpen(true);
+  };
+
+  const handleTourAuthRequired = (destination: string) => {
+    // Store the destination for post-auth generation
+    storePendingDestination(destination);
+    // Open the auth dialog
+    setIsAuthDialogOpen(true);
   };
 
   if (showSplash) {
