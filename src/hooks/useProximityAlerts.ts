@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProximityAlert, ProximitySettings, UserLocation } from '@/types/proximityAlerts';
 import { getDefaultProximitySettings } from '@/utils/proximityUtils';
@@ -21,6 +21,20 @@ const useDebounce = (callback: Function, delay: number) => {
   return debouncedCallback;
 };
 
+// Global state management for proximity settings
+const globalProximityState = {
+  settings: null as ProximitySettings | null,
+  subscribers: new Set<(settings: ProximitySettings | null) => void>(),
+  channel: null as any,
+  isSubscribed: false,
+  currentUserId: null as string | null
+};
+
+const notifySubscribers = (settings: ProximitySettings | null) => {
+  globalProximityState.settings = settings;
+  globalProximityState.subscribers.forEach(callback => callback(settings));
+};
+
 export const useProximityAlerts = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -29,11 +43,130 @@ export const useProximityAlerts = () => {
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const isMountedRef = useRef(true);
 
-  // Load proximity settings on user change
+  // Subscribe to global proximity settings state
+  useEffect(() => {
+    if (!user) {
+      setProximitySettings(null);
+      return;
+    }
+
+    // Add this component as a subscriber
+    const updateSettings = (settings: ProximitySettings | null) => {
+      if (isMountedRef.current) {
+        setProximitySettings(settings);
+      }
+    };
+    
+    globalProximityState.subscribers.add(updateSettings);
+    
+    // Set initial state if already available
+    if (globalProximityState.settings && globalProximityState.currentUserId === user.id) {
+      setProximitySettings(globalProximityState.settings);
+    }
+
+    return () => {
+      globalProximityState.subscribers.delete(updateSettings);
+    };
+  }, [user]);
+
+  // Set up real-time subscription for proximity settings
+  useEffect(() => {
+    if (!user?.id) {
+      setProximitySettings(null);
+      setIsLoading(false);
+      return;
+    }
+
+    // If user changed, clean up previous subscription
+    if (globalProximityState.currentUserId && globalProximityState.currentUserId !== user.id) {
+      console.log('User changed, cleaning up previous proximity settings subscription');
+      if (globalProximityState.channel) {
+        supabase.removeChannel(globalProximityState.channel);
+        globalProximityState.channel = null;
+        globalProximityState.isSubscribed = false;
+      }
+    }
+
+    globalProximityState.currentUserId = user.id;
+
+    // Only create subscription if none exists
+    if (!globalProximityState.channel && !globalProximityState.isSubscribed) {
+      console.log('Creating new proximity settings subscription for user:', user.id);
+      
+      const channelName = `proximity-settings-${user.id}`;
+      
+      const channel = supabase
+        .channel(channelName)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'proximity_settings',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('Real-time proximity settings update:', payload);
+            if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+              const settings: ProximitySettings = {
+                id: payload.new.id,
+                user_id: payload.new.user_id,
+                is_enabled: payload.new.is_enabled,
+                default_distance: payload.new.default_distance,
+                unit: payload.new.unit as 'metric' | 'imperial',
+                notification_enabled: payload.new.notification_enabled,
+                sound_enabled: payload.new.sound_enabled,
+                created_at: payload.new.created_at,
+                updated_at: payload.new.updated_at,
+              };
+              console.log('Notifying all subscribers with updated settings:', settings);
+              notifySubscribers(settings);
+            } else if (payload.eventType === 'DELETE') {
+              notifySubscribers(null);
+            }
+          }
+        )
+        .subscribe((status) => {
+          console.log('Proximity settings subscription status:', status);
+          if (status === 'SUBSCRIBED') {
+            globalProximityState.isSubscribed = true;
+            // Load initial data after successful subscription
+            loadProximitySettings();
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error('Proximity settings channel subscription error');
+            globalProximityState.isSubscribed = false;
+          } else if (status === 'TIMED_OUT') {
+            console.error('Proximity settings channel subscription timed out');
+            globalProximityState.isSubscribed = false;
+          }
+        });
+
+      globalProximityState.channel = channel;
+    } else if (globalProximityState.isSubscribed) {
+      // If subscription already exists, just load data
+      loadProximitySettings();
+    }
+
+    return () => {
+      // Don't clean up the global subscription here - let it persist
+      // Only clean up when the last subscriber unmounts
+      const subscriberCount = globalProximityState.subscribers.size;
+      if (subscriberCount === 0 && globalProximityState.channel) {
+        console.log('No more proximity settings subscribers, cleaning up global subscription');
+        supabase.removeChannel(globalProximityState.channel);
+        globalProximityState.channel = null;
+        globalProximityState.isSubscribed = false;
+        globalProximityState.currentUserId = null;
+        globalProximityState.settings = null;
+      }
+    };
+  }, [user?.id]);
+
+  // Load proximity alerts on user change
   useEffect(() => {
     if (user) {
-      loadProximitySettings();
       loadProximityAlerts();
     }
   }, [user]);
@@ -67,16 +200,20 @@ export const useProximityAlerts = () => {
           created_at: data.created_at,
           updated_at: data.updated_at,
         };
-        setProximitySettings(settings);
+        console.log('Loaded proximity settings:', settings);
+        notifySubscribers(settings);
       } else {
         // Create default settings if none exist
         const defaultSettings = getDefaultProximitySettings(user.id);
-        setProximitySettings(defaultSettings);
+        console.log('No settings found, using defaults:', defaultSettings);
+        notifySubscribers(defaultSettings);
       }
     } catch (error) {
       console.error('Error in loadProximitySettings:', error);
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -136,7 +273,7 @@ export const useProximityAlerts = () => {
         return;
       }
 
-      setProximitySettings(settings);
+      // The real-time subscription will update the state automatically
       toast({
         title: "Settings saved",
         description: "Your proximity alert settings have been updated.",
@@ -157,13 +294,15 @@ export const useProximityAlerts = () => {
   const updateSetting = async (key: keyof ProximitySettings, value: any) => {
     if (!proximitySettings || !user) return;
 
-    // Optimistic update
+    console.log(`Updating setting ${key} to:`, value);
+
+    // Optimistic update for immediate UI feedback
     const updatedSettings = {
       ...proximitySettings,
       [key]: value,
       updated_at: new Date().toISOString(),
     };
-    setProximitySettings(updatedSettings);
+    notifySubscribers(updatedSettings);
 
     // Save to database
     await saveProximitySettings(updatedSettings);
@@ -182,6 +321,13 @@ export const useProximityAlerts = () => {
     setUserLocation(location);
   };
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   return {
     proximityAlerts,
     proximitySettings,
@@ -189,7 +335,7 @@ export const useProximityAlerts = () => {
     isLoading,
     isSaving,
     setProximityAlerts,
-    setProximitySettings,
+    setProximitySettings: notifySubscribers,
     setUserLocation: updateUserLocation,
     loadProximitySettings,
     loadProximityAlerts,
