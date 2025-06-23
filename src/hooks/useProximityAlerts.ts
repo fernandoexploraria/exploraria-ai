@@ -1,8 +1,11 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { ProximityAlert, ProximitySettings, UserLocation } from '@/types/proximityAlerts';
+import { ProximitySettings, UserLocation } from '@/types/proximityAlerts';
 import { useAuth } from '@/components/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
+import { useProximityDetection } from './useProximityDetection';
+import { useNotificationHistory } from './useNotificationHistory';
 
 // Global state management for proximity settings
 const globalProximityState = {
@@ -18,15 +21,23 @@ const notifySubscribers = (settings: ProximitySettings | null) => {
   globalProximityState.subscribers.forEach(callback => callback(settings));
 };
 
-export const useProximityAlerts = () => {
+export const useProximityAlerts = (isLocationTracking: boolean = false) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [proximityAlerts, setProximityAlerts] = useState<ProximityAlert[]>([]);
   const [proximitySettings, setProximitySettings] = useState<ProximitySettings | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const isMountedRef = useRef(true);
+
+  // Initialize proximity detection
+  const { checkProximity } = useProximityDetection({ 
+    proximitySettings, 
+    isLocationTracking 
+  });
+
+  // Get notification history
+  const { notifications, isLoading: notificationsLoading } = useNotificationHistory();
 
   // Subscribe to global proximity settings state
   useEffect(() => {
@@ -35,7 +46,6 @@ export const useProximityAlerts = () => {
       return;
     }
 
-    // Add this component as a subscriber
     const updateSettings = (settings: ProximitySettings | null) => {
       if (isMountedRef.current) {
         setProximitySettings(settings);
@@ -44,7 +54,6 @@ export const useProximityAlerts = () => {
     
     globalProximityState.subscribers.add(updateSettings);
     
-    // Set initial state if already available
     if (globalProximityState.settings && globalProximityState.currentUserId === user.id) {
       setProximitySettings(globalProximityState.settings);
     }
@@ -62,7 +71,6 @@ export const useProximityAlerts = () => {
       return;
     }
 
-    // If user changed, clean up previous subscription
     if (globalProximityState.currentUserId && globalProximityState.currentUserId !== user.id) {
       console.log('User changed, cleaning up previous proximity settings subscription');
       if (globalProximityState.channel) {
@@ -74,7 +82,6 @@ export const useProximityAlerts = () => {
 
     globalProximityState.currentUserId = user.id;
 
-    // Only create subscription if none exists
     if (!globalProximityState.channel && !globalProximityState.isSubscribed) {
       console.log('Creating new proximity settings subscription for user:', user.id);
       
@@ -112,7 +119,6 @@ export const useProximityAlerts = () => {
           console.log('Proximity settings subscription status:', status);
           if (status === 'SUBSCRIBED') {
             globalProximityState.isSubscribed = true;
-            // Load initial data after successful subscription
             loadProximitySettings();
           } else if (status === 'CHANNEL_ERROR') {
             console.error('Proximity settings channel subscription error');
@@ -125,13 +131,10 @@ export const useProximityAlerts = () => {
 
       globalProximityState.channel = channel;
     } else if (globalProximityState.isSubscribed) {
-      // If subscription already exists, just load data
       loadProximitySettings();
     }
 
     return () => {
-      // Don't clean up the global subscription here - let it persist
-      // Only clean up when the last subscriber unmounts
       const subscriberCount = globalProximityState.subscribers.size;
       if (subscriberCount === 0 && globalProximityState.channel) {
         console.log('No more proximity settings subscribers, cleaning up global subscription');
@@ -143,13 +146,6 @@ export const useProximityAlerts = () => {
       }
     };
   }, [user?.id]);
-
-  // Load proximity alerts on user change
-  useEffect(() => {
-    if (user) {
-      loadProximityAlerts();
-    }
-  }, [user]);
 
   const loadProximitySettings = async () => {
     if (!user) return;
@@ -168,7 +164,6 @@ export const useProximityAlerts = () => {
       }
 
       if (data) {
-        // Cast the data to match our interface types
         const settings: ProximitySettings = {
           id: data.id,
           user_id: data.user_id,
@@ -180,8 +175,6 @@ export const useProximityAlerts = () => {
         console.log('Loaded proximity settings:', settings);
         notifySubscribers(settings);
       } else {
-        // Since we now auto-create settings via trigger, this should rarely happen
-        // But keep as fallback for existing users or edge cases
         console.log('No proximity settings found for user, they should be auto-created on signup');
         notifySubscribers(null);
       }
@@ -191,38 +184,6 @@ export const useProximityAlerts = () => {
       if (isMountedRef.current) {
         setIsLoading(false);
       }
-    }
-  };
-
-  const loadProximityAlerts = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('proximity_alerts')
-        .select('*')
-        .eq('user_id', user.id);
-
-      if (error) {
-        console.error('Error loading proximity alerts:', error);
-        return;
-      }
-
-      // Cast the data to match our interface types
-      const alerts: ProximityAlert[] = (data || []).map(item => ({
-        id: item.id,
-        user_id: item.user_id,
-        landmark_id: item.landmark_id,
-        distance: item.distance,
-        is_enabled: item.is_enabled,
-        last_triggered: item.last_triggered || undefined,
-        created_at: item.created_at,
-        updated_at: item.updated_at,
-      }));
-
-      setProximityAlerts(alerts);
-    } catch (error) {
-      console.error('Error in loadProximityAlerts:', error);
     }
   };
 
@@ -248,8 +209,6 @@ export const useProximityAlerts = () => {
         });
         throw error;
       }
-
-      // The real-time subscription will update the state automatically
     } catch (error) {
       console.error('Error in updateProximityEnabled:', error);
       throw error;
@@ -280,8 +239,6 @@ export const useProximityAlerts = () => {
         });
         throw error;
       }
-
-      // The real-time subscription will update the state automatically
     } catch (error) {
       console.error('Error in updateDefaultDistance:', error);
       throw error;
@@ -290,9 +247,13 @@ export const useProximityAlerts = () => {
     }
   };
 
-  const updateUserLocation = (location: UserLocation) => {
+  const updateUserLocation = useCallback((location: UserLocation) => {
     setUserLocation(location);
-  };
+    // Trigger proximity check when location updates
+    if (proximitySettings?.is_enabled && isLocationTracking) {
+      checkProximity(location);
+    }
+  }, [proximitySettings, isLocationTracking, checkProximity]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -302,17 +263,16 @@ export const useProximityAlerts = () => {
   }, []);
 
   return {
-    proximityAlerts,
     proximitySettings,
     userLocation,
+    notifications,
     isLoading,
     isSaving,
-    setProximityAlerts,
-    setProximitySettings: notifySubscribers,
+    notificationsLoading,
     setUserLocation: updateUserLocation,
     loadProximitySettings,
-    loadProximityAlerts,
     updateProximityEnabled,
     updateDefaultDistance,
+    checkProximity,
   };
 };

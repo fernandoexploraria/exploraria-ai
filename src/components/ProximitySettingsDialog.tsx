@@ -10,7 +10,8 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { MapPin, Loader2, Bell, BellOff, AlertTriangle } from 'lucide-react';
 import { formatDistance } from '@/utils/proximityUtils';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useToast } from '@/hooks/use-toast';
@@ -29,13 +30,20 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   const { toast } = useToast();
   const { proximitySettings, updateProximityEnabled, updateDefaultDistance, isSaving } = useProximityAlerts();
   
-  // Local form state - initialize with database value if available
   const [formEnabled, setFormEnabled] = useState(false);
   const [formDistance, setFormDistance] = useState(proximitySettings?.default_distance ?? 50);
   const [isDistanceSaving, setIsDistanceSaving] = useState(false);
   const [isToggleSaving, setIsToggleSaving] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
 
-  // Initialize form state when settings become available for the first time
+  // Check notification permission on mount and when dialog opens
+  useEffect(() => {
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+    }
+  }, [open]);
+
+  // Initialize form state when settings become available
   useEffect(() => {
     if (proximitySettings) {
       setFormEnabled(proximitySettings.is_enabled);
@@ -43,7 +51,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     }
   }, [proximitySettings]);
 
-  // Re-initialize form state when dialog opens (if settings are already loaded)
+  // Re-initialize form state when dialog opens
   useEffect(() => {
     if (proximitySettings && open) {
       setFormEnabled(proximitySettings.is_enabled);
@@ -88,17 +96,16 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
       if (enabled && !proximitySettings.is_enabled) {
         toast({
           title: "Proximity Alerts Enabled",
-          description: "Settings saved successfully. Location tracking will begin automatically.",
+          description: "You'll receive automatic notifications when near landmarks.",
         });
       } else if (!enabled && proximitySettings.is_enabled) {
         toast({
           title: "Proximity Alerts Disabled",
-          description: "Settings saved successfully.",
+          description: "Automatic proximity notifications are now turned off.",
         });
       }
     } catch (error) {
       console.error('Error saving proximity enabled setting:', error);
-      // Revert the local state on error
       setFormEnabled(proximitySettings.is_enabled);
       toast({
         title: "Error",
@@ -116,6 +123,48 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
 
   const handlePresetDistance = (distance: number) => {
     setFormDistance(distance);
+  };
+
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      
+      if (permission === 'granted') {
+        toast({
+          title: "Notifications Enabled",
+          description: "You'll now receive browser notifications for proximity alerts.",
+        });
+      } else {
+        toast({
+          title: "Notifications Denied",
+          description: "You can still receive in-app notifications.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const getNotificationStatusIcon = () => {
+    switch (notificationPermission) {
+      case 'granted':
+        return <Bell className="h-4 w-4 text-green-600" />;
+      case 'denied':
+        return <BellOff className="h-4 w-4 text-red-600" />;
+      default:
+        return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
+    }
+  };
+
+  const getNotificationStatusText = () => {
+    switch (notificationPermission) {
+      case 'granted':
+        return 'Browser notifications enabled';
+      case 'denied':
+        return 'Browser notifications blocked';
+      default:
+        return 'Browser notifications not set';
+    }
   };
 
   if (!proximitySettings) {
@@ -136,7 +185,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
         <SheetHeader className="pb-6">
           <SheetTitle>Proximity Alert Settings</SheetTitle>
           <SheetDescription>
-            Configure proximity alerts to get notified when you're near landmarks.
+            Configure automatic proximity alerts to get notified when you're near landmarks.
           </SheetDescription>
         </SheetHeader>
 
@@ -152,7 +201,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
                 )}
               </div>
               <div className="text-sm text-muted-foreground">
-                Turn on proximity alerts for landmarks (requires location access)
+                Get automatic notifications when near landmarks
               </div>
             </div>
             <Switch
@@ -162,11 +211,34 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
             />
           </div>
 
+          {/* Notification Permission Status */}
+          <div className="flex flex-row items-center justify-between rounded-lg border p-4">
+            <div className="space-y-0.5">
+              <div className="text-base font-medium flex items-center gap-2">
+                {getNotificationStatusIcon()}
+                Browser Notifications
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {getNotificationStatusText()}
+              </div>
+            </div>
+            {notificationPermission !== 'granted' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={requestNotificationPermission}
+                disabled={notificationPermission === 'denied'}
+              >
+                Enable
+              </Button>
+            )}
+          </div>
+
           {/* Distance Selection */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="text-base font-medium flex items-center gap-2">
-                Default Alert Distance: {formatDistance(formDistance)}
+                Alert Distance: {formatDistance(formDistance)}
                 {isDistanceSaving && (
                   <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
                 )}
@@ -198,7 +270,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
               ))}
             </div>
             <div className="text-sm text-muted-foreground">
-              Choose the default distance for proximity alerts (25m - 2km range). 
+              Choose the distance for automatic proximity alerts (25m - 2km range). 
               <span className="text-xs block mt-1 text-muted-foreground/70">
                 Changes save automatically
               </span>
