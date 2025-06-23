@@ -52,7 +52,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   const isRecoveryMode = proximitySettings?.is_enabled && permissionState.state === 'denied';
 
   // Start/stop permission monitoring based on dialog state and proximity settings
-  React.useEffect(() => {
+  useEffect(() => {
     if (open && proximitySettings?.is_enabled) {
       startMonitoring();
     } else {
@@ -273,6 +273,25 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
           </SheetHeader>
 
           <div className="space-y-6">
+            {/* DEBUG INFO - Temporary debugging display */}
+            <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-3">
+              <div className="text-xs font-mono space-y-1">
+                <div className="font-semibold text-yellow-800 mb-2">🔍 Debug Info:</div>
+                <div>isTracking: <span className="font-bold">{String(locationState.isTracking)}</span></div>
+                <div>isStartingUp: <span className="font-bold">{String(locationState.isStartingUp)}</span></div>
+                <div>hasUserLocation: <span className="font-bold">{String(!!userLocation)}</span></div>
+                <div>permissionState: <span className="font-bold">{permissionState.state}</span></div>
+                <div>proximityEnabled: <span className="font-bold">{String(proximitySettings?.is_enabled)}</span></div>
+                <div>error: <span className="font-bold">{locationState.error || 'none'}</span></div>
+                {userLocation && (
+                  <div>location: <span className="font-bold">
+                    {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)} 
+                    {userLocation.accuracy && ` (±${Math.round(userLocation.accuracy)}m)`}
+                  </span></div>
+                )}
+              </div>
+            </div>
+
             {/* Recovery Mode Warning Banner */}
             {isRecoveryMode && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
