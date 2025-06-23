@@ -1,12 +1,22 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Search, ChevronDown, ChevronUp, Menu } from 'lucide-react';
+import { Sparkles, Search, ChevronDown, ChevronUp, Menu, Bell } from 'lucide-react';
 import SearchControl from '@/components/SearchControl';
 import FreeTourCounter from '@/components/FreeTourCounter';
 import ImageAnalysis from '@/components/ImageAnalysis';
+import ProximityControlPanel from '@/components/ProximityControlPanel';
 import { Landmark } from '@/data/landmarks';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useProximityAlerts } from '@/hooks/useProximityAlerts';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 
 interface TopControlsProps {
   allLandmarks: Landmark[];
@@ -31,10 +41,14 @@ const TopControls: React.FC<TopControlsProps> = ({
 }) => {
   const isMobile = useIsMobile();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { proximitySettings, proximityAlerts } = useProximityAlerts();
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
   };
+
+  const activeAlertsCount = proximityAlerts.filter(alert => alert.is_enabled).length;
+  const isProximityEnabled = proximitySettings?.is_enabled || false;
 
   return (
     <div className="absolute top-4 left-4 z-10">
@@ -104,6 +118,39 @@ const TopControls: React.FC<TopControlsProps> = ({
                 <Search className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
                 Travel Log
               </Button>
+            )}
+
+            {/* Proximity Alerts Button */}
+            {user && (
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 relative"
+                  >
+                    <Bell className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+                    <span className="lg:hidden">Alerts</span>
+                    <span className="hidden lg:inline">Proximity Alerts</span>
+                    {isProximityEnabled && activeAlertsCount > 0 && (
+                      <span className="ml-auto bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                        {activeAlertsCount}
+                      </span>
+                    )}
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-[400px] sm:w-[500px] overflow-y-auto">
+                  <SheetHeader>
+                    <SheetTitle>Proximity Alerts</SheetTitle>
+                    <SheetDescription>
+                      Get notified when you're near landmarks
+                    </SheetDescription>
+                  </SheetHeader>
+                  <div className="mt-6">
+                    <ProximityControlPanel />
+                  </div>
+                </SheetContent>
+              </Sheet>
             )}
 
             {/* Image Analysis Button - moved below Travel Log */}
