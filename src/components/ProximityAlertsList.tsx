@@ -64,7 +64,6 @@ const ProximityAlertsList: React.FC = () => {
                 <Switch
                   checked={alert.is_enabled}
                   onCheckedChange={(checked) => handleToggleAlert(alert.id, checked)}
-                  size="sm"
                 />
               </div>
             </div>
