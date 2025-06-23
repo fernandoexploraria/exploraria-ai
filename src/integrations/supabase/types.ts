@@ -180,8 +180,6 @@ export type Database = {
           default_distance: number
           id: string
           is_enabled: boolean
-          notification_enabled: boolean
-          sound_enabled: boolean
           unit: string
           updated_at: string
           user_id: string
@@ -191,8 +189,6 @@ export type Database = {
           default_distance?: number
           id?: string
           is_enabled?: boolean
-          notification_enabled?: boolean
-          sound_enabled?: boolean
           unit?: string
           updated_at?: string
           user_id: string
@@ -202,8 +198,6 @@ export type Database = {
           default_distance?: number
           id?: string
           is_enabled?: boolean
-          notification_enabled?: boolean
-          sound_enabled?: boolean
           unit?: string
           updated_at?: string
           user_id?: string

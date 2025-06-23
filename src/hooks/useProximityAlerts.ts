@@ -98,8 +98,6 @@ export const useProximityAlerts = () => {
                 user_id: payload.new.user_id,
                 is_enabled: payload.new.is_enabled,
                 default_distance: payload.new.default_distance,
-                notification_enabled: payload.new.notification_enabled,
-                sound_enabled: payload.new.sound_enabled,
                 created_at: payload.new.created_at,
                 updated_at: payload.new.updated_at,
               };
@@ -176,8 +174,6 @@ export const useProximityAlerts = () => {
           user_id: data.user_id,
           is_enabled: data.is_enabled,
           default_distance: data.default_distance,
-          notification_enabled: data.notification_enabled,
-          sound_enabled: data.sound_enabled,
           created_at: data.created_at,
           updated_at: data.updated_at,
         };
@@ -230,24 +226,24 @@ export const useProximityAlerts = () => {
     }
   };
 
-  const saveProximitySettings = async (settings: ProximitySettings) => {
-    if (!user) return;
+  const updateProximityEnabled = async (enabled: boolean) => {
+    if (!user || !proximitySettings) return;
 
     setIsSaving(true);
     try {
       const { error } = await supabase
         .from('proximity_settings')
-        .upsert({
-          ...settings,
-          user_id: user.id,
+        .update({
+          is_enabled: enabled,
           updated_at: new Date().toISOString(),
-        });
+        })
+        .eq('user_id', user.id);
 
       if (error) {
-        console.error('Error saving proximity settings:', error);
+        console.error('Error updating proximity enabled status:', error);
         toast({
           title: "Error",
-          description: "Failed to save proximity settings. Please try again.",
+          description: "Failed to update proximity settings. Please try again.",
           variant: "destructive",
         });
         throw error;
@@ -255,12 +251,39 @@ export const useProximityAlerts = () => {
 
       // The real-time subscription will update the state automatically
     } catch (error) {
-      console.error('Error in saveProximitySettings:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save proximity settings. Please try again.",
-        variant: "destructive",
-      });
+      console.error('Error in updateProximityEnabled:', error);
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const updateDefaultDistance = async (distance: number) => {
+    if (!user || !proximitySettings) return;
+
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('proximity_settings')
+        .update({
+          default_distance: distance,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error updating default distance:', error);
+        toast({
+          title: "Error",
+          description: "Failed to update default distance. Please try again.",
+          variant: "destructive",
+        });
+        throw error;
+      }
+
+      // The real-time subscription will update the state automatically
+    } catch (error) {
+      console.error('Error in updateDefaultDistance:', error);
       throw error;
     } finally {
       setIsSaving(false);
@@ -289,6 +312,7 @@ export const useProximityAlerts = () => {
     setUserLocation: updateUserLocation,
     loadProximitySettings,
     loadProximityAlerts,
-    saveProximitySettings,
+    updateProximityEnabled,
+    updateDefaultDistance,
   };
 };

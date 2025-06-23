@@ -15,8 +15,6 @@ export interface ProximitySettings {
   user_id: string;
   is_enabled: boolean;
   default_distance: number; // in meters
-  notification_enabled: boolean;
-  sound_enabled: boolean;
   created_at?: string;
   updated_at?: string;
 }

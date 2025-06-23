@@ -1,22 +1,19 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, MapPin, Save, RotateCcw } from 'lucide-react';
+import { Loader2, MapPin } from 'lucide-react';
 import { formatDistance, requestGeolocationPermission } from '@/utils/proximityUtils';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useToast } from '@/hooks/use-toast';
-import { ProximitySettings } from '@/types/proximityAlerts';
 
 interface ProximitySettingsDialogProps {
   open: boolean;
@@ -33,38 +30,11 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   const { 
     proximitySettings, 
     isSaving,
-    saveProximitySettings,
+    updateProximityEnabled,
+    updateDefaultDistance,
   } = useProximityAlerts();
 
-  // Local state for pending changes
-  const [localSettings, setLocalSettings] = useState<ProximitySettings | null>(null);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-
-  // Initialize local state when dialog opens or settings change
-  useEffect(() => {
-    if (proximitySettings) {
-      setLocalSettings({ ...proximitySettings });
-      setHasUnsavedChanges(false);
-    }
-  }, [proximitySettings, open]);
-
-  // Check if there are unsaved changes
-  useEffect(() => {
-    if (!proximitySettings || !localSettings) {
-      setHasUnsavedChanges(false);
-      return;
-    }
-
-    const hasChanges = 
-      localSettings.is_enabled !== proximitySettings.is_enabled ||
-      localSettings.default_distance !== proximitySettings.default_distance ||
-      localSettings.notification_enabled !== proximitySettings.notification_enabled ||
-      localSettings.sound_enabled !== proximitySettings.sound_enabled;
-
-    setHasUnsavedChanges(hasChanges);
-  }, [localSettings, proximitySettings]);
-
-  if (!proximitySettings || !localSettings) {
+  if (!proximitySettings) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-[600px]">
@@ -76,15 +46,6 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
       </Dialog>
     );
   }
-
-  const handleLocalSettingChange = (key: keyof ProximitySettings, value: any) => {
-    if (!localSettings) return;
-
-    setLocalSettings(prev => ({
-      ...prev!,
-      [key]: value,
-    }));
-  };
 
   const handleEnableProximityAlerts = async (enabled: boolean) => {
     if (enabled) {
@@ -101,75 +62,46 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
       }
     }
 
-    // Update local state
-    const updatedSettings = { ...localSettings };
-    updatedSettings.is_enabled = enabled;
-
-    // When disabling proximity alerts, also disable notifications and sound
-    if (!enabled) {
-      updatedSettings.notification_enabled = false;
-      updatedSettings.sound_enabled = false;
-    }
-
-    setLocalSettings(updatedSettings);
-  };
-
-  const handlePresetDistance = (distance: number) => {
-    handleLocalSettingChange('default_distance', distance);
-  };
-
-  const handleSaveSettings = async () => {
-    if (!localSettings) return;
-
     try {
-      await saveProximitySettings(localSettings);
+      await updateProximityEnabled(enabled);
       
-      if (localSettings.is_enabled && !proximitySettings.is_enabled) {
+      if (enabled) {
         toast({
-          title: "Location Access Granted",
-          description: "Proximity alerts are now enabled. You'll be notified when you're near landmarks.",
+          title: "Proximity Alerts Enabled",
+          description: "You'll now receive notifications and sound alerts when you're near landmarks.",
         });
       } else {
         toast({
-          title: "Settings saved",
-          description: "Your proximity alert settings have been updated.",
+          title: "Proximity Alerts Disabled",
+          description: "You won't receive any proximity notifications.",
         });
       }
-      
-      // Close dialog after successful save
-      onOpenChange(false);
     } catch (error) {
-      console.error('Error saving settings:', error);
+      console.error('Error updating proximity alerts:', error);
     }
   };
 
-  const handleResetSettings = () => {
-    if (proximitySettings) {
-      setLocalSettings({ ...proximitySettings });
-      setHasUnsavedChanges(false);
+  const handlePresetDistance = async (distance: number) => {
+    try {
+      await updateDefaultDistance(distance);
+    } catch (error) {
+      console.error('Error updating preset distance:', error);
     }
   };
 
-  const handleCloseDialog = () => {
-    if (hasUnsavedChanges) {
-      // Reset to original settings when closing with unsaved changes
-      handleResetSettings();
+  const handleDistanceChange = async (value: number[]) => {
+    try {
+      await updateDefaultDistance(value[0]);
+    } catch (error) {
+      console.error('Error updating distance:', error);
     }
-    onOpenChange(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleCloseDialog}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>
-            Proximity Alert Settings
-            {hasUnsavedChanges && (
-              <span className="ml-2 text-sm font-normal text-orange-600">
-                (Unsaved changes)
-              </span>
-            )}
-          </DialogTitle>
+          <DialogTitle>Proximity Alert Settings</DialogTitle>
           <DialogDescription>
             Configure proximity alerts to get notified when you're near landmarks.
             {isSaving && (
@@ -190,11 +122,11 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
                 Enable Proximity Alerts
               </div>
               <div className="text-sm text-muted-foreground">
-                Turn on proximity alerts for landmarks (requires location access)
+                Turn on proximity alerts for landmarks (includes notifications and sound)
               </div>
             </div>
             <Switch
-              checked={localSettings.is_enabled}
+              checked={proximitySettings.is_enabled}
               onCheckedChange={handleEnableProximityAlerts}
               disabled={isSaving}
             />
@@ -203,15 +135,15 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
           {/* Distance Selection */}
           <div className="space-y-4">
             <div className="text-base font-medium">
-              Default Alert Distance: {formatDistance(localSettings.default_distance)}
+              Default Alert Distance: {formatDistance(proximitySettings.default_distance)}
             </div>
             
             <Slider
               min={25}
               max={2000}
               step={25}
-              value={[localSettings.default_distance]}
-              onValueChange={(value) => handleLocalSettingChange('default_distance', value[0])}
+              value={[proximitySettings.default_distance]}
+              onValueChange={handleDistanceChange}
               className="w-full"
               disabled={isSaving}
             />
@@ -222,7 +154,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
               {PRESET_DISTANCES.map((distance) => (
                 <Badge
                   key={distance}
-                  variant={localSettings.default_distance === distance ? "default" : "outline"}
+                  variant={proximitySettings.default_distance === distance ? "default" : "outline"}
                   className="cursor-pointer hover:bg-primary/80"
                   onClick={() => !isSaving && handlePresetDistance(distance)}
                 >
@@ -235,63 +167,19 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
             </div>
           </div>
 
-          {/* Notification Settings */}
-          <div className="space-y-4">
-            <div className="flex flex-row items-center justify-between rounded-lg border p-4">
-              <div className="space-y-0.5">
-                <div className="text-base font-medium">
-                  Browser Notifications
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  Show notifications in your browser
-                </div>
+          {proximitySettings.is_enabled && (
+            <div className="rounded-lg bg-muted/50 p-4">
+              <div className="text-sm font-medium text-muted-foreground mb-2">
+                When proximity alerts are enabled, you'll receive:
               </div>
-              <Switch
-                checked={localSettings.notification_enabled}
-                onCheckedChange={(checked) => handleLocalSettingChange('notification_enabled', checked)}
-                disabled={isSaving || !localSettings.is_enabled}
-              />
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• Browser notifications when near landmarks</li>
+                <li>• Sound alerts for proximity events</li>
+                <li>• Real-time location-based updates</li>
+              </ul>
             </div>
-
-            <div className="flex flex-row items-center justify-between rounded-lg border p-4">
-              <div className="space-y-0.5">
-                <div className="text-base font-medium">
-                  Sound Alerts
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  Play sound when alerts are triggered
-                </div>
-              </div>
-              <Switch
-                checked={localSettings.sound_enabled}
-                onCheckedChange={(checked) => handleLocalSettingChange('sound_enabled', checked)}
-                disabled={isSaving || !localSettings.is_enabled}
-              />
-            </div>
-          </div>
+          )}
         </div>
-
-        <DialogFooter className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={handleResetSettings}
-            disabled={isSaving || !hasUnsavedChanges}
-          >
-            <RotateCcw className="h-4 w-4 mr-2" />
-            Reset
-          </Button>
-          <Button
-            onClick={handleSaveSettings}
-            disabled={isSaving || !hasUnsavedChanges}
-          >
-            {isSaving ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-2" />
-            )}
-            Save Settings
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
