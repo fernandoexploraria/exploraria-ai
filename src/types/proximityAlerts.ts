@@ -26,9 +26,33 @@ export interface UserLocation {
   timestamp: number;
 }
 
+export interface LocationTrackingState {
+  isTracking: boolean;
+  isPermissionGranted: boolean | null;
+  error: string | null;
+  lastUpdate: Date | null;
+  movementDetected: boolean;
+  pollInterval: number; // current polling interval in ms
+}
+
 export interface ProximityState {
   proximityAlerts: ProximityAlert[];
   proximitySettings: ProximitySettings | null;
   userLocation: UserLocation | null;
+  locationTracking: LocationTrackingState;
   isLoading: boolean;
+}
+
+export interface LocationHistoryEntry {
+  location: UserLocation;
+  timestamp: number;
+  accuracy?: number;
+}
+
+export interface ProximityDetectionResult {
+  alert: ProximityAlert;
+  distance: number;
+  isWithinRange: boolean;
+  hasEntered: boolean;
+  hasExited: boolean;
 }

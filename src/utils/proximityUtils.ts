@@ -44,8 +44,6 @@ export const getDefaultProximitySettings = (userId: string) => ({
   user_id: userId,
   is_enabled: false,
   default_distance: 50, // Updated to 50 meters
-  notification_enabled: false, // Updated to false
-  sound_enabled: false, // Updated to false
 });
 
 /**
@@ -81,4 +79,109 @@ export const requestGeolocationPermission = async (): Promise<boolean> => {
     console.error('Error requesting geolocation permission:', error);
     return false;
   }
+};
+
+/**
+ * Filter landmarks within a certain radius of a location
+ * @param userLocation User's current location
+ * @param landmarks Array of landmarks with coordinates
+ * @param radiusMeters Search radius in meters
+ * @returns Filtered landmarks within radius
+ */
+export const filterLandmarksWithinRadius = <T extends { coordinates: [number, number] }>(
+  userLocation: { latitude: number; longitude: number },
+  landmarks: T[],
+  radiusMeters: number
+): T[] => {
+  return landmarks.filter(landmark => {
+    const distance = calculateDistance(
+      userLocation.latitude,
+      userLocation.longitude,
+      landmark.coordinates[1], // latitude
+      landmark.coordinates[0]  // longitude
+    );
+    return distance <= radiusMeters;
+  });
+};
+
+/**
+ * Find the nearest landmark to a location
+ * @param userLocation User's current location
+ * @param landmarks Array of landmarks with coordinates
+ * @returns Object with nearest landmark and distance, or null if no landmarks
+ */
+export const findNearestLandmark = <T extends { coordinates: [number, number] }>(
+  userLocation: { latitude: number; longitude: number },
+  landmarks: T[]
+): { landmark: T; distance: number } | null => {
+  if (landmarks.length === 0) return null;
+
+  let nearestLandmark = landmarks[0];
+  let shortestDistance = calculateDistance(
+    userLocation.latitude,
+    userLocation.longitude,
+    landmarks[0].coordinates[1],
+    landmarks[0].coordinates[0]
+  );
+
+  for (let i = 1; i < landmarks.length; i++) {
+    const distance = calculateDistance(
+      userLocation.latitude,
+      userLocation.longitude,
+      landmarks[i].coordinates[1],
+      landmarks[i].coordinates[0]
+    );
+
+    if (distance < shortestDistance) {
+      shortestDistance = distance;
+      nearestLandmark = landmarks[i];
+    }
+  }
+
+  return {
+    landmark: nearestLandmark,
+    distance: shortestDistance
+  };
+};
+
+/**
+ * Debounce function to limit the frequency of function calls
+ * @param func Function to debounce
+ * @param wait Delay in milliseconds
+ * @returns Debounced function
+ */
+export const debounce = <T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): ((...args: Parameters<T>) => void) => {
+  let timeout: NodeJS.Timeout;
+  
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+};
+
+/**
+ * Check if a location is valid (not null/undefined and within valid ranges)
+ * @param location Location object to validate
+ * @returns boolean indicating if location is valid
+ */
+export const isValidLocation = (
+  location: { latitude: number; longitude: number } | null | undefined
+): location is { latitude: number; longitude: number } => {
+  if (!location) return false;
+  
+  const { latitude, longitude } = location;
+  
+  return (
+    typeof latitude === 'number' &&
+    typeof longitude === 'number' &&
+    latitude >= -90 &&
+    latitude <= 90 &&
+    longitude >= -180 &&
+    longitude <= 180 &&
+    !isNaN(latitude) &&
+    !isNaN(longitude)
+  );
 };

@@ -6,6 +6,8 @@ import SearchControl from '@/components/SearchControl';
 import FreeTourCounter from '@/components/FreeTourCounter';
 import ImageAnalysis from '@/components/ImageAnalysis';
 import ProximityControlPanel from '@/components/ProximityControlPanel';
+import MyLocationButton from '@/components/MyLocationButton';
+import LocationStatusIndicator from '@/components/LocationStatusIndicator';
 import { Landmark } from '@/data/landmarks';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -25,6 +27,7 @@ interface TopControlsProps {
   onVoiceSearchOpen: () => void;
   onVoiceAssistantOpen: () => void;
   onLogoClick: () => void;
+  onLocationFound?: (location: { latitude: number; longitude: number; accuracy?: number }) => void;
   user: any;
   plannedLandmarks: Landmark[];
 }
@@ -36,6 +39,7 @@ const TopControls: React.FC<TopControlsProps> = ({
   onVoiceSearchOpen,
   onVoiceAssistantOpen,
   onLogoClick,
+  onLocationFound,
   user,
   plannedLandmarks
 }) => {
@@ -49,6 +53,13 @@ const TopControls: React.FC<TopControlsProps> = ({
 
   const activeAlertsCount = proximityAlerts.filter(alert => alert.is_enabled).length;
   const isProximityEnabled = proximitySettings?.is_enabled || false;
+
+  const handleLocationFound = (location: { latitude: number; longitude: number; accuracy?: number }) => {
+    console.log('Location found in TopControls:', location);
+    if (onLocationFound) {
+      onLocationFound(location);
+    }
+  };
 
   return (
     <div className="absolute top-4 left-4 z-10">
@@ -64,6 +75,9 @@ const TopControls: React.FC<TopControlsProps> = ({
         
         {/* Search Control */}
         <SearchControl landmarks={allLandmarks} onSelectLandmark={onSelectLandmark} />
+        
+        {/* Location Status Indicator */}
+        <LocationStatusIndicator />
         
         {/* Collapse Toggle Button */}
         <Button
@@ -119,6 +133,12 @@ const TopControls: React.FC<TopControlsProps> = ({
                 Travel Log
               </Button>
             )}
+
+            {/* My Location Button */}
+            <MyLocationButton 
+              onLocationFound={handleLocationFound}
+              className="text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
+            />
 
             {/* Proximity Alerts Button */}
             {user && (

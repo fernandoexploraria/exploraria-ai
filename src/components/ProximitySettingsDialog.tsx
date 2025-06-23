@@ -10,9 +10,10 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, MapPin } from 'lucide-react';
+import { Loader2, MapPin, Navigation, AlertTriangle } from 'lucide-react';
 import { formatDistance, requestGeolocationPermission } from '@/utils/proximityUtils';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
+import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { useToast } from '@/hooks/use-toast';
 
 interface ProximitySettingsDialogProps {
@@ -33,6 +34,8 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     updateProximityEnabled,
     updateDefaultDistance,
   } = useProximityAlerts();
+  
+  const { locationState, userLocation } = useLocationTracking();
 
   if (!proximitySettings) {
     return (
@@ -68,12 +71,12 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
       if (enabled) {
         toast({
           title: "Proximity Alerts Enabled",
-          description: "You'll now receive notifications and sound alerts when you're near landmarks.",
+          description: "You'll now receive notifications and sound alerts when you're near landmarks. Location tracking has started automatically.",
         });
       } else {
         toast({
           title: "Proximity Alerts Disabled",
-          description: "You won't receive any proximity notifications.",
+          description: "You won't receive any proximity notifications. Location tracking has stopped.",
         });
       }
     } catch (error) {
@@ -96,6 +99,49 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
       console.error('Error updating distance:', error);
     }
   };
+
+  const getLocationStatusInfo = () => {
+    if (!proximitySettings.is_enabled) {
+      return {
+        icon: <MapPin className="h-4 w-4 text-muted-foreground" />,
+        text: "Location tracking disabled",
+        variant: "outline" as const
+      };
+    }
+    
+    if (locationState.error) {
+      return {
+        icon: <AlertTriangle className="h-4 w-4 text-destructive" />,
+        text: "Location error",
+        variant: "destructive" as const
+      };
+    }
+    
+    if (locationState.isTracking && !userLocation) {
+      return {
+        icon: <Loader2 className="h-4 w-4 animate-spin" />,
+        text: "Getting location...",
+        variant: "secondary" as const
+      };
+    }
+    
+    if (locationState.isTracking && userLocation) {
+      const accuracy = userLocation.accuracy ? `±${Math.round(userLocation.accuracy)}m` : '';
+      return {
+        icon: <Navigation className="h-4 w-4 text-primary" />,
+        text: `Active ${accuracy}`,
+        variant: "default" as const
+      };
+    }
+    
+    return {
+      icon: <MapPin className="h-4 w-4 text-muted-foreground" />,
+      text: "Inactive",
+      variant: "outline" as const
+    };
+  };
+
+  const locationStatus = getLocationStatusInfo();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -122,7 +168,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
                 Enable Proximity Alerts
               </div>
               <div className="text-sm text-muted-foreground">
-                Turn on proximity alerts for landmarks (includes notifications and sound)
+                Turn on proximity alerts for landmarks (includes notifications and automatic location tracking)
               </div>
             </div>
             <Switch
@@ -131,6 +177,33 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
               disabled={isSaving}
             />
           </div>
+
+          {/* Location Tracking Status */}
+          {proximitySettings.is_enabled && (
+            <div className="rounded-lg bg-muted/50 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm font-medium text-muted-foreground">
+                  Location Tracking Status
+                </div>
+                <Badge variant={locationStatus.variant} className="flex items-center gap-1">
+                  {locationStatus.icon}
+                  {locationStatus.text}
+                </Badge>
+              </div>
+              
+              {locationState.lastUpdate && (
+                <div className="text-xs text-muted-foreground">
+                  Last updated: {locationState.lastUpdate.toLocaleTimeString()}
+                </div>
+              )}
+              
+              {locationState.error && (
+                <div className="text-xs text-destructive mt-1">
+                  {locationState.error}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Distance Selection */}
           <div className="space-y-4">
@@ -170,12 +243,14 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
           {proximitySettings.is_enabled && (
             <div className="rounded-lg bg-muted/50 p-4">
               <div className="text-sm font-medium text-muted-foreground mb-2">
-                When proximity alerts are enabled, you'll receive:
+                When proximity alerts are enabled, the system will:
               </div>
               <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• Browser notifications when near landmarks</li>
-                <li>• Sound alerts for proximity events</li>
-                <li>• Real-time location-based updates</li>
+                <li>• Automatically track your location in the background</li>
+                <li>• Send browser notifications when near landmarks</li>
+                <li>• Play sound alerts for proximity events</li>
+                <li>• Adjust tracking frequency based on your proximity to landmarks</li>
+                <li>• Respect battery life with smart polling intervals</li>
               </ul>
             </div>
           )}
