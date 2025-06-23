@@ -1,4 +1,3 @@
-
 /**
  * Calculate distance between two points using Haversine formula
  * @param lat1 Latitude of first point
@@ -47,38 +46,94 @@ export const getDefaultProximitySettings = (userId: string) => ({
 });
 
 /**
- * Request geolocation permission from the user
+ * Request geolocation permission from the user with retry mechanism
+ * @param retryAttempts Number of retry attempts (default: 1)
  * @returns Promise<boolean> - true if permission granted, false otherwise
  */
-export const requestGeolocationPermission = async (): Promise<boolean> => {
+export const requestGeolocationPermission = async (retryAttempts: number = 1): Promise<boolean> => {
   if (!navigator.geolocation) {
     console.warn('Geolocation is not supported by this browser');
     return false;
   }
 
-  try {
-    // Check current permission status
-    if ('permissions' in navigator) {
-      const permission = await navigator.permissions.query({ name: 'geolocation' });
-      if (permission.state === 'granted') {
-        return true;
-      } else if (permission.state === 'denied') {
-        return false;
+  const attemptPermissionRequest = async (attempt: number): Promise<boolean> => {
+    try {
+      console.log(`Attempting geolocation permission request (attempt ${attempt})`);
+      
+      // Check current permission status first
+      if ('permissions' in navigator) {
+        const permission = await navigator.permissions.query({ name: 'geolocation' });
+        console.log('Current permission state:', permission.state);
+        
+        if (permission.state === 'granted') {
+          console.log('Permission already granted');
+          return true;
+        } else if (permission.state === 'denied') {
+          console.log('Permission previously denied');
+          return false;
+        }
       }
-    }
 
-    // Request permission by attempting to get current position
-    return new Promise((resolve) => {
-      navigator.geolocation.getCurrentPosition(
-        () => resolve(true),
-        () => resolve(false),
-        { timeout: 5000 }
-      );
-    });
-  } catch (error) {
-    console.error('Error requesting geolocation permission:', error);
-    return false;
+      // Request permission by attempting to get current position
+      return new Promise((resolve) => {
+        const timeoutId = setTimeout(() => {
+          console.log('Permission request timed out');
+          resolve(false);
+        }, 10000); // 10 second timeout
+
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            clearTimeout(timeoutId);
+            console.log('Permission granted successfully, got position:', {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+              accuracy: position.coords.accuracy
+            });
+            resolve(true);
+          },
+          (error) => {
+            clearTimeout(timeoutId);
+            console.log('Permission request failed:', error.message, 'Code:', error.code);
+            
+            // Only resolve false for permission denied, other errors might be temporary
+            if (error.code === error.PERMISSION_DENIED) {
+              resolve(false);
+            } else {
+              // For other errors, we might want to retry
+              resolve(attempt < retryAttempts ? null : false);
+            }
+          },
+          { 
+            timeout: 8000,
+            enableHighAccuracy: false, // Less demanding for permission request
+            maximumAge: 300000 // 5 minutes
+          }
+        );
+      });
+    } catch (error) {
+      console.error('Error requesting geolocation permission:', error);
+      return false;
+    }
+  };
+
+  // Try multiple attempts if specified
+  for (let attempt = 1; attempt <= retryAttempts; attempt++) {
+    const result = await attemptPermissionRequest(attempt);
+    
+    if (result === true) {
+      return true;
+    } else if (result === false) {
+      return false;
+    }
+    // If result is null, try again
+    
+    if (attempt < retryAttempts) {
+      console.log(`Retrying permission request in 1 second... (${attempt}/${retryAttempts})`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
   }
+
+  return false;
 };
 
 /**

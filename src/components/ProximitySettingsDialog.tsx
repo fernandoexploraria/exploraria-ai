@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   Dialog,
@@ -35,7 +34,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     updateDefaultDistance,
   } = useProximityAlerts();
   
-  const { locationState, userLocation } = useLocationTracking();
+  const { locationState, userLocation, startTrackingWithPermission } = useLocationTracking();
 
   if (!proximitySettings) {
     return (
@@ -52,10 +51,13 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
 
   const handleEnableProximityAlerts = async (enabled: boolean) => {
     if (enabled) {
+      console.log('Requesting geolocation permission for proximity alerts...');
+      
       // Request geolocation permission when enabling proximity alerts
       const hasPermission = await requestGeolocationPermission();
       
       if (!hasPermission) {
+        console.log('Permission denied, showing error toast');
         toast({
           title: "Location Permission Required",
           description: "Please allow location access to use proximity alerts. You can enable it in your browser settings.",
@@ -63,24 +65,43 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
         });
         return;
       }
-    }
 
-    try {
-      await updateProximityEnabled(enabled);
+      console.log('Permission granted, enabling proximity alerts...');
       
-      if (enabled) {
+      try {
+        // Update the proximity settings first
+        await updateProximityEnabled(enabled);
+        
+        // Small delay to allow state to propagate
+        setTimeout(async () => {
+          // Start location tracking with permission already granted
+          console.log('Starting location tracking after permission grant...');
+          await startTrackingWithPermission();
+        }, 100);
+        
         toast({
           title: "Proximity Alerts Enabled",
           description: "You'll now receive notifications and sound alerts when you're near landmarks. Location tracking has started automatically.",
         });
-      } else {
+      } catch (error) {
+        console.error('Error enabling proximity alerts:', error);
+        toast({
+          title: "Error",
+          description: "Failed to enable proximity alerts. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } else {
+      try {
+        await updateProximityEnabled(enabled);
+        
         toast({
           title: "Proximity Alerts Disabled",
           description: "You won't receive any proximity notifications. Location tracking has stopped.",
         });
+      } catch (error) {
+        console.error('Error disabling proximity alerts:', error);
       }
-    } catch (error) {
-      console.error('Error updating proximity alerts:', error);
     }
   };
 

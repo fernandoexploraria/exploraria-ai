@@ -17,6 +17,7 @@ interface LocationTrackingHook {
   locationState: LocationTrackingState;
   userLocation: UserLocation | null;
   startTracking: () => Promise<void>;
+  startTrackingWithPermission: () => Promise<void>;
   stopTracking: () => void;
   requestCurrentLocation: () => Promise<UserLocation | null>;
   hasLocationPermission: () => Promise<boolean>;
@@ -51,6 +52,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastLocationRef = useRef<UserLocation | null>(null);
   const isPageVisibleRef = useRef<boolean>(true);
+  const permissionCacheRef = useRef<{ hasPermission: boolean; timestamp: number } | null>(null);
 
   // Check if user has moved significantly
   const detectMovement = useCallback((newLocation: UserLocation, lastLocation: UserLocation | null): boolean => {
@@ -136,6 +138,8 @@ export const useLocationTracking = (): LocationTrackingHook => {
       case error.PERMISSION_DENIED:
         errorMessage = 'Location permission denied';
         setLocationState(prev => ({ ...prev, isPermissionGranted: false }));
+        // Clear permission cache on denial
+        permissionCacheRef.current = null;
         break;
       case error.POSITION_UNAVAILABLE:
         errorMessage = 'Location information unavailable';
@@ -153,21 +157,42 @@ export const useLocationTracking = (): LocationTrackingHook => {
     console.error('Location error:', errorMessage, error);
   }, []);
 
-  // Check permission status
+  // Check permission status with caching
   const hasLocationPermission = useCallback(async (): Promise<boolean> => {
     if (!navigator.geolocation) return false;
+    
+    // Check cache first (valid for 30 seconds)
+    const now = Date.now();
+    if (permissionCacheRef.current && (now - permissionCacheRef.current.timestamp) < 30000) {
+      console.log('Using cached permission status:', permissionCacheRef.current.hasPermission);
+      return permissionCacheRef.current.hasPermission;
+    }
     
     try {
       if ('permissions' in navigator) {
         const permission = await navigator.permissions.query({ name: 'geolocation' });
-        return permission.state === 'granted';
+        const hasPermission = permission.state === 'granted';
+        
+        // Cache the result
+        permissionCacheRef.current = { hasPermission, timestamp: now };
+        console.log('Permission check result:', hasPermission);
+        
+        return hasPermission;
       }
       
       // Fallback: try to get position to check permission
       return new Promise((resolve) => {
         navigator.geolocation.getCurrentPosition(
-          () => resolve(true),
-          () => resolve(false),
+          () => {
+            const hasPermission = true;
+            permissionCacheRef.current = { hasPermission, timestamp: now };
+            resolve(true);
+          },
+          () => {
+            const hasPermission = false;
+            permissionCacheRef.current = { hasPermission, timestamp: now };
+            resolve(false);
+          },
           { timeout: 5000 }
         );
       });
@@ -214,8 +239,8 @@ export const useLocationTracking = (): LocationTrackingHook => {
     });
   }, [handleLocationUpdate, handleLocationError, toast]);
 
-  // Start continuous tracking
-  const startTracking = useCallback(async (): Promise<void> => {
+  // Start tracking with permission already granted (bypasses permission check)
+  const startTrackingWithPermission = useCallback(async (): Promise<void> => {
     if (!navigator.geolocation) {
       toast({
         title: "Location Not Supported",
@@ -225,15 +250,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
       return;
     }
 
-    const hasPermission = await hasLocationPermission();
-    if (!hasPermission) {
-      toast({
-        title: "Location Permission Required",
-        description: "Please allow location access to enable proximity alerts.",
-        variant: "destructive",
-      });
-      return;
-    }
+    console.log('Starting location tracking with permission already granted');
 
     setLocationState(prev => ({
       ...prev,
@@ -253,8 +270,34 @@ export const useLocationTracking = (): LocationTrackingHook => {
       }
     );
 
-    console.log('Location tracking started');
-  }, [hasLocationPermission, handleLocationUpdate, handleLocationError, toast]);
+    console.log('Location tracking started with permission');
+  }, [handleLocationUpdate, handleLocationError, toast]);
+
+  // Start continuous tracking (with permission check)
+  const startTracking = useCallback(async (): Promise<void> => {
+    if (!navigator.geolocation) {
+      toast({
+        title: "Location Not Supported",
+        description: "Your browser doesn't support location services.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const hasPermission = await hasLocationPermission();
+    if (!hasPermission) {
+      console.log('Location permission not granted, cannot start tracking');
+      toast({
+        title: "Location Permission Required",
+        description: "Please allow location access to enable proximity alerts.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Use the permission-granted version
+    await startTrackingWithPermission();
+  }, [hasLocationPermission, startTrackingWithPermission, toast]);
 
   // Stop tracking
   const stopTracking = useCallback(() => {
@@ -307,6 +350,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
     locationState,
     userLocation,
     startTracking,
+    startTrackingWithPermission,
     stopTracking,
     requestCurrentLocation,
     hasLocationPermission,
