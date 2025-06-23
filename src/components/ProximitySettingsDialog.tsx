@@ -34,9 +34,9 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     isSaving,
     updateIsEnabled,
     updateDefaultDistance,
-    updateUnit,
     updateNotificationEnabled,
     updateSoundEnabled,
+    updateUnitAndDistance,
   } = useProximityAlerts();
 
   if (!proximitySettings) {
@@ -57,15 +57,8 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   };
 
   const handleUnitChange = (newUnit: 'metric' | 'imperial') => {
-    if (proximitySettings.unit !== newUnit) {
-      // Convert distance to new unit
-      const currentDistance = proximitySettings.default_distance;
-      const convertedDistance = proximitySettings.unit === 'metric' && newUnit === 'imperial'
-        ? Math.round(currentDistance * 3.28084) // meters to feet
-        : Math.round(currentDistance / 3.28084); // feet to meters
-      
-      updateUnit(newUnit);
-      updateDefaultDistance(convertedDistance);
+    if (newUnit && proximitySettings.unit !== newUnit) {
+      updateUnitAndDistance(newUnit);
     }
   };
 
@@ -109,9 +102,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
             <ToggleGroup
               type="single"
               value={proximitySettings.unit}
-              onValueChange={(value) => {
-                if (value) handleUnitChange(value as 'metric' | 'imperial');
-              }}
+              onValueChange={handleUnitChange}
               className="justify-start"
               disabled={isSaving}
             >
