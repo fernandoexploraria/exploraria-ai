@@ -368,10 +368,20 @@ export const useLocationTracking = (): LocationTrackingHook => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  // Stop tracking when proximity is disabled
+  // Stop tracking when proximity is explicitly disabled (RACE CONDITION FIX)
   useEffect(() => {
-    if (!proximitySettings?.is_enabled && locationState.isTracking) {
-      console.log('🔄 [PROXIMITY] Proximity disabled, stopping tracking');
+    // Only stop tracking if proximity is explicitly disabled (false), not undefined/null
+    const isExplicitlyDisabled = proximitySettings?.is_enabled === false;
+    
+    console.log('🔄 [PROXIMITY CHECK] Checking proximity state:', {
+      isEnabled: proximitySettings?.is_enabled,
+      isExplicitlyDisabled,
+      isTracking: locationState.isTracking,
+      settingsLoaded: proximitySettings !== null && proximitySettings !== undefined
+    });
+    
+    if (isExplicitlyDisabled && locationState.isTracking) {
+      console.log('🔄 [PROXIMITY] Proximity explicitly disabled, stopping tracking');
       stopTracking();
     }
   }, [proximitySettings?.is_enabled, locationState.isTracking, stopTracking]);
