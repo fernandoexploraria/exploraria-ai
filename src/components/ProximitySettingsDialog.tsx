@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   Sheet,
@@ -17,7 +18,6 @@ import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { usePermissionMonitor } from '@/hooks/usePermissionMonitor';
 import { useProximityOnboarding } from '@/hooks/useProximityOnboarding';
 import { useToast } from '@/hooks/use-toast';
-import PermissionStatus from './PermissionStatus';
 import ProximityOnboardingDialog from './ProximityOnboardingDialog';
 
 interface ProximitySettingsDialogProps {
@@ -324,15 +324,6 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
                 disabled={isSaving}
               />
             </div>
-
-            {/* Permission Status */}
-            {proximitySettings.is_enabled && (
-              <PermissionStatus
-                onRetryPermission={handleRetryPermission}
-                showRetryButton={permissionState.state !== 'granted'}
-                isProximityEnabled={proximitySettings.is_enabled}
-              />
-            )}
 
             {/* Location Tracking Status */}
             {proximitySettings.is_enabled && (
