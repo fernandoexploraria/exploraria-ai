@@ -22,7 +22,7 @@ const PERMISSION_CACHE_DURATION = 10000; // 10 seconds
 
 export const usePermissionMonitor = (): PermissionMonitorHook => {
   const [permissionState, setPermissionState] = useState<PermissionState>({
-    state: 'prompt', // Changed from 'unknown' to 'prompt' for better initial UX
+    state: 'unknown',
     isMonitoring: false,
     lastChecked: null,
     hasPermissionAPI: 'permissions' in navigator,
@@ -30,18 +30,15 @@ export const usePermissionMonitor = (): PermissionMonitorHook => {
 
   const monitorIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const cacheRef = useRef<{ state: string; timestamp: number } | null>(null);
-  const retryCountRef = useRef<number>(0);
 
   const checkPermission = useCallback(async (): Promise<'granted' | 'denied' | 'prompt' | 'unknown'> => {
     // Check cache first
     const now = Date.now();
     if (cacheRef.current && (now - cacheRef.current.timestamp) < PERMISSION_CACHE_DURATION) {
-      console.log('Using cached permission state:', cacheRef.current.state);
       return cacheRef.current.state as 'granted' | 'denied' | 'prompt' | 'unknown';
     }
 
     if (!navigator.geolocation) {
-      console.log('Geolocation not supported, setting to denied');
       const result = 'denied';
       cacheRef.current = { state: result, timestamp: now };
       return result;
@@ -49,54 +46,36 @@ export const usePermissionMonitor = (): PermissionMonitorHook => {
 
     try {
       if ('permissions' in navigator) {
-        console.log('Checking permission via Permissions API...');
         const permission = await navigator.permissions.query({ name: 'geolocation' });
         const result = permission.state as 'granted' | 'denied' | 'prompt';
-        console.log('Permission API result:', result);
         cacheRef.current = { state: result, timestamp: now };
-        retryCountRef.current = 0; // Reset retry count on success
         return result;
       }
       
-      // Fallback: try to get position to check permission with shorter timeout
-      console.log('Using geolocation fallback to check permission...');
+      // Fallback: try to get position to check permission
       return new Promise((resolve) => {
-        const timeoutDuration = retryCountRef.current > 2 ? 8000 : 5000; // Shorter timeout for retries
-        
         navigator.geolocation.getCurrentPosition(
           () => {
-            console.log('Geolocation permission granted via fallback');
             const result = 'granted';
             cacheRef.current = { state: result, timestamp: now };
-            retryCountRef.current = 0;
             resolve(result);
           },
           (error) => {
-            console.log('Geolocation error in permission check:', error.message, 'Code:', error.code);
             let result: 'granted' | 'denied' | 'prompt' | 'unknown';
-            
             if (error.code === error.PERMISSION_DENIED) {
               result = 'denied';
-            } else if (error.code === error.TIMEOUT || error.code === error.POSITION_UNAVAILABLE) {
-              // For timeout/unavailable, assume prompt state (permission likely available but having technical issues)
-              retryCountRef.current++;
-              result = retryCountRef.current > 3 ? 'unknown' : 'prompt';
-              console.log(`Setting to ${result} after ${retryCountRef.current} retries for error code ${error.code}`);
             } else {
-              result = retryCountRef.current > 3 ? 'unknown' : 'prompt';
-              retryCountRef.current++;
+              result = 'unknown';
             }
-            
             cacheRef.current = { state: result, timestamp: now };
             resolve(result);
           },
-          { timeout: timeoutDuration }
+          { timeout: 5000 }
         );
       });
     } catch (error) {
       console.error('Error checking permission:', error);
-      retryCountRef.current++;
-      const result = retryCountRef.current > 3 ? 'unknown' : 'prompt';
+      const result = 'unknown';
       cacheRef.current = { state: result, timestamp: now };
       return result;
     }
@@ -119,7 +98,6 @@ export const usePermissionMonitor = (): PermissionMonitorHook => {
   const startMonitoring = useCallback(() => {
     if (monitorIntervalRef.current) return;
 
-    console.log('Starting permission monitoring');
     setPermissionState(prev => ({ ...prev, isMonitoring: true }));
     
     // Initial check
@@ -129,6 +107,8 @@ export const usePermissionMonitor = (): PermissionMonitorHook => {
     monitorIntervalRef.current = setInterval(() => {
       debouncedUpdatePermissionState();
     }, PERMISSION_CHECK_INTERVAL);
+
+    console.log('Started permission monitoring');
   }, [updatePermissionState, debouncedUpdatePermissionState]);
 
   const stopMonitoring = useCallback(() => {
@@ -163,7 +143,6 @@ export const usePermissionMonitor = (): PermissionMonitorHook => {
             
             // Clear cache to force fresh check
             cacheRef.current = null;
-            retryCountRef.current = 0;
             updatePermissionState();
             
             resolve(true);
