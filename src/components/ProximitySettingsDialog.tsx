@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +17,6 @@ import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { usePermissionMonitor } from '@/hooks/usePermissionMonitor';
 import { useProximityOnboarding } from '@/hooks/useProximityOnboarding';
 import { useToast } from '@/hooks/use-toast';
-import PermissionStatus from './PermissionStatus';
 import ProximityOnboardingDialog from './ProximityOnboardingDialog';
 
 interface ProximitySettingsDialogProps {
@@ -52,7 +51,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   const isRecoveryMode = proximitySettings?.is_enabled && permissionState.state === 'denied';
 
   // Start/stop permission monitoring based on dialog state and proximity settings
-  React.useEffect(() => {
+  useEffect(() => {
     if (open && proximitySettings?.is_enabled) {
       startMonitoring();
     } else {
@@ -62,14 +61,14 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
 
   if (!proximitySettings) {
     return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[600px]">
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent className="sm:max-w-[500px]">
           <div className="flex items-center justify-center p-8">
             <Loader2 className="h-8 w-8 animate-spin" />
             <span className="ml-2">Loading settings...</span>
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     );
   }
 
@@ -257,11 +256,11 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
         onContinue={handleOnboardingContinue}
       />
 
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Proximity Alert Settings</DialogTitle>
-            <DialogDescription>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent className="sm:max-w-[500px] overflow-y-auto">
+          <SheetHeader className="pb-6">
+            <SheetTitle>Proximity Alert Settings</SheetTitle>
+            <SheetDescription>
               Configure proximity alerts to get notified when you're near landmarks.
               {isSaving && (
                 <span className="flex items-center mt-2 text-sm text-muted-foreground">
@@ -269,10 +268,29 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
                   Saving changes...
                 </span>
               )}
-            </DialogDescription>
-          </DialogHeader>
+            </SheetDescription>
+          </SheetHeader>
 
           <div className="space-y-6">
+            {/* DEBUG INFO - Temporary debugging display */}
+            <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-3">
+              <div className="text-xs font-mono space-y-1">
+                <div className="font-semibold text-yellow-800 mb-2">🔍 Debug Info:</div>
+                <div>isTracking: <span className="font-bold">{String(locationState.isTracking)}</span></div>
+                <div>isStartingUp: <span className="font-bold">{String(locationState.isStartingUp)}</span></div>
+                <div>hasUserLocation: <span className="font-bold">{String(!!userLocation)}</span></div>
+                <div>permissionState: <span className="font-bold">{permissionState.state}</span></div>
+                <div>proximityEnabled: <span className="font-bold">{String(proximitySettings?.is_enabled)}</span></div>
+                <div>error: <span className="font-bold">{locationState.error || 'none'}</span></div>
+                {userLocation && (
+                  <div>location: <span className="font-bold">
+                    {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)} 
+                    {userLocation.accuracy && ` (±${Math.round(userLocation.accuracy)}m)`}
+                  </span></div>
+                )}
+              </div>
+            </div>
+
             {/* Recovery Mode Warning Banner */}
             {isRecoveryMode && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
@@ -324,15 +342,6 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
                 disabled={isSaving}
               />
             </div>
-
-            {/* Permission Status */}
-            {proximitySettings.is_enabled && (
-              <PermissionStatus
-                onRetryPermission={handleRetryPermission}
-                showRetryButton={permissionState.state !== 'granted'}
-                isProximityEnabled={proximitySettings.is_enabled}
-              />
-            )}
 
             {/* Location Tracking Status */}
             {proximitySettings.is_enabled && (
@@ -411,8 +420,8 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
               </div>
             )}
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </>
   );
 };

@@ -12,6 +12,7 @@ interface LocationTrackingState {
   error: string | null;
   lastUpdate: Date | null;
   movementDetected: boolean;
+  isStartingUp: boolean; // New state to track automatic startup
 }
 
 interface LocationTrackingHook {
@@ -47,6 +48,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
     error: null,
     lastUpdate: null,
     movementDetected: false,
+    isStartingUp: false,
   });
   
   const [userLocation, setCurrentUserLocation] = useState<UserLocation | null>(null);
@@ -54,6 +56,61 @@ export const useLocationTracking = (): LocationTrackingHook => {
   const lastLocationRef = useRef<UserLocation | null>(null);
   const isPageVisibleRef = useRef<boolean>(true);
   const lastToastRef = useRef<number>(0);
+  const autoStartAttemptedRef = useRef<boolean>(false);
+
+  // DEBUG LOGGING: Log current state every time it changes
+  useEffect(() => {
+    console.log('🔍 [LOCATION DEBUG] State changed:', {
+      isTracking: locationState.isTracking,
+      isStartingUp: locationState.isStartingUp,
+      userLocation: userLocation ? `lat: ${userLocation.latitude.toFixed(4)}, lng: ${userLocation.longitude.toFixed(4)}, acc: ${userLocation.accuracy}m` : null,
+      permissionState: permissionState.state,
+      proximityEnabled: proximitySettings?.is_enabled,
+      watchId: watchIdRef.current,
+      error: locationState.error
+    });
+  }, [locationState, userLocation, permissionState.state, proximitySettings?.is_enabled]);
+
+  // Automatic startup logic - monitor proximity settings and permission state
+  useEffect(() => {
+    const shouldAutoStart = proximitySettings?.is_enabled && 
+                           permissionState.state === 'granted' && 
+                           !locationState.isTracking &&
+                           !autoStartAttemptedRef.current;
+
+    console.log('🚀 [AUTO-START DEBUG] Checking auto-start conditions:', {
+      proximityEnabled: proximitySettings?.is_enabled,
+      permissionGranted: permissionState.state === 'granted',
+      notTracking: !locationState.isTracking,
+      notAttempted: !autoStartAttemptedRef.current,
+      shouldAutoStart
+    });
+
+    if (shouldAutoStart) {
+      console.log('🚀 [AUTO-START] Starting location tracking: proximity enabled + permission granted + not tracking');
+      autoStartAttemptedRef.current = true;
+      
+      setLocationState(prev => ({ ...prev, isStartingUp: true }));
+      
+      startTrackingWithPermission()
+        .then(() => {
+          console.log('✅ [AUTO-START] Auto-start successful');
+          setLocationState(prev => ({ ...prev, isStartingUp: false }));
+        })
+        .catch((error) => {
+          console.error('❌ [AUTO-START] Auto-start failed:', error);
+          setLocationState(prev => ({ ...prev, isStartingUp: false }));
+        });
+    }
+
+    // Reset auto-start flag when proximity is disabled or permission changes
+    if (!proximitySettings?.is_enabled || permissionState.state !== 'granted') {
+      if (autoStartAttemptedRef.current) {
+        console.log('🔄 [AUTO-START] Resetting auto-start flag');
+        autoStartAttemptedRef.current = false;
+      }
+    }
+  }, [proximitySettings?.is_enabled, permissionState.state, locationState.isTracking]);
 
   // Debounced toast to prevent spam
   const debouncedToast = useCallback(
@@ -70,7 +127,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
   // Monitor permission state changes and stop tracking if permission is revoked
   useEffect(() => {
     if (permissionState.state === 'denied' && locationState.isTracking) {
-      console.log('Permission was revoked, stopping location tracking');
+      console.log('🚫 [PERMISSION] Permission was revoked, stopping location tracking');
       stopTracking();
       
       debouncedToast(
@@ -104,6 +161,13 @@ export const useLocationTracking = (): LocationTrackingHook => {
       timestamp: Date.now(),
     };
 
+    console.log('📍 [LOCATION UPDATE] Received new location:', {
+      lat: newLocation.latitude.toFixed(6),
+      lng: newLocation.longitude.toFixed(6),
+      accuracy: newLocation.accuracy ? `${Math.round(newLocation.accuracy)}m` : 'unknown',
+      timestamp: new Date(newLocation.timestamp).toLocaleTimeString()
+    });
+
     const movementDetected = detectMovement(newLocation, lastLocationRef.current);
     
     setCurrentUserLocation(newLocation);
@@ -118,7 +182,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
       isPermissionGranted: true,
     }));
 
-    console.log('Location updated:', newLocation);
+    console.log('✅ [LOCATION UPDATE] Location state updated successfully');
   }, [detectMovement, setUserLocation]);
 
   // Handle location error
@@ -138,23 +202,31 @@ export const useLocationTracking = (): LocationTrackingHook => {
         break;
     }
     
+    console.error('❌ [LOCATION ERROR]', {
+      code: error.code,
+      message: errorMessage,
+      originalMessage: error.message
+    });
+    
     setLocationState(prev => ({
       ...prev,
       error: errorMessage,
     }));
-
-    console.error('Location error:', errorMessage, error);
   }, []);
 
   // Check permission status with permission monitor
   const hasLocationPermission = useCallback(async (): Promise<boolean> => {
     const state = await checkPermission();
+    console.log('🔐 [PERMISSION CHECK] Result:', state);
     return state === 'granted';
   }, [checkPermission]);
 
   // Request current location (one-time)
   const requestCurrentLocation = useCallback(async (): Promise<UserLocation | null> => {
+    console.log('📱 [REQUEST LOCATION] Requesting current location...');
+    
     if (!navigator.geolocation) {
+      console.error('❌ [REQUEST LOCATION] Geolocation not supported');
       debouncedToast(
         "Location Not Supported",
         "Your browser doesn't support location services.",
@@ -166,6 +238,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
     return new Promise((resolve) => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
+          console.log('✅ [REQUEST LOCATION] Success');
           const location: UserLocation = {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
@@ -177,6 +250,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
           resolve(location);
         },
         (error) => {
+          console.error('❌ [REQUEST LOCATION] Failed:', error);
           handleLocationError(error);
           resolve(null);
         },
@@ -191,7 +265,10 @@ export const useLocationTracking = (): LocationTrackingHook => {
 
   // Start tracking with permission already granted (bypasses permission check)
   const startTrackingWithPermission = useCallback(async (): Promise<void> => {
+    console.log('🔥 [START TRACKING] Starting with permission granted...');
+    
     if (!navigator.geolocation) {
+      console.error('❌ [START TRACKING] Geolocation not supported');
       debouncedToast(
         "Location Not Supported",
         "Your browser doesn't support location services.",
@@ -200,7 +277,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
       return;
     }
 
-    console.log('Starting location tracking with permission already granted');
+    console.log('🔥 [START TRACKING] Setting isTracking to true...');
 
     setLocationState(prev => ({
       ...prev,
@@ -210,9 +287,16 @@ export const useLocationTracking = (): LocationTrackingHook => {
     }));
 
     // Start watching position
+    console.log('👀 [START TRACKING] Starting watchPosition...');
     watchIdRef.current = navigator.geolocation.watchPosition(
-      handleLocationUpdate,
-      handleLocationError,
+      (position) => {
+        console.log('📍 [WATCH POSITION] Callback triggered');
+        handleLocationUpdate(position);
+      },
+      (error) => {
+        console.error('❌ [WATCH POSITION] Error callback triggered:', error);
+        handleLocationError(error);
+      },
       {
         enableHighAccuracy: false, // Start with lower accuracy for battery
         timeout: 15000,
@@ -220,12 +304,15 @@ export const useLocationTracking = (): LocationTrackingHook => {
       }
     );
 
-    console.log('Location tracking started with permission');
+    console.log('✅ [START TRACKING] Location tracking started with watchId:', watchIdRef.current);
   }, [handleLocationUpdate, handleLocationError, debouncedToast]);
 
   // Start continuous tracking (with permission check)
   const startTracking = useCallback(async (): Promise<void> => {
+    console.log('🚀 [START TRACKING] Starting with permission check...');
+    
     if (!navigator.geolocation) {
+      console.error('❌ [START TRACKING] Geolocation not supported');
       debouncedToast(
         "Location Not Supported",
         "Your browser doesn't support location services.",
@@ -236,7 +323,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
 
     const hasPermission = await hasLocationPermission();
     if (!hasPermission) {
-      console.log('Location permission not granted, cannot start tracking');
+      console.log('❌ [START TRACKING] Location permission not granted, cannot start tracking');
       debouncedToast(
         "Location Permission Required",
         "Please allow location access to enable proximity alerts.",
@@ -251,7 +338,10 @@ export const useLocationTracking = (): LocationTrackingHook => {
 
   // Stop tracking
   const stopTracking = useCallback(() => {
+    console.log('🛑 [STOP TRACKING] Stopping location tracking...');
+    
     if (watchIdRef.current !== null) {
+      console.log('🛑 [STOP TRACKING] Clearing watchPosition with id:', watchIdRef.current);
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
     }
@@ -261,24 +351,37 @@ export const useLocationTracking = (): LocationTrackingHook => {
       isTracking: false,
     }));
 
-    console.log('Location tracking stopped');
+    // Reset auto-start flag when manually stopping
+    autoStartAttemptedRef.current = false;
+
+    console.log('✅ [STOP TRACKING] Location tracking stopped');
   }, []);
 
   // Handle page visibility changes
   useEffect(() => {
     const handleVisibilityChange = () => {
       isPageVisibleRef.current = !document.hidden;
-      console.log('Page visibility changed:', isPageVisibleRef.current ? 'visible' : 'hidden');
+      console.log('👁️ [VISIBILITY] Page visibility changed:', isPageVisibleRef.current ? 'visible' : 'hidden');
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  // Stop tracking when proximity is disabled
+  // Stop tracking when proximity is explicitly disabled (RACE CONDITION FIX)
   useEffect(() => {
-    if (!proximitySettings?.is_enabled && locationState.isTracking) {
-      console.log('Proximity disabled, stopping tracking');
+    // Only stop tracking if proximity is explicitly disabled (false), not undefined/null
+    const isExplicitlyDisabled = proximitySettings?.is_enabled === false;
+    
+    console.log('🔄 [PROXIMITY CHECK] Checking proximity state:', {
+      isEnabled: proximitySettings?.is_enabled,
+      isExplicitlyDisabled,
+      isTracking: locationState.isTracking,
+      settingsLoaded: proximitySettings !== null && proximitySettings !== undefined
+    });
+    
+    if (isExplicitlyDisabled && locationState.isTracking) {
+      console.log('🔄 [PROXIMITY] Proximity explicitly disabled, stopping tracking');
       stopTracking();
     }
   }, [proximitySettings?.is_enabled, locationState.isTracking, stopTracking]);
