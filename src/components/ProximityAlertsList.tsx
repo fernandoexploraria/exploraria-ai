@@ -10,7 +10,7 @@ import { formatDistance } from '@/utils/proximityUtils';
 import { landmarks } from '@/data/landmarks';
 
 const ProximityAlertsList: React.FC = () => {
-  const { proximityAlerts, proximitySettings, setProximityAlerts } = useProximityAlerts();
+  const { proximityAlerts, setProximityAlerts } = useProximityAlerts();
 
   const handleToggleAlert = async (alertId: string, enabled: boolean) => {
     setProximityAlerts(prevAlerts =>
@@ -59,7 +59,7 @@ const ProximityAlertsList: React.FC = () => {
               </CardTitle>
               <div className="flex items-center gap-2">
                 <Badge variant={alert.is_enabled ? "default" : "secondary"}>
-                  {formatDistance(alert.distance, alert.unit)}
+                  {formatDistance(alert.distance)}
                 </Badge>
                 <Switch
                   checked={alert.is_enabled}

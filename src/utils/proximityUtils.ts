@@ -27,38 +27,12 @@ export const calculateDistance = (
 };
 
 /**
- * Convert distance between metric and imperial units
- * @param distance Distance value
- * @param fromUnit Source unit
- * @param toUnit Target unit
- * @returns Converted distance
- */
-export const convertDistance = (
-  distance: number,
-  fromUnit: 'metric' | 'imperial',
-  toUnit: 'metric' | 'imperial'
-): number => {
-  if (fromUnit === toUnit) return distance;
-  
-  if (fromUnit === 'metric' && toUnit === 'imperial') {
-    return distance * 3.28084; // meters to feet
-  } else {
-    return distance / 3.28084; // feet to meters
-  }
-};
-
-/**
- * Format distance for display with appropriate units
- * @param distance Distance in meters (for metric) or feet (for imperial)
- * @param unit Unit system to use
+ * Format distance for display in metric units
+ * @param distance Distance in meters
  * @returns Formatted distance string
  */
-export const formatDistance = (distance: number, unit: 'metric' | 'imperial'): string => {
-  if (unit === 'metric') {
-    return distance >= 1000 ? `${(distance / 1000).toFixed(1)} km` : `${Math.round(distance)} m`;
-  } else {
-    return distance >= 5280 ? `${(distance / 5280).toFixed(1)} mi` : `${Math.round(distance)} ft`;
-  }
+export const formatDistance = (distance: number): string => {
+  return distance >= 1000 ? `${(distance / 1000).toFixed(1)} km` : `${Math.round(distance)} m`;
 };
 
 /**
@@ -70,7 +44,6 @@ export const getDefaultProximitySettings = (userId: string) => ({
   user_id: userId,
   is_enabled: false,
   default_distance: 100, // 100 meters
-  unit: 'metric' as const,
   notification_enabled: true,
   sound_enabled: true,
 });

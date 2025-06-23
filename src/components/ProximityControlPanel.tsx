@@ -60,10 +60,7 @@ const ProximityControlPanel: React.FC = () => {
               </p>
               {proximitySettings && (
                 <p className="text-sm text-muted-foreground">
-                  Default distance: {formatDistance(
-                    proximitySettings.default_distance,
-                    proximitySettings.unit
-                  )}
+                  Default distance: {formatDistance(proximitySettings.default_distance)}
                 </p>
               )}
             </div>

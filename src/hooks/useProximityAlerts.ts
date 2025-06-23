@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProximityAlert, ProximitySettings, UserLocation } from '@/types/proximityAlerts';
@@ -114,7 +115,6 @@ export const useProximityAlerts = () => {
                 user_id: payload.new.user_id,
                 is_enabled: payload.new.is_enabled,
                 default_distance: payload.new.default_distance,
-                unit: payload.new.unit as 'metric' | 'imperial',
                 notification_enabled: payload.new.notification_enabled,
                 sound_enabled: payload.new.sound_enabled,
                 created_at: payload.new.created_at,
@@ -193,7 +193,6 @@ export const useProximityAlerts = () => {
           user_id: data.user_id,
           is_enabled: data.is_enabled,
           default_distance: data.default_distance,
-          unit: data.unit as 'metric' | 'imperial',
           notification_enabled: data.notification_enabled,
           sound_enabled: data.sound_enabled,
           created_at: data.created_at,
@@ -237,7 +236,6 @@ export const useProximityAlerts = () => {
         landmark_id: item.landmark_id,
         distance: item.distance,
         is_enabled: item.is_enabled,
-        unit: item.unit as 'metric' | 'imperial',
         last_triggered: item.last_triggered || undefined,
         created_at: item.created_at,
         updated_at: item.updated_at,
@@ -307,45 +305,11 @@ export const useProximityAlerts = () => {
     await saveProximitySettings(updatedSettings);
   };
 
-  // New combined function for unit and distance updates
-  const updateUnitAndDistance = async (newUnit: 'metric' | 'imperial') => {
-    if (!proximitySettings || !user || proximitySettings.unit === newUnit) return;
-
-    console.log(`Updating unit from ${proximitySettings.unit} to ${newUnit}`);
-
-    // Convert distance to new unit
-    const currentDistance = proximitySettings.default_distance;
-    const convertedDistance = proximitySettings.unit === 'metric' && newUnit === 'imperial'
-      ? Math.round(currentDistance * 3.28084) // meters to feet
-      : Math.round(currentDistance / 3.28084); // feet to meters
-
-    // Optimistic update with both unit and converted distance
-    const updatedSettings = {
-      ...proximitySettings,
-      unit: newUnit,
-      default_distance: convertedDistance,
-      updated_at: new Date().toISOString(),
-    };
-    
-    console.log('Combined unit and distance update:', { 
-      oldUnit: proximitySettings.unit, 
-      newUnit, 
-      oldDistance: currentDistance, 
-      newDistance: convertedDistance 
-    });
-    
-    notifySubscribers(updatedSettings);
-
-    // Save to database
-    await saveProximitySettings(updatedSettings);
-  };
-
   // Debounced version for slider changes
   const debouncedUpdateSetting = useDebounce(updateSetting, 500);
 
   const updateIsEnabled = (enabled: boolean) => updateSetting('is_enabled', enabled);
   const updateDefaultDistance = (distance: number) => debouncedUpdateSetting('default_distance', distance);
-  const updateUnit = (unit: 'metric' | 'imperial') => updateSetting('unit', unit);
   const updateNotificationEnabled = (enabled: boolean) => updateSetting('notification_enabled', enabled);
   const updateSoundEnabled = (enabled: boolean) => updateSetting('sound_enabled', enabled);
 
@@ -375,10 +339,7 @@ export const useProximityAlerts = () => {
     // Individual update functions
     updateIsEnabled,
     updateDefaultDistance,
-    updateUnit,
     updateNotificationEnabled,
     updateSoundEnabled,
-    // New combined function
-    updateUnitAndDistance,
   };
 };

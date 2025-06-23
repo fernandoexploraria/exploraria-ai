@@ -9,7 +9,6 @@ import {
 } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Badge } from '@/components/ui/badge';
 import { Loader2 } from 'lucide-react';
 import { formatDistance } from '@/utils/proximityUtils';
@@ -20,10 +19,7 @@ interface ProximitySettingsDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const PRESET_DISTANCES = {
-  metric: [100, 250, 500, 1000, 2000],
-  imperial: [328, 820, 1640, 3280, 6560], // feet equivalents
-};
+const PRESET_DISTANCES = [100, 250, 500, 1000, 2000]; // meters
 
 const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   open,
@@ -36,7 +32,6 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     updateDefaultDistance,
     updateNotificationEnabled,
     updateSoundEnabled,
-    updateUnitAndDistance,
   } = useProximityAlerts();
 
   if (!proximitySettings) {
@@ -54,12 +49,6 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
 
   const handlePresetDistance = (distance: number) => {
     updateDefaultDistance(distance);
-  };
-
-  const handleUnitChange = (newUnit: 'metric' | 'imperial') => {
-    if (newUnit && proximitySettings.unit !== newUnit) {
-      updateUnitAndDistance(newUnit);
-    }
   };
 
   return (
@@ -96,35 +85,16 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
             />
           </div>
 
-          {/* Unit Selection */}
-          <div className="space-y-3">
-            <div className="text-base font-medium">Distance Units</div>
-            <ToggleGroup
-              type="single"
-              value={proximitySettings.unit}
-              onValueChange={handleUnitChange}
-              className="justify-start"
-              disabled={isSaving}
-            >
-              <ToggleGroupItem value="metric">
-                Metric (m/km)
-              </ToggleGroupItem>
-              <ToggleGroupItem value="imperial">
-                Imperial (ft/mi)
-              </ToggleGroupItem>
-            </ToggleGroup>
-          </div>
-
           {/* Distance Selection */}
           <div className="space-y-4">
             <div className="text-base font-medium">
-              Default Alert Distance: {formatDistance(proximitySettings.default_distance, proximitySettings.unit)}
+              Default Alert Distance: {formatDistance(proximitySettings.default_distance)}
             </div>
             
             <Slider
-              min={proximitySettings.unit === 'metric' ? 50 : 164}
-              max={proximitySettings.unit === 'metric' ? 5000 : 16404}
-              step={proximitySettings.unit === 'metric' ? 50 : 164}
+              min={50}
+              max={5000}
+              step={50}
               value={[proximitySettings.default_distance]}
               onValueChange={(value) => updateDefaultDistance(value[0])}
               className="w-full"
@@ -134,19 +104,19 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
             {/* Preset Distance Buttons */}
             <div className="flex flex-wrap gap-2">
               <span className="text-sm text-muted-foreground mr-2">Quick select:</span>
-              {PRESET_DISTANCES[proximitySettings.unit].map((distance) => (
+              {PRESET_DISTANCES.map((distance) => (
                 <Badge
                   key={distance}
                   variant={proximitySettings.default_distance === distance ? "default" : "outline"}
                   className="cursor-pointer hover:bg-primary/80"
                   onClick={() => !isSaving && handlePresetDistance(distance)}
                 >
-                  {formatDistance(distance, proximitySettings.unit)}
+                  {formatDistance(distance)}
                 </Badge>
               ))}
             </div>
             <div className="text-sm text-muted-foreground">
-              Choose the default distance for proximity alerts
+              Choose the default distance for proximity alerts (in meters)
             </div>
           </div>
 
