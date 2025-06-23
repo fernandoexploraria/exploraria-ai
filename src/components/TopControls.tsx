@@ -6,7 +6,6 @@ import SearchControl from '@/components/SearchControl';
 import FreeTourCounter from '@/components/FreeTourCounter';
 import ImageAnalysis from '@/components/ImageAnalysis';
 import ProximityControlPanel from '@/components/ProximityControlPanel';
-import LocationStatusIndicator from '@/components/LocationStatusIndicator';
 import { Landmark } from '@/data/landmarks';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -65,9 +64,6 @@ const TopControls: React.FC<TopControlsProps> = ({
         
         {/* Search Control */}
         <SearchControl landmarks={allLandmarks} onSelectLandmark={onSelectLandmark} />
-        
-        {/* Location Status Indicator */}
-        <LocationStatusIndicator />
         
         {/* Collapse Toggle Button */}
         <Button
