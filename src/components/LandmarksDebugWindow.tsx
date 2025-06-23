@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   Dialog,
@@ -9,11 +10,12 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MapPin, Navigation, Filter, List, Clock } from 'lucide-react';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { MapPin, Navigation, Filter, List, Clock, Database } from 'lucide-react';
 import { useSortedLandmarks } from '@/hooks/useSortedLandmarks';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
-import { useCombinedLandmarks } from '@/hooks/useCombinedLandmarks';
+import { useLandmarkSourceToggle, LANDMARK_SOURCE_OPTIONS, LandmarkSource } from '@/hooks/useLandmarkSourceToggle';
 import { formatDistance } from '@/utils/proximityUtils';
 
 interface LandmarksDebugWindowProps {
@@ -29,16 +31,21 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
   const { proximitySettings } = useProximityAlerts();
   const [showAllLandmarks, setShowAllLandmarks] = useState(false);
 
-  // Use combined landmarks instead of static landmarks
-  const combinedLandmarks = useCombinedLandmarks();
+  // Use the new landmark source toggle hook
+  const {
+    selectedSource,
+    setSelectedSource,
+    currentLandmarks,
+    sourceCounts
+  } = useLandmarkSourceToggle();
 
   // Get filtered landmarks (within range) and all landmarks for comparison
   const filteredLandmarks = useSortedLandmarks(
     userLocation, 
-    combinedLandmarks, 
+    currentLandmarks, 
     proximitySettings?.default_distance
   );
-  const allLandmarks = useSortedLandmarks(userLocation, combinedLandmarks);
+  const allLandmarks = useSortedLandmarks(userLocation, currentLandmarks);
 
   const currentList = showAllLandmarks ? allLandmarks : filteredLandmarks;
   const defaultDistance = proximitySettings?.default_distance || 100;
@@ -49,14 +56,53 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Navigation className="h-5 w-5" />
-            Landmarks Debug - Proximity Filter
+            Landmarks Debug - Source Toggle
           </DialogTitle>
           <DialogDescription>
-            Real-time landmarks sorted by distance with proximity filtering
+            Debug different landmark sources and proximity filtering
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Landmark Source Toggle */}
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Database className="h-4 w-4" />
+                <span className="text-sm font-medium">Landmark Source</span>
+              </div>
+              
+              <ToggleGroup
+                type="single"
+                value={selectedSource}
+                onValueChange={(value: LandmarkSource) => {
+                  if (value) setSelectedSource(value);
+                }}
+                className="grid grid-cols-1 gap-2"
+              >
+                {LANDMARK_SOURCE_OPTIONS.map((option) => (
+                  <ToggleGroupItem
+                    key={option.value}
+                    value={option.value}
+                    className="flex items-center justify-between p-3 h-auto"
+                  >
+                    <div className="flex flex-col items-start">
+                      <span className="text-sm font-medium">{option.label}</span>
+                      <span className="text-xs text-muted-foreground">{option.description}</span>
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      {sourceCounts[option.value]}
+                    </Badge>
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+
+              <div className="mt-3 text-xs text-muted-foreground">
+                Current source: <strong>{selectedSource}</strong> • {currentLandmarks.length} landmarks loaded
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Location Status */}
           <Card>
             <CardContent className="pt-4">
@@ -144,8 +190,8 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
                   <div className="text-center text-muted-foreground">
                     {userLocation 
                       ? (showAllLandmarks 
-                          ? 'No landmarks available' 
-                          : `No landmarks within ${formatDistance(defaultDistance)} range`
+                          ? `No landmarks available from ${selectedSource} source` 
+                          : `No landmarks within ${formatDistance(defaultDistance)} range from ${selectedSource} source`
                         )
                       : 'Location not available - enable location tracking to see distances'
                     }
