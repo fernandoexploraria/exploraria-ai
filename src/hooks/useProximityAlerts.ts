@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProximityAlert, ProximitySettings, UserLocation } from '@/types/proximityAlerts';
@@ -169,6 +168,7 @@ export const useProximityAlerts = () => {
       }
 
       if (data) {
+        // Cast the data to match our interface types
         const settings: ProximitySettings = {
           id: data.id,
           user_id: data.user_id,
@@ -180,6 +180,8 @@ export const useProximityAlerts = () => {
         console.log('Loaded proximity settings:', settings);
         notifySubscribers(settings);
       } else {
+        // Since we now auto-create settings via trigger, this should rarely happen
+        // But keep as fallback for existing users or edge cases
         console.log('No proximity settings found for user, they should be auto-created on signup');
         notifySubscribers(null);
       }
@@ -206,6 +208,7 @@ export const useProximityAlerts = () => {
         return;
       }
 
+      // Cast the data to match our interface types
       const alerts: ProximityAlert[] = (data || []).map(item => ({
         id: item.id,
         user_id: item.user_id,
@@ -220,117 +223,6 @@ export const useProximityAlerts = () => {
       setProximityAlerts(alerts);
     } catch (error) {
       console.error('Error in loadProximityAlerts:', error);
-    }
-  };
-
-  const createProximityAlert = async (landmarkId: string, distance?: number) => {
-    if (!user || !proximitySettings) {
-      throw new Error('User not authenticated or settings not loaded');
-    }
-
-    const alertDistance = distance || proximitySettings.default_distance;
-
-    try {
-      const { data, error } = await supabase
-        .from('proximity_alerts')
-        .insert({
-          user_id: user.id,
-          landmark_id: landmarkId,
-          distance: alertDistance,
-          is_enabled: true,
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating proximity alert:', error);
-        throw error;
-      }
-
-      const newAlert: ProximityAlert = {
-        id: data.id,
-        user_id: data.user_id,
-        landmark_id: data.landmark_id,
-        distance: data.distance,
-        is_enabled: data.is_enabled,
-        last_triggered: data.last_triggered || undefined,
-        created_at: data.created_at,
-        updated_at: data.updated_at,
-      };
-
-      setProximityAlerts(prev => [...prev, newAlert]);
-      return newAlert;
-    } catch (error) {
-      console.error('Error in createProximityAlert:', error);
-      throw error;
-    }
-  };
-
-  const updateProximityAlert = async (alertId: string, updates: Partial<ProximityAlert>) => {
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('proximity_alerts')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', alertId)
-        .eq('user_id', user.id)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error updating proximity alert:', error);
-        throw error;
-      }
-
-      const updatedAlert: ProximityAlert = {
-        id: data.id,
-        user_id: data.user_id,
-        landmark_id: data.landmark_id,
-        distance: data.distance,
-        is_enabled: data.is_enabled,
-        last_triggered: data.last_triggered || undefined,
-        created_at: data.created_at,
-        updated_at: data.updated_at,
-      };
-
-      setProximityAlerts(prev =>
-        prev.map(alert => alert.id === alertId ? updatedAlert : alert)
-      );
-
-      return updatedAlert;
-    } catch (error) {
-      console.error('Error in updateProximityAlert:', error);
-      throw error;
-    }
-  };
-
-  const deleteProximityAlert = async (alertId: string) => {
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-
-    try {
-      const { error } = await supabase
-        .from('proximity_alerts')
-        .delete()
-        .eq('id', alertId)
-        .eq('user_id', user.id);
-
-      if (error) {
-        console.error('Error deleting proximity alert:', error);
-        throw error;
-      }
-
-      setProximityAlerts(prev => prev.filter(alert => alert.id !== alertId));
-    } catch (error) {
-      console.error('Error in deleteProximityAlert:', error);
-      throw error;
     }
   };
 
@@ -356,6 +248,8 @@ export const useProximityAlerts = () => {
         });
         throw error;
       }
+
+      // The real-time subscription will update the state automatically
     } catch (error) {
       console.error('Error in updateProximityEnabled:', error);
       throw error;
@@ -386,6 +280,8 @@ export const useProximityAlerts = () => {
         });
         throw error;
       }
+
+      // The real-time subscription will update the state automatically
     } catch (error) {
       console.error('Error in updateDefaultDistance:', error);
       throw error;
@@ -418,8 +314,5 @@ export const useProximityAlerts = () => {
     loadProximityAlerts,
     updateProximityEnabled,
     updateDefaultDistance,
-    createProximityAlert,
-    updateProximityAlert,
-    deleteProximityAlert,
   };
 };
