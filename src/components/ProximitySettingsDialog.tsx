@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+
+import React, { useEffect, useState } from 'react';
 import {
   Sheet,
   SheetContent,
@@ -10,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, MapPin, Navigation, AlertTriangle, AlertCircle } from 'lucide-react';
+import { Loader2, MapPin, Navigation, AlertTriangle, AlertCircle, Save } from 'lucide-react';
 import { formatDistance } from '@/utils/proximityUtils';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
@@ -48,6 +49,29 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     markOnboardingComplete,
   } = useProximityOnboarding();
 
+  // Local state for pending changes
+  const [pendingEnabled, setPendingEnabled] = useState<boolean>(false);
+  const [pendingDistance, setPendingDistance] = useState<number>(50);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
+
+  // Initialize local state when settings load
+  useEffect(() => {
+    if (proximitySettings) {
+      setPendingEnabled(proximitySettings.is_enabled);
+      setPendingDistance(proximitySettings.default_distance);
+      setHasUnsavedChanges(false);
+    }
+  }, [proximitySettings]);
+
+  // Reset local state when dialog opens/closes
+  useEffect(() => {
+    if (open && proximitySettings) {
+      setPendingEnabled(proximitySettings.is_enabled);
+      setPendingDistance(proximitySettings.default_distance);
+      setHasUnsavedChanges(false);
+    }
+  }, [open, proximitySettings]);
+
   const isRecoveryMode = proximitySettings?.is_enabled && permissionState.state === 'denied';
 
   // Start/stop permission monitoring based on dialog state and proximity settings
@@ -72,63 +96,104 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     );
   }
 
-  const handleEnableProximityAlerts = async (enabled: boolean) => {
-    if (enabled) {
-      // Show onboarding for first-time users
-      if (!hasCompletedOnboarding) {
-        const shouldShowOnboarding = showOnboarding();
-        if (shouldShowOnboarding) {
-          return; // Don't proceed until onboarding is complete
+  const handleEnabledChange = (enabled: boolean) => {
+    setPendingEnabled(enabled);
+    setHasUnsavedChanges(
+      enabled !== proximitySettings.is_enabled || pendingDistance !== proximitySettings.default_distance
+    );
+  };
+
+  const handleDistanceChange = (value: number[]) => {
+    setPendingDistance(value[0]);
+    setHasUnsavedChanges(
+      pendingEnabled !== proximitySettings.is_enabled || value[0] !== proximitySettings.default_distance
+    );
+  };
+
+  const handlePresetDistance = (distance: number) => {
+    setPendingDistance(distance);
+    setHasUnsavedChanges(
+      pendingEnabled !== proximitySettings.is_enabled || distance !== proximitySettings.default_distance
+    );
+  };
+
+  const handleSave = async () => {
+    const wasEnabledBefore = proximitySettings.is_enabled;
+    const willBeEnabled = pendingEnabled;
+
+    try {
+      // If enabling proximity alerts for the first time
+      if (!wasEnabledBefore && willBeEnabled) {
+        // Show onboarding for first-time users
+        if (!hasCompletedOnboarding) {
+          const shouldShowOnboarding = showOnboarding();
+          if (shouldShowOnboarding) {
+            return; // Don't proceed until onboarding is complete
+          }
         }
-      }
 
-      console.log('Enabling proximity alerts - checking permission...');
-      
-      // Always attempt to request permission when enabling
-      const hasPermission = await requestPermission();
-      
-      if (!hasPermission) {
-        console.log('Permission not granted');
-        toast({
-          title: "Location Permission Required",
-          description: "Proximity alerts need location access to work. Please allow location access and try again.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      console.log('Permission granted, updating settings and starting tracking...');
-      
-      try {
-        await updateProximityEnabled(enabled);
-        await startTrackingWithPermission();
+        console.log('Enabling proximity alerts - checking permission...');
         
+        // Request permission first
+        const hasPermission = await requestPermission();
+        
+        if (!hasPermission) {
+          console.log('Permission not granted');
+          toast({
+            title: "Location Permission Required",
+            description: "Proximity alerts need location access to work. Please allow location access and try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        console.log('Permission granted, saving settings and starting tracking...');
+      }
+
+      // Save both settings
+      await Promise.all([
+        updateProximityEnabled(pendingEnabled),
+        updateDefaultDistance(pendingDistance)
+      ]);
+
+      // Handle location tracking based on the new enabled state
+      if (!wasEnabledBefore && willBeEnabled) {
+        // Starting tracking
+        await startTrackingWithPermission();
         toast({
           title: "Proximity Alerts Enabled",
           description: "You'll now receive notifications when you're near landmarks.",
         });
-      } catch (error) {
-        console.error('Error enabling proximity alerts:', error);
-        toast({
-          title: "Error",
-          description: "Failed to enable proximity alerts. Please try again.",
-          variant: "destructive",
-        });
-      }
-    } else {
-      try {
-        console.log('Disabling proximity alerts...');
+      } else if (wasEnabledBefore && !willBeEnabled) {
+        // Stopping tracking
         stopTracking();
-        await updateProximityEnabled(enabled);
-        
         toast({
           title: "Proximity Alerts Disabled",
           description: "Location tracking has stopped.",
         });
-      } catch (error) {
-        console.error('Error disabling proximity alerts:', error);
+      } else if (willBeEnabled) {
+        // Just updating distance, tracking stays on
+        toast({
+          title: "Settings Updated",
+          description: `Default distance set to ${formatDistance(pendingDistance)}.`,
+        });
       }
+
+      setHasUnsavedChanges(false);
+    } catch (error) {
+      console.error('Error saving proximity settings:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save settings. Please try again.",
+        variant: "destructive",
+      });
     }
+  };
+
+  const handleReset = () => {
+    setPendingEnabled(proximitySettings.is_enabled);
+    setPendingDistance(proximitySettings.default_distance);
+    setHasUnsavedChanges(false);
   };
 
   const handleOnboardingContinue = async () => {
@@ -149,22 +214,8 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
       return;
     }
 
-    try {
-      await updateProximityEnabled(true);
-      await startTrackingWithPermission();
-      
-      toast({
-        title: "Proximity Alerts Enabled",
-        description: "You'll now receive notifications when you're near landmarks.",
-      });
-    } catch (error) {
-      console.error('Error enabling proximity alerts after onboarding:', error);
-      toast({
-        title: "Error",
-        description: "Failed to enable proximity alerts. Please try again.",
-        variant: "destructive",
-      });
-    }
+    // Proceed with save
+    await handleSave();
   };
 
   const handleRetryPermission = async () => {
@@ -177,22 +228,6 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
           description: "Location tracking has been restored.",
         });
       }
-    }
-  };
-
-  const handlePresetDistance = async (distance: number) => {
-    try {
-      await updateDefaultDistance(distance);
-    } catch (error) {
-      console.error('Error updating preset distance:', error);
-    }
-  };
-
-  const handleDistanceChange = async (value: number[]) => {
-    try {
-      await updateDefaultDistance(value[0]);
-    } catch (error) {
-      console.error('Error updating distance:', error);
     }
   };
 
@@ -280,7 +315,9 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
                 <div>isStartingUp: <span className="font-bold">{String(locationState.isStartingUp)}</span></div>
                 <div>hasUserLocation: <span className="font-bold">{String(!!userLocation)}</span></div>
                 <div>permissionState: <span className="font-bold">{permissionState.state}</span></div>
-                <div>proximityEnabled: <span className="font-bold">{String(proximitySettings?.is_enabled)}</span></div>
+                <div>currentEnabled: <span className="font-bold">{String(proximitySettings?.is_enabled)}</span></div>
+                <div>pendingEnabled: <span className="font-bold">{String(pendingEnabled)}</span></div>
+                <div>hasUnsavedChanges: <span className="font-bold">{String(hasUnsavedChanges)}</span></div>
                 <div>error: <span className="font-bold">{locationState.error || 'none'}</span></div>
                 {userLocation && (
                   <div>location: <span className="font-bold">
@@ -328,6 +365,11 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
                       Needs Fix
                     </Badge>
                   )}
+                  {hasUnsavedChanges && pendingEnabled !== proximitySettings.is_enabled && (
+                    <Badge variant="outline" className="text-xs">
+                      {pendingEnabled ? 'Will Enable' : 'Will Disable'}
+                    </Badge>
+                  )}
                 </div>
                 <div className="text-sm text-muted-foreground">
                   {isRecoveryMode 
@@ -337,8 +379,8 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
                 </div>
               </div>
               <Switch
-                checked={proximitySettings.is_enabled}
-                onCheckedChange={handleEnableProximityAlerts}
+                checked={pendingEnabled}
+                onCheckedChange={handleEnabledChange}
                 disabled={isSaving}
               />
             </div>
@@ -372,15 +414,22 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
 
             {/* Distance Selection */}
             <div className="space-y-4">
-              <div className="text-base font-medium">
-                Default Alert Distance: {formatDistance(proximitySettings.default_distance)}
+              <div className="flex items-center justify-between">
+                <div className="text-base font-medium">
+                  Default Alert Distance: {formatDistance(pendingDistance)}
+                </div>
+                {hasUnsavedChanges && pendingDistance !== proximitySettings.default_distance && (
+                  <Badge variant="outline" className="text-xs">
+                    Changed
+                  </Badge>
+                )}
               </div>
               
               <Slider
                 min={25}
                 max={2000}
                 step={25}
-                value={[proximitySettings.default_distance]}
+                value={[pendingDistance]}
                 onValueChange={handleDistanceChange}
                 className="w-full"
                 disabled={isSaving}
@@ -392,7 +441,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
                 {PRESET_DISTANCES.map((distance) => (
                   <Badge
                     key={distance}
-                    variant={proximitySettings.default_distance === distance ? "default" : "outline"}
+                    variant={pendingDistance === distance ? "default" : "outline"}
                     className="cursor-pointer hover:bg-primary/80"
                     onClick={() => !isSaving && handlePresetDistance(distance)}
                   >
@@ -404,6 +453,31 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
                 Choose the default distance for proximity alerts (25m - 2km range)
               </div>
             </div>
+
+            {/* Save/Reset Buttons */}
+            {hasUnsavedChanges && (
+              <div className="flex gap-3 p-4 bg-muted/30 rounded-lg border border-dashed">
+                <Button 
+                  onClick={handleSave} 
+                  disabled={isSaving}
+                  className="flex-1"
+                >
+                  {isSaving ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Save className="h-4 w-4 mr-2" />
+                  )}
+                  Save Changes
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={handleReset}
+                  disabled={isSaving}
+                >
+                  Reset
+                </Button>
+              </div>
+            )}
 
             {proximitySettings.is_enabled && (
               <div className="rounded-lg bg-muted/50 p-4">
