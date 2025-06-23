@@ -222,22 +222,6 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
               </Button>
             </div>
           )}
-
-          {/* Information Section */}
-          {formEnabled && (
-            <div className="rounded-lg bg-muted/50 p-4">
-              <div className="text-sm font-medium text-muted-foreground mb-2">
-                When proximity alerts are enabled, the system will:
-              </div>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• Automatically track your location in the background</li>
-                <li>• Send browser notifications when near landmarks</li>
-                <li>• Play sound alerts for proximity events</li>
-                <li>• Adjust tracking frequency based on your proximity to landmarks</li>
-                <li>• Respect battery life with smart polling intervals</li>
-              </ul>
-            </div>
-          )}
         </div>
       </SheetContent>
     </Sheet>
