@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { UserLocation } from '@/types/proximityAlerts';
-import { calculateDistance } from '@/utils/proximityUtils';
+import { calculateDistance, debounce } from '@/utils/proximityUtils';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useToast } from '@/hooks/use-toast';
 
@@ -53,6 +53,19 @@ export const useLocationTracking = (): LocationTrackingHook => {
   const lastLocationRef = useRef<UserLocation | null>(null);
   const isPageVisibleRef = useRef<boolean>(true);
   const permissionCacheRef = useRef<{ hasPermission: boolean; timestamp: number } | null>(null);
+  const lastToastRef = useRef<number>(0);
+
+  // Debounced toast to prevent spam
+  const debouncedToast = useCallback(
+    debounce((title: string, description: string, variant?: "default" | "destructive") => {
+      const now = Date.now();
+      if (now - lastToastRef.current > 5000) { // Only show toast every 5 seconds
+        toast({ title, description, variant });
+        lastToastRef.current = now;
+      }
+    }, 1000),
+    [toast]
+  );
 
   // Check if user has moved significantly
   const detectMovement = useCallback((newLocation: UserLocation, lastLocation: UserLocation | null): boolean => {
@@ -205,11 +218,11 @@ export const useLocationTracking = (): LocationTrackingHook => {
   // Request current location (one-time)
   const requestCurrentLocation = useCallback(async (): Promise<UserLocation | null> => {
     if (!navigator.geolocation) {
-      toast({
-        title: "Location Not Supported",
-        description: "Your browser doesn't support location services.",
-        variant: "destructive",
-      });
+      debouncedToast(
+        "Location Not Supported",
+        "Your browser doesn't support location services.",
+        "destructive"
+      );
       return null;
     }
 
@@ -237,20 +250,23 @@ export const useLocationTracking = (): LocationTrackingHook => {
         }
       );
     });
-  }, [handleLocationUpdate, handleLocationError, toast]);
+  }, [handleLocationUpdate, handleLocationError, debouncedToast]);
 
   // Start tracking with permission already granted (bypasses permission check)
   const startTrackingWithPermission = useCallback(async (): Promise<void> => {
     if (!navigator.geolocation) {
-      toast({
-        title: "Location Not Supported",
-        description: "Your browser doesn't support location services.",
-        variant: "destructive",
-      });
+      debouncedToast(
+        "Location Not Supported",
+        "Your browser doesn't support location services.",
+        "destructive"
+      );
       return;
     }
 
     console.log('Starting location tracking with permission already granted');
+
+    // Update permission cache to granted
+    permissionCacheRef.current = { hasPermission: true, timestamp: Date.now() };
 
     setLocationState(prev => ({
       ...prev,
@@ -271,33 +287,33 @@ export const useLocationTracking = (): LocationTrackingHook => {
     );
 
     console.log('Location tracking started with permission');
-  }, [handleLocationUpdate, handleLocationError, toast]);
+  }, [handleLocationUpdate, handleLocationError, debouncedToast]);
 
   // Start continuous tracking (with permission check)
   const startTracking = useCallback(async (): Promise<void> => {
     if (!navigator.geolocation) {
-      toast({
-        title: "Location Not Supported",
-        description: "Your browser doesn't support location services.",
-        variant: "destructive",
-      });
+      debouncedToast(
+        "Location Not Supported",
+        "Your browser doesn't support location services.",
+        "destructive"
+      );
       return;
     }
 
     const hasPermission = await hasLocationPermission();
     if (!hasPermission) {
       console.log('Location permission not granted, cannot start tracking');
-      toast({
-        title: "Location Permission Required",
-        description: "Please allow location access to enable proximity alerts.",
-        variant: "destructive",
-      });
+      debouncedToast(
+        "Location Permission Required",
+        "Please allow location access to enable proximity alerts.",
+        "destructive"
+      );
       return;
     }
 
     // Use the permission-granted version
     await startTrackingWithPermission();
-  }, [hasLocationPermission, startTrackingWithPermission, toast]);
+  }, [hasLocationPermission, startTrackingWithPermission, debouncedToast]);
 
   // Stop tracking
   const stopTracking = useCallback(() => {
@@ -330,14 +346,14 @@ export const useLocationTracking = (): LocationTrackingHook => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  // Auto-start tracking when proximity alerts are enabled
+  // Manual tracking control based on proximity settings (REMOVED AUTO-START)
+  // This effect only responds to explicit user actions, not automatic starts
   useEffect(() => {
-    if (proximitySettings?.is_enabled && !locationState.isTracking) {
-      startTracking();
-    } else if (!proximitySettings?.is_enabled && locationState.isTracking) {
+    if (!proximitySettings?.is_enabled && locationState.isTracking) {
+      console.log('Proximity disabled, stopping tracking');
       stopTracking();
     }
-  }, [proximitySettings?.is_enabled, locationState.isTracking, startTracking, stopTracking]);
+  }, [proximitySettings?.is_enabled, locationState.isTracking, stopTracking]);
 
   // Cleanup on unmount
   useEffect(() => {

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   Dialog,
@@ -34,7 +35,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     updateDefaultDistance,
   } = useProximityAlerts();
   
-  const { locationState, userLocation, startTrackingWithPermission } = useLocationTracking();
+  const { locationState, userLocation, startTrackingWithPermission, stopTracking } = useLocationTracking();
 
   if (!proximitySettings) {
     return (
@@ -51,7 +52,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
 
   const handleEnableProximityAlerts = async (enabled: boolean) => {
     if (enabled) {
-      console.log('Requesting geolocation permission for proximity alerts...');
+      console.log('Enabling proximity alerts - requesting permission...');
       
       // Request geolocation permission when enabling proximity alerts
       const hasPermission = await requestGeolocationPermission();
@@ -66,22 +67,19 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
         return;
       }
 
-      console.log('Permission granted, enabling proximity alerts...');
+      console.log('Permission granted, updating settings and starting tracking...');
       
       try {
         // Update the proximity settings first
         await updateProximityEnabled(enabled);
         
-        // Small delay to allow state to propagate
-        setTimeout(async () => {
-          // Start location tracking with permission already granted
-          console.log('Starting location tracking after permission grant...');
-          await startTrackingWithPermission();
-        }, 100);
+        // Start location tracking immediately after settings update
+        console.log('Starting location tracking after settings update...');
+        await startTrackingWithPermission();
         
         toast({
           title: "Proximity Alerts Enabled",
-          description: "You'll now receive notifications and sound alerts when you're near landmarks. Location tracking has started automatically.",
+          description: "You'll now receive notifications and sound alerts when you're near landmarks.",
         });
       } catch (error) {
         console.error('Error enabling proximity alerts:', error);
@@ -93,6 +91,12 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
       }
     } else {
       try {
+        console.log('Disabling proximity alerts...');
+        
+        // Stop tracking first
+        stopTracking();
+        
+        // Then update settings
         await updateProximityEnabled(enabled);
         
         toast({

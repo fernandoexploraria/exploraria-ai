@@ -79,7 +79,7 @@ export const requestGeolocationPermission = async (retryAttempts: number = 1): P
         const timeoutId = setTimeout(() => {
           console.log('Permission request timed out');
           resolve(false);
-        }, 10000); // 10 second timeout
+        }, 15000); // Increased timeout to 15 seconds
 
         navigator.geolocation.getCurrentPosition(
           (position) => {
@@ -104,7 +104,7 @@ export const requestGeolocationPermission = async (retryAttempts: number = 1): P
             }
           },
           { 
-            timeout: 8000,
+            timeout: 12000, // Increased timeout
             enableHighAccuracy: false, // Less demanding for permission request
             maximumAge: 300000 // 5 minutes
           }
@@ -128,8 +128,8 @@ export const requestGeolocationPermission = async (retryAttempts: number = 1): P
     // If result is null, try again
     
     if (attempt < retryAttempts) {
-      console.log(`Retrying permission request in 1 second... (${attempt}/${retryAttempts})`);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log(`Retrying permission request in 2 seconds... (${attempt}/${retryAttempts})`);
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Increased retry delay
     }
   }
 
