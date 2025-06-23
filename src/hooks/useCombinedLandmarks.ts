@@ -34,19 +34,14 @@ export const useCombinedLandmarks = (): Landmark[] => {
   }, []);
 
   return useMemo(() => {
-    console.log(`🔍 DEBUG MODE: Returning only tour-generated landmarks`);
-    console.log(`📍 Tour landmarks count: ${tourLandmarks.length}`);
+    // Convert top landmarks to Landmark format
+    const convertedTopLandmarks = TOP_LANDMARKS.map(convertTopLandmarkToLandmark);
     
-    if (tourLandmarks.length > 0) {
-      console.log(`🗺️ Tour landmarks details:`, tourLandmarks.map(landmark => ({
-        id: landmark.id,
-        name: landmark.name,
-        coordinates: landmark.coordinates,
-        description: landmark.description?.substring(0, 50) + '...'
-      })));
-    }
+    // Combine both landmark sets
+    const combinedLandmarks = [...convertedTopLandmarks, ...tourLandmarks];
     
-    // Return only tour landmarks for debugging
-    return tourLandmarks;
+    console.log(`🗺️ Combined landmarks: ${convertedTopLandmarks.length} top landmarks + ${tourLandmarks.length} tour landmarks = ${combinedLandmarks.length} total`);
+    
+    return combinedLandmarks;
   }, [tourLandmarks]);
 };
