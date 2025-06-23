@@ -67,6 +67,14 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
         title: "Location Access Granted",
         description: "Proximity alerts are now enabled. You'll be notified when you're near landmarks.",
       });
+    } else {
+      // When disabling proximity alerts, also disable notifications and sound
+      if (proximitySettings.notification_enabled) {
+        updateNotificationEnabled(false);
+      }
+      if (proximitySettings.sound_enabled) {
+        updateSoundEnabled(false);
+      }
     }
 
     updateIsEnabled(enabled);
@@ -160,7 +168,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
               <Switch
                 checked={proximitySettings.notification_enabled}
                 onCheckedChange={updateNotificationEnabled}
-                disabled={isSaving}
+                disabled={isSaving || !proximitySettings.is_enabled}
               />
             </div>
 
@@ -176,7 +184,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
               <Switch
                 checked={proximitySettings.sound_enabled}
                 onCheckedChange={updateSoundEnabled}
-                disabled={isSaving}
+                disabled={isSaving || !proximitySettings.is_enabled}
               />
             </div>
           </div>
