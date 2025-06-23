@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,12 +15,11 @@ import { formatDistance } from '@/utils/proximityUtils';
 
 const ProximityControlPanel: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const { proximitySettings, proximityAlerts, isLoading } = useProximityAlerts();
+  const { proximitySettings, notifications, isLoading } = useProximityAlerts();
   const { locationState, userLocation } = useLocationTracking();
   const { permissionState } = usePermissionMonitor();
   const { signOut } = useAuth();
 
-  const activeAlertsCount = proximityAlerts.filter(alert => alert.is_enabled).length;
   const isProximityEnabled = proximitySettings?.is_enabled || false;
   const isRecoveryMode = isProximityEnabled && permissionState.state === 'denied';
 
@@ -200,11 +200,11 @@ const ProximityControlPanel: React.FC = () => {
                 )}
               </div>
               <div className="text-right">
-                <Badge variant={activeAlertsCount > 0 ? "default" : "secondary"}>
-                  {activeAlertsCount} active alert{activeAlertsCount !== 1 ? 's' : ''}
+                <Badge variant={notifications.length > 0 ? "default" : "secondary"}>
+                  {notifications.length} recent notification{notifications.length !== 1 ? 's' : ''}
                 </Badge>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {proximityAlerts.length} total
+                  Last 20 shown
                 </p>
               </div>
             </div>
@@ -281,17 +281,10 @@ const ProximityControlPanel: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Proximity Alerts List */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Your Proximity Alerts</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ProximityAlertsList />
-        </CardContent>
-      </Card>
+      {/* Recent Notifications */}
+      <ProximityAlertsList />
 
-      {/* Settings Sheet */}
+      {/* Settings Dialog */}
       <ProximitySettingsDialog
         open={isSettingsOpen}
         onOpenChange={setIsSettingsOpen}
