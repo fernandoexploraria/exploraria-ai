@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -9,9 +9,11 @@ import {
 } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Navigation } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { MapPin, Navigation, Filter, List } from 'lucide-react';
 import { useSortedLandmarks } from '@/hooks/useSortedLandmarks';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
+import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { landmarks } from '@/data/landmarks';
 import { formatDistance } from '@/utils/proximityUtils';
 
@@ -25,7 +27,19 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
   onOpenChange,
 }) => {
   const { userLocation, locationState } = useLocationTracking();
-  const sortedLandmarks = useSortedLandmarks(userLocation, landmarks);
+  const { proximitySettings } = useProximityAlerts();
+  const [showAllLandmarks, setShowAllLandmarks] = useState(false);
+
+  // Get filtered landmarks (within range) and all landmarks for comparison
+  const filteredLandmarks = useSortedLandmarks(
+    userLocation, 
+    landmarks, 
+    proximitySettings?.default_distance
+  );
+  const allLandmarks = useSortedLandmarks(userLocation, landmarks);
+
+  const currentList = showAllLandmarks ? allLandmarks : filteredLandmarks;
+  const defaultDistance = proximitySettings?.default_distance || 100;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -33,10 +47,10 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Navigation className="h-5 w-5" />
-            Landmarks Debug - Distance Sorting
+            Landmarks Debug - Proximity Filter
           </DialogTitle>
           <DialogDescription>
-            Real-time sorted list of landmarks by distance from your location
+            Real-time landmarks sorted by distance with proximity filtering
           </DialogDescription>
         </DialogHeader>
 
@@ -70,18 +84,56 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
             </CardContent>
           </Card>
 
-          {/* Sorted Landmarks List */}
+          {/* Filter Controls */}
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  <span className="text-sm font-medium">
+                    Filter Range: {formatDistance(defaultDistance)}
+                  </span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAllLandmarks(!showAllLandmarks)}
+                  className="text-xs"
+                >
+                  {showAllLandmarks ? (
+                    <>
+                      <Filter className="h-3 w-3 mr-1" />
+                      Show Within Range
+                    </>
+                  ) : (
+                    <>
+                      <List className="h-3 w-3 mr-1" />
+                      Show All
+                    </>
+                  )}
+                </Button>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {filteredLandmarks.length} within range • {allLandmarks.length} total landmarks
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Landmarks List */}
           <div className="space-y-2">
             <h4 className="text-sm font-medium">
-              Landmarks Sorted by Distance ({sortedLandmarks.length})
+              {showAllLandmarks ? 'All Landmarks' : 'Landmarks Within Range'} ({currentList.length})
             </h4>
             
-            {sortedLandmarks.length === 0 ? (
+            {currentList.length === 0 ? (
               <Card>
                 <CardContent className="pt-4">
                   <div className="text-center text-muted-foreground">
                     {userLocation 
-                      ? 'No landmarks available' 
+                      ? (showAllLandmarks 
+                          ? 'No landmarks available' 
+                          : `No landmarks within ${formatDistance(defaultDistance)} range`
+                        )
                       : 'Location not available - enable location tracking to see distances'
                     }
                   </div>
@@ -89,31 +141,40 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
               </Card>
             ) : (
               <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                {sortedLandmarks.map(({ landmark, distance }, index) => (
-                  <Card key={landmark.id} className="relative">
-                    <CardContent className="pt-3 pb-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
-                            #{index + 1}
+                {currentList.map(({ landmark, distance }, index) => {
+                  const isWithinRange = distance <= defaultDistance;
+                  
+                  return (
+                    <Card key={landmark.id} className="relative">
+                      <CardContent className="pt-3 pb-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              #{index + 1}
+                            </Badge>
+                            <span className="text-sm font-medium">
+                              {landmark.name}
+                            </span>
+                            {showAllLandmarks && !isWithinRange && (
+                              <Badge variant="secondary" className="text-xs">
+                                Out of range
+                              </Badge>
+                            )}
+                          </div>
+                          <Badge 
+                            variant={isWithinRange ? "default" : "secondary"}
+                            className="text-xs"
+                          >
+                            {formatDistance(distance)}
                           </Badge>
-                          <span className="text-sm font-medium">
-                            {landmark.name}
-                          </span>
                         </div>
-                        <Badge 
-                          variant={distance <= 1000 ? "default" : "secondary"}
-                          className="text-xs"
-                        >
-                          {formatDistance(distance)}
-                        </Badge>
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1 truncate">
-                        {landmark.description}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                        <div className="text-xs text-muted-foreground mt-1 truncate">
+                          {landmark.description}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </div>

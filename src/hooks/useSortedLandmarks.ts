@@ -11,7 +11,8 @@ interface LandmarkWithDistance {
 
 export const useSortedLandmarks = (
   userLocation: UserLocation | null,
-  landmarks: Landmark[]
+  landmarks: Landmark[],
+  maxDistance?: number
 ): LandmarkWithDistance[] => {
   return useMemo(() => {
     if (!userLocation || landmarks.length === 0) {
@@ -32,7 +33,12 @@ export const useSortedLandmarks = (
       };
     });
 
+    // Filter by distance if maxDistance is provided
+    const filteredLandmarks = maxDistance 
+      ? landmarksWithDistance.filter(item => item.distance <= maxDistance)
+      : landmarksWithDistance;
+
     // Sort by distance (ascending)
-    return landmarksWithDistance.sort((a, b) => a.distance - b.distance);
-  }, [userLocation, landmarks]);
+    return filteredLandmarks.sort((a, b) => a.distance - b.distance);
+  }, [userLocation, landmarks, maxDistance]);
 };
