@@ -15,7 +15,6 @@ const Index: React.FC = () => {
   const { tourPlan, plannedLandmarks, isLoading: isTourLoading, generateTour } = useTourPlanner();
   const { user, signOut } = useAuth();
   const mapboxToken = useMapboxToken();
-  const { handleTourAuthRequired: storePendingDestination } = usePendingDestination(user, isTourLoading, generateTour);
   const {
     selectedLandmark,
     setSelectedLandmark,
@@ -28,6 +27,14 @@ const Index: React.FC = () => {
     isNewTourAssistantOpen,
     setIsNewTourAssistantOpen,
   } = useDialogStates();
+  
+  // Updated to include callback for opening NewTourAssistant
+  const { handleTourAuthRequired: storePendingDestination } = usePendingDestination(
+    user, 
+    isTourLoading, 
+    generateTour,
+    () => setIsNewTourAssistantOpen(true) // Callback to open NewTourAssistant
+  );
   
   const allLandmarks = useMemo(() => {
     return [...staticLandmarks, ...plannedLandmarks, ...additionalLandmarks];
