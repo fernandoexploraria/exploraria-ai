@@ -1,16 +1,34 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProximityAlert, ProximitySettings, UserLocation } from '@/types/proximityAlerts';
 import { getDefaultProximitySettings } from '@/utils/proximityUtils';
 import { useAuth } from '@/components/AuthProvider';
+import { useToast } from '@/hooks/use-toast';
+
+// Debounce utility
+const useDebounce = (callback: Function, delay: number) => {
+  const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout>();
+
+  const debouncedCallback = useCallback((...args: any[]) => {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
+    const newTimer = setTimeout(() => callback(...args), delay);
+    setDebounceTimer(newTimer);
+  }, [callback, delay, debounceTimer]);
+
+  return debouncedCallback;
+};
 
 export const useProximityAlerts = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [proximityAlerts, setProximityAlerts] = useState<ProximityAlert[]>([]);
   const [proximitySettings, setProximitySettings] = useState<ProximitySettings | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Load proximity settings on user change
   useEffect(() => {
@@ -98,7 +116,7 @@ export const useProximityAlerts = () => {
   const saveProximitySettings = async (settings: ProximitySettings) => {
     if (!user) return;
 
-    setIsLoading(true);
+    setIsSaving(true);
     try {
       const { error } = await supabase
         .from('proximity_settings')
@@ -110,16 +128,55 @@ export const useProximityAlerts = () => {
 
       if (error) {
         console.error('Error saving proximity settings:', error);
+        toast({
+          title: "Error",
+          description: "Failed to save proximity settings. Please try again.",
+          variant: "destructive",
+        });
         return;
       }
 
       setProximitySettings(settings);
+      toast({
+        title: "Settings saved",
+        description: "Your proximity alert settings have been updated.",
+      });
     } catch (error) {
       console.error('Error in saveProximitySettings:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save proximity settings. Please try again.",
+        variant: "destructive",
+      });
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
+
+  // Individual setting update functions
+  const updateSetting = async (key: keyof ProximitySettings, value: any) => {
+    if (!proximitySettings || !user) return;
+
+    // Optimistic update
+    const updatedSettings = {
+      ...proximitySettings,
+      [key]: value,
+      updated_at: new Date().toISOString(),
+    };
+    setProximitySettings(updatedSettings);
+
+    // Save to database
+    await saveProximitySettings(updatedSettings);
+  };
+
+  // Debounced version for slider changes
+  const debouncedUpdateSetting = useDebounce(updateSetting, 500);
+
+  const updateIsEnabled = (enabled: boolean) => updateSetting('is_enabled', enabled);
+  const updateDefaultDistance = (distance: number) => debouncedUpdateSetting('default_distance', distance);
+  const updateUnit = (unit: 'metric' | 'imperial') => updateSetting('unit', unit);
+  const updateNotificationEnabled = (enabled: boolean) => updateSetting('notification_enabled', enabled);
+  const updateSoundEnabled = (enabled: boolean) => updateSetting('sound_enabled', enabled);
 
   const updateUserLocation = (location: UserLocation) => {
     setUserLocation(location);
@@ -130,11 +187,18 @@ export const useProximityAlerts = () => {
     proximitySettings,
     userLocation,
     isLoading,
+    isSaving,
     setProximityAlerts,
     setProximitySettings,
     setUserLocation: updateUserLocation,
     loadProximitySettings,
     loadProximityAlerts,
     saveProximitySettings,
+    // Individual update functions
+    updateIsEnabled,
+    updateDefaultDistance,
+    updateUnit,
+    updateNotificationEnabled,
+    updateSoundEnabled,
   };
 };
