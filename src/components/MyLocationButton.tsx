@@ -3,10 +3,8 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
-import { MapPin, Loader2, Navigation, CheckCircle, AlertTriangle } from 'lucide-react';
+import { MapPin, Loader2, Navigation, CheckCircle } from 'lucide-react';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
-import { usePermissionMonitor } from '@/hooks/usePermissionMonitor';
-import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useToast } from '@/hooks/use-toast';
 
 interface MyLocationButtonProps {
@@ -17,22 +15,7 @@ interface MyLocationButtonProps {
 const MyLocationButton: React.FC<MyLocationButtonProps> = ({ onLocationFound, className = '' }) => {
   const { toast } = useToast();
   const { requestCurrentLocation, locationState, userLocation } = useLocationTracking();
-  const { permissionState } = usePermissionMonitor();
-  const { proximitySettings } = useProximityAlerts();
   const [isLoading, setIsLoading] = useState(false);
-
-  // DEBUG LOGGING: Log the exact state values this component sees
-  React.useEffect(() => {
-    console.log('🔘 [MY LOCATION BUTTON DEBUG] Current state:', {
-      isTracking: locationState.isTracking,
-      isStartingUp: locationState.isStartingUp,
-      userLocation: userLocation ? `lat: ${userLocation.latitude.toFixed(4)}, lng: ${userLocation.longitude.toFixed(4)}, acc: ${userLocation.accuracy}m` : null,
-      permissionState: permissionState.state,
-      proximityEnabled: proximitySettings?.is_enabled,
-      locationError: locationState.error,
-      lastUpdate: locationState.lastUpdate?.toLocaleTimeString()
-    });
-  }, [locationState, userLocation, permissionState, proximitySettings]);
 
   const handleLocationRequest = async () => {
     setIsLoading(true);
@@ -72,14 +55,6 @@ const MyLocationButton: React.FC<MyLocationButtonProps> = ({ onLocationFound, cl
 
   // Determine tracking status for visual indicator
   const getTrackingStatus = () => {
-    if (locationState.isStartingUp) {
-      return { 
-        icon: <Loader2 className="h-3 w-3 animate-spin" />, 
-        text: 'Starting', 
-        variant: 'secondary' as const 
-      };
-    }
-    
     if (locationState.isTracking && userLocation) {
       return { 
         icon: <CheckCircle className="h-3 w-3 text-green-600" />, 
@@ -96,14 +71,6 @@ const MyLocationButton: React.FC<MyLocationButtonProps> = ({ onLocationFound, cl
       };
     }
     
-    if (permissionState.state === 'denied') {
-      return { 
-        icon: <AlertTriangle className="h-3 w-3 text-destructive" />, 
-        text: 'Denied', 
-        variant: 'destructive' as const 
-      };
-    }
-    
     return { 
       icon: null, 
       text: 'Inactive', 
@@ -112,29 +79,6 @@ const MyLocationButton: React.FC<MyLocationButtonProps> = ({ onLocationFound, cl
   };
 
   const trackingStatus = getTrackingStatus();
-
-  // Create detailed tooltip content
-  const getTooltipContent = () => {
-    const parts = [
-      `Tracking: ${locationState.isTracking ? 'ON' : 'OFF'}`,
-      `Permission: ${permissionState.state}`,
-      `Proximity: ${proximitySettings?.is_enabled ? 'ON' : 'OFF'}`,
-    ];
-    
-    if (userLocation) {
-      parts.push(`Last Location: ${userLocation.accuracy ? `±${Math.round(userLocation.accuracy)}m` : 'Unknown accuracy'}`);
-    }
-    
-    if (locationState.lastUpdate) {
-      parts.push(`Updated: ${locationState.lastUpdate.toLocaleTimeString()}`);
-    }
-    
-    if (locationState.error) {
-      parts.push(`Error: ${locationState.error}`);
-    }
-    
-    return parts.join(' • ');
-  };
 
   return (
     <TooltipProvider>
@@ -171,10 +115,16 @@ const MyLocationButton: React.FC<MyLocationButtonProps> = ({ onLocationFound, cl
             )}
           </div>
         </TooltipTrigger>
-        <TooltipContent side="bottom" className="max-w-xs">
+        <TooltipContent side="bottom">
           <div className="text-xs">
-            <div className="font-medium mb-1">Location Status Debug</div>
-            <div>{getTooltipContent()}</div>
+            <div className="font-medium mb-1">Location Status</div>
+            <div>Tracking: {locationState.isTracking ? 'ON' : 'OFF'}</div>
+            {userLocation && (
+              <div>Accuracy: {userLocation.accuracy ? `±${Math.round(userLocation.accuracy)}m` : 'Unknown'}</div>
+            )}
+            {locationState.lastUpdate && (
+              <div>Updated: {locationState.lastUpdate.toLocaleTimeString()}</div>
+            )}
           </div>
         </TooltipContent>
       </Tooltip>
