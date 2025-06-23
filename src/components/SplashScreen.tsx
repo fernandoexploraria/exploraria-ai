@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface SplashScreenProps {
   onDismiss: () => void;
@@ -8,14 +9,29 @@ interface SplashScreenProps {
 const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
   const [isVisible, setIsVisible] = useState(true);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string>('');
 
   useEffect(() => {
-    // Preload the background image
-    const img = new Image();
-    img.onload = () => {
-      setImageLoaded(true);
-    };
-    img.src = '/splash-bg.jpg';
+    // Get the public URL for the splash background image
+    const { data } = supabase.storage
+      .from('static-assets')
+      .getPublicUrl('splash-bg.jpg');
+    
+    if (data?.publicUrl) {
+      setImageUrl(data.publicUrl);
+      
+      // Preload the background image
+      const img = new Image();
+      img.onload = () => {
+        setImageLoaded(true);
+        console.log('Splash background image loaded successfully');
+      };
+      img.onerror = () => {
+        console.warn('Failed to load splash background image, using gradient fallback');
+        setImageLoaded(false);
+      };
+      img.src = data.publicUrl;
+    }
 
     // Auto-dismiss after 5 seconds
     const timer = setTimeout(() => {
@@ -52,7 +68,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
       <div 
         className="fixed inset-0 z-50 flex items-center justify-center animate-fade-out pointer-events-none bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900"
         style={{
-          backgroundImage: imageLoaded ? 'url("/splash-bg.jpg")' : undefined,
+          backgroundImage: imageLoaded && imageUrl ? `url("${imageUrl}")` : undefined,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat'
@@ -78,7 +94,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900"
       style={{
-        backgroundImage: imageLoaded ? 'url("/splash-bg.jpg")' : undefined,
+        backgroundImage: imageLoaded && imageUrl ? `url("${imageUrl}")` : undefined,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat'
