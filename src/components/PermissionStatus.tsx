@@ -1,20 +1,21 @@
-
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, CheckCircle, HelpCircle, Settings, RotateCcw, Smartphone } from 'lucide-react';
+import { AlertTriangle, CheckCircle, HelpCircle, Settings, RotateCcw, Smartphone, AlertCircle } from 'lucide-react';
 import { usePermissionMonitor } from '@/hooks/usePermissionMonitor';
 
 interface PermissionStatusProps {
   onRetryPermission?: () => void;
   showRetryButton?: boolean;
   compact?: boolean;
+  isProximityEnabled?: boolean;
 }
 
 const PermissionStatus: React.FC<PermissionStatusProps> = ({
   onRetryPermission,
   showRetryButton = true,
   compact = false,
+  isProximityEnabled = false,
 }) => {
   const { permissionState, requestPermission } = usePermissionMonitor();
 
@@ -26,6 +27,9 @@ const PermissionStatus: React.FC<PermissionStatusProps> = ({
   };
 
   const getStatusInfo = () => {
+    // Enhanced messaging when proximity is enabled but permission is denied
+    const isRecoveryMode = isProximityEnabled && permissionState.state === 'denied';
+    
     switch (permissionState.state) {
       case 'granted':
         return {
@@ -37,11 +41,14 @@ const PermissionStatus: React.FC<PermissionStatusProps> = ({
         };
       case 'denied':
         return {
-          icon: <AlertTriangle className="h-4 w-4 text-destructive" />,
-          text: 'Permission Denied',
-          variant: 'destructive' as const,
-          description: 'Location access was denied. Please reset browser permissions to enable proximity alerts.',
+          icon: isRecoveryMode ? <AlertCircle className="h-4 w-4 text-amber-600" /> : <AlertTriangle className="h-4 w-4 text-destructive" />,
+          text: isRecoveryMode ? 'Permission Required for Active Alerts' : 'Permission Denied',
+          variant: isRecoveryMode ? 'secondary' as const : 'destructive' as const,
+          description: isRecoveryMode 
+            ? 'Your proximity alerts are enabled but need location permission to work. Fix this to resume notifications.'
+            : 'Location access was denied. Please reset browser permissions to enable proximity alerts.',
           showRetry: true,
+          isRecoveryMode,
         };
       case 'prompt':
         return {
@@ -76,13 +83,13 @@ const PermissionStatus: React.FC<PermissionStatusProps> = ({
         </Badge>
         {showRetryButton && statusInfo.showRetry && (
           <Button
-            variant="outline"
+            variant={statusInfo.isRecoveryMode ? "default" : "outline"}
             size="sm"
             onClick={handleRetryPermission}
             className="h-6 px-2 text-xs"
           >
             <RotateCcw className="h-3 w-3 mr-1" />
-            Retry
+            {statusInfo.isRecoveryMode ? 'Fix' : 'Retry'}
           </Button>
         )}
       </div>
@@ -90,20 +97,32 @@ const PermissionStatus: React.FC<PermissionStatusProps> = ({
   }
 
   return (
-    <div className="rounded-lg border p-4 space-y-3">
+    <div className={`rounded-lg border p-4 space-y-3 ${statusInfo.isRecoveryMode ? 'border-amber-200 bg-amber-50' : ''}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {statusInfo.icon}
           <span className="font-medium">{statusInfo.text}</span>
         </div>
         <Badge variant={statusInfo.variant}>
-          {permissionState.state.charAt(0).toUpperCase() + permissionState.state.slice(1)}
+          {statusInfo.isRecoveryMode ? 'Needs Fix' : permissionState.state.charAt(0).toUpperCase() + permissionState.state.slice(1)}
         </Badge>
       </div>
       
       <p className="text-sm text-muted-foreground">{statusInfo.description}</p>
       
-      {permissionState.state === 'denied' && (
+      {statusInfo.isRecoveryMode && (
+        <div className="rounded-lg bg-amber-100 border border-amber-300 p-3">
+          <div className="text-sm font-medium text-amber-800 mb-2">
+            🔧 Quick Fix Required
+          </div>
+          <div className="text-xs text-amber-700">
+            Your proximity alerts are turned on but can't work without location permission. 
+            Use the button below to fix this and resume getting notifications near landmarks.
+          </div>
+        </div>
+      )}
+      
+      {permissionState.state === 'denied' && !statusInfo.isRecoveryMode && (
         <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3">
           <div className="text-sm font-medium text-destructive mb-2 flex items-center gap-2">
             {isMobileSafari && <Smartphone className="h-4 w-4" />}
@@ -154,13 +173,13 @@ const PermissionStatus: React.FC<PermissionStatusProps> = ({
       
       {showRetryButton && statusInfo.showRetry && (
         <Button
-          variant={permissionState.state === 'denied' ? 'destructive' : 'outline'}
+          variant={statusInfo.isRecoveryMode ? 'default' : permissionState.state === 'denied' ? 'destructive' : 'outline'}
           size="sm"
           onClick={handleRetryPermission}
           className="w-full"
         >
           <RotateCcw className="h-4 w-4 mr-2" />
-          {permissionState.state === 'denied' ? 'Check If Permission Reset' : 'Request Permission'}
+          {statusInfo.isRecoveryMode ? 'Fix Location Permission' : permissionState.state === 'denied' ? 'Check If Permission Reset' : 'Request Permission'}
         </Button>
       )}
       

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   Dialog,
@@ -10,7 +9,8 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, MapPin, Navigation, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Loader2, MapPin, Navigation, AlertTriangle, AlertCircle } from 'lucide-react';
 import { formatDistance } from '@/utils/proximityUtils';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
@@ -48,6 +48,8 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     hideOnboarding,
     markOnboardingComplete,
   } = useProximityOnboarding();
+
+  const isRecoveryMode = proximitySettings?.is_enabled && permissionState.state === 'denied';
 
   // Start/stop permission monitoring based on dialog state and proximity settings
   React.useEffect(() => {
@@ -271,15 +273,49 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
           </DialogHeader>
 
           <div className="space-y-6">
+            {/* Recovery Mode Warning Banner */}
+            {isRecoveryMode && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-amber-800 mb-2">
+                      🔧 Proximity Alerts Need Location Permission
+                    </div>
+                    <div className="text-sm text-amber-700 mb-3">
+                      Your proximity alerts are enabled but can't work without location access. 
+                      Use the "Fix Location Permission" button below to resolve this and start receiving notifications again.
+                    </div>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={handleRetryPermission}
+                      className="bg-amber-600 hover:bg-amber-700 text-white"
+                    >
+                      Fix Location Permission
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Master Enable/Disable Toggle */}
-            <div className="flex flex-row items-center justify-between rounded-lg border p-4">
+            <div className={`flex flex-row items-center justify-between rounded-lg border p-4 ${isRecoveryMode ? 'border-amber-200 bg-amber-50/50' : ''}`}>
               <div className="space-y-0.5">
                 <div className="text-base font-medium flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
                   Enable Proximity Alerts
+                  {isRecoveryMode && (
+                    <Badge variant="secondary" className="text-xs border-amber-300 bg-amber-100 text-amber-800">
+                      Needs Fix
+                    </Badge>
+                  )}
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  Turn on proximity alerts for landmarks (requires location access)
+                  {isRecoveryMode 
+                    ? 'Enabled but requires location permission to work'
+                    : 'Turn on proximity alerts for landmarks (requires location access)'
+                  }
                 </div>
               </div>
               <Switch
@@ -294,6 +330,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
               <PermissionStatus
                 onRetryPermission={handleRetryPermission}
                 showRetryButton={permissionState.state !== 'granted'}
+                isProximityEnabled={proximitySettings.is_enabled}
               />
             )}
 
