@@ -1,17 +1,20 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Settings, MapPin, Bell, BellOff, AlertTriangle, AlertCircle } from 'lucide-react';
+import { Settings, MapPin, Bell, BellOff, AlertTriangle, AlertCircle, Activity } from 'lucide-react';
 import ProximitySettingsDialog from './ProximitySettingsDialog';
 import ProximityAlertsList from './ProximityAlertsList';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
+import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { usePermissionMonitor } from '@/hooks/usePermissionMonitor';
 import { formatDistance } from '@/utils/proximityUtils';
 
 const ProximityControlPanel: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { proximitySettings, proximityAlerts, isLoading } = useProximityAlerts();
+  const { locationState, userLocation } = useLocationTracking();
   const { permissionState } = usePermissionMonitor();
 
   const activeAlertsCount = proximityAlerts.filter(alert => alert.is_enabled).length;
@@ -66,7 +69,54 @@ const ProximityControlPanel: React.FC = () => {
     };
   };
 
+  const getLocationActivityInfo = () => {
+    if (!isProximityEnabled) {
+      return {
+        icon: <MapPin className="h-4 w-4 text-muted-foreground" />,
+        status: 'Location tracking disabled',
+        variant: 'outline' as const,
+        accuracy: null
+      };
+    }
+
+    if (locationState.error) {
+      return {
+        icon: <AlertTriangle className="h-4 w-4 text-destructive" />,
+        status: `Error: ${locationState.error}`,
+        variant: 'destructive' as const,
+        accuracy: null
+      };
+    }
+
+    if (locationState.isTracking && userLocation) {
+      const accuracy = userLocation.accuracy ? Math.round(userLocation.accuracy) : null;
+      return {
+        icon: <Activity className="h-4 w-4 text-green-600" />,
+        status: 'Active',
+        variant: 'default' as const,
+        accuracy: accuracy
+      };
+    }
+
+    if (locationState.isTracking && !userLocation) {
+      return {
+        icon: <Activity className="h-4 w-4 text-amber-600 animate-pulse" />,
+        status: 'Locating...',
+        variant: 'secondary' as const,
+        accuracy: null
+      };
+    }
+
+    return {
+      icon: <MapPin className="h-4 w-4 text-muted-foreground" />,
+      status: 'Inactive',
+      variant: 'outline' as const,
+      accuracy: null
+    };
+  };
+
   const statusInfo = getStatusInfo();
+  const locationInfo = getLocationActivityInfo();
 
   return (
     <div className="space-y-4">
@@ -114,29 +164,55 @@ const ProximityControlPanel: React.FC = () => {
             </div>
           )}
 
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <p className="text-sm text-muted-foreground">
-                  Status: 
-                </p>
-                <Badge variant={statusInfo.variant} className="text-xs">
-                  {statusInfo.status}
-                </Badge>
+          <div className="space-y-3">
+            {/* Proximity Status Row */}
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-muted-foreground">
+                    Alerts: 
+                  </p>
+                  <Badge variant={statusInfo.variant} className="text-xs">
+                    {statusInfo.status}
+                  </Badge>
+                </div>
+                {proximitySettings && (
+                  <p className="text-sm text-muted-foreground">
+                    Default distance: {formatDistance(proximitySettings.default_distance)}
+                  </p>
+                )}
               </div>
-              {proximitySettings && (
-                <p className="text-sm text-muted-foreground">
-                  Default distance: {formatDistance(proximitySettings.default_distance)}
+              <div className="text-right">
+                <Badge variant={activeAlertsCount > 0 ? "default" : "secondary"}>
+                  {activeAlertsCount} active alert{activeAlertsCount !== 1 ? 's' : ''}
+                </Badge>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {proximityAlerts.length} total
                 </p>
-              )}
+              </div>
             </div>
-            <div className="text-right">
-              <Badge variant={activeAlertsCount > 0 ? "default" : "secondary"}>
-                {activeAlertsCount} active alert{activeAlertsCount !== 1 ? 's' : ''}
-              </Badge>
-              <p className="text-xs text-muted-foreground mt-1">
-                {proximityAlerts.length} total
-              </p>
+
+            {/* Location Activity Row */}
+            <div className="flex items-center justify-between pt-2 border-t">
+              <div className="flex items-center gap-2">
+                {locationInfo.icon}
+                <div>
+                  <p className="text-sm font-medium">Location Tracking</p>
+                  <p className="text-xs text-muted-foreground">{locationInfo.status}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                {locationInfo.accuracy && (
+                  <Badge variant="outline" className="text-xs">
+                    ±{locationInfo.accuracy}m
+                  </Badge>
+                )}
+                {locationState.lastUpdate && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Updated {locationState.lastUpdate.toLocaleTimeString()}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </CardContent>
