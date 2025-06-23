@@ -12,6 +12,7 @@ interface LocationTrackingState {
   error: string | null;
   lastUpdate: Date | null;
   movementDetected: boolean;
+  isStartingUp: boolean; // New state to track automatic startup
 }
 
 interface LocationTrackingHook {
@@ -47,6 +48,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
     error: null,
     lastUpdate: null,
     movementDetected: false,
+    isStartingUp: false,
   });
   
   const [userLocation, setCurrentUserLocation] = useState<UserLocation | null>(null);
@@ -54,6 +56,37 @@ export const useLocationTracking = (): LocationTrackingHook => {
   const lastLocationRef = useRef<UserLocation | null>(null);
   const isPageVisibleRef = useRef<boolean>(true);
   const lastToastRef = useRef<number>(0);
+  const autoStartAttemptedRef = useRef<boolean>(false);
+
+  // Automatic startup logic - monitor proximity settings and permission state
+  useEffect(() => {
+    const shouldAutoStart = proximitySettings?.is_enabled && 
+                           permissionState.state === 'granted' && 
+                           !locationState.isTracking &&
+                           !autoStartAttemptedRef.current;
+
+    if (shouldAutoStart) {
+      console.log('Auto-starting location tracking: proximity enabled + permission granted + not tracking');
+      autoStartAttemptedRef.current = true;
+      
+      setLocationState(prev => ({ ...prev, isStartingUp: true }));
+      
+      startTrackingWithPermission()
+        .then(() => {
+          console.log('Auto-start successful');
+          setLocationState(prev => ({ ...prev, isStartingUp: false }));
+        })
+        .catch((error) => {
+          console.error('Auto-start failed:', error);
+          setLocationState(prev => ({ ...prev, isStartingUp: false }));
+        });
+    }
+
+    // Reset auto-start flag when proximity is disabled or permission changes
+    if (!proximitySettings?.is_enabled || permissionState.state !== 'granted') {
+      autoStartAttemptedRef.current = false;
+    }
+  }, [proximitySettings?.is_enabled, permissionState.state, locationState.isTracking]);
 
   // Debounced toast to prevent spam
   const debouncedToast = useCallback(
@@ -260,6 +293,9 @@ export const useLocationTracking = (): LocationTrackingHook => {
       ...prev,
       isTracking: false,
     }));
+
+    // Reset auto-start flag when manually stopping
+    autoStartAttemptedRef.current = false;
 
     console.log('Location tracking stopped');
   }, []);

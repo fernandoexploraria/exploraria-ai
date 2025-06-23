@@ -15,11 +15,16 @@ const LocationStatusIndicator: React.FC = () => {
   const isProximityEnabled = proximitySettings?.is_enabled || false;
   const isRecoveryMode = isProximityEnabled && permissionState.state === 'denied';
 
-  if (!locationState.isTracking && permissionState.state !== 'denied' && !isRecoveryMode) {
+  if (!locationState.isTracking && !locationState.isStartingUp && permissionState.state !== 'denied' && !isRecoveryMode) {
     return null; // Don't show anything when not tracking and no permission issues
   }
 
   const getStatusIcon = () => {
+    // Show startup state first
+    if (locationState.isStartingUp) {
+      return <Loader2 className="h-3 w-3 animate-spin" />;
+    }
+    
     // Show recovery mode icon (warning) when proximity enabled but permission denied
     if (isRecoveryMode) {
       return <AlertCircle className="h-3 w-3 text-amber-600" />;
@@ -46,6 +51,10 @@ const LocationStatusIndicator: React.FC = () => {
   };
 
   const getStatusText = () => {
+    if (locationState.isStartingUp) {
+      return 'Starting...';
+    }
+    
     if (isRecoveryMode) {
       return 'Fix Required';
     }
@@ -64,13 +73,14 @@ const LocationStatusIndicator: React.FC = () => {
     
     if (locationState.isTracking && userLocation) {
       const accuracy = userLocation.accuracy ? `±${Math.round(userLocation.accuracy)}m` : '';
-      return `Tracking ${accuracy}`;
+      return `Active ${accuracy}`;
     }
     
     return 'Location Off';
   };
 
   const getStatusVariant = (): "default" | "secondary" | "destructive" | "outline" => {
+    if (locationState.isStartingUp) return 'secondary';
     if (isRecoveryMode) return 'secondary'; // Warning state for recovery mode
     if (permissionState.state === 'denied' || locationState.error) return 'destructive';
     if (locationState.isTracking && userLocation) return 'default';
