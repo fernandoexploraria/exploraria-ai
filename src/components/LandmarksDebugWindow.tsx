@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   Dialog,
@@ -14,7 +13,7 @@ import { MapPin, Navigation, Filter, List, Clock } from 'lucide-react';
 import { useSortedLandmarks } from '@/hooks/useSortedLandmarks';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
-import { landmarks } from '@/data/landmarks';
+import { useCombinedLandmarks } from '@/hooks/useCombinedLandmarks';
 import { formatDistance } from '@/utils/proximityUtils';
 
 interface LandmarksDebugWindowProps {
@@ -30,13 +29,16 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
   const { proximitySettings } = useProximityAlerts();
   const [showAllLandmarks, setShowAllLandmarks] = useState(false);
 
+  // Use combined landmarks instead of static landmarks
+  const combinedLandmarks = useCombinedLandmarks();
+
   // Get filtered landmarks (within range) and all landmarks for comparison
   const filteredLandmarks = useSortedLandmarks(
     userLocation, 
-    landmarks, 
+    combinedLandmarks, 
     proximitySettings?.default_distance
   );
-  const allLandmarks = useSortedLandmarks(userLocation, landmarks);
+  const allLandmarks = useSortedLandmarks(userLocation, combinedLandmarks);
 
   const currentList = showAllLandmarks ? allLandmarks : filteredLandmarks;
   const defaultDistance = proximitySettings?.default_distance || 100;
