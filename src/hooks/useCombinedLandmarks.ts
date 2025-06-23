@@ -16,17 +16,22 @@ const convertTopLandmarkToLandmark = (topLandmark: TopLandmark): Landmark => {
 
 export const useCombinedLandmarks = (): Landmark[] => {
   return useMemo(() => {
-    // Convert Top 100 landmarks to Landmark format
-    const topLandmarksConverted = TOP_LANDMARKS.map(convertTopLandmarkToLandmark);
-    
     // Get current tour landmarks from global store
     const tourLandmarks = getGlobalTourLandmarks();
     
-    // Combine both landmark sources
-    const combined = [...topLandmarksConverted, ...tourLandmarks];
+    console.log(`🔍 DEBUG MODE: Returning only tour-generated landmarks`);
+    console.log(`📍 Tour landmarks count: ${tourLandmarks.length}`);
     
-    console.log(`🗺️ Combined landmarks: ${topLandmarksConverted.length} top landmarks + ${tourLandmarks.length} tour landmarks = ${combined.length} total`);
+    if (tourLandmarks.length > 0) {
+      console.log(`🗺️ Tour landmarks details:`, tourLandmarks.map(landmark => ({
+        id: landmark.id,
+        name: landmark.name,
+        coordinates: landmark.coordinates,
+        description: landmark.description?.substring(0, 50) + '...'
+      })));
+    }
     
-    return combined;
+    // Return only tour landmarks for debugging
+    return tourLandmarks;
   }, []); // No dependencies needed since we read from global store
 };
