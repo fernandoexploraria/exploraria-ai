@@ -174,36 +174,6 @@ export type Database = {
         }
         Relationships: []
       }
-      proximity_notifications: {
-        Row: {
-          created_at: string
-          distance: number
-          id: string
-          landmark_id: string
-          landmark_name: string
-          notification_type: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          distance: number
-          id?: string
-          landmark_id: string
-          landmark_name: string
-          notification_type?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          distance?: number
-          id?: string
-          landmark_id?: string
-          landmark_name?: string
-          notification_type?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       proximity_settings: {
         Row: {
           created_at: string

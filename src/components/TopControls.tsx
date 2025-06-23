@@ -41,13 +41,13 @@ const TopControls: React.FC<TopControlsProps> = ({
 }) => {
   const isMobile = useIsMobile();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const { proximitySettings, notifications } = useProximityAlerts();
+  const { proximitySettings, proximityAlerts } = useProximityAlerts();
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
   };
 
-  const recentNotificationsCount = notifications.length;
+  const activeAlertsCount = proximityAlerts.filter(alert => alert.is_enabled).length;
   const isProximityEnabled = proximitySettings?.is_enabled || false;
 
   return (
@@ -136,9 +136,9 @@ const TopControls: React.FC<TopControlsProps> = ({
                     <Bell className={`mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4 ${isProximityEnabled ? 'text-white' : ''}`} />
                     <span className="lg:hidden">Alerts</span>
                     <span className="hidden lg:inline">Proximity Alerts</span>
-                    {isProximityEnabled && recentNotificationsCount > 0 && (
+                    {isProximityEnabled && activeAlertsCount > 0 && (
                       <span className="ml-auto bg-white text-green-600 text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold">
-                        {recentNotificationsCount}
+                        {activeAlertsCount}
                       </span>
                     )}
                   </Button>
