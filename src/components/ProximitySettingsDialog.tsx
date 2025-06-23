@@ -10,21 +10,23 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { Loader2 } from 'lucide-react';
-import { formatDistance } from '@/utils/proximityUtils';
+import { Loader2, MapPin } from 'lucide-react';
+import { formatDistance, requestGeolocationPermission } from '@/utils/proximityUtils';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProximitySettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-const PRESET_DISTANCES = [100, 250, 500, 1000, 2000]; // meters
+const PRESET_DISTANCES = [50, 100, 250, 500, 1000]; // Updated presets starting with 50m
 
 const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   open,
   onOpenChange,
 }) => {
+  const { toast } = useToast();
   const { 
     proximitySettings, 
     isSaving,
@@ -46,6 +48,29 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
       </Dialog>
     );
   }
+
+  const handleEnableProximityAlerts = async (enabled: boolean) => {
+    if (enabled) {
+      // Request geolocation permission when enabling proximity alerts
+      const hasPermission = await requestGeolocationPermission();
+      
+      if (!hasPermission) {
+        toast({
+          title: "Location Permission Required",
+          description: "Please allow location access to use proximity alerts. You can enable it in your browser settings.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Location Access Granted",
+        description: "Proximity alerts are now enabled. You'll be notified when you're near landmarks.",
+      });
+    }
+
+    updateIsEnabled(enabled);
+  };
 
   const handlePresetDistance = (distance: number) => {
     updateDefaultDistance(distance);
@@ -71,16 +96,17 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
           {/* Master Enable/Disable Toggle */}
           <div className="flex flex-row items-center justify-between rounded-lg border p-4">
             <div className="space-y-0.5">
-              <div className="text-base font-medium">
+              <div className="text-base font-medium flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
                 Enable Proximity Alerts
               </div>
               <div className="text-sm text-muted-foreground">
-                Turn on proximity alerts for landmarks
+                Turn on proximity alerts for landmarks (requires location access)
               </div>
             </div>
             <Switch
               checked={proximitySettings.is_enabled}
-              onCheckedChange={updateIsEnabled}
+              onCheckedChange={handleEnableProximityAlerts}
               disabled={isSaving}
             />
           </div>
@@ -92,9 +118,9 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
             </div>
             
             <Slider
-              min={50}
-              max={5000}
-              step={50}
+              min={25}
+              max={2000}
+              step={25}
               value={[proximitySettings.default_distance]}
               onValueChange={(value) => updateDefaultDistance(value[0])}
               className="w-full"
@@ -116,7 +142,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
               ))}
             </div>
             <div className="text-sm text-muted-foreground">
-              Choose the default distance for proximity alerts (in meters)
+              Choose the default distance for proximity alerts (25m - 2km range)
             </div>
           </div>
 

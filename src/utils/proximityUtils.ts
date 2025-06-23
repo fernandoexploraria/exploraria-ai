@@ -43,7 +43,42 @@ export const formatDistance = (distance: number): string => {
 export const getDefaultProximitySettings = (userId: string) => ({
   user_id: userId,
   is_enabled: false,
-  default_distance: 100, // 100 meters
-  notification_enabled: true,
-  sound_enabled: true,
+  default_distance: 50, // Updated to 50 meters
+  notification_enabled: false, // Updated to false
+  sound_enabled: false, // Updated to false
 });
+
+/**
+ * Request geolocation permission from the user
+ * @returns Promise<boolean> - true if permission granted, false otherwise
+ */
+export const requestGeolocationPermission = async (): Promise<boolean> => {
+  if (!navigator.geolocation) {
+    console.warn('Geolocation is not supported by this browser');
+    return false;
+  }
+
+  try {
+    // Check current permission status
+    if ('permissions' in navigator) {
+      const permission = await navigator.permissions.query({ name: 'geolocation' });
+      if (permission.state === 'granted') {
+        return true;
+      } else if (permission.state === 'denied') {
+        return false;
+      }
+    }
+
+    // Request permission by attempting to get current position
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        () => resolve(true),
+        () => resolve(false),
+        { timeout: 5000 }
+      );
+    });
+  } catch (error) {
+    console.error('Error requesting geolocation permission:', error);
+    return false;
+  }
+};

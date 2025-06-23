@@ -1,8 +1,6 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProximityAlert, ProximitySettings, UserLocation } from '@/types/proximityAlerts';
-import { getDefaultProximitySettings } from '@/utils/proximityUtils';
 import { useAuth } from '@/components/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
 
@@ -201,10 +199,10 @@ export const useProximityAlerts = () => {
         console.log('Loaded proximity settings:', settings);
         notifySubscribers(settings);
       } else {
-        // Create default settings if none exist
-        const defaultSettings = getDefaultProximitySettings(user.id);
-        console.log('No settings found, using defaults:', defaultSettings);
-        notifySubscribers(defaultSettings);
+        // Since we now auto-create settings via trigger, this should rarely happen
+        // But keep as fallback for existing users or edge cases
+        console.log('No proximity settings found for user, they should be auto-created on signup');
+        notifySubscribers(null);
       }
     } catch (error) {
       console.error('Error in loadProximitySettings:', error);
