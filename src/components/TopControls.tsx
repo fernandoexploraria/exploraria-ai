@@ -127,13 +127,17 @@ const TopControls: React.FC<TopControlsProps> = ({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 relative"
+                    className={`backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 relative ${
+                      isProximityEnabled 
+                        ? 'bg-green-500/80 hover:bg-green-600/80 text-white border-green-400' 
+                        : 'bg-background/80 hover:bg-accent hover:text-accent-foreground'
+                    }`}
                   >
-                    <Bell className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+                    <Bell className={`mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4 ${isProximityEnabled ? 'text-white' : ''}`} />
                     <span className="lg:hidden">Alerts</span>
                     <span className="hidden lg:inline">Proximity Alerts</span>
                     {isProximityEnabled && activeAlertsCount > 0 && (
-                      <span className="ml-auto bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      <span className="ml-auto bg-white text-green-600 text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold">
                         {activeAlertsCount}
                       </span>
                     )}
