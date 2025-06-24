@@ -24,7 +24,7 @@ export const useSortedLandmarks = (
       return [];
     }
 
-    const landmarksWithDistance = landmarks.map(landmark => {
+    const landmarksWithDistance: LandmarkWithDistance[] = landmarks.map(landmark => {
       const distance = calculateDistance(
         userLocation.latitude,
         userLocation.longitude,
@@ -34,7 +34,8 @@ export const useSortedLandmarks = (
 
       return {
         landmark,
-        distance
+        distance,
+        isClosest: false // Initialize with false
       };
     });
 
