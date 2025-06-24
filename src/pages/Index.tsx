@@ -7,7 +7,6 @@ import { useAuth } from '@/components/AuthProvider';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
 import { usePendingDestination } from '@/hooks/usePendingDestination';
 import { useDialogStates } from '@/hooks/useDialogStates';
-import { useCombinedLandmarks } from '@/hooks/useCombinedLandmarks';
 
 const Index: React.FC = () => {
   const [showSplash, setShowSplash] = useState(true);
@@ -16,7 +15,6 @@ const Index: React.FC = () => {
   const { tourPlan, plannedLandmarks, isLoading: isTourLoading, generateTour } = useTourPlanner();
   const { user, signOut } = useAuth();
   const mapboxToken = useMapboxToken();
-  const combinedLandmarks = useCombinedLandmarks();
   const {
     selectedLandmark,
     setSelectedLandmark,
@@ -39,8 +37,8 @@ const Index: React.FC = () => {
   );
   
   const allLandmarks = useMemo(() => {
-    return [...combinedLandmarks, ...additionalLandmarks];
-  }, [combinedLandmarks, additionalLandmarks]);
+    return [...staticLandmarks, ...plannedLandmarks, ...additionalLandmarks];
+  }, [plannedLandmarks, additionalLandmarks]);
 
   const handleSelectLandmark = useCallback((landmark: Landmark) => {
     setSelectedLandmark(landmark);

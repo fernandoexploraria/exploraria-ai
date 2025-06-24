@@ -1,13 +1,10 @@
 
 import React from 'react';
-import Map from './Map';
-import SearchControl from './SearchControl';
-import TopControls from './TopControls';
-import TourPlannerDialog from './TourPlannerDialog';
-import VoiceSearchDialog from './VoiceSearchDialog';
-import AuthDialog from './AuthDialog';
-import NewTourAssistant from './NewTourAssistant';
-import ProximityDetector from './ProximityDetector';
+import Map from '@/components/Map';
+import TopControls from '@/components/TopControls';
+import UserControls from '@/components/UserControls';
+import DialogManager from '@/components/DialogManager';
+import NewTourAssistant from '@/components/NewTourAssistant';
 import { Landmark } from '@/data/landmarks';
 import { User } from '@supabase/supabase-js';
 
@@ -22,7 +19,7 @@ interface MainLayoutProps {
   onVoiceSearchOpen: () => void;
   onVoiceAssistantOpen: () => void;
   onLogoClick: () => void;
-  onSignOut: () => void;
+  onSignOut: () => Promise<void>;
   onAuthDialogOpen: () => void;
   isTourPlannerOpen: boolean;
   onTourPlannerOpenChange: (open: boolean) => void;
@@ -64,27 +61,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   onNewTourAssistantOpenChange,
   tourPlan,
 }) => {
+  const handleLocationSelect = () => {
+    console.log('Location select called but no action taken');
+  };
+
   return (
-    <div className="relative w-screen h-screen overflow-hidden">
-      {/* Proximity Detection - Always render when user is logged in */}
-      {user && <ProximityDetector landmarks={allLandmarks} />}
-      
-      {/* Map */}
-      <Map
-        mapboxToken={mapboxToken}
-        landmarks={allLandmarks}
-        onSelectLandmark={onSelectLandmark}
-        selectedLandmark={selectedLandmark}
-        plannedLandmarks={plannedLandmarks}
-      />
-
-      {/* Search Control */}
-      <SearchControl
-        landmarks={allLandmarks}
-        onSelectLandmark={onSelectLandmark}
-      />
-
-      {/* Top Controls */}
+    <div className="w-screen h-screen relative">
       <TopControls
         allLandmarks={allLandmarks}
         onSelectLandmark={onSelectLandmark}
@@ -96,28 +78,33 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         plannedLandmarks={plannedLandmarks}
       />
 
-      {/* Tour Planner Dialog */}
-      <TourPlannerDialog
-        open={isTourPlannerOpen}
-        onOpenChange={onTourPlannerOpenChange}
+      <UserControls
+        user={user}
+        onSignOut={onSignOut}
+        onAuthDialogOpen={onAuthDialogOpen}
+      />
+
+      <Map 
+        mapboxToken={mapboxToken}
+        landmarks={allLandmarks}
+        onSelectLandmark={onSelectLandmark}
+        selectedLandmark={selectedLandmark}
+        plannedLandmarks={[...plannedLandmarks]}
+      />
+
+      <DialogManager
+        isTourPlannerOpen={isTourPlannerOpen}
+        onTourPlannerOpenChange={onTourPlannerOpenChange}
         onGenerateTour={onGenerateTour}
-        onAuthRequired={onTourAuthRequired}
-        isLoading={isTourLoading}
+        onTourAuthRequired={onTourAuthRequired}
+        isTourLoading={isTourLoading}
+        isVoiceSearchOpen={isVoiceSearchOpen}
+        onVoiceSearchOpenChange={onVoiceSearchOpenChange}
+        isAuthDialogOpen={isAuthDialogOpen}
+        onAuthDialogOpenChange={onAuthDialogOpenChange}
+        onLocationSelect={handleLocationSelect}
       />
 
-      {/* Voice Search Dialog */}
-      <VoiceSearchDialog
-        open={isVoiceSearchOpen}
-        onOpenChange={onVoiceSearchOpenChange}
-      />
-
-      {/* Auth Dialog */}
-      <AuthDialog
-        open={isAuthDialogOpen}
-        onOpenChange={onAuthDialogOpenChange}
-      />
-
-      {/* New Tour Assistant */}
       <NewTourAssistant
         open={isNewTourAssistantOpen}
         onOpenChange={onNewTourAssistantOpenChange}

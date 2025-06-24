@@ -6,8 +6,6 @@ import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
-import { useProximityAlerts } from '@/hooks/useProximityAlerts';
-import { useToast } from '@/hooks/use-toast';
 
 interface MapProps {
   mapboxToken: string;
@@ -36,12 +34,8 @@ const Map: React.FC<MapProps> = ({
   const pendingPopupLandmark = useRef<Landmark | null>(null);
   const isZooming = useRef<boolean>(false);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
-  const navigationMarkers = useRef<{ marker: mapboxgl.Marker; interaction: any }[]>([]);
-  const geolocateControl = useRef<mapboxgl.GeolocateControl | null>(null);
-  const hasEnabledProximity = useRef<boolean>(false);
+  const navigationMarkers = useRef<{ marker: mapboxgl.Marker; interaction: any }[]>([]); // Store navigation markers with interaction data
   const { user } = useAuth();
-  const { updateProximityEnabled, setUserLocation, proximitySettings } = useProximityAlerts();
-  const { toast } = useToast();
 
   // Convert top landmarks to Landmark format
   const allLandmarksWithTop = React.useMemo(() => {
@@ -182,94 +176,6 @@ const Map: React.FC<MapProps> = ({
       console.error('🗺️ [Map] Error during map initialization:', error);
     }
   }, [mapboxToken]);
-
-  // Add/remove GeolocateControl based on user authentication
-  useEffect(() => {
-    if (!map.current) return;
-
-    if (user && !geolocateControl.current) {
-      // User is logged in and control doesn't exist - add it
-      console.log('🗺️ [Map] Adding GeolocateControl for authenticated user');
-      
-      // Reset the flag when adding a new control for a new user session
-      hasEnabledProximity.current = false;
-      
-      geolocateControl.current = new mapboxgl.GeolocateControl({
-        positionOptions: {
-          enableHighAccuracy: true
-        },
-        trackUserLocation: true,
-        showAccuracyCircle: true,
-        fitBoundsOptions: {
-          maxZoom: 15
-        }
-      });
-
-      map.current.addControl(geolocateControl.current, 'top-right');
-
-      // Position the control to align with the sign-in control
-      setTimeout(() => {
-        const geolocateElement = document.querySelector('.mapboxgl-ctrl-geolocate');
-        if (geolocateElement && geolocateElement.parentElement) {
-          (geolocateElement.parentElement as HTMLElement).style.marginTop = '80px';
-          (geolocateElement.parentElement as HTMLElement).style.marginRight = '16px';
-        }
-      }, 100);
-
-      // Set up geolocation event listeners
-      geolocateControl.current.on('trackuserlocationstart', () => {
-        console.log('🗺️ [Map] Started tracking user location');
-        
-        // Only enable proximity once when location tracking starts
-        if (!hasEnabledProximity.current) {
-          hasEnabledProximity.current = true;
-          console.log('🗺️ [Map] Enabling proximity alerts for the first time');
-          
-          // Enable proximity alerts only
-          updateProximityEnabled(true);
-          
-          toast({
-            title: "Location enabled!",
-            description: "Proximity alerts activated.",
-          });
-        }
-      });
-
-      geolocateControl.current.on('geolocate', (e: any) => {
-        console.log('🗺️ [Map] Location update received:', e);
-        
-        // Only update user location
-        setUserLocation({
-          latitude: e.coords.latitude,
-          longitude: e.coords.longitude,
-          accuracy: e.coords.accuracy,
-          timestamp: Date.now()
-        });
-      });
-
-      geolocateControl.current.on('error', (e: any) => {
-        console.log('🗺️ [Map] Location error:', e);
-        
-        toast({
-          title: "Location access denied",
-          description: "Enable location to get proximity alerts for nearby landmarks.",
-          variant: "destructive",
-        });
-      });
-
-      geolocateControl.current.on('trackuserlocationend', () => {
-        console.log('🗺️ [Map] Stopped tracking user location');
-      });
-
-    } else if (!user && geolocateControl.current) {
-      // User is not logged in but control exists - remove it
-      console.log('🗺️ [Map] Removing GeolocateControl for anonymous user');
-      
-      map.current.removeControl(geolocateControl.current);
-      geolocateControl.current = null;
-      hasEnabledProximity.current = false;
-    }
-  }, [user, updateProximityEnabled, setUserLocation, toast]);
 
   // Function to handle text-to-speech using Google Cloud TTS via edge function
   const handleTextToSpeech = async (landmark: Landmark) => {

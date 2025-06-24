@@ -1,0 +1,303 @@
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Settings, MapPin, Bell, BellOff, AlertTriangle, AlertCircle, Activity, RefreshCw, LogOut, HelpCircle } from 'lucide-react';
+import ProximitySettingsDialog from './ProximitySettingsDialog';
+import ProximityAlertsList from './ProximityAlertsList';
+import { useProximityAlerts } from '@/hooks/useProximityAlerts';
+import { useLocationTracking } from '@/hooks/useLocationTracking';
+import { usePermissionMonitor } from '@/hooks/usePermissionMonitor';
+import { useAuth } from '@/components/AuthProvider';
+import { formatDistance } from '@/utils/proximityUtils';
+
+const ProximityControlPanel: React.FC = () => {
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const { proximitySettings, proximityAlerts, isLoading } = useProximityAlerts();
+  const { locationState, userLocation } = useLocationTracking();
+  const { permissionState } = usePermissionMonitor();
+  const { signOut } = useAuth();
+
+  const activeAlertsCount = proximityAlerts.filter(alert => alert.is_enabled).length;
+  const isProximityEnabled = proximitySettings?.is_enabled || false;
+  const isRecoveryMode = isProximityEnabled && permissionState.state === 'denied';
+
+  // Check if we should show the permission help popover
+  const shouldShowPermissionHelp = isProximityEnabled && locationState.error;
+
+  const handleReload = () => {
+    window.location.reload();
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Sign out failed:', error);
+    }
+  };
+
+  if (isLoading && !proximitySettings) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="text-center text-muted-foreground">
+            Loading proximity settings...
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const getStatusInfo = () => {
+    if (!isProximityEnabled) {
+      return {
+        icon: <BellOff className="h-5 w-5 text-muted-foreground" />,
+        title: 'Proximity Alerts',
+        status: 'Disabled',
+        variant: 'outline' as const
+      };
+    }
+
+    if (isRecoveryMode) {
+      return {
+        icon: <AlertCircle className="h-5 w-5 text-amber-600" />,
+        title: 'Proximity Alerts',
+        status: 'Enabled (Permission Required)',
+        variant: 'secondary' as const
+      };
+    }
+
+    if (permissionState.state === 'denied') {
+      return {
+        icon: <AlertTriangle className="h-5 w-5 text-destructive" />,
+        title: 'Proximity Alerts',
+        status: 'Permission Denied',
+        variant: 'destructive' as const
+      };
+    }
+
+    return {
+      icon: <Bell className="h-5 w-5 text-primary" />,
+      title: 'Proximity Alerts',
+      status: 'Enabled',
+      variant: 'default' as const
+    };
+  };
+
+  const getLocationActivityInfo = () => {
+    if (!isProximityEnabled) {
+      return {
+        icon: <MapPin className="h-4 w-4 text-muted-foreground" />,
+        status: 'Location tracking disabled',
+        variant: 'outline' as const,
+        accuracy: null
+      };
+    }
+
+    if (locationState.error) {
+      return {
+        icon: <AlertTriangle className="h-4 w-4 text-destructive" />,
+        status: `Error: ${locationState.error}`,
+        variant: 'destructive' as const,
+        accuracy: null
+      };
+    }
+
+    if (locationState.isTracking && userLocation) {
+      const accuracy = userLocation.accuracy ? Math.round(userLocation.accuracy) : null;
+      return {
+        icon: <Activity className="h-4 w-4 text-green-600" />,
+        status: 'Active',
+        variant: 'default' as const,
+        accuracy: accuracy
+      };
+    }
+
+    if (locationState.isTracking && !userLocation) {
+      return {
+        icon: <Activity className="h-4 w-4 text-amber-600 animate-pulse" />,
+        status: 'Locating...',
+        variant: 'secondary' as const,
+        accuracy: null
+      };
+    }
+
+    return {
+      icon: <MapPin className="h-4 w-4 text-muted-foreground" />,
+      status: 'Inactive',
+      variant: 'outline' as const,
+      accuracy: null
+    };
+  };
+
+  const statusInfo = getStatusInfo();
+  const locationInfo = getLocationActivityInfo();
+
+  return (
+    <div className="space-y-4">
+      {/* Proximity Status Overview */}
+      <Card className={isRecoveryMode ? 'border-amber-200 bg-amber-50/50' : ''}>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              {statusInfo.icon}
+              {statusInfo.title}
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsSettingsOpen(true)}
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {/* Warning banner for recovery mode */}
+          {isRecoveryMode && (
+            <div className="mb-4 p-3 bg-amber-100 border border-amber-300 rounded-lg">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div className="text-sm">
+                  <div className="font-medium text-amber-800 mb-1">
+                    Location Permission Required
+                  </div>
+                  <div className="text-amber-700">
+                    Your proximity alerts are enabled but need location access to work. 
+                    <Button 
+                      variant="link" 
+                      size="sm" 
+                      className="p-0 h-auto text-amber-700 underline ml-1"
+                      onClick={() => setIsSettingsOpen(true)}
+                    >
+                      Fix this now
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {/* Proximity Status Row */}
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-muted-foreground">
+                    Alerts: 
+                  </p>
+                  <Badge variant={statusInfo.variant} className="text-xs">
+                    {statusInfo.status}
+                  </Badge>
+                </div>
+                {proximitySettings && (
+                  <p className="text-sm text-muted-foreground">
+                    Default distance: {formatDistance(proximitySettings.default_distance)}
+                  </p>
+                )}
+              </div>
+              <div className="text-right">
+                <Badge variant={activeAlertsCount > 0 ? "default" : "secondary"}>
+                  {activeAlertsCount} active alert{activeAlertsCount !== 1 ? 's' : ''}
+                </Badge>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {proximityAlerts.length} total
+                </p>
+              </div>
+            </div>
+
+            {/* Location Activity Row */}
+            <div className="flex items-center justify-between pt-2 border-t">
+              <div className="flex items-center gap-2">
+                {locationInfo.icon}
+                <div>
+                  <p className="text-sm font-medium">Location Tracking</p>
+                  <div className="flex items-center gap-1">
+                    {shouldShowPermissionHelp ? (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 cursor-pointer">
+                            {locationInfo.status}
+                            <HelpCircle className="h-3 w-3" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80" side="top">
+                          <div className="space-y-3">
+                            <div className="space-y-2">
+                              <h4 className="font-medium text-sm">Location Permission Issue</h4>
+                              <p className="text-sm text-muted-foreground">
+                                Sometimes location permissions get stuck. Try one of these solutions:
+                              </p>
+                            </div>
+                            <div className="space-y-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleReload}
+                                className="w-full justify-start"
+                              >
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                                Reload page
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleSignOut}
+                                className="w-full justify-start"
+                              >
+                                <LogOut className="h-4 w-4 mr-2" />
+                                Sign out & sign in
+                              </Button>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Both actions will re-prompt for location permission.
+                            </p>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">{locationInfo.status}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                {locationInfo.accuracy && (
+                  <Badge variant="outline" className="text-xs">
+                    ±{locationInfo.accuracy}m
+                  </Badge>
+                )}
+                {locationState.lastUpdate && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Updated {locationState.lastUpdate.toLocaleTimeString()}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Proximity Alerts List */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Your Proximity Alerts</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ProximityAlertsList />
+        </CardContent>
+      </Card>
+
+      {/* Settings Sheet */}
+      <ProximitySettingsDialog
+        open={isSettingsOpen}
+        onOpenChange={setIsSettingsOpen}
+      />
+    </div>
+  );
+};
+
+export default ProximityControlPanel;
