@@ -40,14 +40,14 @@ export const useProximityAlerts = () => {
   // Get combined landmarks (top landmarks + tour landmarks) - ALWAYS call this hook
   const combinedLandmarks = useCombinedLandmarks();
 
-  // Get default distance - calculate before calling useSortedLandmarks
-  const defaultDistance = proximitySettings?.default_distance || 100;
+  // Get default distance - only use if proximity settings exist
+  const defaultDistance = proximitySettings?.default_distance;
 
   // Get sorted landmarks within range - ALWAYS call this hook
   const sortedLandmarks = useSortedLandmarks(
     userLocation,
     combinedLandmarks,
-    defaultDistance
+    defaultDistance || 50 // Temporary fallback until settings load
   );
 
   // Core proximity detection logic - runs every time location or settings change
