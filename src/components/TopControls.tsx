@@ -122,7 +122,8 @@ const TopControls: React.FC<TopControlsProps> = ({
               </Button>
             )}
 
-            {/* Proximity Alerts Button */}
+            {/* Proximity Alerts Button - DEACTIVATED (functionality still runs in memory) */}
+            {/* 
             {user && (
               <Sheet>
                 <SheetTrigger asChild>
@@ -158,8 +159,10 @@ const TopControls: React.FC<TopControlsProps> = ({
                 </SheetContent>
               </Sheet>
             )}
+            */}
 
-            {/* Debug Window Button - Only show when proximity is enabled */}
+            {/* Debug Window Button - DEACTIVATED (functionality still runs in memory) */}
+            {/* 
             {user && isProximityEnabled && (
               <Button
                 variant="outline"
@@ -172,6 +175,7 @@ const TopControls: React.FC<TopControlsProps> = ({
                 <span className="hidden lg:inline text-amber-700">Debug: Show Landmarks</span>
               </Button>
             )}
+            */}
 
             {/* Image Analysis Button */}
             <ImageAnalysis plannedLandmarks={plannedLandmarks} />
@@ -181,7 +185,7 @@ const TopControls: React.FC<TopControlsProps> = ({
         )}
       </div>
 
-      {/* Debug Window */}
+      {/* Debug Window - Still functional, just button is hidden */}
       <LandmarksDebugWindow
         open={isDebugOpen}
         onOpenChange={setIsDebugOpen}
