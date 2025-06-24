@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -7,7 +6,6 @@ import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
-import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 
 interface MapProps {
   mapboxToken: string;
@@ -36,10 +34,8 @@ const Map: React.FC<MapProps> = ({
   const pendingPopupLandmark = useRef<Landmark | null>(null);
   const isZooming = useRef<boolean>(false);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
-  const navigationMarkers = useRef<{ marker: mapboxgl.Marker; interaction: any }[]>([]);
-  const geolocateControl = useRef<mapboxgl.GeolocateControl | null>(null);
+  const navigationMarkers = useRef<{ marker: mapboxgl.Marker; interaction: any }[]>([]); // Store navigation markers with interaction data
   const { user } = useAuth();
-  const { proximitySettings } = useProximityAlerts();
 
   // Convert top landmarks to Landmark format
   const allLandmarksWithTop = React.useMemo(() => {
@@ -180,44 +176,6 @@ const Map: React.FC<MapProps> = ({
       console.error('🗺️ [Map] Error during map initialization:', error);
     }
   }, [mapboxToken]);
-
-  // Add/remove geolocation control based on proximity settings
-  useEffect(() => {
-    if (!map.current) return;
-
-    if (proximitySettings?.is_enabled) {
-      // Add geolocation control if not already added
-      if (!geolocateControl.current) {
-        console.log('Adding geolocation control to map');
-        geolocateControl.current = new mapboxgl.GeolocateControl({
-          positionOptions: {
-            enableHighAccuracy: true
-          },
-          trackUserLocation: true,
-          showUserHeading: true,
-          showAccuracyCircle: true
-        });
-
-        map.current.addControl(geolocateControl.current, 'top-right');
-        
-        // Position the control below the sign-in control
-        setTimeout(() => {
-          const geolocateButton = document.querySelector('.mapboxgl-ctrl-geolocate');
-          if (geolocateButton && geolocateButton.parentElement) {
-            const controlGroup = geolocateButton.parentElement;
-            controlGroup.style.marginTop = '70px'; // Position below sign-in control (16px + 40px height + 14px gap)
-          }
-        }, 100); // Small delay to ensure DOM is ready
-      }
-    } else {
-      // Remove geolocation control if it exists
-      if (geolocateControl.current) {
-        console.log('Removing geolocation control from map');
-        map.current.removeControl(geolocateControl.current);
-        geolocateControl.current = null;
-      }
-    }
-  }, [proximitySettings?.is_enabled]);
 
   // Function to handle text-to-speech using Google Cloud TTS via edge function
   const handleTextToSpeech = async (landmark: Landmark) => {
