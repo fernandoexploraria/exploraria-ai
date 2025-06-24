@@ -25,7 +25,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
     isTracking: false,
     error: null,
     lastUpdate: null,
-    pollInterval: 30000, // 30 seconds for production
+    pollInterval: 5000, // Changed back to 5 seconds for debugging
   });
   
   const [userLocation, setCurrentUserLocation] = useState<UserLocation | null>(null);
