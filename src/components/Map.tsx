@@ -135,6 +135,14 @@ const Map: React.FC<MapProps> = ({
         });
         
         map.current.addControl(geolocateControl, 'top-right');
+
+        // Add custom CSS to position the control 30px from top
+        setTimeout(() => {
+          const controlContainer = document.querySelector('.mapboxgl-ctrl-top-right');
+          if (controlContainer) {
+            (controlContainer as HTMLElement).style.top = '30px';
+          }
+        }, 100);
       }
 
       map.current.on('style.load', () => {
