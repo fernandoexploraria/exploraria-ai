@@ -29,9 +29,9 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   const { toast } = useToast();
   const { proximitySettings, updateProximityEnabled, updateDefaultDistance, isSaving } = useProximityAlerts();
   
-  // Local form state - initialize with database value if available
+  // Local form state - initialize with database value if available, otherwise use defaults
   const [formEnabled, setFormEnabled] = useState(false);
-  const [formDistance, setFormDistance] = useState(proximitySettings?.default_distance ?? 50);
+  const [formDistance, setFormDistance] = useState(50);
   const [isDistanceSaving, setIsDistanceSaving] = useState(false);
   const [isToggleSaving, setIsToggleSaving] = useState(false);
 
@@ -117,18 +117,6 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   const handlePresetDistance = (distance: number) => {
     setFormDistance(distance);
   };
-
-  if (!proximitySettings) {
-    return (
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="sm:max-w-[500px]">
-          <div className="flex items-center justify-center p-8">
-            <span className="text-muted-foreground">Loading settings...</span>
-          </div>
-        </SheetContent>
-      </Sheet>
-    );
-  }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

@@ -268,17 +268,20 @@ export const useProximityAlerts = () => {
   }, [user, toast]);
 
   const updateDefaultDistance = useCallback(async (distance: number) => {
-    if (!user || !proximitySettings) return;
+    if (!user) return;
 
     setIsSaving(true);
     try {
+      // Use UPSERT to ensure settings are created or updated - remove dependency on proximitySettings
       const { error } = await supabase
         .from('proximity_settings')
-        .update({
+        .upsert({
+          user_id: user.id,
           default_distance: distance,
           updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', user.id);
+        }, {
+          onConflict: 'user_id'
+        });
 
       if (error) {
         console.error('Error updating default distance:', error);
@@ -297,7 +300,7 @@ export const useProximityAlerts = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [user, proximitySettings, toast]);
+  }, [user, toast]);
 
   const updateUserLocation = (location: UserLocation) => {
     setUserLocation(location);
