@@ -60,6 +60,27 @@ export const useSortedLandmarks = (
         
         // Update the stored ID to the current closest landmark
         setPreviousClosestId(closestLandmark.landmark.id);
+
+        // Add marker to map for the closest landmark
+        if ((window as any).navigateToMapCoordinates) {
+          // Create a simple green marker element
+          const markerElement = document.createElement('div');
+          markerElement.className = 'w-4 h-4 rounded-full bg-green-400 border-2 border-white shadow-lg cursor-pointer transition-transform duration-300 hover:scale-125';
+          markerElement.style.transition = 'background-color 0.3s, transform 0.3s';
+
+          // Access map through the global reference and add marker
+          const mapInstance = (window as any).map?.current;
+          if (mapInstance && (window as any).mapboxgl) {
+            const marker = new (window as any).mapboxgl.Marker(markerElement)
+              .setLngLat(closestLandmark.landmark.coordinates)
+              .addTo(mapInstance);
+
+            // Store in navigation markers array if it exists
+            if ((window as any).navigationMarkers) {
+              (window as any).navigationMarkers.current.push({ marker, interaction: null });
+            }
+          }
+        }
       }
     }
   }, [userLocation, sortedLandmarks, toast, previousClosestId]);
