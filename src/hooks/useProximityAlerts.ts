@@ -227,17 +227,25 @@ export const useProximityAlerts = () => {
   };
 
   const updateProximityEnabled = useCallback(async (enabled: boolean) => {
-    if (!user || !proximitySettings) return;
+    if (!user) {
+      console.log('No user available for updateProximityEnabled');
+      return;
+    }
 
+    console.log('updateProximityEnabled called with enabled:', enabled, 'for user:', user.id);
     setIsSaving(true);
+    
     try {
+      // Use UPSERT to ensure settings are created or updated
       const { error } = await supabase
         .from('proximity_settings')
-        .update({
+        .upsert({
+          user_id: user.id,
           is_enabled: enabled,
           updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', user.id);
+        }, {
+          onConflict: 'user_id'
+        });
 
       if (error) {
         console.error('Error updating proximity enabled status:', error);
@@ -249,6 +257,7 @@ export const useProximityAlerts = () => {
         throw error;
       }
 
+      console.log('Successfully updated proximity enabled status to:', enabled);
       // The real-time subscription will update the state automatically
     } catch (error) {
       console.error('Error in updateProximityEnabled:', error);
@@ -256,7 +265,7 @@ export const useProximityAlerts = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [user, proximitySettings, toast]);
+  }, [user, toast]);
 
   const updateDefaultDistance = useCallback(async (distance: number) => {
     if (!user || !proximitySettings) return;
