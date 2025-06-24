@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MapPin, Navigation, Users, Settings, Bell, BellOff, Timer, Activity } from 'lucide-react';
+import { MapPin, Navigation, Users, Settings, Bell, BellOff, Timer, Activity, MessageSquare, Route, CreditCard } from 'lucide-react';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { formatDistance } from '@/utils/proximityUtils';
@@ -21,7 +21,6 @@ const ProximityControlPanel: React.FC<ProximityControlPanelProps> = ({ className
   const activeAlertsCount = proximityAlerts.filter(alert => alert.is_enabled).length;
   const totalAlertsCount = proximityAlerts.length;
   const isProximityEnabled = proximitySettings?.is_enabled || false;
-  const defaultDistance = proximitySettings?.default_distance || 50;
 
   const handleEnableProximity = () => {
     setIsSettingsOpen(true);
@@ -67,13 +66,51 @@ const ProximityControlPanel: React.FC<ProximityControlPanelProps> = ({ className
             </div>
             
             <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">Default Range</div>
+              <div className="text-xs text-muted-foreground">Personal Alerts</div>
               <Badge variant="outline" className="text-xs">
-                <Navigation className="h-3 w-3 mr-1" />
-                {formatDistance(defaultDistance)}
+                <Users className="h-3 w-3 mr-1" />
+                {activeAlertsCount} / {totalAlertsCount}
               </Badge>
             </div>
           </div>
+
+          {/* Distance Settings Overview */}
+          {proximitySettings && (
+            <div className="space-y-2">
+              <div className="text-xs text-muted-foreground">Distance Settings</div>
+              <div className="grid grid-cols-1 gap-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1 text-xs">
+                    <MessageSquare className="h-3 w-3" />
+                    Toast
+                  </div>
+                  <Badge variant="outline" className="text-xs">
+                    {formatDistance(proximitySettings.toast_distance)}
+                  </Badge>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1 text-xs">
+                    <Route className="h-3 w-3" />
+                    Route
+                  </div>
+                  <Badge variant="outline" className="text-xs">
+                    {formatDistance(proximitySettings.route_distance)}
+                  </Badge>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1 text-xs">
+                    <CreditCard className="h-3 w-3" />
+                    Card
+                  </div>
+                  <Badge variant="outline" className="text-xs">
+                    {formatDistance(proximitySettings.card_distance)}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Location Status */}
           <div className="space-y-2">
@@ -110,17 +147,6 @@ const ProximityControlPanel: React.FC<ProximityControlPanelProps> = ({ className
                 {locationState.error}
               </div>
             )}
-          </div>
-
-          {/* Alert Stats */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Personal Alerts</span>
-              <Badge variant="outline" className="text-xs">
-                <Users className="h-3 w-3 mr-1" />
-                {activeAlertsCount} / {totalAlertsCount}
-              </Badge>
-            </div>
           </div>
 
           {/* Quick Actions */}

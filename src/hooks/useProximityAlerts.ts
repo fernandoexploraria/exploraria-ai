@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProximityAlert, ProximitySettings, UserLocation } from '@/types/proximityAlerts';
@@ -104,7 +105,9 @@ export const useProximityAlerts = () => {
                 id: payload.new.id,
                 user_id: payload.new.user_id,
                 is_enabled: payload.new.is_enabled,
-                default_distance: payload.new.default_distance,
+                toast_distance: payload.new.toast_distance,
+                route_distance: payload.new.route_distance,
+                card_distance: payload.new.card_distance,
                 created_at: payload.new.created_at,
                 updated_at: payload.new.updated_at,
               };
@@ -178,7 +181,9 @@ export const useProximityAlerts = () => {
           id: data.id,
           user_id: data.user_id,
           is_enabled: data.is_enabled,
-          default_distance: data.default_distance,
+          toast_distance: data.toast_distance,
+          route_distance: data.route_distance,
+          card_distance: data.card_distance,
           created_at: data.created_at,
           updated_at: data.updated_at,
         };
@@ -249,7 +254,9 @@ export const useProximityAlerts = () => {
         .upsert({
           user_id: user.id,
           is_enabled: enabled,
-          default_distance: globalProximityState.settings?.default_distance || 50,
+          toast_distance: globalProximityState.settings?.toast_distance || 100,
+          route_distance: globalProximityState.settings?.route_distance || 250,
+          card_distance: globalProximityState.settings?.card_distance || 50,
           updated_at: new Date().toISOString(),
         }, {
           onConflict: 'user_id'
@@ -270,38 +277,45 @@ export const useProximityAlerts = () => {
     }
   }, [user]);
 
-  const updateDefaultDistance = useCallback(async (distance: number) => {
-    console.log('🎯 updateDefaultDistance called with:', { distance, userId: user?.id });
+  const updateDistanceSetting = useCallback(async (distanceType: 'toast_distance' | 'route_distance' | 'card_distance', distance: number) => {
+    console.log('🎯 updateDistanceSetting called with:', { distanceType, distance, userId: user?.id });
     
     if (!user) {
-      console.log('❌ No user available for updateDefaultDistance');
+      console.log('❌ No user available for updateDistanceSetting');
       throw new Error('No user available');
     }
 
     setIsSaving(true);
     try {
-      console.log('💾 Making database request to update default distance...');
-      // Use UPSERT to ensure settings are created or updated
+      console.log('💾 Making database request to update distance setting...');
+      
+      const updateData = {
+        user_id: user.id,
+        is_enabled: globalProximityState.settings?.is_enabled || false,
+        toast_distance: globalProximityState.settings?.toast_distance || 100,
+        route_distance: globalProximityState.settings?.route_distance || 250,
+        card_distance: globalProximityState.settings?.card_distance || 50,
+        updated_at: new Date().toISOString(),
+      };
+      
+      // Update the specific distance type
+      updateData[distanceType] = distance;
+
       const { error } = await supabase
         .from('proximity_settings')
-        .upsert({
-          user_id: user.id,
-          default_distance: distance,
-          is_enabled: globalProximityState.settings?.is_enabled || false,
-          updated_at: new Date().toISOString(),
-        }, {
+        .upsert(updateData, {
           onConflict: 'user_id'
         });
 
       if (error) {
-        console.error('❌ Database error updating default distance:', error);
+        console.error('❌ Database error updating distance setting:', error);
         throw error;
       }
 
-      console.log('✅ Successfully updated default distance in database to:', distance);
+      console.log('✅ Successfully updated distance setting in database:', distanceType, distance);
       // The real-time subscription will update the state automatically
     } catch (error) {
-      console.error('❌ Error in updateDefaultDistance:', error);
+      console.error('❌ Error in updateDistanceSetting:', error);
       throw error;
     } finally {
       setIsSaving(false);
@@ -343,6 +357,6 @@ export const useProximityAlerts = () => {
     loadProximitySettings,
     loadProximityAlerts,
     updateProximityEnabled,
-    updateDefaultDistance,
+    updateDistanceSetting,
   };
 };

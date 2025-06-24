@@ -10,7 +10,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Loader2 } from 'lucide-react';
+import { MapPin, Loader2, MessageSquare, Route, CreditCard } from 'lucide-react';
 import { formatDistance } from '@/utils/proximityUtils';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useToast } from '@/hooks/use-toast';
@@ -27,51 +27,90 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   onOpenChange,
 }) => {
   const { toast } = useToast();
-  const { proximitySettings, updateProximityEnabled, updateDefaultDistance } = useProximityAlerts();
+  const { proximitySettings, updateProximityEnabled, updateDistanceSetting } = useProximityAlerts();
   
-  // Simple local state - only for distance slider to enable smooth interaction
-  const [localDistance, setLocalDistance] = useState<number>(50);
+  // Local state for smooth slider interactions
+  const [localToastDistance, setLocalToastDistance] = useState<number>(100);
+  const [localRouteDistance, setLocalRouteDistance] = useState<number>(250);
+  const [localCardDistance, setLocalCardDistance] = useState<number>(50);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // Initialize local distance when proximitySettings loads
+  // Initialize local distances when proximitySettings loads
   useEffect(() => {
     if (proximitySettings) {
-      console.log('📏 ProximitySettingsDialog: Settings loaded, setting local distance to:', proximitySettings.default_distance);
-      setLocalDistance(proximitySettings.default_distance);
+      console.log('📏 ProximitySettingsDialog: Settings loaded, setting local distances');
+      setLocalToastDistance(proximitySettings.toast_distance);
+      setLocalRouteDistance(proximitySettings.route_distance);
+      setLocalCardDistance(proximitySettings.card_distance);
     }
   }, [proximitySettings]);
 
-  // Auto-save distance with debouncing
+  // Auto-save toast distance with debouncing
   useEffect(() => {
-    if (!proximitySettings) return;
-    
-    // Skip if the distance matches the current database value
-    if (localDistance === proximitySettings.default_distance) {
-      return;
-    }
-
-    console.log('📏 ProximitySettingsDialog: Distance change detected, will save in 500ms:', localDistance);
+    if (!proximitySettings || localToastDistance === proximitySettings.toast_distance) return;
 
     const timeoutId = setTimeout(async () => {
       try {
-        await updateDefaultDistance(localDistance);
-        console.log('✅ ProximitySettingsDialog: Successfully auto-saved distance:', localDistance);
+        await updateDistanceSetting('toast_distance', localToastDistance);
+        console.log('✅ Auto-saved toast distance:', localToastDistance);
       } catch (error) {
-        console.error('❌ ProximitySettingsDialog: Error auto-saving distance:', error);
+        console.error('❌ Error auto-saving toast distance:', error);
         toast({
           title: "Error",
-          description: "Failed to save distance setting. Please try again.",
+          description: "Failed to save toast distance. Please try again.",
           variant: "destructive",
         });
-        // Revert on error
-        setLocalDistance(proximitySettings.default_distance);
+        setLocalToastDistance(proximitySettings.toast_distance);
       }
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [localDistance, proximitySettings?.default_distance, updateDefaultDistance, toast]);
+  }, [localToastDistance, proximitySettings?.toast_distance, updateDistanceSetting, toast]);
 
-  // Simple toggle handler
+  // Auto-save route distance with debouncing
+  useEffect(() => {
+    if (!proximitySettings || localRouteDistance === proximitySettings.route_distance) return;
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        await updateDistanceSetting('route_distance', localRouteDistance);
+        console.log('✅ Auto-saved route distance:', localRouteDistance);
+      } catch (error) {
+        console.error('❌ Error auto-saving route distance:', error);
+        toast({
+          title: "Error",
+          description: "Failed to save route distance. Please try again.",
+          variant: "destructive",
+        });
+        setLocalRouteDistance(proximitySettings.route_distance);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [localRouteDistance, proximitySettings?.route_distance, updateDistanceSetting, toast]);
+
+  // Auto-save card distance with debouncing
+  useEffect(() => {
+    if (!proximitySettings || localCardDistance === proximitySettings.card_distance) return;
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        await updateDistanceSetting('card_distance', localCardDistance);
+        console.log('✅ Auto-saved card distance:', localCardDistance);
+      } catch (error) {
+        console.error('❌ Error auto-saving card distance:', error);
+        toast({
+          title: "Error",
+          description: "Failed to save card distance. Please try again.",
+          variant: "destructive",
+        });
+        setLocalCardDistance(proximitySettings.card_distance);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [localCardDistance, proximitySettings?.card_distance, updateDistanceSetting, toast]);
+
   const handleEnabledChange = async (enabled: boolean) => {
     console.log('🎯 ProximitySettingsDialog: Toggle called with:', enabled);
     
@@ -102,15 +141,20 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     }
   };
 
-  const handleDistanceChange = (value: number[]) => {
-    const newDistance = value[0];
-    console.log('📏 ProximitySettingsDialog: Distance slider changed to:', newDistance);
-    setLocalDistance(newDistance);
-  };
-
-  const handlePresetDistance = (distance: number) => {
-    console.log('📏 ProximitySettingsDialog: Preset distance selected:', distance);
-    setLocalDistance(distance);
+  const handlePresetDistance = (distance: number, type: 'toast' | 'route' | 'card') => {
+    console.log('📏 ProximitySettingsDialog: Preset distance selected:', distance, 'for', type);
+    
+    switch (type) {
+      case 'toast':
+        setLocalToastDistance(distance);
+        break;
+      case 'route':
+        setLocalRouteDistance(distance);
+        break;
+      case 'card':
+        setLocalCardDistance(distance);
+        break;
+    }
   };
 
   // Get current state directly from proximitySettings (real-time synced)
@@ -119,8 +163,9 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   console.log('🔍 ProximitySettingsDialog render state:', {
     isEnabled,
     proximitySettingsExists: !!proximitySettings,
-    localDistance,
-    defaultDistance: proximitySettings?.default_distance,
+    localToastDistance,
+    localRouteDistance,
+    localCardDistance,
     isUpdating
   });
 
@@ -130,7 +175,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
         <SheetHeader className="pb-6">
           <SheetTitle>Proximity Alert Settings</SheetTitle>
           <SheetDescription>
-            Configure proximity alerts to get notified when you're near landmarks.
+            Configure proximity alerts to get notified when you're near landmarks. Set different distances for different types of notifications.
           </SheetDescription>
         </SheetHeader>
 
@@ -156,43 +201,116 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
             />
           </div>
 
-          {/* Distance Selection */}
+          {/* Toast Distance Settings */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="text-base font-medium flex items-center gap-2">
-                Default Alert Distance: {formatDistance(localDistance)}
+                <MessageSquare className="h-4 w-4" />
+                Toast Notifications: {formatDistance(localToastDistance)}
               </div>
             </div>
             
             <Slider
               min={25}
-              max={2000}
+              max={500}
               step={25}
-              value={[localDistance]}
-              onValueChange={handleDistanceChange}
+              value={[localToastDistance]}
+              onValueChange={(value) => setLocalToastDistance(value[0])}
               className="w-full"
             />
             
-            {/* Preset Distance Buttons */}
             <div className="flex flex-wrap gap-2">
               <span className="text-sm text-muted-foreground mr-2">Quick select:</span>
-              {PRESET_DISTANCES.map((distance) => (
+              {[25, 50, 100, 200, 300].map((distance) => (
                 <Badge
-                  key={distance}
-                  variant={localDistance === distance ? "default" : "outline"}
+                  key={`toast-${distance}`}
+                  variant={localToastDistance === distance ? "default" : "outline"}
                   className="cursor-pointer hover:bg-primary/80"
-                  onClick={() => handlePresetDistance(distance)}
+                  onClick={() => handlePresetDistance(distance, 'toast')}
                 >
                   {formatDistance(distance)}
                 </Badge>
               ))}
             </div>
             <div className="text-sm text-muted-foreground">
-              Choose the default distance for proximity alerts (25m - 2km range). 
-              <span className="text-xs block mt-1 text-muted-foreground/70">
-                Changes save automatically
-              </span>
+              Close-range notifications for immediate awareness (25m - 500m)
             </div>
+          </div>
+
+          {/* Route Distance Settings */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="text-base font-medium flex items-center gap-2">
+                <Route className="h-4 w-4" />
+                Route Visualization: {formatDistance(localRouteDistance)}
+              </div>
+            </div>
+            
+            <Slider
+              min={100}
+              max={1000}
+              step={50}
+              value={[localRouteDistance]}
+              onValueChange={(value) => setLocalRouteDistance(value[0])}
+              className="w-full"
+            />
+            
+            <div className="flex flex-wrap gap-2">
+              <span className="text-sm text-muted-foreground mr-2">Quick select:</span>
+              {[150, 250, 400, 600, 800].map((distance) => (
+                <Badge
+                  key={`route-${distance}`}
+                  variant={localRouteDistance === distance ? "default" : "outline"}
+                  className="cursor-pointer hover:bg-primary/80"
+                  onClick={() => handlePresetDistance(distance, 'route')}
+                >
+                  {formatDistance(distance)}
+                </Badge>
+              ))}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Medium-range for route planning and navigation (100m - 1km)
+            </div>
+          </div>
+
+          {/* Card Distance Settings */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="text-base font-medium flex items-center gap-2">
+                <CreditCard className="h-4 w-4" />
+                Floating Cards: {formatDistance(localCardDistance)}
+              </div>
+            </div>
+            
+            <Slider
+              min={25}
+              max={300}
+              step={25}
+              value={[localCardDistance]}
+              onValueChange={(value) => setLocalCardDistance(value[0])}
+              className="w-full"
+            />
+            
+            <div className="flex flex-wrap gap-2">
+              <span className="text-sm text-muted-foreground mr-2">Quick select:</span>
+              {[25, 50, 100, 150, 200].map((distance) => (
+                <Badge
+                  key={`card-${distance}`}
+                  variant={localCardDistance === distance ? "default" : "outline"}
+                  className="cursor-pointer hover:bg-primary/80"
+                  onClick={() => handlePresetDistance(distance, 'card')}
+                >
+                  {formatDistance(distance)}
+                </Badge>
+              ))}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Very close range for detailed information cards (25m - 300m)
+            </div>
+          </div>
+
+          <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-md">
+            <strong>Note:</strong> All changes save automatically. Make sure location permissions are enabled for proximity alerts to work.
           </div>
         </div>
       </SheetContent>

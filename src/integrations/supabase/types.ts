@@ -206,28 +206,34 @@ export type Database = {
       }
       proximity_settings: {
         Row: {
+          card_distance: number
           created_at: string
-          default_distance: number
           id: string
           is_enabled: boolean
+          route_distance: number
+          toast_distance: number
           unit: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          card_distance?: number
           created_at?: string
-          default_distance?: number
           id?: string
           is_enabled?: boolean
+          route_distance?: number
+          toast_distance?: number
           unit?: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          card_distance?: number
           created_at?: string
-          default_distance?: number
           id?: string
           is_enabled?: boolean
+          route_distance?: number
+          toast_distance?: number
           unit?: string
           updated_at?: string
           user_id?: string
