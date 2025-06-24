@@ -40,6 +40,7 @@ const Map: React.FC<MapProps> = ({
   // New refs for GeolocateControl management
   const geolocateControl = useRef<mapboxgl.GeolocateControl | null>(null);
   const isUpdatingFromProximitySettings = useRef<boolean>(false);
+  const pendingPermissionGrant = useRef<boolean>(false);
   
   const { user } = useAuth();
   const { updateProximityEnabled, proximitySettings } = useProximityAlerts();
@@ -160,10 +161,32 @@ const Map: React.FC<MapProps> = ({
             console.log('🌍 GeolocateControl: Enabling proximity (user initiated location)');
             updateProximityEnabled(true);
           }
+          
+          // If this was the first permission grant, start tracking
+          if (pendingPermissionGrant.current) {
+            console.log('🌍 GeolocateControl: First permission granted, starting tracking');
+            pendingPermissionGrant.current = false;
+            // Small delay to ensure the geolocate event is fully processed
+            setTimeout(() => {
+              if (geolocateControl.current) {
+                try {
+                  // Check if we're not already in ACTIVE_LOCK state
+                  const currentState = (geolocateControl.current as any)._watchState;
+                  if (currentState !== 'ACTIVE_LOCK') {
+                    console.log('🌍 GeolocateControl: Triggering tracking after permission grant');
+                    geolocateControl.current.trigger();
+                  }
+                } catch (error) {
+                  console.log('🌍 GeolocateControl: Error triggering after permission:', error);
+                }
+              }
+            }, 100);
+          }
         });
         
         geoControl.on('trackuserlocationstart', () => {
           console.log('🌍 GeolocateControl: Started tracking user location (ACTIVE state)');
+          pendingPermissionGrant.current = false; // Clear any pending permission state
           // Only update proximity settings if this wasn't triggered by our own update
           if (!isUpdatingFromProximitySettings.current) {
             console.log('🌍 GeolocateControl: Enabling proximity (tracking started)');
@@ -182,12 +205,28 @@ const Map: React.FC<MapProps> = ({
         
         geoControl.on('error', (e) => {
           console.error('🌍 GeolocateControl: Error occurred', e);
+          pendingPermissionGrant.current = false; // Clear any pending permission state
           // Only update proximity settings if this wasn't triggered by our own update
           if (!isUpdatingFromProximitySettings.current) {
             console.log('🌍 GeolocateControl: Disabling proximity (error occurred)');
             updateProximityEnabled(false);
           }
         });
+        
+        // Listen for the first click to detect permission request
+        const controlElement = geoControl._container;
+        if (controlElement) {
+          controlElement.addEventListener('click', () => {
+            const currentState = (geoControl as any)._watchState;
+            console.log('🌍 GeolocateControl: Button clicked, current state:', currentState);
+            
+            // If we're in INACTIVE state and user clicks, they're requesting permission
+            if (currentState === 'INACTIVE') {
+              console.log('🌍 GeolocateControl: Setting pending permission grant flag');
+              pendingPermissionGrant.current = true;
+            }
+          });
+        }
         
         // Add the control to the map
         map.current.addControl(geoControl, 'top-right');
