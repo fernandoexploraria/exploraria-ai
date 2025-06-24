@@ -1,8 +1,9 @@
 
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { Landmark } from '@/data/landmarks';
 import { UserLocation } from '@/types/proximityAlerts';
-import { calculateDistance } from '@/utils/proximityUtils';
+import { calculateDistance, formatDistance } from '@/utils/proximityUtils';
+import { useToast } from '@/hooks/use-toast';
 
 interface LandmarkWithDistance {
   landmark: Landmark;
@@ -14,7 +15,9 @@ export const useSortedLandmarks = (
   landmarks: Landmark[],
   maxDistance?: number
 ): LandmarkWithDistance[] => {
-  return useMemo(() => {
+  const { toast } = useToast();
+
+  const sortedLandmarks = useMemo(() => {
     if (!userLocation || landmarks.length === 0) {
       return [];
     }
@@ -41,4 +44,17 @@ export const useSortedLandmarks = (
     // Sort by distance (ascending)
     return filteredLandmarks.sort((a, b) => a.distance - b.distance);
   }, [userLocation, landmarks, maxDistance]);
+
+  // Show toast with closest landmark every time user location updates
+  useEffect(() => {
+    if (userLocation && sortedLandmarks.length > 0) {
+      const closestLandmark = sortedLandmarks[0];
+      toast({
+        title: "Closest Landmark",
+        description: `${closestLandmark.landmark.name} - ${formatDistance(closestLandmark.distance)}`,
+      });
+    }
+  }, [userLocation, sortedLandmarks, toast]);
+
+  return sortedLandmarks;
 };
