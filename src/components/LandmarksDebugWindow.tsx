@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -70,12 +69,11 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
 
   const defaultDistance = proximitySettings?.default_distance || 100;
 
-  // Get the raw array from useSortedLandmarks
+  // Get the raw array from useSortedLandmarks - fixed to use correct signature
   const sortedLandmarks = useSortedLandmarks(
     userLocation, 
     currentLandmarks, 
     defaultDistance,
-    undefined,
     debugOverrides
   );
 
