@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -9,6 +10,15 @@ import { useAuth } from '@/components/AuthProvider';
 
 // Google API key
 const GOOGLE_API_KEY = 'AIzaSyCjQKg2W9uIrIx4EmRnyf3WCkO4eeEvpyg';
+
+// Define MapProps interface
+interface MapProps {
+  mapboxToken: string;
+  landmarks: Landmark[];
+  onSelectLandmark: (landmark: Landmark) => void;
+  selectedLandmark: Landmark | null;
+  plannedLandmarks?: Landmark[];
+}
 
 const Map: React.FC<MapProps> = ({ 
   mapboxToken, 
