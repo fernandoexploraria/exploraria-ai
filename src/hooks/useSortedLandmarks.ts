@@ -8,7 +8,6 @@ import { useToast } from '@/hooks/use-toast';
 interface LandmarkWithDistance {
   landmark: Landmark;
   distance: number;
-  isClosest?: boolean;
 }
 
 export const useSortedLandmarks = (
@@ -24,7 +23,7 @@ export const useSortedLandmarks = (
       return [];
     }
 
-    const landmarksWithDistance: LandmarkWithDistance[] = landmarks.map(landmark => {
+    const landmarksWithDistance = landmarks.map(landmark => {
       const distance = calculateDistance(
         userLocation.latitude,
         userLocation.longitude,
@@ -34,8 +33,7 @@ export const useSortedLandmarks = (
 
       return {
         landmark,
-        distance,
-        isClosest: false // Initialize with false
+        distance
       };
     });
 
@@ -45,14 +43,7 @@ export const useSortedLandmarks = (
       : landmarksWithDistance;
 
     // Sort by distance (ascending)
-    const sorted = filteredLandmarks.sort((a, b) => a.distance - b.distance);
-    
-    // Mark the closest landmark
-    if (sorted.length > 0) {
-      sorted[0].isClosest = true;
-    }
-    
-    return sorted;
+    return filteredLandmarks.sort((a, b) => a.distance - b.distance);
   }, [userLocation, landmarks, maxDistance]);
 
   // Show toast only when closest landmark changes
