@@ -38,7 +38,7 @@ const Map: React.FC<MapProps> = ({
   const currentAudio = useRef<HTMLAudioElement | null>(null);
   const navigationMarkers = useRef<{ marker: mapboxgl.Marker; interaction: any }[]>([]);
   const geolocateControl = useRef<mapboxgl.GeolocateControl | null>(null);
-  const hasProcessedInitialLocation = useRef<boolean>(false);
+  const hasEnabledProximity = useRef<boolean>(false);
   const { user } = useAuth();
   const { updateProximityEnabled, updateDefaultDistance, setUserLocation, proximitySettings } = useProximityAlerts();
   const { toast } = useToast();
@@ -191,8 +191,8 @@ const Map: React.FC<MapProps> = ({
       // User is logged in and control doesn't exist - add it
       console.log('🗺️ [Map] Adding GeolocateControl for authenticated user');
       
-      // Reset the flag when adding a new control
-      hasProcessedInitialLocation.current = false;
+      // Reset the flag when adding a new control for a new user session
+      hasEnabledProximity.current = false;
       
       geolocateControl.current = new mapboxgl.GeolocateControl({
         positionOptions: {
@@ -219,40 +219,26 @@ const Map: React.FC<MapProps> = ({
       geolocateControl.current.on('trackuserlocationstart', () => {
         console.log('🗺️ [Map] Started tracking user location');
         
-        // Only process the initial location grant once
-        if (!hasProcessedInitialLocation.current) {
-          hasProcessedInitialLocation.current = true;
+        // Only enable proximity once when location tracking starts
+        if (!hasEnabledProximity.current) {
+          hasEnabledProximity.current = true;
+          console.log('🗺️ [Map] Enabling proximity alerts for the first time');
           
-          console.log('🗺️ [Map] Processing initial location grant');
+          // Enable proximity alerts with 50m default distance
+          updateProximityEnabled(true);
+          updateDefaultDistance(50);
           
-          // Wait for proximity settings to be available before updating
-          const waitForSettings = () => {
-            if (proximitySettings) {
-              console.log('🗺️ [Map] Proximity settings available, updating...');
-              
-              // Auto-enable proximity alerts with 50m default distance
-              updateProximityEnabled(true);
-              updateDefaultDistance(50);
-              
-              toast({
-                title: "Location enabled!",
-                description: "Proximity alerts activated with 50m range.",
-              });
-            } else {
-              console.log('🗺️ [Map] Proximity settings not yet available, waiting...');
-              // Retry after a short delay
-              setTimeout(waitForSettings, 100);
-            }
-          };
-          
-          waitForSettings();
+          toast({
+            title: "Location enabled!",
+            description: "Proximity alerts activated with 50m range.",
+          });
         }
       });
 
       geolocateControl.current.on('geolocate', (e: any) => {
         console.log('🗺️ [Map] Location update received:', e);
         
-        // Update user location for proximity alerts (this can happen multiple times)
+        // Only update user location - don't enable proximity here
         setUserLocation({
           latitude: e.coords.latitude,
           longitude: e.coords.longitude,
@@ -281,9 +267,9 @@ const Map: React.FC<MapProps> = ({
       
       map.current.removeControl(geolocateControl.current);
       geolocateControl.current = null;
-      hasProcessedInitialLocation.current = false;
+      hasEnabledProximity.current = false;
     }
-  }, [user, proximitySettings]); // Added proximitySettings as dependency
+  }, [user, updateProximityEnabled, updateDefaultDistance, setUserLocation, toast]); // Added updateProximityEnabled and updateDefaultDistance as dependencies
 
   // Function to handle text-to-speech using Google Cloud TTS via edge function
   const handleTextToSpeech = async (landmark: Landmark) => {
