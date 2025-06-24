@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -211,7 +212,7 @@ const Map: React.FC<MapProps> = ({
       setTimeout(() => {
         const geolocateElement = document.querySelector('.mapboxgl-ctrl-geolocate');
         if (geolocateElement && geolocateElement.parentElement) {
-          (geolocateElement.parentElement as HTMLElement).style.marginTop = '16px';
+          (geolocateElement.parentElement as HTMLElement).style.marginTop = '80px';
           (geolocateElement.parentElement as HTMLElement).style.marginRight = '16px';
         }
       }, 100);
