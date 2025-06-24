@@ -15,6 +15,7 @@ const globalProximityState = {
 };
 
 const notifySubscribers = (settings: ProximitySettings | null) => {
+  console.log('📢 Notifying all subscribers with settings:', settings);
   globalProximityState.settings = settings;
   globalProximityState.subscribers.forEach(callback => callback(settings));
 };
@@ -39,6 +40,7 @@ export const useProximityAlerts = () => {
     // Add this component as a subscriber
     const updateSettings = (settings: ProximitySettings | null) => {
       if (isMountedRef.current) {
+        console.log('🔄 Component received settings update:', settings);
         setProximitySettings(settings);
       }
     };
@@ -47,6 +49,7 @@ export const useProximityAlerts = () => {
     
     // Set initial state if already available
     if (globalProximityState.settings && globalProximityState.currentUserId === user.id) {
+      console.log('🔄 Setting initial state from global state:', globalProximityState.settings);
       setProximitySettings(globalProximityState.settings);
     }
 
@@ -65,7 +68,7 @@ export const useProximityAlerts = () => {
 
     // If user changed, clean up previous subscription
     if (globalProximityState.currentUserId && globalProximityState.currentUserId !== user.id) {
-      console.log('User changed, cleaning up previous proximity settings subscription');
+      console.log('👤 User changed, cleaning up previous proximity settings subscription');
       if (globalProximityState.channel) {
         supabase.removeChannel(globalProximityState.channel);
         globalProximityState.channel = null;
@@ -77,7 +80,7 @@ export const useProximityAlerts = () => {
 
     // Only create subscription if none exists
     if (!globalProximityState.channel && !globalProximityState.isSubscribed) {
-      console.log('Creating new proximity settings subscription for user:', user.id);
+      console.log('📡 Creating new proximity settings subscription for user:', user.id);
       
       const channelName = `proximity-settings-${user.id}`;
       
@@ -92,7 +95,7 @@ export const useProximityAlerts = () => {
             filter: `user_id=eq.${user.id}`
           },
           (payload) => {
-            console.log('Real-time proximity settings update:', payload);
+            console.log('🔄 Real-time proximity settings update received:', payload);
             if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
               const settings: ProximitySettings = {
                 id: payload.new.id,
@@ -102,24 +105,25 @@ export const useProximityAlerts = () => {
                 created_at: payload.new.created_at,
                 updated_at: payload.new.updated_at,
               };
-              console.log('Notifying all subscribers with updated settings:', settings);
+              console.log('🔄 Parsed settings from real-time update:', settings);
               notifySubscribers(settings);
             } else if (payload.eventType === 'DELETE') {
+              console.log('🗑️ Settings deleted via real-time update');
               notifySubscribers(null);
             }
           }
         )
         .subscribe((status) => {
-          console.log('Proximity settings subscription status:', status);
+          console.log('📡 Proximity settings subscription status:', status);
           if (status === 'SUBSCRIBED') {
             globalProximityState.isSubscribed = true;
             // Load initial data after successful subscription
             loadProximitySettings();
           } else if (status === 'CHANNEL_ERROR') {
-            console.error('Proximity settings channel subscription error');
+            console.error('❌ Proximity settings channel subscription error');
             globalProximityState.isSubscribed = false;
           } else if (status === 'TIMED_OUT') {
-            console.error('Proximity settings channel subscription timed out');
+            console.error('⏰ Proximity settings channel subscription timed out');
             globalProximityState.isSubscribed = false;
           }
         });
@@ -127,6 +131,7 @@ export const useProximityAlerts = () => {
       globalProximityState.channel = channel;
     } else if (globalProximityState.isSubscribed) {
       // If subscription already exists, just load data
+      console.log('📡 Subscription already exists, loading data');
       loadProximitySettings();
     }
 
@@ -135,7 +140,7 @@ export const useProximityAlerts = () => {
       // Only clean up when the last subscriber unmounts
       const subscriberCount = globalProximityState.subscribers.size;
       if (subscriberCount === 0 && globalProximityState.channel) {
-        console.log('No more proximity settings subscribers, cleaning up global subscription');
+        console.log('🧹 No more proximity settings subscribers, cleaning up global subscription');
         supabase.removeChannel(globalProximityState.channel);
         globalProximityState.channel = null;
         globalProximityState.isSubscribed = false;
@@ -157,6 +162,7 @@ export const useProximityAlerts = () => {
 
     setIsLoading(true);
     try {
+      console.log('📥 Loading proximity settings for user:', user.id);
       const { data, error } = await supabase
         .from('proximity_settings')
         .select('*')
@@ -164,7 +170,7 @@ export const useProximityAlerts = () => {
         .maybeSingle();
 
       if (error) {
-        console.error('Error loading proximity settings:', error);
+        console.error('❌ Error loading proximity settings:', error);
         return;
       }
 
@@ -178,16 +184,14 @@ export const useProximityAlerts = () => {
           created_at: data.created_at,
           updated_at: data.updated_at,
         };
-        console.log('Loaded proximity settings:', settings);
+        console.log('📥 Loaded proximity settings:', settings);
         notifySubscribers(settings);
       } else {
-        // Since we now auto-create settings via trigger, this should rarely happen
-        // But keep as fallback for existing users or edge cases
-        console.log('No proximity settings found for user, they should be auto-created on signup');
+        console.log('📭 No proximity settings found for user');
         notifySubscribers(null);
       }
     } catch (error) {
-      console.error('Error in loadProximitySettings:', error);
+      console.error('❌ Error in loadProximitySettings:', error);
     } finally {
       if (isMountedRef.current) {
         setIsLoading(false);
@@ -228,18 +232,18 @@ export const useProximityAlerts = () => {
   };
 
   const updateProximityEnabled = useCallback(async (enabled: boolean) => {
-    console.log('updateProximityEnabled function called with:', { enabled, userId: user?.id });
+    console.log('🎯 updateProximityEnabled function called with:', { enabled, userId: user?.id });
     
     if (!user) {
-      console.log('No user available for updateProximityEnabled');
+      console.log('❌ No user available for updateProximityEnabled');
       return;
     }
 
-    console.log('updateProximityEnabled proceeding with user:', user.id);
+    console.log('📡 updateProximityEnabled proceeding with user:', user.id);
     setIsSaving(true);
     
     try {
-      console.log('Making database request to update proximity enabled status...');
+      console.log('💾 Making database request to update proximity enabled status...');
       // Use UPSERT to ensure settings are created or updated
       const { error } = await supabase
         .from('proximity_settings')
@@ -252,7 +256,7 @@ export const useProximityAlerts = () => {
         });
 
       if (error) {
-        console.error('Database error updating proximity enabled status:', error);
+        console.error('❌ Database error updating proximity enabled status:', error);
         toast({
           title: "Error",
           description: "Failed to update proximity settings. Please try again.",
@@ -261,10 +265,10 @@ export const useProximityAlerts = () => {
         throw error;
       }
 
-      console.log('Successfully updated proximity enabled status in database to:', enabled);
+      console.log('✅ Successfully updated proximity enabled status in database to:', enabled);
       // The real-time subscription will update the state automatically
     } catch (error) {
-      console.error('Error in updateProximityEnabled:', error);
+      console.error('❌ Error in updateProximityEnabled:', error);
       throw error;
     } finally {
       setIsSaving(false);
@@ -272,17 +276,17 @@ export const useProximityAlerts = () => {
   }, [user, toast]);
 
   const updateDefaultDistance = useCallback(async (distance: number) => {
-    console.log('updateDefaultDistance called with:', { distance, userId: user?.id });
+    console.log('🎯 updateDefaultDistance called with:', { distance, userId: user?.id });
     
     if (!user) {
-      console.log('No user available for updateDefaultDistance');
+      console.log('❌ No user available for updateDefaultDistance');
       return;
     }
 
     setIsSaving(true);
     try {
-      console.log('Making database request to update default distance...');
-      // Use UPSERT to ensure settings are created or updated - remove dependency on proximitySettings
+      console.log('💾 Making database request to update default distance...');
+      // Use UPSERT to ensure settings are created or updated
       const { error } = await supabase
         .from('proximity_settings')
         .upsert({
@@ -294,7 +298,7 @@ export const useProximityAlerts = () => {
         });
 
       if (error) {
-        console.error('Database error updating default distance:', error);
+        console.error('❌ Database error updating default distance:', error);
         toast({
           title: "Error",
           description: "Failed to update default distance. Please try again.",
@@ -303,10 +307,10 @@ export const useProximityAlerts = () => {
         throw error;
       }
 
-      console.log('Successfully updated default distance in database to:', distance);
+      console.log('✅ Successfully updated default distance in database to:', distance);
       // The real-time subscription will update the state automatically
     } catch (error) {
-      console.error('Error in updateDefaultDistance:', error);
+      console.error('❌ Error in updateDefaultDistance:', error);
       throw error;
     } finally {
       setIsSaving(false);

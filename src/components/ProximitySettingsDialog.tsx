@@ -29,33 +29,37 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   const { toast } = useToast();
   const { proximitySettings, updateProximityEnabled, updateDefaultDistance, isSaving } = useProximityAlerts();
   
-  // Local form state - initialize with database value if available, otherwise use defaults
+  // Local form state
   const [formEnabled, setFormEnabled] = useState(false);
   const [formDistance, setFormDistance] = useState(50);
   const [isDistanceSaving, setIsDistanceSaving] = useState(false);
   const [isToggleSaving, setIsToggleSaving] = useState(false);
 
-  // Initialize form state when settings become available for the first time
+  // Sync form state with proximity settings - handle all updates, not just initial load
   useEffect(() => {
     if (proximitySettings) {
-      console.log('Initializing form state with proximity settings:', proximitySettings);
-      setFormEnabled(proximitySettings.is_enabled);
-      setFormDistance(proximitySettings.default_distance);
+      console.log('🔄 Syncing form state with proximitySettings:', {
+        dbEnabled: proximitySettings.is_enabled,
+        dbDistance: proximitySettings.default_distance,
+        currentFormEnabled: formEnabled,
+        currentFormDistance: formDistance
+      });
+      
+      // Always sync form state with database state to handle real-time updates
+      if (proximitySettings.is_enabled !== formEnabled) {
+        console.log('🔄 Updating form enabled state from', formEnabled, 'to', proximitySettings.is_enabled);
+        setFormEnabled(proximitySettings.is_enabled);
+      }
+      
+      if (proximitySettings.default_distance !== formDistance) {
+        console.log('🔄 Updating form distance from', formDistance, 'to', proximitySettings.default_distance);
+        setFormDistance(proximitySettings.default_distance);
+      }
     }
-  }, [proximitySettings]);
+  }, [proximitySettings?.is_enabled, proximitySettings?.default_distance]); // Depend on specific values
 
-  // Re-initialize form state when dialog opens (if settings are already loaded)
+  // Auto-save distance with debouncing
   useEffect(() => {
-    if (proximitySettings && open) {
-      console.log('Re-initializing form state on dialog open:', proximitySettings);
-      setFormEnabled(proximitySettings.is_enabled);
-      setFormDistance(proximitySettings.default_distance);
-    }
-  }, [proximitySettings, open]);
-
-  // Auto-save distance with debouncing - removed proximitySettings guard
-  useEffect(() => {
-    // Skip if we don't have a distance change or no user
     if (!formDistance) return;
     
     // Skip if the distance matches the current database value (to avoid unnecessary updates)
@@ -63,15 +67,15 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
       return;
     }
 
-    console.log('Auto-saving distance:', formDistance, 'current DB value:', proximitySettings?.default_distance);
+    console.log('💾 Auto-saving distance:', formDistance, 'current DB value:', proximitySettings?.default_distance);
 
     const timeoutId = setTimeout(async () => {
       setIsDistanceSaving(true);
       try {
         await updateDefaultDistance(formDistance);
-        console.log('Successfully auto-saved distance:', formDistance);
+        console.log('✅ Successfully auto-saved distance:', formDistance);
       } catch (error) {
-        console.error('Error auto-saving distance:', error);
+        console.error('❌ Error auto-saving distance:', error);
         toast({
           title: "Error",
           description: "Failed to save distance setting. Please try again.",
@@ -86,16 +90,17 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   }, [formDistance, proximitySettings?.default_distance, updateDefaultDistance, toast]);
 
   const handleEnabledChange = async (enabled: boolean) => {
-    console.log('handleEnabledChange called with enabled:', enabled);
+    console.log('🎯 handleEnabledChange called with enabled:', enabled);
+    
+    // Immediately update UI for responsive feedback
     setFormEnabled(enabled);
     setIsToggleSaving(true);
 
     try {
-      console.log('About to call updateProximityEnabled with:', enabled);
+      console.log('📡 About to call updateProximityEnabled with:', enabled);
       await updateProximityEnabled(enabled);
-      console.log('Successfully updated proximity enabled to:', enabled);
+      console.log('✅ Successfully updated proximity enabled to:', enabled);
       
-      // Update toast messages to handle cases where settings might not exist yet
       if (enabled) {
         toast({
           title: "Proximity Alerts Enabled",
@@ -108,10 +113,10 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
         });
       }
     } catch (error) {
-      console.error('Error saving proximity enabled setting:', error);
-      // Revert the local state on error - use current proximitySettings value or false as fallback
+      console.error('❌ Error saving proximity enabled setting:', error);
+      // Revert the optimistic UI update on error
       const revertValue = proximitySettings?.is_enabled ?? false;
-      console.log('Reverting form state to:', revertValue);
+      console.log('🔄 Reverting form state to:', revertValue);
       setFormEnabled(revertValue);
       toast({
         title: "Error",
