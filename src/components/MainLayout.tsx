@@ -5,6 +5,7 @@ import TopControls from '@/components/TopControls';
 import UserControls from '@/components/UserControls';
 import DialogManager from '@/components/DialogManager';
 import NewTourAssistant from '@/components/NewTourAssistant';
+import ProximityDetector from '@/components/ProximityDetector';
 import { Landmark } from '@/data/landmarks';
 import { User } from '@supabase/supabase-js';
 
@@ -67,6 +68,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
   return (
     <div className="w-screen h-screen relative">
+      <ProximityDetector landmarks={allLandmarks} />
+      
       <TopControls
         allLandmarks={allLandmarks}
         onSelectLandmark={onSelectLandmark}
