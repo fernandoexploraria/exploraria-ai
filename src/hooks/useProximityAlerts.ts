@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProximityAlert, ProximitySettings, UserLocation } from '@/types/proximityAlerts';
@@ -400,6 +399,8 @@ export const useProximityAlerts = () => {
     userLocation,
     isLoading,
     isSaving,
+    sortedLandmarks, // Export sorted landmarks for shared use
+    combinedLandmarks, // Also export combined landmarks for debug purposes
     setProximityAlerts,
     setProximitySettings: notifySubscribers,
     setUserLocation: updateUserLocation,

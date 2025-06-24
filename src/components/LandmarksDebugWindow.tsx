@@ -10,10 +10,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Navigation, Database, Activity } from 'lucide-react';
-import { useSortedLandmarks } from '@/hooks/useSortedLandmarks';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
-import { useCombinedLandmarks } from '@/hooks/useCombinedLandmarks';
 import { formatDistance } from '@/utils/proximityUtils';
 
 interface LandmarksDebugWindowProps {
@@ -26,16 +24,9 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
   onOpenChange,
 }) => {
   const { userLocation, locationState } = useLocationTracking();
-  const { proximitySettings } = useProximityAlerts();
-  const combinedLandmarks = useCombinedLandmarks();
+  const { proximitySettings, sortedLandmarks, combinedLandmarks } = useProximityAlerts();
 
   const defaultDistance = proximitySettings?.default_distance || 50;
-
-  const sortedLandmarks = useSortedLandmarks(
-    userLocation, 
-    combinedLandmarks, 
-    defaultDistance
-  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -142,13 +133,13 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
             </CardContent>
           </Card>
 
-          {/* Sorted Landmarks List */}
+          {/* Sorted Landmarks List - Now using shared instance */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between text-base">
                 <div className="flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
-                  Sorted Landmarks (Within {defaultDistance}m)
+                  Sorted Landmarks (Within {defaultDistance}m) - SHARED INSTANCE
                 </div>
                 <Badge variant="default">{sortedLandmarks.length} in range</Badge>
               </CardTitle>
@@ -162,6 +153,11 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
                         <div className="flex items-center gap-2">
                           <Badge variant="outline" className="text-xs">#{index + 1}</Badge>
                           <span className="font-medium text-sm">{item.landmark.name}</span>
+                          {index === 0 && (
+                            <Badge variant="default" className="text-xs bg-green-500">
+                              CLOSEST - TOAST TARGET
+                            </Badge>
+                          )}
                         </div>
                         <div className="text-xs text-muted-foreground">ID: {item.landmark.id}</div>
                         <div className="text-xs text-muted-foreground">
