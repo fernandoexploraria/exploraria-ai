@@ -13,23 +13,28 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { MapPin, Navigation, Clock, Database, Settings, TestTube, Activity } from 'lucide-react';
+import { MapPin, Navigation, Clock, Database, Settings, TestTube, Activity, Target, Play, Square } from 'lucide-react';
 import { useSortedLandmarks } from '@/hooks/useSortedLandmarks';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useLandmarkSourceToggle, LANDMARK_SOURCE_OPTIONS, LandmarkSource } from '@/hooks/useLandmarkSourceToggle';
+import { DebugOverrides } from '@/types/debugOverrides';
 import { formatDistance } from '@/utils/proximityUtils';
 import { useToast } from '@/hooks/use-toast';
 
 interface LandmarksDebugWindowProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onDebugOverridesChange?: (overrides: DebugOverrides) => void;
 }
 
 const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
   open,
   onOpenChange,
+  onDebugOverridesChange,
 }) => {
   const { toast } = useToast();
   const { userLocation, locationState } = useLocationTracking();
@@ -43,6 +48,17 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
     sourceCounts
   } = useLandmarkSourceToggle();
 
+  // Debug override state
+  const [debugOverrides, setDebugOverrides] = useState<DebugOverrides>({
+    enabled: false,
+    targetLandmarkId: null,
+    forcedDistance: null,
+  });
+
+  // Test mode UI state
+  const [selectedLandmarkId, setSelectedLandmarkId] = useState<string>('');
+  const [forcedDistanceInput, setForcedDistanceInput] = useState<string>('');
+
   // Dynamic range controls state
   const [toastRange, setToastRange] = useState([1000]);
   const [routeRange, setRouteRange] = useState([500]);
@@ -54,14 +70,21 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
 
   const defaultDistance = proximitySettings?.default_distance || 100;
 
-  // Get the raw array from useSortedLandmarks - this is what we want to debug
+  // Get the raw array from useSortedLandmarks
   const sortedLandmarks = useSortedLandmarks(
     userLocation, 
     currentLandmarks, 
-    defaultDistance
+    defaultDistance,
+    undefined,
+    debugOverrides
   );
 
   const closestLandmark = sortedLandmarks.length > 0 ? sortedLandmarks[0] : null;
+
+  // Notify parent component when debug overrides change
+  useEffect(() => {
+    onDebugOverridesChange?.(debugOverrides);
+  }, [debugOverrides, onDebugOverridesChange]);
 
   // Function to determine what notifications would trigger at a given distance
   const getNotificationsThatWouldTrigger = (distance: number) => {
@@ -113,6 +136,38 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
     });
   };
 
+  const handleApplyOverride = () => {
+    const distance = parseInt(forcedDistanceInput);
+    if (selectedLandmarkId && !isNaN(distance) && distance >= 0) {
+      const newOverrides = {
+        enabled: true,
+        targetLandmarkId: selectedLandmarkId,
+        forcedDistance: distance,
+      };
+      setDebugOverrides(newOverrides);
+      
+      toast({
+        title: "Debug Override Applied",
+        description: `Distance for selected landmark set to ${distance}m`,
+      });
+    }
+  };
+
+  const handleClearOverride = () => {
+    setDebugOverrides({
+      enabled: false,
+      targetLandmarkId: null,
+      forcedDistance: null,
+    });
+    
+    toast({
+      title: "Debug Override Cleared",
+      description: "Using real distances again",
+    });
+  };
+
+  const selectedLandmark = currentLandmarks.find(l => l.id === selectedLandmarkId);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[700px] overflow-y-auto">
@@ -127,6 +182,86 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Test Mode Controls */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Target className="h-4 w-4" />
+                Test Mode - Force Distances
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="test-mode"
+                  checked={debugOverrides.enabled}
+                  onCheckedChange={(checked) => 
+                    setDebugOverrides(prev => ({ ...prev, enabled: checked }))
+                  }
+                />
+                <Label htmlFor="test-mode">Enable Test Mode</Label>
+              </div>
+
+              {debugOverrides.enabled && (
+                <div className="space-y-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Target Landmark</Label>
+                    <Select value={selectedLandmarkId} onValueChange={setSelectedLandmarkId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a landmark to test" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {currentLandmarks.map((landmark) => (
+                          <SelectItem key={landmark.id} value={landmark.id}>
+                            {landmark.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Forced Distance (meters)</Label>
+                    <Input
+                      placeholder="Enter distance in meters"
+                      value={forcedDistanceInput}
+                      onChange={(e) => setForcedDistanceInput(e.target.value)}
+                      type="number"
+                      min="0"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={handleApplyOverride} 
+                      size="sm"
+                      disabled={!selectedLandmarkId || !forcedDistanceInput}
+                    >
+                      <Play className="h-3 w-3 mr-1" />
+                      Apply Override
+                    </Button>
+                    <Button 
+                      onClick={handleClearOverride} 
+                      variant="outline" 
+                      size="sm"
+                    >
+                      <Square className="h-3 w-3 mr-1" />
+                      Clear Override
+                    </Button>
+                  </div>
+
+                  {debugOverrides.targetLandmarkId && debugOverrides.forcedDistance !== null && (
+                    <div className="p-2 bg-green-100 rounded border border-green-300">
+                      <div className="text-sm font-medium text-green-800">
+                        Active Override: {currentLandmarks.find(l => l.id === debugOverrides.targetLandmarkId)?.name} → {debugOverrides.forcedDistance}m
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Dynamic Range Controls */}
           <Card>
             <CardHeader>
@@ -258,7 +393,12 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Distance:</span>
-                    <Badge variant="default">{formatDistance(closestLandmark.distance)}</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="default">{formatDistance(closestLandmark.distance)}</Badge>
+                      {debugOverrides.enabled && debugOverrides.targetLandmarkId === closestLandmark.landmark.id && (
+                        <Badge variant="secondary" className="text-xs">FORCED</Badge>
+                      )}
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <span className="text-sm font-medium">Would Trigger:</span>

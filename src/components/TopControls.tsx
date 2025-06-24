@@ -8,6 +8,7 @@ import ImageAnalysis from '@/components/ImageAnalysis';
 import ProximityControlPanel from '@/components/ProximityControlPanel';
 import LandmarksDebugWindow from '@/components/LandmarksDebugWindow';
 import { Landmark } from '@/data/landmarks';
+import { DebugOverrides } from '@/types/debugOverrides';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import {
@@ -28,6 +29,7 @@ interface TopControlsProps {
   onLogoClick: () => void;
   user: any;
   plannedLandmarks: Landmark[];
+  onDebugOverridesChange?: (overrides: DebugOverrides) => void;
 }
 
 const TopControls: React.FC<TopControlsProps> = ({
@@ -38,7 +40,8 @@ const TopControls: React.FC<TopControlsProps> = ({
   onVoiceAssistantOpen,
   onLogoClick,
   user,
-  plannedLandmarks
+  plannedLandmarks,
+  onDebugOverridesChange
 }) => {
   const isMobile = useIsMobile();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -148,6 +151,7 @@ const TopControls: React.FC<TopControlsProps> = ({
       <LandmarksDebugWindow
         open={isDebugOpen}
         onOpenChange={setIsDebugOpen}
+        onDebugOverridesChange={onDebugOverridesChange}
       />
     </div>
   );

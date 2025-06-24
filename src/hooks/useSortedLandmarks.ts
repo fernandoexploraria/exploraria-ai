@@ -2,6 +2,7 @@
 import { useMemo, useEffect, useState } from 'react';
 import { Landmark } from '@/data/landmarks';
 import { UserLocation } from '@/types/proximityAlerts';
+import { DebugOverrides } from '@/types/debugOverrides';
 import { calculateDistance, formatDistance } from '@/utils/proximityUtils';
 import { useToast } from '@/hooks/use-toast';
 
@@ -19,7 +20,8 @@ export const useSortedLandmarks = (
   userLocation: UserLocation | null,
   landmarks: Landmark[],
   maxDistance: number,
-  eventHandlers?: ProximityEventHandlers
+  eventHandlers?: ProximityEventHandlers,
+  debugOverrides?: DebugOverrides
 ): LandmarkWithDistance[] => {
   const { toast } = useToast();
   const [previousClosestId, setPreviousClosestId] = useState<string | null>(null);
@@ -31,12 +33,20 @@ export const useSortedLandmarks = (
     }
 
     const landmarksWithDistance = landmarks.map(landmark => {
-      const distance = calculateDistance(
-        userLocation.latitude,
-        userLocation.longitude,
-        landmark.coordinates[1], // latitude
-        landmark.coordinates[0]  // longitude
-      );
+      let distance: number;
+      
+      // Check if this landmark should have its distance overridden
+      if (debugOverrides?.enabled && debugOverrides.targetLandmarkId === landmark.id && debugOverrides.forcedDistance !== null) {
+        distance = debugOverrides.forcedDistance;
+        console.log(`🔧 Debug Override: ${landmark.name} distance forced to ${distance}m`);
+      } else {
+        distance = calculateDistance(
+          userLocation.latitude,
+          userLocation.longitude,
+          landmark.coordinates[1], // latitude
+          landmark.coordinates[0]  // longitude
+        );
+      }
 
       return {
         landmark,
@@ -49,7 +59,7 @@ export const useSortedLandmarks = (
 
     // Sort by distance (ascending)
     return filteredLandmarks.sort((a, b) => a.distance - b.distance);
-  }, [userLocation, landmarks, maxDistance]);
+  }, [userLocation, landmarks, maxDistance, debugOverrides]);
 
   // Enhanced proximity notification logic with expanded testing ranges
   useEffect(() => {

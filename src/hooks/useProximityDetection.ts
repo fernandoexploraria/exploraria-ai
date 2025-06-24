@@ -2,6 +2,7 @@
 import { useEffect } from 'react';
 import { Landmark } from '@/data/landmarks';
 import { UserLocation } from '@/types/proximityAlerts';
+import { DebugOverrides } from '@/types/debugOverrides';
 import { useSortedLandmarks } from '@/hooks/useSortedLandmarks';
 
 interface ProximityEventHandlers {
@@ -13,14 +14,16 @@ export const useProximityDetection = (
   userLocation: UserLocation | null,
   landmarks: Landmark[],
   maxDistance: number,
-  eventHandlers?: ProximityEventHandlers
+  eventHandlers?: ProximityEventHandlers,
+  debugOverrides?: DebugOverrides
 ) => {
   // Use the sorted landmarks hook for proximity detection
   const sortedLandmarks = useSortedLandmarks(
     userLocation,
     landmarks,
     maxDistance,
-    eventHandlers
+    eventHandlers,
+    debugOverrides
   );
 
   return {
