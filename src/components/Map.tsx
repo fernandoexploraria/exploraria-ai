@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -58,355 +59,34 @@ const Map: React.FC<MapProps> = ({
     return [...landmarks, ...topLandmarksConverted];
   }, [landmarks]);
 
-  // Function to fetch Google Places details
-  const fetchGooglePlacesDetails = async (landmark: Landmark) => {
-    try {
-      console.log('🏪 Fetching Google Places details for:', landmark.name);
-      
-      const { data, error } = await supabase.functions.invoke('google-places-details', {
-        body: { 
-          landmarkName: landmark.name,
-          coordinates: landmark.coordinates
-        }
-      });
-
-      if (error || !data || data.fallback) {
-        console.log('🏪 No Google Places data found, using basic info');
-        return null;
-      }
-
-      console.log('🏪 Google Places details fetched:', data.data);
-      return data.data;
-    } catch (error) {
-      console.error('🏪 Error fetching Google Places details:', error);
-      return null;
-    }
-  };
-
-  // Enhanced function to show landmark popup with Google Places integration
-  const showEnhancedLandmarkPopup = async (landmark: Landmark) => {
-    if (!map.current) return;
-    
-    console.log('🗺️ Showing enhanced popup for:', landmark.name);
-    
-    // Stop any playing audio when showing new popup
-    stopCurrentAudio();
-    
-    // Remove existing photo popup for this landmark
-    if (photoPopups.current[landmark.id]) {
-      photoPopups.current[landmark.id].remove();
-    }
-    
-    // Close all other popups first
-    Object.values(photoPopups.current).forEach(popup => {
-      popup.remove();
-    });
-    photoPopups.current = {};
-    
-    // Create new photo popup with enhanced content
-    const photoPopup = new mapboxgl.Popup({
-      closeButton: true,
-      closeOnClick: false,
-      offset: 25,
-      maxWidth: '500px',
-      className: 'custom-popup enhanced-popup'
-    });
-
-    // Initial popup with loading state
-    photoPopup
-      .setLngLat(landmark.coordinates)
-      .setHTML(`
-        <div style="text-align: center; padding: 15px; position: relative;">
-          <button class="custom-close-btn" onclick="
-            if (window.handlePopupClose) window.handlePopupClose('${landmark.id}');
-            this.closest('.mapboxgl-popup').remove();
-          " style="
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 28px;
-            height: 28px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            font-weight: bold;
-            z-index: 1000;
-            transition: background-color 0.2s;
-          " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
-          <h3 style="margin: 0 0 15px 0; font-size: 18px; font-weight: bold; padding-right: 35px; color: #1a1a1a;">${landmark.name}</h3>
-          <div style="margin-bottom: 15px; color: #666;">Loading enhanced details...</div>
-        </div>
-      `)
-      .addTo(map.current!);
-
-    photoPopups.current[landmark.id] = photoPopup;
-
-    // Handle popup close event - stop audio when popup closes
-    photoPopup.on('close', () => {
-      stopCurrentAudio();
-      delete photoPopups.current[landmark.id];
-    });
-
-    // Add global handler for popup close if it doesn't exist
-    if (!(window as any).handlePopupClose) {
-      (window as any).handlePopupClose = (landmarkId: string) => {
-        stopCurrentAudio();
-        if (photoPopups.current[landmarkId]) {
-          delete photoPopups.current[landmarkId];
-        }
-      };
-    }
-
-    // Fetch enhanced data and update popup
-    try {
-      const [imageUrl, placesData] = await Promise.all([
-        fetchLandmarkImage(landmark),
-        fetchGooglePlacesDetails(landmark)
-      ]);
-      
-      // Store the interaction with enhanced data
-      await storeMapMarkerInteraction(landmark, imageUrl, placesData);
-      
-      const isPlaying = playingAudio[landmark.id] || false;
-      
-      // Create enhanced popup content
-      let enhancedContent = `
-        <div style="text-align: left; padding: 15px; max-width: 480px; position: relative;">
-          <button class="custom-close-btn" onclick="
-            if (window.handlePopupClose) window.handlePopupClose('${landmark.id}');
-            this.closest('.mapboxgl-popup').remove();
-          " style="
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 28px;
-            height: 28px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            font-weight: bold;
-            z-index: 1000;
-            transition: background-color 0.2s;
-          " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
-          
-          <h3 style="margin: 0 0 15px 0; font-size: 18px; font-weight: bold; padding-right: 35px; color: #1a1a1a;">${landmark.name}</h3>
-          
-          <div style="position: relative; margin-bottom: 15px;">
-            <img src="${imageUrl}" alt="${landmark.name}" style="width: 100%; height: 180px; object-fit: cover; border-radius: 8px;" />
-            <button 
-              class="listen-btn-${landmark.id}" 
-              onclick="window.handleEnhancedLandmarkListen('${landmark.id}')"
-              style="
-                position: absolute;
-                bottom: 10px;
-                right: 10px;
-                background: rgba(0, 0, 0, 0.9);
-                color: white;
-                border: 3px solid rgba(255, 255, 255, 0.9);
-                border-radius: 50%;
-                width: 56px;
-                height: 56px;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 24px;
-                transition: all 0.3s ease;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-                ${isPlaying ? 'opacity: 0.7;' : ''}
-              "
-              onmouseover="this.style.backgroundColor='rgba(59, 130, 246, 0.95)'; this.style.borderColor='white'; this.style.transform='scale(1.15)'; this.style.boxShadow='0 6px 20px rgba(0, 0, 0, 0.5)'"
-              onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'; this.style.borderColor='rgba(255, 255, 255, 0.9)'; this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.4)'"
-              ${isPlaying ? 'disabled' : ''}
-              title="Listen to description"
-            >
-              🔊
-            </button>
-          </div>
-      `;
-
-      // Add Google Places data if available
-      if (placesData) {
-        enhancedContent += `
-          <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-        `;
-        
-        if (placesData.rating) {
-          enhancedContent += `
-            <div style="margin-bottom: 8px;">
-              <span style="color: #059669; font-weight: 600;">★ ${placesData.rating}</span>
-              ${placesData.userRatingsTotal ? `<span style="color: #6b7280; font-size: 14px;"> (${placesData.userRatingsTotal} reviews)</span>` : ''}
-            </div>
-          `;
-        }
-
-        if (placesData.isOpenNow !== undefined) {
-          const statusColor = placesData.isOpenNow ? '#059669' : '#dc2626';
-          const statusText = placesData.isOpenNow ? 'Open now' : 'Closed';
-          enhancedContent += `
-            <div style="margin-bottom: 8px;">
-              <span style="color: ${statusColor}; font-weight: 600;">● ${statusText}</span>
-            </div>
-          `;
-        }
-
-        if (placesData.phoneNumber) {
-          enhancedContent += `
-            <div style="margin-bottom: 8px;">
-              <span style="color: #374151; font-size: 14px;">📞 ${placesData.phoneNumber}</span>
-            </div>
-          `;
-        }
-
-        if (placesData.website) {
-          enhancedContent += `
-            <div style="margin-bottom: 8px;">
-              <a href="${placesData.website}" target="_blank" style="color: #2563eb; font-size: 14px; text-decoration: none;">🌐 Visit website</a>
-            </div>
-          `;
-        }
-
-        enhancedContent += `</div>`;
-
-        if (placesData.openingHours && placesData.openingHours.length > 0) {
-          enhancedContent += `
-            <div style="background: #f1f5f9; padding: 10px; border-radius: 6px; font-size: 13px;">
-              <div style="font-weight: 600; margin-bottom: 6px; color: #374151;">Hours:</div>
-              ${placesData.openingHours.slice(0, 3).map(hour => `<div style="color: #6b7280;">${hour}</div>`).join('')}
-              ${placesData.openingHours.length > 3 ? '<div style="color: #9ca3af; font-style: italic;">...</div>' : ''}
-            </div>
-          `;
-        }
-      }
-
-      enhancedContent += `</div>`;
-
-      photoPopup.setHTML(enhancedContent);
-
-      // Add global handler for enhanced listen button
-      if (!(window as any).handleEnhancedLandmarkListen) {
-        (window as any).handleEnhancedLandmarkListen = (landmarkId: string) => {
-          const targetLandmark = allLandmarksWithTop.find(l => l.id === landmarkId);
-          if (targetLandmark) {
-            handleEnhancedTextToSpeech(targetLandmark, placesData);
-          }
-        };
-      }
-
-    } catch (error) {
-      console.error('Failed to load enhanced data for', landmark.name, error);
-      
-      // Store the interaction even without enhanced data
-      await storeMapMarkerInteraction(landmark);
-      
-      // Fallback to basic popup
-      showLandmarkPopup(landmark);
-    }
-  };
-
-  // Enhanced TTS function that includes Google Places data
-  const handleEnhancedTextToSpeech = async (landmark: Landmark, placesData?: any) => {
-    const landmarkId = landmark.id;
-    
-    if (playingAudio[landmarkId]) {
-      return; // Already playing
-    }
-
-    // Stop any currently playing audio
-    stopCurrentAudio();
-
-    try {
-      setPlayingAudio(prev => ({ ...prev, [landmarkId]: true }));
-      
-      // Create enhanced text with Google Places data
-      let enhancedText = `${landmark.name}. ${landmark.description}`;
-      
-      if (placesData) {
-        if (placesData.rating) {
-          enhancedText += ` • Rating: ${placesData.rating}★`;
-        }
-        if (placesData.isOpenNow !== undefined) {
-          enhancedText += ` • ${placesData.isOpenNow ? 'Currently open' : 'Currently closed'}`;
-        }
-      }
-      
-      console.log('Calling Google Cloud TTS via edge function for enhanced map marker:', enhancedText.substring(0, 50) + '...');
-      
-      // Call the same edge function used by the voice assistant
-      const { data, error } = await supabase.functions.invoke('gemini-tts', {
-        body: { text: enhancedText }
-      });
-
-      if (error) {
-        console.error('Google Cloud TTS error:', error);
-        return;
-      }
-
-      if (data?.audioContent && !data.fallbackToBrowser) {
-        console.log('Playing enhanced audio from Google Cloud TTS for map marker');
-        await playAudioFromBase64(data.audioContent);
-      } else {
-        console.log('No audio content received for enhanced map marker');
-      }
-      
-    } catch (error) {
-      console.error('Error with Google Cloud TTS for enhanced map marker:', error);
-    } finally {
-      setPlayingAudio(prev => ({ ...prev, [landmarkId]: false }));
-    }
-  };
-
-  // Function to store map marker interaction with enhanced data
-  const storeMapMarkerInteraction = async (landmark: Landmark, imageUrl?: string, placesData?: any) => {
+  // Function to store map marker interaction
+  const storeMapMarkerInteraction = async (landmark: Landmark, imageUrl?: string) => {
     if (!user) {
       console.log('User not authenticated, skipping interaction storage');
       return;
     }
 
     try {
-      console.log('Storing enhanced map marker interaction for:', landmark.name);
-      
-      let enhancedResponse = landmark.description;
-      if (placesData) {
-        if (placesData.rating) {
-          enhancedResponse += ` • Rating: ${placesData.rating}★`;
-        }
-        if (placesData.isOpenNow !== undefined) {
-          enhancedResponse += ` • ${placesData.isOpenNow ? 'Currently open' : 'Currently closed'}`;
-        }
-      }
+      console.log('Storing map marker interaction for:', landmark.name);
       
       const { error } = await supabase.functions.invoke('store-interaction', {
         body: {
           userInput: `Clicked on map marker: ${landmark.name}`,
-          assistantResponse: enhancedResponse,
+          assistantResponse: landmark.description,
           destination: 'Map',
           interactionType: 'map_marker',
           landmarkCoordinates: landmark.coordinates,
-          landmarkImageUrl: imageUrl,
-          placesData: placesData
+          landmarkImageUrl: imageUrl
         }
       });
 
       if (error) {
-        console.error('Error storing enhanced map marker interaction:', error);
+        console.error('Error storing map marker interaction:', error);
       } else {
-        console.log('Enhanced map marker interaction stored successfully');
+        console.log('Map marker interaction stored successfully');
       }
     } catch (error) {
-      console.error('Error storing enhanced map marker interaction:', error);
+      console.error('Error storing map marker interaction:', error);
     }
   };
 
@@ -828,7 +508,226 @@ const Map: React.FC<MapProps> = ({
 
   // Function to show landmark popup
   const showLandmarkPopup = async (landmark: Landmark) => {
-    return showEnhancedLandmarkPopup(landmark);
+    if (!map.current) return;
+    
+    console.log('Showing popup for:', landmark.name);
+    
+    // Stop any playing audio when showing new popup
+    stopCurrentAudio();
+    
+    // Remove existing photo popup for this landmark
+    if (photoPopups.current[landmark.id]) {
+      photoPopups.current[landmark.id].remove();
+    }
+    
+    // Close all other popups first
+    Object.values(photoPopups.current).forEach(popup => {
+      popup.remove();
+    });
+    photoPopups.current = {};
+    
+    // Create new photo popup with image and listen button
+    const photoPopup = new mapboxgl.Popup({
+      closeButton: true,
+      closeOnClick: false,
+      offset: 25,
+      maxWidth: '450px',
+      className: 'custom-popup'
+    });
+
+    // Initial popup with loading state
+    photoPopup
+      .setLngLat(landmark.coordinates)
+      .setHTML(`
+        <div style="text-align: center; padding: 10px; position: relative;">
+          <button class="custom-close-btn" onclick="
+            if (window.handlePopupClose) window.handlePopupClose('${landmark.id}');
+            this.closest('.mapboxgl-popup').remove();
+          " style="
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 1000;
+            transition: background-color 0.2s;
+          " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
+          <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
+          <div style="margin-bottom: 10px; color: #666;">Loading image...</div>
+        </div>
+      `)
+      .addTo(map.current!);
+
+    photoPopups.current[landmark.id] = photoPopup;
+
+    // Handle popup close event - stop audio when popup closes
+    photoPopup.on('close', () => {
+      stopCurrentAudio();
+      delete photoPopups.current[landmark.id];
+    });
+
+    // Add global handler for popup close if it doesn't exist
+    if (!(window as any).handlePopupClose) {
+      (window as any).handlePopupClose = (landmarkId: string) => {
+        stopCurrentAudio();
+        if (photoPopups.current[landmarkId]) {
+          delete photoPopups.current[landmarkId];
+        }
+      };
+    }
+
+    // Fetch and display image with listen button
+    try {
+      const imageUrl = await fetchLandmarkImage(landmark);
+      const isPlaying = playingAudio[landmark.id] || false;
+      
+      // Store the interaction ONLY ONCE with the fetched image URL
+      await storeMapMarkerInteraction(landmark, imageUrl);
+      
+      photoPopup.setHTML(`
+        <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
+          <button class="custom-close-btn" onclick="
+            if (window.handlePopupClose) window.handlePopupClose('${landmark.id}');
+            this.closest('.mapboxgl-popup').remove();
+          " style="
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 1000;
+            transition: background-color 0.2s;
+          " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
+          <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
+          <div style="position: relative; margin-bottom: 10px;">
+            <img src="${imageUrl}" alt="${landmark.name}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px;" />
+            <button 
+              class="listen-btn-${landmark.id}" 
+              onclick="window.handleLandmarkListen('${landmark.id}')"
+              style="
+                position: absolute;
+                bottom: 10px;
+                right: 10px;
+                background: rgba(0, 0, 0, 0.9);
+                color: white;
+                border: 3px solid rgba(255, 255, 255, 0.9);
+                border-radius: 50%;
+                width: 56px;
+                height: 56px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 24px;
+                transition: all 0.3s ease;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+                ${isPlaying ? 'opacity: 0.7;' : ''}
+              "
+              onmouseover="this.style.backgroundColor='rgba(59, 130, 246, 0.95)'; this.style.borderColor='white'; this.style.transform='scale(1.15)'; this.style.boxShadow='0 6px 20px rgba(0, 0, 0, 0.5)'"
+              onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'; this.style.borderColor='rgba(255, 255, 255, 0.9)'; this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.4)'"
+              ${isPlaying ? 'disabled' : ''}
+              title="Listen to description"
+            >
+              🔊
+            </button>
+          </div>
+        </div>
+      `);
+
+      // Add global handler for listen button if it doesn't exist
+      if (!(window as any).handleLandmarkListen) {
+        (window as any).handleLandmarkListen = (landmarkId: string) => {
+          const targetLandmark = allLandmarksWithTop.find(l => l.id === landmarkId);
+          if (targetLandmark) {
+            handleTextToSpeech(targetLandmark);
+          }
+        };
+      }
+
+    } catch (error) {
+      console.error('Failed to load image for', landmark.name, error);
+      
+      // Store the interaction even without image
+      await storeMapMarkerInteraction(landmark);
+      
+      photoPopup.setHTML(`
+        <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
+          <button class="custom-close-btn" onclick="
+            if (window.handlePopupClose) window.handlePopupClose('${landmark.id}');
+            this.closest('.mapboxgl-popup').remove();
+          " style="
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 1000;
+            transition: background-color 0.2s;
+          " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
+          <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
+          <div style="width: 100%; height: 150px; background-color: #f0f0f0; border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; color: #888; position: relative;">
+            No image available
+            <button 
+              class="listen-btn-${landmark.id}" 
+              onclick="window.handleLandmarkListen('${landmark.id}')"
+              style="
+                position: absolute;
+                bottom: 10px;
+                right: 10px;
+                background: rgba(0, 0, 0, 0.9);
+                color: white;
+                border: 3px solid rgba(255, 255, 255, 0.9);
+                border-radius: 50%;
+                width: 56px;
+                height: 56px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 24px;
+                transition: all 0.3s ease;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+              "
+              onmouseover="this.style.backgroundColor='rgba(59, 130, 246, 0.95)'; this.style.borderColor='white'; this.style.transform='scale(1.15)'; this.style.boxShadow='0 6px 20px rgba(0, 0, 0, 0.5)'"
+              onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'; this.style.borderColor='rgba(255, 255, 255, 0.9)'; this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.4)'"
+              title="Listen to description"
+            >
+              🔊
+            </button>
+          </div>
+        </div>
+      `);
+    }
   };
 
   // Update markers when landmarks change
@@ -1198,51 +1097,6 @@ const Map: React.FC<MapProps> = ({
       delete (window as any).navigateToMapCoordinates;
       delete (window as any).handleInteractionListen;
       delete (window as any).stopCurrentAudio;
-    };
-  }, []);
-
-  // Expose enhanced focus function globally for proximity notifications
-  React.useEffect(() => {
-    console.log('Setting up enhanced map functions on window');
-    (window as any).navigateToMapCoordinates = navigateToCoordinates;
-    (window as any).stopCurrentAudio = stopCurrentAudio;
-    
-    // Enhanced focus function for proximity notifications
-    (window as any).focusMapOnLandmark = (landmark: Landmark) => {
-      if (!map.current) return;
-      
-      console.log('🎯 Focusing map on landmark from proximity notification:', landmark.name);
-      
-      // Fly to landmark with smooth animation
-      map.current.flyTo({
-        center: landmark.coordinates,
-        zoom: 16,
-        speed: 0.8,
-        curve: 1.2,
-        easing: (t) => t,
-      });
-
-      // Show enhanced popup after animation
-      setTimeout(() => {
-        showEnhancedLandmarkPopup(landmark);
-      }, 1500);
-    };
-    
-    // Add global handler for interaction listen button
-    (window as any).handleInteractionListen = (interactionId: string) => {
-      // Find the interaction by ID from navigation markers
-      const markerData = navigationMarkers.current.find(m => m.interaction?.id === interactionId);
-      if (markerData?.interaction?.assistant_response) {
-        handleTextToSpeechForInteraction(markerData.interaction.assistant_response);
-      }
-    };
-    
-    return () => {
-      console.log('Cleaning up enhanced map functions from window');
-      delete (window as any).navigateToMapCoordinates;
-      delete (window as any).handleInteractionListen;
-      delete (window as any).stopCurrentAudio;
-      delete (window as any).focusMapOnLandmark;
     };
   }, []);
 

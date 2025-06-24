@@ -39,16 +39,16 @@ const Index: React.FC = () => {
     () => setIsNewTourAssistantOpen(true) // Callback to open NewTourAssistant
   );
 
-  const handleSelectLandmark = useCallback((landmark: Landmark) => {
-    setSelectedLandmark(landmark);
-  }, [setSelectedLandmark]);
-
-  // Initialize proximity notifications with landmark selection callback
-  useProximityNotifications(handleSelectLandmark);
+  // Initialize proximity notifications
+  useProximityNotifications();
   
   const allLandmarks = useMemo(() => {
     return [...staticLandmarks, ...plannedLandmarks, ...additionalLandmarks];
   }, [plannedLandmarks, additionalLandmarks]);
+
+  const handleSelectLandmark = useCallback((landmark: Landmark) => {
+    setSelectedLandmark(landmark);
+  }, [setSelectedLandmark]);
 
   const handleGenerateTour = async (destination: string) => {
     await generateTour(destination);
