@@ -61,7 +61,7 @@ export const useSortedLandmarks = (
     return filteredLandmarks.sort((a, b) => a.distance - b.distance);
   }, [userLocation, landmarks, maxDistance, debugOverrides]);
 
-  // Enhanced proximity notification logic with expanded testing ranges
+  // Enhanced proximity notification logic with SCENARIO 1 testing thresholds
   useEffect(() => {
     if (userLocation && sortedLandmarks.length > 0) {
       const closestLandmark = sortedLandmarks[0];
@@ -71,16 +71,17 @@ export const useSortedLandmarks = (
       if (closestLandmark.landmark.id !== previousClosestId) {
         console.log(`🔔 New closest landmark: ${closestLandmark.landmark.name} at ${formatDistance(distance)}`);
         
-        // Progressive notification logic with expanded testing ranges
-        if (distance <= 100) {
+        // SCENARIO 1 - Toast Only Testing Thresholds
+        // Chichen Itza at 1172m should ONLY trigger toast notification
+        if (distance <= 300) {
           // Very close - show floating card with enhanced features
           console.log('📍 Very close proximity - triggering floating card');
           eventHandlers?.onFloatingCardTrigger?.(closestLandmark.landmark, distance);
-        } else if (distance <= 500) {
+        } else if (distance <= 600) {
           // Close - show route visualization
           console.log('🗺️ Close proximity - triggering route visualization');
           eventHandlers?.onRouteVisualizationTrigger?.(closestLandmark.landmark, distance);
-        } else if (distance <= 1000) {
+        } else if (distance <= 1200) {
           // Medium distance - show basic toast notification
           console.log('💬 Medium proximity - showing toast notification');
           toast({
