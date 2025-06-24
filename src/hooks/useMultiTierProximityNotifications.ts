@@ -5,7 +5,7 @@ import { UserLocation } from '@/types/proximityAlerts';
 import { DebugOverrides } from '@/types/debugOverrides';
 import { formatDistance } from '@/utils/proximityUtils';
 import { useToast } from '@/hooks/use-toast';
-import { useSortedLandmarks } from '@/hooks/useSortedLandmarks';
+import { useSortedLandmarksV2 } from '@/hooks/useSortedLandmarksV2';
 
 interface MultiTierThresholds {
   floatingCard: number;    // e.g., 25m in production, 300000m in testing
@@ -36,8 +36,8 @@ export const useMultiTierProximityNotifications = (
     thresholds.toastNotification
   );
 
-  // Get sorted landmarks within the maximum threshold
-  const sortedLandmarks = useSortedLandmarks(
+  // Get sorted landmarks within the maximum threshold using V2 hook
+  const sortedLandmarks = useSortedLandmarksV2(
     userLocation,
     landmarks,
     maxDistance,
@@ -52,20 +52,20 @@ export const useMultiTierProximityNotifications = (
       
       // Only trigger if the closest landmark changed
       if (closestLandmark.landmark.id !== previousClosestId) {
-        console.log(`🔔 New closest landmark: ${closestLandmark.landmark.name} at ${formatDistance(distance)}`);
+        console.log(`🔔 [V2] New closest landmark: ${closestLandmark.landmark.name} at ${formatDistance(distance)}`);
         
         // Multi-tier notification logic (hierarchical - only one notification type)
         if (distance <= thresholds.floatingCard) {
           // Very close - show floating card with enhanced features
-          console.log('📍 Very close proximity - triggering floating card');
+          console.log('📍 [V2] Very close proximity - triggering floating card');
           eventHandlers?.onFloatingCardTrigger?.(closestLandmark.landmark, distance);
         } else if (distance <= thresholds.routeVisualization) {
           // Close - show route visualization
-          console.log('🗺️ Close proximity - triggering route visualization');
+          console.log('🗺️ [V2] Close proximity - triggering route visualization');
           eventHandlers?.onRouteVisualizationTrigger?.(closestLandmark.landmark, distance);
         } else if (distance <= thresholds.toastNotification) {
           // Medium distance - show basic toast notification
-          console.log('💬 Medium proximity - showing toast notification');
+          console.log('💬 [V2] Medium proximity - showing toast notification');
           toast({
             title: "Nearby Landmark",
             description: `${closestLandmark.landmark.name} - ${formatDistance(distance)}`,
@@ -77,7 +77,7 @@ export const useMultiTierProximityNotifications = (
     } else {
       // Reset when no landmarks are in range
       if (previousClosestId !== null) {
-        console.log(`🔄 No landmarks in range (${maxDistance}m), resetting previous closest ID`);
+        console.log(`🔄 [V2] No landmarks in range (${maxDistance}m), resetting previous closest ID`);
         setPreviousClosestId(null);
         triggeredLandmarks.clear();
       }

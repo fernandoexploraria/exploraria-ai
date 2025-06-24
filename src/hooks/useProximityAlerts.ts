@@ -42,41 +42,41 @@ export const useProximityAlerts = () => {
   // Get default distance - only use if proximity settings exist
   const defaultDistance = proximitySettings?.default_distance;
 
-  // Get sorted landmarks within range - ALWAYS call this hook
+  // Get sorted landmarks within range - ALWAYS call this hook (OLD SYSTEM)
   const sortedLandmarks = useSortedLandmarks(
     userLocation,
     combinedLandmarks,
     defaultDistance || 50 // Temporary fallback until settings load
   );
 
-  // Simplified toast logic - uses the sorted landmarks directly
+  // OLD SYSTEM toast logic - uses the sorted landmarks directly
   useEffect(() => {
     // Only run if proximity is enabled and we have a location
     if (!proximitySettings?.is_enabled || !userLocation || !isMountedRef.current) {
       return;
     }
 
-    console.log('🎯 Running simplified proximity detection...');
-    console.log(`📍 Current location: ${userLocation.latitude.toFixed(6)}, ${userLocation.longitude.toFixed(6)}`);
-    console.log(`📏 Default distance: ${defaultDistance}m`);
-    console.log(`✅ Landmarks within range: ${sortedLandmarks.length}`);
+    console.log('🎯 [OLD] Running simplified proximity detection...');
+    console.log(`📍 [OLD] Current location: ${userLocation.latitude.toFixed(6)}, ${userLocation.longitude.toFixed(6)}`);
+    console.log(`📏 [OLD] Default distance: ${defaultDistance}m`);
+    console.log(`✅ [OLD] Landmarks within range: ${sortedLandmarks.length}`);
 
     // Get the closest landmark (first in the sorted list, already filtered by distance)
     const closestLandmark = sortedLandmarks.length > 0 ? sortedLandmarks[0] : null;
     const currentClosestId = closestLandmark?.landmark.id || null;
     const previousClosestId = previousClosestLandmarkIdRef.current;
 
-    console.log(`🏛️ Previous closest: ${previousClosestId || 'none'}`);
-    console.log(`🏛️ Current closest: ${currentClosestId || 'none'}`);
+    console.log(`🏛️ [OLD] Previous closest: ${previousClosestId || 'none'}`);
+    console.log(`🏛️ [OLD] Current closest: ${currentClosestId || 'none'}`);
 
     // Handle changes in closest landmark
     if (currentClosestId !== previousClosestId) {
-      console.log('🔄 Closest landmark changed!');
+      console.log('🔄 [OLD] Closest landmark changed!');
 
       if (currentClosestId && closestLandmark) {
         // New landmark detected - send toast
         const distance = formatDistance(closestLandmark.distance);
-        console.log(`🚨 Sending toast for ${closestLandmark.landmark.name} at ${distance}`);
+        console.log(`🚨 [OLD] Sending toast for ${closestLandmark.landmark.name} at ${distance}`);
         
         toast({
           title: "Landmark Nearby",
@@ -87,12 +87,12 @@ export const useProximityAlerts = () => {
         previousClosestLandmarkIdRef.current = currentClosestId;
       } else {
         // No landmarks in range - clear persisted value (no toast sent)
-        console.log('🚫 No landmarks in range, clearing persisted value');
+        console.log('🚫 [OLD] No landmarks in range, clearing persisted value');
         previousClosestLandmarkIdRef.current = null;
       }
     } else {
       // Same landmark or both null - no action needed
-      console.log('✅ No change in closest landmark');
+      console.log('✅ [OLD] No change in closest landmark');
     }
   }, [sortedLandmarks, proximitySettings?.is_enabled, userLocation, defaultDistance, toast]);
 
@@ -399,8 +399,9 @@ export const useProximityAlerts = () => {
     userLocation,
     isLoading,
     isSaving,
-    sortedLandmarks, // Export sorted landmarks for shared use
-    combinedLandmarks, // Also export combined landmarks for debug purposes
+    // Keep these for the debug window to use the OLD system
+    sortedLandmarks,
+    combinedLandmarks,
     setProximityAlerts,
     setProximitySettings: notifySubscribers,
     setUserLocation: updateUserLocation,

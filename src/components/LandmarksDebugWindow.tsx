@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   Dialog,
@@ -34,10 +33,10 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Navigation className="h-5 w-5" />
-            Landmarks Debug Tool - Simple View
+            Landmarks Debug Tool - OLD SYSTEM
           </DialogTitle>
           <DialogDescription>
-            Debug view showing combined landmarks and sorted landmarks lists
+            Debug view showing OLD system: combined landmarks and sorted landmarks lists
           </DialogDescription>
         </DialogHeader>
 
@@ -47,7 +46,7 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Activity className="h-4 w-4" />
-                Current Status
+                Current Status (OLD SYSTEM)
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -105,7 +104,7 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
               <CardTitle className="flex items-center justify-between text-base">
                 <div className="flex items-center gap-2">
                   <Database className="h-4 w-4" />
-                  Combined Landmarks (Unfiltered)
+                  Combined Landmarks (OLD SYSTEM - Unfiltered)
                 </div>
                 <Badge variant="outline">{combinedLandmarks.length} total</Badge>
               </CardTitle>
@@ -133,13 +132,13 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
             </CardContent>
           </Card>
 
-          {/* Sorted Landmarks List - Now using shared instance */}
+          {/* Sorted Landmarks List - OLD SYSTEM */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between text-base">
                 <div className="flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
-                  Sorted Landmarks (Within {defaultDistance}m) - SHARED INSTANCE
+                  Sorted Landmarks (Within {defaultDistance}m) - OLD SYSTEM
                 </div>
                 <Badge variant="default">{sortedLandmarks.length} in range</Badge>
               </CardTitle>
@@ -154,8 +153,8 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
                           <Badge variant="outline" className="text-xs">#{index + 1}</Badge>
                           <span className="font-medium text-sm">{item.landmark.name}</span>
                           {index === 0 && (
-                            <Badge variant="default" className="text-xs bg-green-500">
-                              CLOSEST - TOAST TARGET
+                            <Badge variant="default" className="text-xs bg-orange-500">
+                              CLOSEST - OLD SYSTEM TOAST TARGET
                             </Badge>
                           )}
                         </div>
