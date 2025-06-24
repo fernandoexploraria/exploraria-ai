@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Dialog,
   DialogContent,
@@ -9,9 +9,8 @@ import {
 } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { MapPin, Navigation, Filter, List, Clock, Database } from 'lucide-react';
+import { MapPin, Navigation, Clock, Database } from 'lucide-react';
 import { useSortedLandmarks } from '@/hooks/useSortedLandmarks';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -29,9 +28,8 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
 }) => {
   const { userLocation, locationState } = useLocationTracking();
   const { proximitySettings } = useProximityAlerts();
-  const [showAllLandmarks, setShowAllLandmarks] = useState(false);
 
-  // Use the new landmark source toggle hook
+  // Use the landmark source toggle hook
   const {
     selectedSource,
     setSelectedSource,
@@ -41,15 +39,12 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
 
   const defaultDistance = proximitySettings?.default_distance || 100;
 
-  // Get filtered landmarks (within range) and all landmarks for comparison
-  const filteredLandmarks = useSortedLandmarks(
+  // Get the raw array from useSortedLandmarks - this is what we want to debug
+  const sortedLandmarks = useSortedLandmarks(
     userLocation, 
     currentLandmarks, 
     defaultDistance
   );
-  const allLandmarks = useSortedLandmarks(userLocation, currentLandmarks, 999999); // Use very large distance to get all landmarks
-
-  const currentList = showAllLandmarks ? allLandmarks : filteredLandmarks;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -144,112 +139,56 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
             </CardContent>
           </Card>
 
-          {/* Filter Controls */}
+          {/* Proximity Range */}
           <Card>
             <CardContent className="pt-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Filter className="h-4 w-4" />
-                  <span className="text-sm font-medium">
-                    Proximity Range: {formatDistance(defaultDistance)}
-                  </span>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAllLandmarks(!showAllLandmarks)}
-                  className="text-xs"
-                >
-                  {showAllLandmarks ? (
-                    <>
-                      <Filter className="h-3 w-3 mr-1" />
-                      Show Within Range Only
-                    </>
-                  ) : (
-                    <>
-                      <List className="h-3 w-3 mr-1" />
-                      Show All Available
-                    </>
-                  )}
-                </Button>
-              </div>
-              <div className="text-xs text-muted-foreground space-y-1">
-                <div>
-                  📍 <strong>{filteredLandmarks.length}</strong> landmarks within {formatDistance(defaultDistance)} range
-                </div>
-                <div>
-                  🗺️ <strong>{allLandmarks.length}</strong> total landmarks from {selectedSource} source
-                </div>
-                {filteredLandmarks.length === 0 && userLocation && (
-                  <div className="text-amber-600 font-medium">
-                    ⚠️ No landmarks in proximity range - no toasts should trigger
-                  </div>
-                )}
+              <div className="text-sm font-medium">
+                Proximity Range: {formatDistance(defaultDistance)}
               </div>
             </CardContent>
           </Card>
 
-          {/* Landmarks List */}
+          {/* Sorted Landmarks Array */}
           <div className="space-y-2">
             <h4 className="text-sm font-medium">
-              {showAllLandmarks ? 'All Available Landmarks' : 'Landmarks Within Proximity Range'} ({currentList.length})
+              Sorted Landmarks Array ({sortedLandmarks.length})
             </h4>
             
-            {currentList.length === 0 ? (
+            {sortedLandmarks.length === 0 ? (
               <Card>
                 <CardContent className="pt-4">
                   <div className="text-center text-muted-foreground">
                     {userLocation 
-                      ? (showAllLandmarks 
-                          ? `No landmarks available from ${selectedSource} source` 
-                          : `✅ No landmarks within ${formatDistance(defaultDistance)} proximity range`
-                        )
-                      : 'Location not available - enable location tracking to see distances'
+                      ? 'No landmarks in array (filtering working correctly)'
+                      : 'Location not available - enable location tracking to see results'
                     }
                   </div>
                 </CardContent>
               </Card>
             ) : (
               <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                {currentList.map(({ landmark, distance }, index) => {
-                  const isWithinRange = distance <= defaultDistance;
-                  
-                  return (
-                    <Card key={landmark.id} className="relative">
-                      <CardContent className="pt-3 pb-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs">
-                              #{index + 1}
-                            </Badge>
-                            <span className="text-sm font-medium">
-                              {landmark.name}
-                            </span>
-                            {showAllLandmarks && !isWithinRange && (
-                              <Badge variant="secondary" className="text-xs">
-                                Outside range
-                              </Badge>
-                            )}
-                            {showAllLandmarks && isWithinRange && (
-                              <Badge variant="default" className="text-xs">
-                                In range
-                              </Badge>
-                            )}
-                          </div>
-                          <Badge 
-                            variant={isWithinRange ? "default" : "secondary"}
-                            className="text-xs"
-                          >
-                            {formatDistance(distance)}
+                {sortedLandmarks.map(({ landmark, distance }, index) => (
+                  <Card key={landmark.id}>
+                    <CardContent className="pt-3 pb-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">
+                            #{index + 1}
                           </Badge>
+                          <span className="text-sm font-medium">
+                            {landmark.name}
+                          </span>
                         </div>
-                        <div className="text-xs text-muted-foreground mt-1 truncate">
-                          {landmark.description}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                        <Badge variant="default" className="text-xs">
+                          {formatDistance(distance)}
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1 truncate">
+                        {landmark.description}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             )}
           </div>
