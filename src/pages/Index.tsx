@@ -17,7 +17,7 @@ const Index: React.FC = () => {
   const { user, signOut } = useAuth();
   const mapboxToken = useMapboxToken();
   
-  // Import the new proximity notifications hook with expanded range (500m for testing)
+  // Import the new proximity notifications hook with expanded range (1000m for testing)
   const {
     activeNotification,
     showFloatingCard,
@@ -29,7 +29,7 @@ const Index: React.FC = () => {
     searchNearbyLandmark,
     searchNearbyCoordinates,
     userLocation
-  } = useProximityNotifications(500); // Updated to 500m for testing
+  } = useProximityNotifications(1000); // Updated to 1000m for expanded testing
   
   const {
     selectedLandmark,
