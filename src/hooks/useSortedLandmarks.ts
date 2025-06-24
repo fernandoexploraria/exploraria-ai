@@ -10,13 +10,20 @@ interface LandmarkWithDistance {
   distance: number;
 }
 
+interface ProximityEventHandlers {
+  onFloatingCardTrigger?: (landmark: Landmark, distance: number) => void;
+  onRouteVisualizationTrigger?: (landmark: Landmark, distance: number) => void;
+}
+
 export const useSortedLandmarks = (
   userLocation: UserLocation | null,
   landmarks: Landmark[],
-  maxDistance: number
+  maxDistance: number,
+  eventHandlers?: ProximityEventHandlers
 ): LandmarkWithDistance[] => {
   const { toast } = useToast();
   const [previousClosestId, setPreviousClosestId] = useState<string | null>(null);
+  const [triggeredLandmarks] = useState<Set<string>>(new Set());
 
   const sortedLandmarks = useMemo(() => {
     if (!userLocation || landmarks.length === 0) {
@@ -44,38 +51,45 @@ export const useSortedLandmarks = (
     return filteredLandmarks.sort((a, b) => a.distance - b.distance);
   }, [userLocation, landmarks, maxDistance]);
 
-  // Show toast only when closest landmark changes, and only if there are landmarks in range
+  // Enhanced proximity notification logic
   useEffect(() => {
-    if (userLocation) {
-      if (sortedLandmarks.length > 0) {
-        const closestLandmark = sortedLandmarks[0];
+    if (userLocation && sortedLandmarks.length > 0) {
+      const closestLandmark = sortedLandmarks[0];
+      const distance = closestLandmark.distance;
+      
+      // Only trigger if the closest landmark changed
+      if (closestLandmark.landmark.id !== previousClosestId) {
+        console.log(`🔔 New closest landmark: ${closestLandmark.landmark.name} at ${formatDistance(distance)}`);
         
-        // Only show toast if the closest landmark ID is different from the previous one
-        if (closestLandmark.landmark.id !== previousClosestId) {
-          console.log(`🔔 Showing proximity toast for: ${closestLandmark.landmark.name} at ${formatDistance(closestLandmark.distance)}`);
+        // Progressive notification logic based on distance
+        if (distance <= 25) {
+          // Very close - show floating card with enhanced features
+          console.log('📍 Very close proximity - triggering floating card');
+          eventHandlers?.onFloatingCardTrigger?.(closestLandmark.landmark, distance);
+        } else if (distance <= 50) {
+          // Close - show route visualization
+          console.log('🗺️ Close proximity - triggering route visualization');
+          eventHandlers?.onRouteVisualizationTrigger?.(closestLandmark.landmark, distance);
+        } else if (distance <= 100) {
+          // Medium distance - show basic toast notification
+          console.log('💬 Medium proximity - showing toast notification');
           toast({
-            title: "Closest Landmark",
-            description: `${closestLandmark.landmark.name} - ${formatDistance(closestLandmark.distance)}`,
+            title: "Nearby Landmark",
+            description: `${closestLandmark.landmark.name} - ${formatDistance(distance)}`,
           });
-          
-          // Update the stored ID to the current closest landmark
-          setPreviousClosestId(closestLandmark.landmark.id);
         }
-      } else {
-        // Reset previousClosestId when no landmarks are in range
-        if (previousClosestId !== null) {
-          console.log(`🔄 No landmarks in range (${maxDistance}m), resetting previous closest ID`);
-          setPreviousClosestId(null);
-        }
+        
+        setPreviousClosestId(closestLandmark.landmark.id);
       }
     } else {
-      // Reset when no user location
+      // Reset when no landmarks are in range
       if (previousClosestId !== null) {
-        console.log(`📍 No user location, resetting previous closest ID`);
+        console.log(`🔄 No landmarks in range (${maxDistance}m), resetting previous closest ID`);
         setPreviousClosestId(null);
+        triggeredLandmarks.clear();
       }
     }
-  }, [userLocation, sortedLandmarks, toast, previousClosestId, maxDistance]);
+  }, [userLocation, sortedLandmarks, toast, previousClosestId, maxDistance, eventHandlers]);
 
   console.log(`🗺️ useSortedLandmarks: ${landmarks.length} total landmarks, ${sortedLandmarks.length} within ${maxDistance}m range`);
 

@@ -7,6 +7,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
 import { usePendingDestination } from '@/hooks/usePendingDestination';
 import { useDialogStates } from '@/hooks/useDialogStates';
+import { useProximityNotifications } from '@/hooks/useProximityNotifications';
 
 const Index: React.FC = () => {
   const [showSplash, setShowSplash] = useState(true);
@@ -15,6 +16,20 @@ const Index: React.FC = () => {
   const { tourPlan, plannedLandmarks, isLoading: isTourLoading, generateTour } = useTourPlanner();
   const { user, signOut } = useAuth();
   const mapboxToken = useMapboxToken();
+  
+  // Import the new proximity notifications hook
+  const {
+    activeNotification,
+    showFloatingCard,
+    hideFloatingCard,
+    showRouteVisualization,
+    showSearchNearby,
+    hideSearchNearby,
+    isSearchNearbyOpen,
+    searchNearbyLandmark,
+    searchNearbyCoordinates
+  } = useProximityNotifications();
+  
   const {
     selectedLandmark,
     setSelectedLandmark,
@@ -107,32 +122,48 @@ const Index: React.FC = () => {
   }
 
   return (
-    <MainLayout
-      mapboxToken={mapboxToken}
-      allLandmarks={allLandmarks}
-      selectedLandmark={selectedLandmark}
-      plannedLandmarks={plannedLandmarks}
-      user={user}
-      onSelectLandmark={handleSelectLandmark}
-      onTourPlannerOpen={() => setIsTourPlannerOpen(true)}
-      onVoiceSearchOpen={handleInteractionHistoryOpen}
-      onVoiceAssistantOpen={handleNewTourAssistantOpen}
-      onLogoClick={handleLogoClick}
-      onSignOut={signOut}
-      onAuthDialogOpen={() => setIsAuthDialogOpen(true)}
-      isTourPlannerOpen={isTourPlannerOpen}
-      onTourPlannerOpenChange={setIsTourPlannerOpen}
-      onGenerateTour={handleGenerateTour}
-      onTourAuthRequired={handleTourAuthRequired}
-      isTourLoading={isTourLoading}
-      isVoiceSearchOpen={isInteractionHistoryOpen}
-      onVoiceSearchOpenChange={setIsInteractionHistoryOpen}
-      isAuthDialogOpen={isAuthDialogOpen}
-      onAuthDialogOpenChange={handleAuthDialogClose}
-      isNewTourAssistantOpen={isNewTourAssistantOpen}
-      onNewTourAssistantOpenChange={setIsNewTourAssistantOpen}
-      tourPlan={tourPlan}
-    />
+    <>
+      <MainLayout
+        mapboxToken={mapboxToken}
+        allLandmarks={allLandmarks}
+        selectedLandmark={selectedLandmark}
+        plannedLandmarks={plannedLandmarks}
+        user={user}
+        onSelectLandmark={handleSelectLandmark}
+        onTourPlannerOpen={() => setIsTourPlannerOpen(true)}
+        onVoiceSearchOpen={handleInteractionHistoryOpen}
+        onVoiceAssistantOpen={handleNewTourAssistantOpen}
+        onLogoClick={handleLogoClick}
+        onSignOut={signOut}
+        onAuthDialogOpen={() => setIsAuthDialogOpen(true)}
+        isTourPlannerOpen={isTourPlannerOpen}
+        onTourPlannerOpenChange={setIsTourPlannerOpen}
+        onGenerateTour={handleGenerateTour}
+        onTourAuthRequired={handleTourAuthRequired}
+        isTourLoading={isTourLoading}
+        isVoiceSearchOpen={isInteractionHistoryOpen}
+        onVoiceSearchOpenChange={setIsInteractionHistoryOpen}
+        isAuthDialogOpen={isAuthDialogOpen}
+        onAuthDialogOpenChange={handleAuthDialogClose}
+        isNewTourAssistantOpen={isNewTourAssistantOpen}
+        onNewTourAssistantOpenChange={setIsNewTourAssistantOpen}
+        tourPlan={tourPlan}
+        // Pass proximity notification handlers
+        proximityEventHandlers={{
+          onFloatingCardTrigger: showFloatingCard,
+          onRouteVisualizationTrigger: showRouteVisualization
+        }}
+        // Pass active notification state
+        activeProximityNotification={activeNotification}
+        onHideFloatingCard={hideFloatingCard}
+        onShowSearchNearby={showSearchNearby}
+        // Search nearby state
+        isSearchNearbyOpen={isSearchNearbyOpen}
+        searchNearbyLandmark={searchNearbyLandmark}
+        searchNearbyCoordinates={searchNearbyCoordinates}
+        onHideSearchNearby={hideSearchNearby}
+      />
+    </>
   );
 };
 
