@@ -4,7 +4,7 @@ import { Landmark } from '@/data/landmarks';
 import { UserLocation } from '@/types/proximityAlerts';
 import { useToast } from '@/hooks/use-toast';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
-import { useProximityDetection } from '@/hooks/useProximityDetection';
+import { useMultiTierProximityNotifications } from '@/hooks/useMultiTierProximityNotifications';
 import { useCombinedLandmarks } from '@/hooks/useCombinedLandmarks';
 
 interface ProximityNotification {
@@ -28,7 +28,7 @@ interface UseProximityNotificationsReturn {
   userLocation: UserLocation | null;
 }
 
-export const useProximityNotifications = (maxDistance: number = 500): UseProximityNotificationsReturn => {
+export const useProximityNotifications = (testingMode: boolean = false): UseProximityNotificationsReturn => {
   const { toast } = useToast();
   const [activeNotification, setActiveNotification] = useState<ProximityNotification | null>(null);
   const [isSearchNearbyOpen, setIsSearchNearbyOpen] = useState(false);
@@ -104,11 +104,22 @@ export const useProximityNotifications = (maxDistance: number = 500): UseProximi
     setSearchNearbyCoordinates(null);
   }, []);
 
-  // Set up proximity detection with event handlers
-  useProximityDetection(
+  // Configure thresholds based on testing mode
+  const thresholds = testingMode ? {
+    floatingCard: 300000,      // 300km for testing
+    routeVisualization: 600000, // 600km for testing  
+    toastNotification: 1200000  // 1200km for testing
+  } : {
+    floatingCard: 25,          // 25m for production
+    routeVisualization: 50,    // 50m for production
+    toastNotification: 100     // 100m for production
+  };
+
+  // Set up multi-tier proximity detection
+  useMultiTierProximityNotifications(
     userLocation,
     allLandmarks,
-    maxDistance,
+    thresholds,
     {
       onFloatingCardTrigger: showFloatingCard,
       onRouteVisualizationTrigger: showRouteVisualization

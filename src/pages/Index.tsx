@@ -17,7 +17,7 @@ const Index: React.FC = () => {
   const { user, signOut } = useAuth();
   const mapboxToken = useMapboxToken();
   
-  // Import the new proximity notifications hook with expanded range (1000m for testing)
+  // Use the new proximity notifications hook with testing mode enabled (1200km max range)
   const {
     activeNotification,
     showFloatingCard,
@@ -29,7 +29,7 @@ const Index: React.FC = () => {
     searchNearbyLandmark,
     searchNearbyCoordinates,
     userLocation
-  } = useProximityNotifications(1000); // Updated to 1000m for expanded testing
+  } = useProximityNotifications(true); // true = testing mode with large thresholds
   
   const {
     selectedLandmark,
@@ -149,7 +149,7 @@ const Index: React.FC = () => {
         isNewTourAssistantOpen={isNewTourAssistantOpen}
         onNewTourAssistantOpenChange={setIsNewTourAssistantOpen}
         tourPlan={tourPlan}
-        // Pass proximity notification handlers with expanded testing range
+        // Pass proximity notification handlers (now managed internally)
         proximityEventHandlers={{
           onFloatingCardTrigger: showFloatingCard,
           onRouteVisualizationTrigger: showRouteVisualization
