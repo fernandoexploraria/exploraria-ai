@@ -6,6 +6,7 @@ import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
+import { useLocationTracking } from '@/hooks/useLocationTracking';
 
 interface MapProps {
   mapboxToken: string;
@@ -28,6 +29,7 @@ const Map: React.FC<MapProps> = ({
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<{ [key: string]: mapboxgl.Marker }>({});
+  const userLocationMarker = useRef<mapboxgl.Marker | null>(null);
   const imageCache = useRef<{ [key: string]: string }>({});
   const photoPopups = useRef<{ [key: string]: mapboxgl.Popup }>({});
   const [playingAudio, setPlayingAudio] = useState<{ [key: string]: boolean }>({});
@@ -36,6 +38,7 @@ const Map: React.FC<MapProps> = ({
   const currentAudio = useRef<HTMLAudioElement | null>(null);
   const navigationMarkers = useRef<{ marker: mapboxgl.Marker; interaction: any }[]>([]); // Store navigation markers with interaction data
   const { user } = useAuth();
+  const { userLocation } = useLocationTracking();
 
   // Convert top landmarks to Landmark format
   const allLandmarksWithTop = React.useMemo(() => {
@@ -176,6 +179,54 @@ const Map: React.FC<MapProps> = ({
       console.error('🗺️ [Map] Error during map initialization:', error);
     }
   }, [mapboxToken]);
+
+  // Update user location marker
+  useEffect(() => {
+    if (!map.current || !userLocation) return;
+
+    console.log('🔵 [Map] Updating user location marker:', userLocation);
+
+    // Remove existing user location marker
+    if (userLocationMarker.current) {
+      userLocationMarker.current.remove();
+    }
+
+    // Create user location marker element with pulsing animation
+    const el = document.createElement('div');
+    el.className = 'user-location-marker';
+    el.innerHTML = `
+      <div style="
+        width: 20px;
+        height: 20px;
+        background: #3b82f6;
+        border: 3px solid white;
+        border-radius: 50%;
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+        animation: pulse 2s infinite;
+        position: relative;
+      "></div>
+      <style>
+        @keyframes pulse {
+          0% {
+            box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+          }
+          70% {
+            box-shadow: 0 0 0 20px rgba(59, 130, 246, 0);
+          }
+          100% {
+            box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+          }
+        }
+      </style>
+    `;
+
+    // Create and add the user location marker
+    userLocationMarker.current = new mapboxgl.Marker(el)
+      .setLngLat([userLocation.longitude, userLocation.latitude])
+      .addTo(map.current);
+
+    console.log('🔵 [Map] User location marker added successfully');
+  }, [userLocation]);
 
   // Function to handle text-to-speech using Google Cloud TTS via edge function
   const handleTextToSpeech = async (landmark: Landmark) => {
