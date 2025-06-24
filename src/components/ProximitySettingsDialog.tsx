@@ -77,20 +77,20 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   }, [formDistance, proximitySettings, updateDefaultDistance, toast]);
 
   const handleEnabledChange = async (enabled: boolean) => {
-    if (!proximitySettings) return;
-
+    // Remove the guard condition - allow the function to work regardless of proximitySettings
     setFormEnabled(enabled);
     setIsToggleSaving(true);
 
     try {
       await updateProximityEnabled(enabled);
       
-      if (enabled && !proximitySettings.is_enabled) {
+      // Update toast messages to handle cases where settings might not exist yet
+      if (enabled) {
         toast({
           title: "Proximity Alerts Enabled",
           description: "Settings saved successfully. Location tracking will begin automatically.",
         });
-      } else if (!enabled && proximitySettings.is_enabled) {
+      } else {
         toast({
           title: "Proximity Alerts Disabled",
           description: "Settings saved successfully.",
@@ -98,8 +98,8 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
       }
     } catch (error) {
       console.error('Error saving proximity enabled setting:', error);
-      // Revert the local state on error
-      setFormEnabled(proximitySettings.is_enabled);
+      // Revert the local state on error - use current proximitySettings value or false as fallback
+      setFormEnabled(proximitySettings?.is_enabled ?? false);
       toast({
         title: "Error",
         description: "Failed to save settings. Please try again.",
