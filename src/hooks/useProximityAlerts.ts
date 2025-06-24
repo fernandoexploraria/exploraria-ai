@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProximityAlert, ProximitySettings, UserLocation } from '@/types/proximityAlerts';
@@ -227,17 +228,21 @@ export const useProximityAlerts = () => {
   };
 
   const updateProximityEnabled = useCallback(async (enabled: boolean) => {
-    if (!user || !proximitySettings) return;
+    if (!user) return;
 
     setIsSaving(true);
     try {
+      // Use upsert to handle both update and insert cases
       const { error } = await supabase
         .from('proximity_settings')
-        .update({
+        .upsert({
+          user_id: user.id,
           is_enabled: enabled,
+          default_distance: proximitySettings?.default_distance ?? 50,
           updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', user.id);
+        }, {
+          onConflict: 'user_id'
+        });
 
       if (error) {
         console.error('Error updating proximity enabled status:', error);
@@ -249,6 +254,7 @@ export const useProximityAlerts = () => {
         throw error;
       }
 
+      console.log('Proximity enabled status updated successfully:', enabled);
       // The real-time subscription will update the state automatically
     } catch (error) {
       console.error('Error in updateProximityEnabled:', error);
@@ -259,17 +265,21 @@ export const useProximityAlerts = () => {
   }, [user, proximitySettings, toast]);
 
   const updateDefaultDistance = useCallback(async (distance: number) => {
-    if (!user || !proximitySettings) return;
+    if (!user) return;
 
     setIsSaving(true);
     try {
+      // Use upsert to handle both update and insert cases
       const { error } = await supabase
         .from('proximity_settings')
-        .update({
+        .upsert({
+          user_id: user.id,
           default_distance: distance,
+          is_enabled: proximitySettings?.is_enabled ?? false,
           updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', user.id);
+        }, {
+          onConflict: 'user_id'
+        });
 
       if (error) {
         console.error('Error updating default distance:', error);
@@ -281,6 +291,7 @@ export const useProximityAlerts = () => {
         throw error;
       }
 
+      console.log('Default distance updated successfully:', distance);
       // The real-time subscription will update the state automatically
     } catch (error) {
       console.error('Error in updateDefaultDistance:', error);
