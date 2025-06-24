@@ -13,7 +13,7 @@ interface LandmarkWithDistance {
 export const useSortedLandmarks = (
   userLocation: UserLocation | null,
   landmarks: Landmark[],
-  maxDistance?: number
+  maxDistance: number // Made mandatory - no longer optional
 ): LandmarkWithDistance[] => {
   const { toast } = useToast();
   const [previousClosestId, setPreviousClosestId] = useState<string | null>(null);
@@ -37,29 +37,34 @@ export const useSortedLandmarks = (
       };
     });
 
-    // Filter by distance if maxDistance is provided
-    const filteredLandmarks = maxDistance 
-      ? landmarksWithDistance.filter(item => item.distance <= maxDistance)
-      : landmarksWithDistance;
+    // Filter by distance - maxDistance is now always provided
+    const filteredLandmarks = landmarksWithDistance.filter(item => item.distance <= maxDistance);
 
     // Sort by distance (ascending)
     return filteredLandmarks.sort((a, b) => a.distance - b.distance);
   }, [userLocation, landmarks, maxDistance]);
 
-  // Show toast only when closest landmark changes
+  // Show toast only when closest landmark changes and reset state when no landmarks in range
   useEffect(() => {
-    if (userLocation && sortedLandmarks.length > 0) {
-      const closestLandmark = sortedLandmarks[0];
-      
-      // Only show toast if the closest landmark ID is different from the previous one
-      if (closestLandmark.landmark.id !== previousClosestId) {
-        toast({
-          title: "Closest Landmark",
-          description: `${closestLandmark.landmark.name} - ${formatDistance(closestLandmark.distance)}`,
-        });
+    if (userLocation) {
+      if (sortedLandmarks.length > 0) {
+        const closestLandmark = sortedLandmarks[0];
         
-        // Update the stored ID to the current closest landmark
-        setPreviousClosestId(closestLandmark.landmark.id);
+        // Only show toast if the closest landmark ID is different from the previous one
+        if (closestLandmark.landmark.id !== previousClosestId) {
+          toast({
+            title: "Closest Landmark",
+            description: `${closestLandmark.landmark.name} - ${formatDistance(closestLandmark.distance)}`,
+          });
+          
+          // Update the stored ID to the current closest landmark
+          setPreviousClosestId(closestLandmark.landmark.id);
+        }
+      } else {
+        // Reset previousClosestId when no landmarks are in range
+        if (previousClosestId !== null) {
+          setPreviousClosestId(null);
+        }
       }
     }
   }, [userLocation, sortedLandmarks, toast, previousClosestId]);

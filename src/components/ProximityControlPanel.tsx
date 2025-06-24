@@ -9,6 +9,8 @@ import ProximityAlertsList from './ProximityAlertsList';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { usePermissionMonitor } from '@/hooks/usePermissionMonitor';
+import { useCombinedLandmarks } from '@/hooks/useCombinedLandmarks';
+import { useSortedLandmarks } from '@/hooks/useSortedLandmarks';
 import { useAuth } from '@/components/AuthProvider';
 import { formatDistance } from '@/utils/proximityUtils';
 
@@ -18,6 +20,14 @@ const ProximityControlPanel: React.FC = () => {
   const { locationState, userLocation } = useLocationTracking();
   const { permissionState } = usePermissionMonitor();
   const { signOut } = useAuth();
+  const combinedLandmarks = useCombinedLandmarks();
+  
+  // Use sorted landmarks with distance filtering for proximity notifications
+  const sortedLandmarks = useSortedLandmarks(
+    userLocation,
+    combinedLandmarks,
+    proximitySettings?.default_distance || 50 // Always provide distance parameter
+  );
 
   const activeAlertsCount = proximityAlerts.filter(alert => alert.is_enabled).length;
   const isProximityEnabled = proximitySettings?.is_enabled || false;
@@ -196,6 +206,11 @@ const ProximityControlPanel: React.FC = () => {
                 {proximitySettings && (
                   <p className="text-sm text-muted-foreground">
                     Default distance: {formatDistance(proximitySettings.default_distance)}
+                  </p>
+                )}
+                {sortedLandmarks.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {sortedLandmarks.length} landmark{sortedLandmarks.length !== 1 ? 's' : ''} within range
                   </p>
                 )}
               </div>
