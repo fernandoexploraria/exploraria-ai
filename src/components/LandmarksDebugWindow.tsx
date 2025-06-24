@@ -57,10 +57,10 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Navigation className="h-5 w-5" />
-            Landmarks Debug - Source Toggle
+            Landmarks Debug - Proximity Filtering
           </DialogTitle>
           <DialogDescription>
-            Debug different landmark sources and proximity filtering
+            Debug proximity filtering logic and landmark sources
           </DialogDescription>
         </DialogHeader>
 
@@ -151,7 +151,7 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
                 <div className="flex items-center gap-2">
                   <Filter className="h-4 w-4" />
                   <span className="text-sm font-medium">
-                    Filter Range: {formatDistance(defaultDistance)}
+                    Proximity Range: {formatDistance(defaultDistance)}
                   </span>
                 </div>
                 <Button
@@ -163,18 +163,28 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
                   {showAllLandmarks ? (
                     <>
                       <Filter className="h-3 w-3 mr-1" />
-                      Show Within Range
+                      Show Within Range Only
                     </>
                   ) : (
                     <>
                       <List className="h-3 w-3 mr-1" />
-                      Show All
+                      Show All Available
                     </>
                   )}
                 </Button>
               </div>
-              <div className="text-xs text-muted-foreground">
-                {filteredLandmarks.length} within range • {allLandmarks.length} total landmarks
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div>
+                  📍 <strong>{filteredLandmarks.length}</strong> landmarks within {formatDistance(defaultDistance)} range
+                </div>
+                <div>
+                  🗺️ <strong>{allLandmarks.length}</strong> total landmarks from {selectedSource} source
+                </div>
+                {filteredLandmarks.length === 0 && userLocation && (
+                  <div className="text-amber-600 font-medium">
+                    ⚠️ No landmarks in proximity range - no toasts should trigger
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -182,7 +192,7 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
           {/* Landmarks List */}
           <div className="space-y-2">
             <h4 className="text-sm font-medium">
-              {showAllLandmarks ? 'All Landmarks' : 'Landmarks Within Range'} ({currentList.length})
+              {showAllLandmarks ? 'All Available Landmarks' : 'Landmarks Within Proximity Range'} ({currentList.length})
             </h4>
             
             {currentList.length === 0 ? (
@@ -192,7 +202,7 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
                     {userLocation 
                       ? (showAllLandmarks 
                           ? `No landmarks available from ${selectedSource} source` 
-                          : `No landmarks within ${formatDistance(defaultDistance)} range from ${selectedSource} source`
+                          : `✅ No landmarks within ${formatDistance(defaultDistance)} proximity range`
                         )
                       : 'Location not available - enable location tracking to see distances'
                     }
@@ -217,7 +227,12 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
                             </span>
                             {showAllLandmarks && !isWithinRange && (
                               <Badge variant="secondary" className="text-xs">
-                                Out of range
+                                Outside range
+                              </Badge>
+                            )}
+                            {showAllLandmarks && isWithinRange && (
+                              <Badge variant="default" className="text-xs">
+                                In range
                               </Badge>
                             )}
                           </div>

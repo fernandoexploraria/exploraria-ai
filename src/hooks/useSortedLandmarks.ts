@@ -13,7 +13,7 @@ interface LandmarkWithDistance {
 export const useSortedLandmarks = (
   userLocation: UserLocation | null,
   landmarks: Landmark[],
-  maxDistance: number // Made mandatory - no longer optional
+  maxDistance: number
 ): LandmarkWithDistance[] => {
   const { toast } = useToast();
   const [previousClosestId, setPreviousClosestId] = useState<string | null>(null);
@@ -37,14 +37,14 @@ export const useSortedLandmarks = (
       };
     });
 
-    // Filter by distance - maxDistance is now always provided
+    // Filter by distance - only include landmarks within the specified range
     const filteredLandmarks = landmarksWithDistance.filter(item => item.distance <= maxDistance);
 
     // Sort by distance (ascending)
     return filteredLandmarks.sort((a, b) => a.distance - b.distance);
   }, [userLocation, landmarks, maxDistance]);
 
-  // Show toast only when closest landmark changes and reset state when no landmarks in range
+  // Show toast only when closest landmark changes, and only if there are landmarks in range
   useEffect(() => {
     if (userLocation) {
       if (sortedLandmarks.length > 0) {
@@ -52,6 +52,7 @@ export const useSortedLandmarks = (
         
         // Only show toast if the closest landmark ID is different from the previous one
         if (closestLandmark.landmark.id !== previousClosestId) {
+          console.log(`🔔 Showing proximity toast for: ${closestLandmark.landmark.name} at ${formatDistance(closestLandmark.distance)}`);
           toast({
             title: "Closest Landmark",
             description: `${closestLandmark.landmark.name} - ${formatDistance(closestLandmark.distance)}`,
@@ -63,11 +64,20 @@ export const useSortedLandmarks = (
       } else {
         // Reset previousClosestId when no landmarks are in range
         if (previousClosestId !== null) {
+          console.log(`🔄 No landmarks in range (${maxDistance}m), resetting previous closest ID`);
           setPreviousClosestId(null);
         }
       }
+    } else {
+      // Reset when no user location
+      if (previousClosestId !== null) {
+        console.log(`📍 No user location, resetting previous closest ID`);
+        setPreviousClosestId(null);
+      }
     }
-  }, [userLocation, sortedLandmarks, toast, previousClosestId]);
+  }, [userLocation, sortedLandmarks, toast, previousClosestId, maxDistance]);
+
+  console.log(`🗺️ useSortedLandmarks: ${landmarks.length} total landmarks, ${sortedLandmarks.length} within ${maxDistance}m range`);
 
   return sortedLandmarks;
 };
