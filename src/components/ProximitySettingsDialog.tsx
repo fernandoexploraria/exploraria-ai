@@ -36,6 +36,10 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   // Initialize local distance when proximitySettings loads
   useEffect(() => {
     if (proximitySettings) {
+      console.log('🎯 [DEBUG-PLAN-1] ProximitySettingsDialog: Settings loaded, initializing local distance:', {
+        settingsDistance: proximitySettings.default_distance,
+        previousLocalDistance: localDistance
+      });
       setLocalDistance(proximitySettings.default_distance);
     }
   }, [proximitySettings]);
@@ -49,12 +53,19 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
       return;
     }
 
+    console.log('🎯 [DEBUG-PLAN-1] ProximitySettingsDialog: Distance change detected, will save in 500ms:', {
+      localDistance,
+      currentDatabaseDistance: proximitySettings.default_distance,
+      difference: localDistance - proximitySettings.default_distance
+    });
+
     const timeoutId = setTimeout(async () => {
       try {
+        console.log('🎯 [DEBUG-PLAN-1] ProximitySettingsDialog: Calling updateDefaultDistance with:', localDistance);
         await updateDefaultDistance(localDistance);
-        console.log('✅ Successfully auto-saved distance:', localDistance);
+        console.log('✅ [DEBUG-PLAN-1] ProximitySettingsDialog: Successfully auto-saved distance:', localDistance);
       } catch (error) {
-        console.error('❌ Error auto-saving distance:', error);
+        console.error('❌ [DEBUG-PLAN-1] ProximitySettingsDialog: Error auto-saving distance:', error);
         toast({
           title: "Error",
           description: "Failed to save distance setting. Please try again.",
@@ -70,7 +81,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
 
   // Simple toggle handler - EXACTLY like Map component
   const handleEnabledChange = async (enabled: boolean) => {
-    console.log('🎯 ProximitySettingsDialog: Toggle called with:', enabled);
+    console.log('🎯 [DEBUG-PLAN-1] ProximitySettingsDialog: Toggle called with:', enabled);
     
     if (isUpdating) {
       console.log('⚠️ Already updating, ignoring toggle');
@@ -80,17 +91,17 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     setIsUpdating(true);
 
     try {
-      console.log('📡 ProximitySettingsDialog: Calling updateProximityEnabled with:', enabled);
+      console.log('📡 [DEBUG-PLAN-1] ProximitySettingsDialog: Calling updateProximityEnabled with:', enabled);
       // Direct call - exactly like Map component does
       await updateProximityEnabled(enabled);
-      console.log('✅ ProximitySettingsDialog: Successfully updated proximity to:', enabled);
+      console.log('✅ [DEBUG-PLAN-1] ProximitySettingsDialog: Successfully updated proximity to:', enabled);
       
       toast({
         title: enabled ? "Proximity Alerts Enabled" : "Proximity Alerts Disabled",
         description: "Settings saved successfully.",
       });
     } catch (error) {
-      console.error('❌ ProximitySettingsDialog: Error updating proximity:', error);
+      console.error('❌ [DEBUG-PLAN-1] ProximitySettingsDialog: Error updating proximity:', error);
       toast({
         title: "Error",
         description: "Failed to save settings. Please try again.",
@@ -103,12 +114,12 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
 
   const handleDistanceChange = (value: number[]) => {
     const newDistance = value[0];
-    console.log('📏 Distance changed to:', newDistance);
+    console.log('📏 [DEBUG-PLAN-1] ProximitySettingsDialog: Distance slider changed to:', newDistance);
     setLocalDistance(newDistance);
   };
 
   const handlePresetDistance = (distance: number) => {
-    console.log('📏 Preset distance selected:', distance);
+    console.log('📏 [DEBUG-PLAN-1] ProximitySettingsDialog: Preset distance selected:', distance);
     setLocalDistance(distance);
   };
 
@@ -116,12 +127,13 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   const isEnabled = proximitySettings?.is_enabled ?? false;
   const currentDistance = proximitySettings?.default_distance ?? 50;
 
-  console.log('🔍 ProximitySettingsDialog render state:', {
+  console.log('🔍 [DEBUG-PLAN-1] ProximitySettingsDialog render state:', {
     isEnabled,
     currentDistance,
     localDistance,
     isUpdating,
-    proximitySettingsExists: !!proximitySettings
+    proximitySettingsExists: !!proximitySettings,
+    settingsObject: proximitySettings
   });
 
   return (
