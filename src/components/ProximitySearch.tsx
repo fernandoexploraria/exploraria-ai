@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,8 @@ import { supabase } from '@/integrations/supabase/client';
 interface SearchResult {
   placeId: string;
   name: string;
-  formattedAddress: string;
+  formattedAddress?: string;
+  vicinity?: string;
   rating?: number;
   userRatingsTotal?: number;
   priceLevel?: number;
