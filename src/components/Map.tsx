@@ -205,7 +205,7 @@ const Map: React.FC<MapProps> = ({
     } catch (error) {
       console.error('🗺️ [Map] Error during map initialization:', error);
     }
-  }, [mapboxToken, user, updateProximityEnabled]);
+  }, [mapboxToken, user]);
 
   // Function to handle text-to-speech using Google Cloud TTS via edge function
   const handleTextToSpeech = async (landmark: Landmark) => {

@@ -226,7 +226,7 @@ export const useProximityAlerts = () => {
     }
   };
 
-  const updateProximityEnabled = async (enabled: boolean) => {
+  const updateProximityEnabled = useCallback(async (enabled: boolean) => {
     if (!user || !proximitySettings) return;
 
     setIsSaving(true);
@@ -256,9 +256,9 @@ export const useProximityAlerts = () => {
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [user, proximitySettings, toast]);
 
-  const updateDefaultDistance = async (distance: number) => {
+  const updateDefaultDistance = useCallback(async (distance: number) => {
     if (!user || !proximitySettings) return;
 
     setIsSaving(true);
@@ -288,7 +288,7 @@ export const useProximityAlerts = () => {
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [user, proximitySettings, toast]);
 
   const updateUserLocation = (location: UserLocation) => {
     setUserLocation(location);
