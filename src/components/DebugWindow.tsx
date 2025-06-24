@@ -4,7 +4,6 @@ import { X, MapPin, Eye, Timer, Target } from 'lucide-react';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { useNearbyLandmarks } from '@/hooks/useNearbyLandmarks';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
@@ -16,7 +15,6 @@ interface DebugWindowProps {
 const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
   const { proximitySettings, combinedLandmarks } = useProximityAlerts();
   const { locationState, userLocation } = useLocationTracking();
-  const isMobile = useIsMobile();
   
   const nearbyLandmarks = useNearbyLandmarks({
     userLocation,
@@ -219,11 +217,7 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
 
         {/* Instructions */}
         <div className="border-t border-gray-700 pt-2 text-gray-500 text-xs">
-          {isMobile ? (
-            <>Long press the <span className="text-yellow-400">logo</span> to toggle this window</>
-          ) : (
-            <>Press <kbd className="bg-gray-800 px-1 rounded">Ctrl+D</kbd> to toggle this window</>
-          )}
+          Press <kbd className="bg-gray-800 px-1 rounded">Ctrl+D</kbd> to toggle this window
         </div>
       </div>
     </div>
