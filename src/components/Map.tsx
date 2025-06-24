@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -198,6 +199,15 @@ const Map: React.FC<MapProps> = ({
         });
 
         map.current.addControl(geolocateControl.current, 'top-right');
+        
+        // Position the control below the sign-in control
+        setTimeout(() => {
+          const geolocateButton = document.querySelector('.mapboxgl-ctrl-geolocate');
+          if (geolocateButton && geolocateButton.parentElement) {
+            const controlGroup = geolocateButton.parentElement;
+            controlGroup.style.marginTop = '70px'; // Position below sign-in control (16px + 40px height + 14px gap)
+          }
+        }, 100); // Small delay to ensure DOM is ready
       }
     } else {
       // Remove geolocation control if it exists
