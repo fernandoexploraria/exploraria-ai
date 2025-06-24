@@ -45,9 +45,9 @@ export const useLandmarkSourceToggle = () => {
   const [selectedSource, setSelectedSource] = useState<LandmarkSource>('combined');
   
   // Get all landmark sources
-  const combinedLandmarks = useCombinedLandmarks();
-  const tourLandmarks = getGlobalTourLandmarks();
   const top100Landmarks = TOP_LANDMARKS.map(convertTopLandmarkToLandmark);
+  const combinedData = useCombinedLandmarks(top100Landmarks);
+  const tourLandmarks = getGlobalTourLandmarks();
 
   // Select the appropriate landmark set based on current selection
   const getCurrentLandmarks = (): Landmark[] => {
@@ -58,7 +58,7 @@ export const useLandmarkSourceToggle = () => {
         return tourLandmarks;
       case 'combined':
       default:
-        return combinedLandmarks;
+        return combinedData.allLandmarks;
     }
   };
 
@@ -71,7 +71,7 @@ export const useLandmarkSourceToggle = () => {
     sourceCounts: {
       top100: top100Landmarks.length,
       tour: tourLandmarks.length,
-      combined: combinedLandmarks.length
+      combined: combinedData.allLandmarks.length
     }
   };
 };
