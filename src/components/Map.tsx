@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -41,7 +40,7 @@ const Map: React.FC<MapProps> = ({
   const geolocateControl = useRef<mapboxgl.GeolocateControl | null>(null);
   const hasEnabledProximity = useRef<boolean>(false);
   const { user } = useAuth();
-  const { updateProximityEnabled, updateDefaultDistance, setUserLocation, proximitySettings } = useProximityAlerts();
+  const { updateProximityEnabled, setUserLocation, proximitySettings } = useProximityAlerts();
   const { toast } = useToast();
 
   // Convert top landmarks to Landmark format
@@ -226,13 +225,12 @@ const Map: React.FC<MapProps> = ({
           hasEnabledProximity.current = true;
           console.log('🗺️ [Map] Enabling proximity alerts for the first time');
           
-          // Enable proximity alerts with 50m default distance
+          // Enable proximity alerts only
           updateProximityEnabled(true);
-          updateDefaultDistance(50);
           
           toast({
             title: "Location enabled!",
-            description: "Proximity alerts activated with 50m range.",
+            description: "Proximity alerts activated.",
           });
         }
       });
@@ -240,7 +238,7 @@ const Map: React.FC<MapProps> = ({
       geolocateControl.current.on('geolocate', (e: any) => {
         console.log('🗺️ [Map] Location update received:', e);
         
-        // Only update user location - don't enable proximity here
+        // Only update user location
         setUserLocation({
           latitude: e.coords.latitude,
           longitude: e.coords.longitude,
@@ -271,7 +269,7 @@ const Map: React.FC<MapProps> = ({
       geolocateControl.current = null;
       hasEnabledProximity.current = false;
     }
-  }, [user, updateProximityEnabled, updateDefaultDistance, setUserLocation, toast]); // Added updateProximityEnabled and updateDefaultDistance as dependencies
+  }, [user, updateProximityEnabled, setUserLocation, toast]);
 
   // Function to handle text-to-speech using Google Cloud TTS via edge function
   const handleTextToSpeech = async (landmark: Landmark) => {

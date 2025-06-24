@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProximityAlert, ProximitySettings, UserLocation } from '@/types/proximityAlerts';
@@ -235,13 +234,12 @@ export const useProximityAlerts = () => {
     setIsSaving(true);
     
     try {
-      // Use upsert to handle both update and insert cases
+      // Only update the is_enabled field, leave default_distance unchanged
       const { data, error } = await supabase
         .from('proximity_settings')
         .upsert({
           user_id: user.id,
           is_enabled: enabled,
-          default_distance: proximitySettings?.default_distance ?? 50,
           updated_at: new Date().toISOString(),
         }, {
           onConflict: 'user_id'
@@ -281,57 +279,7 @@ export const useProximityAlerts = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [user, proximitySettings, toast]);
-
-  const updateDefaultDistance = useCallback(async (distance: number) => {
-    if (!user) return;
-
-    setIsSaving(true);
-    try {
-      // Use upsert to handle both update and insert cases
-      const { data, error } = await supabase
-        .from('proximity_settings')
-        .upsert({
-          user_id: user.id,
-          default_distance: distance,
-          is_enabled: proximitySettings?.is_enabled ?? false,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id'
-        })
-        .select();
-
-      if (error) {
-        console.error('Error updating default distance:', error);
-        toast({
-          title: "Error",
-          description: "Failed to update default distance. Please try again.",
-          variant: "destructive",
-        });
-        throw error;
-      }
-
-      console.log('Default distance updated successfully:', distance);
-      
-      // Update local state immediately
-      if (data && data[0]) {
-        const updatedSettings: ProximitySettings = {
-          id: data[0].id,
-          user_id: data[0].user_id,
-          is_enabled: data[0].is_enabled,
-          default_distance: data[0].default_distance,
-          created_at: data[0].created_at,
-          updated_at: data[0].updated_at,
-        };
-        setProximitySettings(updatedSettings);
-      }
-    } catch (error) {
-      console.error('Error in updateDefaultDistance:', error);
-      throw error;
-    } finally {
-      setIsSaving(false);
-    }
-  }, [user, proximitySettings, toast]);
+  }, [user, toast]);
 
   const updateUserLocation = useCallback((location: UserLocation) => {
     setUserLocation(location);
@@ -356,6 +304,5 @@ export const useProximityAlerts = () => {
     loadProximitySettings,
     loadProximityAlerts,
     updateProximityEnabled,
-    updateDefaultDistance,
   };
 };
