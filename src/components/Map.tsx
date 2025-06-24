@@ -8,6 +8,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 
+interface MapProps {
+  mapboxToken: string;
+  landmarks: Landmark[];
+  onSelectLandmark: (landmark: Landmark) => void;
+  selectedLandmark: Landmark | null;
+  plannedLandmarks: Landmark[];
+}
+
 // Google API key
 const GOOGLE_API_KEY = 'AIzaSyCjQKg2W9uIrIx4EmRnyf3WCkO4eeEvpyg';
 
