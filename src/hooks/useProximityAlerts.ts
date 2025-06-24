@@ -50,17 +50,16 @@ export const useProximityAlerts = () => {
     defaultDistance || 50 // Temporary fallback until settings load
   );
 
-  // Core proximity detection logic - runs every time location or settings change
+  // Simplified toast logic - uses the sorted landmarks directly
   useEffect(() => {
     // Only run if proximity is enabled and we have a location
     if (!proximitySettings?.is_enabled || !userLocation || !isMountedRef.current) {
       return;
     }
 
-    console.log('🎯 Running proximity detection...');
+    console.log('🎯 Running simplified proximity detection...');
     console.log(`📍 Current location: ${userLocation.latitude.toFixed(6)}, ${userLocation.longitude.toFixed(6)}`);
     console.log(`📏 Default distance: ${defaultDistance}m`);
-    console.log(`🗺️ Total landmarks: ${combinedLandmarks.length}`);
     console.log(`✅ Landmarks within range: ${sortedLandmarks.length}`);
 
     // Get the closest landmark (first in the sorted list, already filtered by distance)
@@ -71,7 +70,7 @@ export const useProximityAlerts = () => {
     console.log(`🏛️ Previous closest: ${previousClosestId || 'none'}`);
     console.log(`🏛️ Current closest: ${currentClosestId || 'none'}`);
 
-    // Compare with persisted value and handle changes
+    // Handle changes in closest landmark
     if (currentClosestId !== previousClosestId) {
       console.log('🔄 Closest landmark changed!');
 
@@ -96,7 +95,7 @@ export const useProximityAlerts = () => {
       // Same landmark or both null - no action needed
       console.log('✅ No change in closest landmark');
     }
-  }, [userLocation, proximitySettings?.is_enabled, defaultDistance, sortedLandmarks, combinedLandmarks.length, toast]);
+  }, [sortedLandmarks, proximitySettings?.is_enabled, userLocation, defaultDistance, toast]);
 
   // Subscribe to global proximity settings state
   useEffect(() => {
