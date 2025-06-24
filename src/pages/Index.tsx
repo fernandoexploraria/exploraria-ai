@@ -39,27 +39,16 @@ const Index: React.FC = () => {
     () => setIsNewTourAssistantOpen(true) // Callback to open NewTourAssistant
   );
 
+  // Initialize proximity notifications
+  useProximityNotifications();
+  
   const allLandmarks = useMemo(() => {
     return [...staticLandmarks, ...plannedLandmarks, ...additionalLandmarks];
   }, [plannedLandmarks, additionalLandmarks]);
 
-  const handleSelectLandmark = useCallback((landmark: Landmark, googlePlacesDetails?: any) => {
-    console.log(`🎯 Selecting landmark: ${landmark.name}`, googlePlacesDetails ? 'with Google Places data' : 'without Google Places data');
-    
-    // If we have Google Places details, we could enhance the landmark object
-    // For now, we'll just select the landmark and log the additional data
-    if (googlePlacesDetails) {
-      console.log('📍 Google Places details:', googlePlacesDetails);
-      // TODO: Store or use the Google Places details in the map popup or TTS
-    }
-    
+  const handleSelectLandmark = useCallback((landmark: Landmark) => {
     setSelectedLandmark(landmark);
   }, [setSelectedLandmark]);
-
-  // Initialize proximity notifications with landmark selection handler
-  useProximityNotifications({
-    onSelectLandmark: handleSelectLandmark
-  });
 
   const handleGenerateTour = async (destination: string) => {
     await generateTour(destination);
