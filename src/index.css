@@ -88,6 +88,26 @@
       z-index: 9999;
     }
   }
+
+  /* Closest landmark marker styling */
+  .closest-landmark {
+    background-color: #10b981 !important; /* green-500 */
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3) !important;
+  }
+
+  /* Pulse animation for closest landmark */
+  @keyframes pulse-closest {
+    0%, 100% {
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.1);
+    }
+  }
+
+  .pulse-closest {
+    animation: pulse-closest 2s infinite;
+  }
 }
 
 #root {
