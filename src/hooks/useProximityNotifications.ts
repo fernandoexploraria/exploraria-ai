@@ -13,7 +13,7 @@ interface NotificationState {
 const NOTIFICATION_COOLDOWN = 5 * 60 * 1000; // 5 minutes in milliseconds
 const STORAGE_KEY = 'proximity_notifications_state';
 
-export const useProximityNotifications = () => {
+export const useProximityNotifications = (onSelectLandmark?: (landmark: Landmark) => void) => {
   const { proximitySettings, combinedLandmarks } = useProximityAlerts();
   const { userLocation } = useLocationTracking();
   const notificationStateRef = useRef<NotificationState>({});
@@ -56,6 +56,21 @@ export const useProximityNotifications = () => {
     return timeSinceLastNotification >= NOTIFICATION_COOLDOWN;
   }, []);
 
+  // Handle "Learn More" action with Mapbox integration
+  const handleLearnMore = useCallback(async (landmark: Landmark) => {
+    console.log(`🗺️ Learn More clicked for ${landmark.name} - triggering map focus`);
+    
+    // Trigger map focus and selection through the callback
+    if (onSelectLandmark) {
+      onSelectLandmark(landmark);
+    }
+    
+    // Also trigger global map navigation if available
+    if ((window as any).focusMapOnLandmark) {
+      (window as any).focusMapOnLandmark(landmark);
+    }
+  }, [onSelectLandmark]);
+
   // Show proximity toast notification
   const showProximityToast = useCallback((landmark: Landmark, distance: number) => {
     const formattedDistance = distance >= 1000 
@@ -69,17 +84,14 @@ export const useProximityNotifications = () => {
       duration: 8000,
       action: {
         label: 'Learn More',
-        onClick: () => {
-          console.log(`User clicked learn more for ${landmark.name}`);
-          // TODO: Open landmark details or trigger selection
-        }
+        onClick: () => handleLearnMore(landmark)
       }
     });
 
     // Record notification
     notificationStateRef.current[landmark.id] = Date.now();
     saveNotificationState();
-  }, [saveNotificationState]);
+  }, [handleLearnMore, saveNotificationState]);
 
   // Monitor for newly entered proximity zones
   useEffect(() => {
