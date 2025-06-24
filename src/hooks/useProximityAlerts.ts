@@ -37,11 +37,13 @@ export const useProximityAlerts = () => {
   // Ref to track the previously closest landmark ID for persistence
   const previousClosestLandmarkIdRef = useRef<string | null>(null);
 
-  // Get combined landmarks (top landmarks + tour landmarks)
+  // Get combined landmarks (top landmarks + tour landmarks) - ALWAYS call this hook
   const combinedLandmarks = useCombinedLandmarks();
 
-  // Get sorted landmarks within range using the default distance
+  // Get default distance - calculate before calling useSortedLandmarks
   const defaultDistance = proximitySettings?.default_distance || 100;
+
+  // Get sorted landmarks within range - ALWAYS call this hook
   const sortedLandmarks = useSortedLandmarks(
     userLocation,
     combinedLandmarks,
