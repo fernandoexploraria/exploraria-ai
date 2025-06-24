@@ -5,23 +5,9 @@ import TopControls from '@/components/TopControls';
 import UserControls from '@/components/UserControls';
 import DialogManager from '@/components/DialogManager';
 import NewTourAssistant from '@/components/NewTourAssistant';
-import ProximityFloatingCard from '@/components/ProximityFloatingCard';
-import ProximitySearch from '@/components/ProximitySearch';
+import ProximityControlPanel from '@/components/ProximityControlPanel';
 import { Landmark } from '@/data/landmarks';
 import { User } from '@supabase/supabase-js';
-
-interface ProximityEventHandlers {
-  onFloatingCardTrigger?: (landmark: Landmark, distance: number) => void;
-  onRouteVisualizationTrigger?: (landmark: Landmark, distance: number) => void;
-}
-
-interface ProximityNotification {
-  id: string;
-  landmark: Landmark;
-  distance: number;
-  notificationType: 'floating-card' | 'route-visual' | 'audio' | 'toast';
-  timestamp: number;
-}
 
 interface MainLayoutProps {
   mapboxToken: string;
@@ -48,15 +34,6 @@ interface MainLayoutProps {
   isNewTourAssistantOpen: boolean;
   onNewTourAssistantOpenChange: (open: boolean) => void;
   tourPlan: any;
-  proximityEventHandlers?: ProximityEventHandlers;
-  activeProximityNotification?: ProximityNotification | null;
-  onHideFloatingCard?: () => void;
-  onShowSearchNearby?: (landmark: Landmark, coordinates: [number, number]) => void;
-  isSearchNearbyOpen?: boolean;
-  searchNearbyLandmark?: Landmark | null;
-  searchNearbyCoordinates?: [number, number] | null;
-  onHideSearchNearby?: () => void;
-  userLocation?: [number, number] | null;
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({
@@ -84,37 +61,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   isNewTourAssistantOpen,
   onNewTourAssistantOpenChange,
   tourPlan,
-  proximityEventHandlers,
-  activeProximityNotification,
-  onHideFloatingCard,
-  onShowSearchNearby,
-  isSearchNearbyOpen = false,
-  searchNearbyLandmark,
-  searchNearbyCoordinates,
-  onHideSearchNearby,
-  userLocation = null,
 }) => {
   const handleLocationSelect = () => {
     console.log('Location select called but no action taken');
-  };
-
-  const handlePlaceSelect = (place: any) => {
-    console.log('Selected place for directions:', place);
-    // TODO: Implement directions to selected place
-  };
-
-  const handleGetDirections = () => {
-    console.log('Get directions clicked');
-    // TODO: Implement directions functionality
-  };
-
-  const handleShowNearby = () => {
-    if (activeProximityNotification && onShowSearchNearby) {
-      onShowSearchNearby(
-        activeProximityNotification.landmark,
-        activeProximityNotification.landmark.coordinates
-      );
-    }
   };
 
   return (
@@ -164,27 +113,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         landmarks={plannedLandmarks}
         systemPrompt={tourPlan?.systemPrompt}
       />
-
-      {/* Proximity Floating Card */}
-      {activeProximityNotification && activeProximityNotification.notificationType === 'floating-card' && (
-        <ProximityFloatingCard
-          landmark={activeProximityNotification.landmark}
-          distance={activeProximityNotification.distance}
-          onClose={onHideFloatingCard || (() => {})}
-          onGetDirections={handleGetDirections}
-          onShowNearby={handleShowNearby}
-          userLocation={userLocation}
-        />
-      )}
-
-      {/* Proximity Search */}
-      {isSearchNearbyOpen && searchNearbyCoordinates && (
-        <ProximitySearch
-          coordinates={searchNearbyCoordinates}
-          onClose={onHideSearchNearby || (() => {})}
-          onSelectPlace={handlePlaceSelect}
-        />
-      )}
     </div>
   );
 };
