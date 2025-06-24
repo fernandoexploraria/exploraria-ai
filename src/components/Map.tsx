@@ -7,14 +7,6 @@ import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 
-interface MapProps {
-  mapboxToken: string;
-  landmarks: Landmark[];
-  onSelectLandmark: (landmark: Landmark) => void;
-  selectedLandmark: Landmark | null;
-  plannedLandmarks: Landmark[];
-}
-
 // Google API key
 const GOOGLE_API_KEY = 'AIzaSyCjQKg2W9uIrIx4EmRnyf3WCkO4eeEvpyg';
 
@@ -34,7 +26,8 @@ const Map: React.FC<MapProps> = ({
   const pendingPopupLandmark = useRef<Landmark | null>(null);
   const isZooming = useRef<boolean>(false);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
-  const navigationMarkers = useRef<{ marker: mapboxgl.Marker; interaction: any }[]>([]); // Store navigation markers with interaction data
+  const navigationMarkers = useRef<{ marker: mapboxgl.Marker; interaction: any }[]>([]);
+  const closestLandmarkId = useRef<string | null>(null); // Track closest landmark
   const { user } = useAuth();
 
   // Convert top landmarks to Landmark format
@@ -638,15 +631,23 @@ const Map: React.FC<MapProps> = ({
       }
     }
 
+    // Update marker colors based on closest, selected, and normal states
     Object.entries(markers.current).forEach(([id, marker]) => {
       const element = marker.getElement();
+      const isClosest = id === closestLandmarkId.current;
       const isSelected = id === selectedLandmark?.id;
       const isTopLandmark = id.startsWith('top-landmark-');
       
-      if (isSelected) {
+      if (isClosest) {
+        // Closest landmark gets green color (highest priority)
+        element.style.backgroundColor = '#22c55e'; // green-500
+        element.style.transform = 'scale(1.5)';
+      } else if (isSelected) {
+        // Selected landmark gets red color (second priority)
         element.style.backgroundColor = '#f87171'; // red-400
         element.style.transform = 'scale(1.5)';
       } else {
+        // Normal landmarks get original colors (lowest priority)
         element.style.backgroundColor = isTopLandmark ? '#facc15' : '#22d3ee'; // yellow-400 or cyan-400
         element.style.transform = 'scale(1)';
       }
@@ -882,9 +883,58 @@ const Map: React.FC<MapProps> = ({
     }
   };
 
-  // Expose the function globally so InteractionCard can call it
+  // Expose closest landmark functions globally and cleanup
   React.useEffect(() => {
-    console.log('Setting up navigateToMapCoordinates on window');
+    console.log('Setting up closest landmark functions on window');
+    
+    // Function to highlight a landmark as closest
+    (window as any).setClosestLandmark = (landmarkId: string) => {
+      console.log('Setting closest landmark:', landmarkId);
+      closestLandmarkId.current = landmarkId;
+      
+      // Update marker color immediately
+      Object.entries(markers.current).forEach(([id, marker]) => {
+        const element = marker.getElement();
+        const isClosest = id === landmarkId;
+        const isSelected = id === selectedLandmark?.id;
+        const isTopLandmark = id.startsWith('top-landmark-');
+        
+        if (isClosest) {
+          element.style.backgroundColor = '#22c55e'; // green-500
+          element.style.transform = 'scale(1.5)';
+        } else if (isSelected) {
+          element.style.backgroundColor = '#f87171'; // red-400
+          element.style.transform = 'scale(1.5)';
+        } else {
+          element.style.backgroundColor = isTopLandmark ? '#facc15' : '#22d3ee';
+          element.style.transform = 'scale(1)';
+        }
+      });
+    };
+    
+    // Function to clear a landmark as closest
+    (window as any).clearClosestLandmark = (landmarkId: string) => {
+      console.log('Clearing closest landmark:', landmarkId);
+      if (closestLandmarkId.current === landmarkId) {
+        closestLandmarkId.current = null;
+        
+        // Update marker color back to normal/selected
+        if (markers.current[landmarkId]) {
+          const element = markers.current[landmarkId].getElement();
+          const isSelected = landmarkId === selectedLandmark?.id;
+          const isTopLandmark = landmarkId.startsWith('top-landmark-');
+          
+          if (isSelected) {
+            element.style.backgroundColor = '#f87171'; // red-400
+            element.style.transform = 'scale(1.5)';
+          } else {
+            element.style.backgroundColor = isTopLandmark ? '#facc15' : '#22d3ee';
+            element.style.transform = 'scale(1)';
+          }
+        }
+      }
+    };
+
     (window as any).navigateToMapCoordinates = navigateToCoordinates;
     (window as any).stopCurrentAudio = stopCurrentAudio;
     
@@ -898,12 +948,14 @@ const Map: React.FC<MapProps> = ({
     };
     
     return () => {
-      console.log('Cleaning up navigateToMapCoordinates from window');
+      console.log('Cleaning up closest landmark functions from window');
+      delete (window as any).setClosestLandmark;
+      delete (window as any).clearClosestLandmark;
       delete (window as any).navigateToMapCoordinates;
       delete (window as any).handleInteractionListen;
       delete (window as any).stopCurrentAudio;
     };
-  }, []);
+  }, [selectedLandmark]);
 
   return <div ref={mapContainer} className="absolute inset-0" />;
 };
