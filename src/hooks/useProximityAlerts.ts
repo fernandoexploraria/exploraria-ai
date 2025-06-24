@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProximityAlert, ProximitySettings, UserLocation } from '@/types/proximityAlerts';
@@ -227,15 +228,18 @@ export const useProximityAlerts = () => {
   };
 
   const updateProximityEnabled = useCallback(async (enabled: boolean) => {
+    console.log('updateProximityEnabled function called with:', { enabled, userId: user?.id });
+    
     if (!user) {
       console.log('No user available for updateProximityEnabled');
       return;
     }
 
-    console.log('updateProximityEnabled called with enabled:', enabled, 'for user:', user.id);
+    console.log('updateProximityEnabled proceeding with user:', user.id);
     setIsSaving(true);
     
     try {
+      console.log('Making database request to update proximity enabled status...');
       // Use UPSERT to ensure settings are created or updated
       const { error } = await supabase
         .from('proximity_settings')
@@ -248,7 +252,7 @@ export const useProximityAlerts = () => {
         });
 
       if (error) {
-        console.error('Error updating proximity enabled status:', error);
+        console.error('Database error updating proximity enabled status:', error);
         toast({
           title: "Error",
           description: "Failed to update proximity settings. Please try again.",
@@ -257,7 +261,7 @@ export const useProximityAlerts = () => {
         throw error;
       }
 
-      console.log('Successfully updated proximity enabled status to:', enabled);
+      console.log('Successfully updated proximity enabled status in database to:', enabled);
       // The real-time subscription will update the state automatically
     } catch (error) {
       console.error('Error in updateProximityEnabled:', error);
@@ -268,10 +272,16 @@ export const useProximityAlerts = () => {
   }, [user, toast]);
 
   const updateDefaultDistance = useCallback(async (distance: number) => {
-    if (!user) return;
+    console.log('updateDefaultDistance called with:', { distance, userId: user?.id });
+    
+    if (!user) {
+      console.log('No user available for updateDefaultDistance');
+      return;
+    }
 
     setIsSaving(true);
     try {
+      console.log('Making database request to update default distance...');
       // Use UPSERT to ensure settings are created or updated - remove dependency on proximitySettings
       const { error } = await supabase
         .from('proximity_settings')
@@ -284,7 +294,7 @@ export const useProximityAlerts = () => {
         });
 
       if (error) {
-        console.error('Error updating default distance:', error);
+        console.error('Database error updating default distance:', error);
         toast({
           title: "Error",
           description: "Failed to update default distance. Please try again.",
@@ -293,6 +303,7 @@ export const useProximityAlerts = () => {
         throw error;
       }
 
+      console.log('Successfully updated default distance in database to:', distance);
       // The real-time subscription will update the state automatically
     } catch (error) {
       console.error('Error in updateDefaultDistance:', error);
