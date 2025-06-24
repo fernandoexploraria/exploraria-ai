@@ -34,7 +34,7 @@ const Map: React.FC<MapProps> = ({
   const pendingPopupLandmark = useRef<Landmark | null>(null);
   const isZooming = useRef<boolean>(false);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
-  const navigationMarkers = useRef<{ marker: mapboxgl.Marker; interaction: any }[]>([]); // Store navigation markers with interaction data
+  const navigationMarkers = useRef<{ marker: mapboxgl.Marker; interaction: any }[]>([]);
   const { user } = useAuth();
 
   // Convert top landmarks to Landmark format
@@ -125,26 +125,22 @@ const Map: React.FC<MapProps> = ({
 
       map.current.on('style.load', () => {
         console.log('🗺️ [Map] Map style loaded, adding fog...');
-        map.current?.setFog({}); // Add a sky layer and atmosphere
+        map.current?.setFog({});
       });
 
       // Close all popups when clicking on the map
       map.current.on('click', (e) => {
-        // Check if the click was on a marker by looking for our marker class
         const clickedElement = e.originalEvent.target as HTMLElement;
         const isMarkerClick = clickedElement.closest('.w-4.h-4.rounded-full') || clickedElement.closest('.w-6.h-6.rounded-full');
         
         if (!isMarkerClick) {
-          // Stop any playing audio
           stopCurrentAudio();
           
-          // Close all photo popups
           Object.values(photoPopups.current).forEach(popup => {
             popup.remove();
           });
           photoPopups.current = {};
           
-          // Also close any Mapbox popups that might be open
           const mapboxPopups = document.querySelectorAll('.mapboxgl-popup');
           mapboxPopups.forEach(popup => {
             popup.remove();
@@ -159,7 +155,6 @@ const Map: React.FC<MapProps> = ({
           pendingPopupLandmark.current = null;
           isZooming.current = false;
           
-          // Small delay to ensure zoom animation is fully complete
           setTimeout(() => {
             showLandmarkPopup(landmark);
           }, 100);
@@ -535,7 +530,7 @@ const Map: React.FC<MapProps> = ({
     }
   };
 
-  // Update markers when landmarks change
+  // Update markers when landmarks change - now with proximity landmark styling
   useEffect(() => {
     if (!map.current) return;
 
@@ -558,9 +553,17 @@ const Map: React.FC<MapProps> = ({
       if (!markers.current[landmark.id]) {
         const el = document.createElement('div');
         
-        // Different styling for top landmarks vs user landmarks
+        // Different styling for different landmark types
         const isTopLandmark = landmark.id.startsWith('top-landmark-');
-        const markerColor = isTopLandmark ? 'bg-yellow-400' : 'bg-cyan-400';
+        const isProximityLandmark = landmark.id.startsWith('proximity-');
+        
+        let markerColor = 'bg-cyan-400'; // default for regular landmarks
+        
+        if (isProximityLandmark) {
+          markerColor = 'bg-green-400'; // green for proximity landmarks
+        } else if (isTopLandmark) {
+          markerColor = 'bg-yellow-400'; // yellow for top landmarks
+        }
         
         el.className = `w-4 h-4 rounded-full ${markerColor} border-2 border-white shadow-lg cursor-pointer transition-transform duration-300 hover:scale-125`;
         el.style.transition = 'background-color 0.3s, transform 0.3s';
@@ -570,7 +573,7 @@ const Map: React.FC<MapProps> = ({
           .addTo(map.current!);
 
         marker.getElement().addEventListener('click', async (e) => {
-          e.stopPropagation(); // Prevent map click event
+          e.stopPropagation();
           
           console.log('Marker clicked:', landmark.name);
           
@@ -587,11 +590,9 @@ const Map: React.FC<MapProps> = ({
               easing: (t) => t,
             });
           } else {
-            // Show popup immediately for marker clicks when already zoomed
             showLandmarkPopup(landmark);
           }
           
-          // Call the landmark selection handler to update the selected landmark
           onSelectLandmark(landmark);
         });
 
@@ -608,7 +609,6 @@ const Map: React.FC<MapProps> = ({
       
       const currentZoom = map.current.getZoom() || 1.5;
       
-      // Always zoom and show popup for search selections
       if (currentZoom < 10) {
         console.log('Zooming to landmark from search');
         isZooming.current = true;
@@ -621,7 +621,6 @@ const Map: React.FC<MapProps> = ({
           easing: (t) => t,
         });
       } else {
-        // If already zoomed in, just fly to the new location and show popup
         console.log('Flying to landmark and showing popup');
         map.current.flyTo({
           center: selectedLandmark.coordinates,
@@ -631,7 +630,6 @@ const Map: React.FC<MapProps> = ({
           easing: (t) => t,
         });
         
-        // Show popup after a short delay
         setTimeout(() => {
           showLandmarkPopup(selectedLandmark);
         }, 500);
@@ -642,12 +640,20 @@ const Map: React.FC<MapProps> = ({
       const element = marker.getElement();
       const isSelected = id === selectedLandmark?.id;
       const isTopLandmark = id.startsWith('top-landmark-');
+      const isProximityLandmark = id.startsWith('proximity-');
       
       if (isSelected) {
-        element.style.backgroundColor = '#f87171'; // red-400
+        element.style.backgroundColor = '#f87171'; // red-400 for selected
         element.style.transform = 'scale(1.5)';
       } else {
-        element.style.backgroundColor = isTopLandmark ? '#facc15' : '#22d3ee'; // yellow-400 or cyan-400
+        // Set color based on landmark type
+        if (isProximityLandmark) {
+          element.style.backgroundColor = '#4ade80'; // green-400 for proximity
+        } else if (isTopLandmark) {
+          element.style.backgroundColor = '#facc15'; // yellow-400 for top
+        } else {
+          element.style.backgroundColor = '#22d3ee'; // cyan-400 for regular
+        }
         element.style.transform = 'scale(1)';
       }
     });
@@ -888,9 +894,7 @@ const Map: React.FC<MapProps> = ({
     (window as any).navigateToMapCoordinates = navigateToCoordinates;
     (window as any).stopCurrentAudio = stopCurrentAudio;
     
-    // Add global handler for interaction listen button
     (window as any).handleInteractionListen = (interactionId: string) => {
-      // Find the interaction by ID from navigation markers
       const markerData = navigationMarkers.current.find(m => m.interaction?.id === interactionId);
       if (markerData?.interaction?.assistant_response) {
         handleTextToSpeechForInteraction(markerData.interaction.assistant_response);
