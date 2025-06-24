@@ -51,7 +51,7 @@ export const useSortedLandmarks = (
     return filteredLandmarks.sort((a, b) => a.distance - b.distance);
   }, [userLocation, landmarks, maxDistance]);
 
-  // Enhanced proximity notification logic
+  // Enhanced proximity notification logic with wider testing ranges
   useEffect(() => {
     if (userLocation && sortedLandmarks.length > 0) {
       const closestLandmark = sortedLandmarks[0];
@@ -61,17 +61,17 @@ export const useSortedLandmarks = (
       if (closestLandmark.landmark.id !== previousClosestId) {
         console.log(`🔔 New closest landmark: ${closestLandmark.landmark.name} at ${formatDistance(distance)}`);
         
-        // Progressive notification logic based on distance
-        if (distance <= 25) {
-          // Very close - show floating card with enhanced features
+        // Progressive notification logic with expanded testing ranges
+        if (distance <= 100) {
+          // Very close - show floating card with enhanced features (was 25m)
           console.log('📍 Very close proximity - triggering floating card');
           eventHandlers?.onFloatingCardTrigger?.(closestLandmark.landmark, distance);
-        } else if (distance <= 50) {
-          // Close - show route visualization
+        } else if (distance <= 250) {
+          // Close - show route visualization (was 50m)
           console.log('🗺️ Close proximity - triggering route visualization');
           eventHandlers?.onRouteVisualizationTrigger?.(closestLandmark.landmark, distance);
-        } else if (distance <= 100) {
-          // Medium distance - show basic toast notification
+        } else if (distance <= 500) {
+          // Medium distance - show basic toast notification (was 100m)
           console.log('💬 Medium proximity - showing toast notification');
           toast({
             title: "Nearby Landmark",
