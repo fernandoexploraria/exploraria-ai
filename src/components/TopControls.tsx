@@ -151,7 +151,6 @@ const TopControls: React.FC<TopControlsProps> = ({
       <LandmarksDebugWindow
         open={isDebugOpen}
         onOpenChange={setIsDebugOpen}
-        onDebugOverridesChange={onDebugOverridesChange}
       />
     </div>
   );
