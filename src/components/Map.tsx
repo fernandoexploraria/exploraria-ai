@@ -6,10 +6,11 @@ import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
+import { ProximityAwareLandmark } from '@/hooks/useProximityAwareMarkers';
 
 interface MapProps {
   mapboxToken: string;
-  landmarks: Landmark[];
+  landmarks: ProximityAwareLandmark[];
   onSelectLandmark: (landmark: Landmark) => void;
   selectedLandmark: Landmark | null;
   plannedLandmarks: Landmark[];
@@ -34,7 +35,7 @@ const Map: React.FC<MapProps> = ({
   const pendingPopupLandmark = useRef<Landmark | null>(null);
   const isZooming = useRef<boolean>(false);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
-  const navigationMarkers = useRef<{ marker: mapboxgl.Marker; interaction: any }[]>([]); // Store navigation markers with interaction data
+  const navigationMarkers = useRef<{ marker: mapboxgl.Marker; interaction: any }[]>([]);
   const { user } = useAuth();
 
   // Convert top landmarks to Landmark format
@@ -553,28 +554,38 @@ const Map: React.FC<MapProps> = ({
       }
     });
 
-    // Add new markers
+    // Add new markers or update existing ones
     allLandmarksWithTop.forEach((landmark) => {
+      const proximityLandmark = landmark as ProximityAwareLandmark;
+      
       if (!markers.current[landmark.id]) {
         const el = document.createElement('div');
         
-        // Different styling for top landmarks vs user landmarks
-        const isTopLandmark = landmark.id.startsWith('top-landmark-');
-        const markerColor = isTopLandmark ? 'bg-yellow-400' : 'bg-cyan-400';
+        // Determine marker styling based on priority: selected > closest > top landmarks > regular
+        const getMarkerStyle = () => {
+          if (landmark.id === selectedLandmark?.id) {
+            return { color: 'bg-red-400', size: 'w-6 h-6', scale: 'scale-150' };
+          } else if (proximityLandmark.isClosest) {
+            return { color: 'bg-orange-400', size: 'w-5 h-5', scale: 'scale-125' };
+          } else if (landmark.id.startsWith('top-landmark-')) {
+            return { color: 'bg-yellow-400', size: 'w-4 h-4', scale: 'scale-100' };
+          } else {
+            return { color: 'bg-cyan-400', size: 'w-4 h-4', scale: 'scale-100' };
+          }
+        };
         
-        el.className = `w-4 h-4 rounded-full ${markerColor} border-2 border-white shadow-lg cursor-pointer transition-transform duration-300 hover:scale-125`;
-        el.style.transition = 'background-color 0.3s, transform 0.3s';
+        const style = getMarkerStyle();
+        el.className = `${style.size} rounded-full ${style.color} border-2 border-white shadow-lg cursor-pointer transition-all duration-300 hover:scale-125 ${style.scale}`;
         
         const marker = new mapboxgl.Marker(el)
           .setLngLat(landmark.coordinates)
           .addTo(map.current!);
 
         marker.getElement().addEventListener('click', async (e) => {
-          e.stopPropagation(); // Prevent map click event
+          e.stopPropagation();
           
           console.log('Marker clicked:', landmark.name);
           
-          // Check current zoom level and zoom in if needed
           const currentZoom = map.current?.getZoom() || 1.5;
           if (currentZoom < 10) {
             isZooming.current = true;
@@ -587,19 +598,35 @@ const Map: React.FC<MapProps> = ({
               easing: (t) => t,
             });
           } else {
-            // Show popup immediately for marker clicks when already zoomed
             showLandmarkPopup(landmark);
           }
           
-          // Call the landmark selection handler to update the selected landmark
           onSelectLandmark(landmark);
         });
 
         markers.current[landmark.id] = marker;
+      } else {
+        // Update existing marker style based on proximity status
+        const element = markers.current[landmark.id].getElement();
+        const proximityLandmark = landmark as ProximityAwareLandmark;
+        
+        // Reset classes
+        element.className = '';
+        
+        // Apply new styling based on current state
+        if (landmark.id === selectedLandmark?.id) {
+          element.className = 'w-6 h-6 rounded-full bg-red-400 border-2 border-white shadow-lg cursor-pointer transition-all duration-300 hover:scale-125 scale-150';
+        } else if (proximityLandmark.isClosest) {
+          element.className = 'w-5 h-5 rounded-full bg-orange-400 border-2 border-white shadow-lg cursor-pointer transition-all duration-300 hover:scale-125 scale-125';
+        } else if (landmark.id.startsWith('top-landmark-')) {
+          element.className = 'w-4 h-4 rounded-full bg-yellow-400 border-2 border-white shadow-lg cursor-pointer transition-all duration-300 hover:scale-125 scale-100';
+        } else {
+          element.className = 'w-4 h-4 rounded-full bg-cyan-400 border-2 border-white shadow-lg cursor-pointer transition-all duration-300 hover:scale-125 scale-100';
+        }
       }
     });
 
-  }, [allLandmarksWithTop, playingAudio, onSelectLandmark]);
+  }, [allLandmarksWithTop, selectedLandmark, onSelectLandmark]);
 
   // Fly to selected landmark and update marker styles
   useEffect(() => {

@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 interface LandmarkWithDistance {
   landmark: Landmark;
   distance: number;
+  isClosest?: boolean;
 }
 
 export const useSortedLandmarks = (
@@ -43,7 +44,14 @@ export const useSortedLandmarks = (
       : landmarksWithDistance;
 
     // Sort by distance (ascending)
-    return filteredLandmarks.sort((a, b) => a.distance - b.distance);
+    const sorted = filteredLandmarks.sort((a, b) => a.distance - b.distance);
+    
+    // Mark the closest landmark
+    if (sorted.length > 0) {
+      sorted[0].isClosest = true;
+    }
+    
+    return sorted;
   }, [userLocation, landmarks, maxDistance]);
 
   // Show toast only when closest landmark changes
