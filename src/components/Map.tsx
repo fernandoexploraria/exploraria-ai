@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -7,14 +6,7 @@ import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
-
-interface MapProps {
-  mapboxToken: string;
-  landmarks: Landmark[];
-  onSelectLandmark: (landmark: Landmark) => void;
-  selectedLandmark: Landmark | null;
-  plannedLandmarks: Landmark[];
-}
+import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 
 // Google API key
 const GOOGLE_API_KEY = 'AIzaSyCjQKg2W9uIrIx4EmRnyf3WCkO4eeEvpyg';
@@ -37,6 +29,7 @@ const Map: React.FC<MapProps> = ({
   const currentAudio = useRef<HTMLAudioElement | null>(null);
   const navigationMarkers = useRef<{ marker: mapboxgl.Marker; interaction: any }[]>([]); // Store navigation markers with interaction data
   const { user } = useAuth();
+  const { updateProximityEnabled } = useProximityAlerts();
 
   // Convert top landmarks to Landmark format
   const allLandmarksWithTop = React.useMemo(() => {
@@ -135,6 +128,12 @@ const Map: React.FC<MapProps> = ({
           showUserHeading: true
         });
         
+        // Add event listener for when user enables location tracking
+        geolocateControl.on('geolocate', () => {
+          console.log('🗺️ [Map] Location tracking enabled, updating proximity settings');
+          updateProximityEnabled(true);
+        });
+        
         map.current.addControl(geolocateControl, 'top-right');
 
         // Add custom CSS to position the control 10px from top
@@ -198,7 +197,7 @@ const Map: React.FC<MapProps> = ({
     } catch (error) {
       console.error('🗺️ [Map] Error during map initialization:', error);
     }
-  }, [mapboxToken, user]);
+  }, [mapboxToken, user, updateProximityEnabled]);
 
   // Function to handle text-to-speech using Google Cloud TTS via edge function
   const handleTextToSpeech = async (landmark: Landmark) => {
