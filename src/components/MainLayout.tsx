@@ -6,6 +6,8 @@ import UserControls from '@/components/UserControls';
 import DialogManager from '@/components/DialogManager';
 import NewTourAssistant from '@/components/NewTourAssistant';
 import ProximityControlPanel from '@/components/ProximityControlPanel';
+import DebugWindow from '@/components/DebugWindow';
+import { useDebugWindow } from '@/hooks/useDebugWindow';
 import { Landmark } from '@/data/landmarks';
 import { User } from '@supabase/supabase-js';
 
@@ -62,6 +64,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   onNewTourAssistantOpenChange,
   tourPlan,
 }) => {
+  const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
+
   const handleLocationSelect = () => {
     console.log('Location select called but no action taken');
   };
@@ -112,6 +116,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         destination={tourPlan?.destination || ''}
         landmarks={plannedLandmarks}
         systemPrompt={tourPlan?.systemPrompt}
+      />
+
+      <DebugWindow
+        isVisible={isDebugVisible}
+        onClose={toggleDebug}
       />
     </div>
   );
