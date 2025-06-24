@@ -27,7 +27,7 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
   };
 
   return (
-    <div className="absolute top-[30px] right-[45px] z-20 flex items-start gap-2">
+    <div className="absolute top-[10px] right-[45px] z-20 flex items-start gap-2">
       {user ? (
         <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm rounded-md px-3 py-2 shadow-lg border border-input h-10">
           <Avatar className="w-6 h-6">
