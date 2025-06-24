@@ -56,6 +56,7 @@ interface MainLayoutProps {
   searchNearbyLandmark?: Landmark | null;
   searchNearbyCoordinates?: [number, number] | null;
   onHideSearchNearby?: () => void;
+  userLocation?: [number, number] | null;
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({
@@ -91,6 +92,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   searchNearbyLandmark,
   searchNearbyCoordinates,
   onHideSearchNearby,
+  userLocation = null,
 }) => {
   const handleLocationSelect = () => {
     console.log('Location select called but no action taken');
@@ -99,6 +101,20 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   const handlePlaceSelect = (place: any) => {
     console.log('Selected place for directions:', place);
     // TODO: Implement directions to selected place
+  };
+
+  const handleGetDirections = () => {
+    console.log('Get directions clicked');
+    // TODO: Implement directions functionality
+  };
+
+  const handleShowNearby = () => {
+    if (activeProximityNotification && onShowSearchNearby) {
+      onShowSearchNearby(
+        activeProximityNotification.landmark,
+        activeProximityNotification.landmark.coordinates
+      );
+    }
   };
 
   return (
@@ -154,8 +170,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         <ProximityFloatingCard
           landmark={activeProximityNotification.landmark}
           distance={activeProximityNotification.distance}
-          onClose={onHideFloatingCard}
-          onShowSearchNearby={onShowSearchNearby}
+          onClose={onHideFloatingCard || (() => {})}
+          onGetDirections={handleGetDirections}
+          onShowNearby={handleShowNearby}
+          userLocation={userLocation}
         />
       )}
 
