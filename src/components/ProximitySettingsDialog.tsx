@@ -10,7 +10,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Loader2, MessageSquare, Route, CreditCard } from 'lucide-react';
+import { MapPin, Loader2, MessageSquare, Route, CreditCard, AlertTriangle } from 'lucide-react';
 import { formatDistance } from '@/utils/proximityUtils';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useToast } from '@/hooks/use-toast';
@@ -20,7 +20,10 @@ interface ProximitySettingsDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const PRESET_DISTANCES = [50, 100, 250, 500, 1000];
+interface ValidationError {
+  field: 'toast' | 'route' | 'card';
+  message: string;
+}
 
 const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   open,
@@ -34,6 +37,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   const [localRouteDistance, setLocalRouteDistance] = useState<number>(250);
   const [localCardDistance, setLocalCardDistance] = useState<number>(50);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
 
   // Initialize local distances when proximitySettings loads
   useEffect(() => {
@@ -45,9 +49,49 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     }
   }, [proximitySettings]);
 
-  // Auto-save toast distance with debouncing
+  // Validation function
+  const validateDistances = (toast: number, route: number, card: number): ValidationError[] => {
+    const errors: ValidationError[] = [];
+    
+    if (toast <= route) {
+      errors.push({
+        field: 'toast',
+        message: 'Toast distance must be greater than route distance'
+      });
+    }
+    
+    if (route <= card) {
+      errors.push({
+        field: 'route',
+        message: 'Route distance must be greater than card distance'
+      });
+    }
+    
+    if (toast <= card) {
+      errors.push({
+        field: 'toast',
+        message: 'Toast distance must be greater than card distance'
+      });
+    }
+    
+    return errors;
+  };
+
+  // Update validation errors when distances change
+  useEffect(() => {
+    const errors = validateDistances(localToastDistance, localRouteDistance, localCardDistance);
+    setValidationErrors(errors);
+  }, [localToastDistance, localRouteDistance, localCardDistance]);
+
+  // Auto-save toast distance with validation
   useEffect(() => {
     if (!proximitySettings || localToastDistance === proximitySettings.toast_distance) return;
+    
+    const errors = validateDistances(localToastDistance, localRouteDistance, localCardDistance);
+    if (errors.length > 0) {
+      console.log('⚠️ Validation errors prevent saving toast distance:', errors);
+      return;
+    }
 
     const timeoutId = setTimeout(async () => {
       try {
@@ -65,11 +109,17 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [localToastDistance, proximitySettings?.toast_distance, updateDistanceSetting, toast]);
+  }, [localToastDistance, localRouteDistance, localCardDistance, proximitySettings?.toast_distance, updateDistanceSetting, toast]);
 
-  // Auto-save route distance with debouncing
+  // Auto-save route distance with validation
   useEffect(() => {
     if (!proximitySettings || localRouteDistance === proximitySettings.route_distance) return;
+    
+    const errors = validateDistances(localToastDistance, localRouteDistance, localCardDistance);
+    if (errors.length > 0) {
+      console.log('⚠️ Validation errors prevent saving route distance:', errors);
+      return;
+    }
 
     const timeoutId = setTimeout(async () => {
       try {
@@ -87,11 +137,17 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [localRouteDistance, proximitySettings?.route_distance, updateDistanceSetting, toast]);
+  }, [localToastDistance, localRouteDistance, localCardDistance, proximitySettings?.route_distance, updateDistanceSetting, toast]);
 
-  // Auto-save card distance with debouncing
+  // Auto-save card distance with validation
   useEffect(() => {
     if (!proximitySettings || localCardDistance === proximitySettings.card_distance) return;
+    
+    const errors = validateDistances(localToastDistance, localRouteDistance, localCardDistance);
+    if (errors.length > 0) {
+      console.log('⚠️ Validation errors prevent saving card distance:', errors);
+      return;
+    }
 
     const timeoutId = setTimeout(async () => {
       try {
@@ -109,7 +165,58 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [localCardDistance, proximitySettings?.card_distance, updateDistanceSetting, toast]);
+  }, [localToastDistance, localRouteDistance, localCardDistance, proximitySettings?.card_distance, updateDistanceSetting, toast]);
+
+  // Helper to check if a field has validation errors
+  const hasError = (field: 'toast' | 'route' | 'card') => {
+    return validationErrors.some(error => error.field === field);
+  };
+
+  // Helper to get validation message for a field
+  const getErrorMessage = (field: 'toast' | 'route' | 'card') => {
+    const error = validationErrors.find(error => error.field === field);
+    return error?.message;
+  };
+
+  // Auto-adjust distances to maintain hierarchy
+  const handlePresetDistance = (distance: number, type: 'toast' | 'route' | 'card') => {
+    console.log('📏 ProximitySettingsDialog: Preset distance selected:', distance, 'for', type);
+    
+    switch (type) {
+      case 'toast':
+        setLocalToastDistance(distance);
+        // Auto-adjust route and card if they become invalid
+        if (distance <= localRouteDistance) {
+          const newRouteDistance = Math.max(25, distance - 50);
+          setLocalRouteDistance(newRouteDistance);
+          if (newRouteDistance <= localCardDistance) {
+            setLocalCardDistance(Math.max(25, newRouteDistance - 25));
+          }
+        }
+        break;
+      case 'route':
+        setLocalRouteDistance(distance);
+        // Auto-adjust toast and card if they become invalid
+        if (distance >= localToastDistance) {
+          setLocalToastDistance(distance + 50);
+        }
+        if (distance <= localCardDistance) {
+          setLocalCardDistance(Math.max(25, distance - 25));
+        }
+        break;
+      case 'card':
+        setLocalCardDistance(distance);
+        // Auto-adjust route and toast if they become invalid
+        if (distance >= localRouteDistance) {
+          const newRouteDistance = distance + 25;
+          setLocalRouteDistance(newRouteDistance);
+          if (newRouteDistance >= localToastDistance) {
+            setLocalToastDistance(newRouteDistance + 50);
+          }
+        }
+        break;
+    }
+  };
 
   const handleEnabledChange = async (enabled: boolean) => {
     console.log('🎯 ProximitySettingsDialog: Toggle called with:', enabled);
@@ -141,22 +248,6 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     }
   };
 
-  const handlePresetDistance = (distance: number, type: 'toast' | 'route' | 'card') => {
-    console.log('📏 ProximitySettingsDialog: Preset distance selected:', distance, 'for', type);
-    
-    switch (type) {
-      case 'toast':
-        setLocalToastDistance(distance);
-        break;
-      case 'route':
-        setLocalRouteDistance(distance);
-        break;
-      case 'card':
-        setLocalCardDistance(distance);
-        break;
-    }
-  };
-
   // Get current state directly from proximitySettings (real-time synced)
   const isEnabled = proximitySettings?.is_enabled ?? false;
 
@@ -166,7 +257,8 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     localToastDistance,
     localRouteDistance,
     localCardDistance,
-    isUpdating
+    isUpdating,
+    validationErrors: validationErrors.length
   });
 
   return (
@@ -176,6 +268,8 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
           <SheetTitle>Proximity Alert Settings</SheetTitle>
           <SheetDescription>
             Configure proximity alerts to get notified when you're near landmarks. Set different distances for different types of notifications.
+            <br />
+            <strong>Rule:</strong> Toast distance must be greater than route distance, which must be greater than card distance.
           </SheetDescription>
         </SheetHeader>
 
@@ -201,12 +295,35 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
             />
           </div>
 
+          {/* Validation Errors Summary */}
+          {validationErrors.length > 0 && (
+            <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-destructive mb-2">
+                <AlertTriangle className="h-4 w-4" />
+                Distance Validation Errors
+              </div>
+              <div className="space-y-1">
+                {validationErrors.map((error, index) => (
+                  <div key={index} className="text-sm text-destructive/90">
+                    • {error.message}
+                  </div>
+                ))}
+              </div>
+              <div className="text-xs text-muted-foreground mt-2">
+                Changes will not be saved until all validation errors are resolved.
+              </div>
+            </div>
+          )}
+
           {/* Toast Distance Settings */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="text-base font-medium flex items-center gap-2">
                 <MessageSquare className="h-4 w-4" />
                 Toast Notifications: {formatDistance(localToastDistance)}
+                {hasError('toast') && (
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                )}
               </div>
             </div>
             
@@ -232,6 +349,13 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
                 </Badge>
               ))}
             </div>
+            
+            {hasError('toast') && (
+              <div className="text-sm text-destructive">
+                {getErrorMessage('toast')}
+              </div>
+            )}
+            
             <div className="text-sm text-muted-foreground">
               Close-range notifications for immediate awareness (25m - 500m)
             </div>
@@ -243,6 +367,9 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
               <div className="text-base font-medium flex items-center gap-2">
                 <Route className="h-4 w-4" />
                 Route Visualization: {formatDistance(localRouteDistance)}
+                {hasError('route') && (
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                )}
               </div>
             </div>
             
@@ -268,6 +395,13 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
                 </Badge>
               ))}
             </div>
+            
+            {hasError('route') && (
+              <div className="text-sm text-destructive">
+                {getErrorMessage('route')}
+              </div>
+            )}
+            
             <div className="text-sm text-muted-foreground">
               Medium-range for route planning and navigation (100m - 1km)
             </div>
@@ -279,6 +413,9 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
               <div className="text-base font-medium flex items-center gap-2">
                 <CreditCard className="h-4 w-4" />
                 Floating Cards: {formatDistance(localCardDistance)}
+                {hasError('card') && (
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                )}
               </div>
             </div>
             
@@ -304,13 +441,20 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
                 </Badge>
               ))}
             </div>
+            
+            {hasError('card') && (
+              <div className="text-sm text-destructive">
+                {getErrorMessage('card')}
+              </div>
+            )}
+            
             <div className="text-sm text-muted-foreground">
               Very close range for detailed information cards (25m - 300m)
             </div>
           </div>
 
           <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-md">
-            <strong>Note:</strong> All changes save automatically. Make sure location permissions are enabled for proximity alerts to work.
+            <strong>Note:</strong> All changes save automatically when validation passes. Make sure location permissions are enabled for proximity alerts to work.
           </div>
         </div>
       </SheetContent>

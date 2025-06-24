@@ -285,21 +285,52 @@ export const useProximityAlerts = () => {
       throw new Error('No user available');
     }
 
+    // Get current settings to validate against
+    const currentSettings = globalProximityState.settings;
+    const currentToast = currentSettings?.toast_distance || 100;
+    const currentRoute = currentSettings?.route_distance || 250;
+    const currentCard = currentSettings?.card_distance || 50;
+
+    // Create the new distance configuration
+    const newDistances = {
+      toast_distance: distanceType === 'toast_distance' ? distance : currentToast,
+      route_distance: distanceType === 'route_distance' ? distance : currentRoute,
+      card_distance: distanceType === 'card_distance' ? distance : currentCard,
+    };
+
+    // Validate the distance hierarchy: toast > route > card
+    if (newDistances.toast_distance <= newDistances.route_distance) {
+      const error = new Error('Toast distance must be greater than route distance');
+      console.error('❌ Distance validation failed:', error.message);
+      throw error;
+    }
+
+    if (newDistances.route_distance <= newDistances.card_distance) {
+      const error = new Error('Route distance must be greater than card distance');
+      console.error('❌ Distance validation failed:', error.message);
+      throw error;
+    }
+
+    if (newDistances.toast_distance <= newDistances.card_distance) {
+      const error = new Error('Toast distance must be greater than card distance');
+      console.error('❌ Distance validation failed:', error.message);
+      throw error;
+    }
+
+    console.log('✅ Distance validation passed:', newDistances);
+
     setIsSaving(true);
     try {
       console.log('💾 Making database request to update distance setting...');
       
       const updateData = {
         user_id: user.id,
-        is_enabled: globalProximityState.settings?.is_enabled || false,
-        toast_distance: globalProximityState.settings?.toast_distance || 100,
-        route_distance: globalProximityState.settings?.route_distance || 250,
-        card_distance: globalProximityState.settings?.card_distance || 50,
+        is_enabled: currentSettings?.is_enabled || false,
+        toast_distance: newDistances.toast_distance,
+        route_distance: newDistances.route_distance,
+        card_distance: newDistances.card_distance,
         updated_at: new Date().toISOString(),
       };
-      
-      // Update the specific distance type
-      updateData[distanceType] = distance;
 
       const { error } = await supabase
         .from('proximity_settings')
