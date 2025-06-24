@@ -139,8 +139,10 @@ const Map: React.FC<MapProps> = ({
           enableHighAccuracy: true
         },
         trackUserLocation: true,
-        showUserHeading: true,
-        showAccuracyCircle: true
+        showAccuracyCircle: true,
+        fitBoundsOptions: {
+          maxZoom: 15
+        }
       });
 
       map.current.addControl(geolocateControl.current, 'top-right');
