@@ -25,7 +25,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
     isTracking: false,
     error: null,
     lastUpdate: null,
-    pollInterval: 5000, // 5 seconds for testing
+    pollInterval: 30000, // 30 seconds for production
   });
   
   const [userLocation, setCurrentUserLocation] = useState<UserLocation | null>(null);
@@ -129,7 +129,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
       handleLocationUpdate,
       handleLocationError,
       {
-        enableHighAccuracy: false, // Faster response for testing
+        enableHighAccuracy: true, // High accuracy for precise proximity detection
         timeout: 8000, // 8 second timeout
         maximumAge: 0, // Always get fresh location data
       }
