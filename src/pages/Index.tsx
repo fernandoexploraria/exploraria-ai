@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback } from 'react';
 import SplashScreen from '@/components/SplashScreen';
 import MainLayout from '@/components/MainLayout';
@@ -8,8 +7,6 @@ import { useAuth } from '@/components/AuthProvider';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
 import { usePendingDestination } from '@/hooks/usePendingDestination';
 import { useDialogStates } from '@/hooks/useDialogStates';
-import { useProximityToast } from '@/hooks/useProximityToast';
-import { useLocationTracking } from '@/hooks/useLocationTracking';
 
 const Index: React.FC = () => {
   const [showSplash, setShowSplash] = useState(true);
@@ -18,8 +15,6 @@ const Index: React.FC = () => {
   const { tourPlan, plannedLandmarks, isLoading: isTourLoading, generateTour } = useTourPlanner();
   const { user, signOut } = useAuth();
   const mapboxToken = useMapboxToken();
-  const { userLocation } = useLocationTracking();
-  
   const {
     selectedLandmark,
     setSelectedLandmark,
@@ -44,9 +39,6 @@ const Index: React.FC = () => {
   const allLandmarks = useMemo(() => {
     return [...staticLandmarks, ...plannedLandmarks, ...additionalLandmarks];
   }, [plannedLandmarks, additionalLandmarks]);
-
-  // Use proximity toast hook for sound notifications
-  useProximityToast(userLocation, allLandmarks, 5); // 5km radius for proximity alerts
 
   const handleSelectLandmark = useCallback((landmark: Landmark) => {
     setSelectedLandmark(landmark);
