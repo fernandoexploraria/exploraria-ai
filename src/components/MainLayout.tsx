@@ -86,13 +86,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
       {/* Top Controls */}
       <TopControls
-        user={user}
+        allLandmarks={allLandmarks}
+        onSelectLandmark={onSelectLandmark}
         onTourPlannerOpen={onTourPlannerOpen}
         onVoiceSearchOpen={onVoiceSearchOpen}
         onVoiceAssistantOpen={onVoiceAssistantOpen}
         onLogoClick={onLogoClick}
-        onSignOut={onSignOut}
-        onAuthDialogOpen={onAuthDialogOpen}
+        user={user}
+        plannedLandmarks={plannedLandmarks}
       />
 
       {/* Tour Planner Dialog */}
@@ -101,7 +102,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         onOpenChange={onTourPlannerOpenChange}
         onGenerateTour={onGenerateTour}
         onAuthRequired={onTourAuthRequired}
-        user={user}
         isLoading={isTourLoading}
       />
 
@@ -109,8 +109,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       <VoiceSearchDialog
         open={isVoiceSearchOpen}
         onOpenChange={onVoiceSearchOpenChange}
-        landmarks={allLandmarks}
-        onSelectLandmark={onSelectLandmark}
       />
 
       {/* Auth Dialog */}
@@ -123,7 +121,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       <NewTourAssistant
         open={isNewTourAssistantOpen}
         onOpenChange={onNewTourAssistantOpenChange}
-        tourPlan={tourPlan}
+        destination={tourPlan?.destination || ''}
+        landmarks={plannedLandmarks}
+        systemPrompt={tourPlan?.systemPrompt}
       />
     </div>
   );
