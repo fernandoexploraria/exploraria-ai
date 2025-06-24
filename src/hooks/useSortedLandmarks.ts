@@ -1,9 +1,9 @@
-
 import { useMemo, useEffect, useState } from 'react';
 import { Landmark } from '@/data/landmarks';
 import { UserLocation } from '@/types/proximityAlerts';
 import { calculateDistance, formatDistance } from '@/utils/proximityUtils';
 import { useToast } from '@/hooks/use-toast';
+import { addGlobalProximityMarker, ProximityMarker } from '@/data/proximityMarkers';
 
 interface LandmarkWithDistance {
   landmark: Landmark;
@@ -46,7 +46,7 @@ export const useSortedLandmarks = (
     return filteredLandmarks.sort((a, b) => a.distance - b.distance);
   }, [userLocation, landmarks, maxDistance]);
 
-  // Show toast only when closest landmark changes
+  // Show toast and add marker when closest landmark changes
   useEffect(() => {
     if (userLocation && sortedLandmarks.length > 0) {
       const closestLandmark = sortedLandmarks[0];
@@ -57,6 +57,17 @@ export const useSortedLandmarks = (
           title: "Closest Landmark",
           description: `${closestLandmark.landmark.name} - ${formatDistance(closestLandmark.distance)}`,
         });
+        
+        // Add proximity marker to the map
+        const proximityMarker: ProximityMarker = {
+          id: `proximity-${closestLandmark.landmark.id}-${Date.now()}`,
+          name: `Closest: ${closestLandmark.landmark.name}`,
+          coordinates: closestLandmark.landmark.coordinates,
+          description: `You are ${formatDistance(closestLandmark.distance)} away from ${closestLandmark.landmark.name}`,
+          type: 'proximity'
+        };
+        
+        addGlobalProximityMarker(proximityMarker);
         
         // Update the stored ID to the current closest landmark
         setPreviousClosestId(closestLandmark.landmark.id);

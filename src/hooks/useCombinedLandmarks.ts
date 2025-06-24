@@ -1,47 +1,46 @@
 
-import { useMemo, useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Landmark } from '@/data/landmarks';
-import { TOP_LANDMARKS, TopLandmark } from '@/data/topLandmarks';
 import { getGlobalTourLandmarks } from '@/data/tourLandmarks';
+import { getGlobalProximityMarkers } from '@/data/proximityMarkers';
 
-// Convert TopLandmark to Landmark format
-const convertTopLandmarkToLandmark = (topLandmark: TopLandmark): Landmark => {
-  return {
-    id: `top-${topLandmark.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
-    name: topLandmark.name,
-    coordinates: topLandmark.coordinates, // Already in [lng, lat] format
-    description: topLandmark.description
-  };
-};
-
-export const useCombinedLandmarks = (): Landmark[] => {
+export const useCombinedLandmarks = (baseLandmarks: Landmark[]) => {
   const [tourLandmarks, setTourLandmarks] = useState<Landmark[]>([]);
+  const [proximityMarkers, setProximityMarkers] = useState<Landmark[]>([]);
 
-  // Poll for tour landmarks changes (since it's a global store)
+  // Poll for tour landmarks changes
   useEffect(() => {
-    const updateTourLandmarks = () => {
+    const interval = setInterval(() => {
       const currentTourLandmarks = getGlobalTourLandmarks();
       setTourLandmarks(currentTourLandmarks);
-    };
-
-    // Initial load
-    updateTourLandmarks();
-
-    // Poll every 500ms to check for changes
-    const interval = setInterval(updateTourLandmarks, 500);
+    }, 500);
 
     return () => clearInterval(interval);
   }, []);
 
-  return useMemo(() => {
-    // Convert top landmarks to Landmark format
-    const convertedTopLandmarks = TOP_LANDMARKS.map(convertTopLandmarkToLandmark);
-    
-    // Combine both landmark sets
-    const combinedLandmarks = [...convertedTopLandmarks, ...tourLandmarks];
-    
-    console.log(`🗺️ Combined landmarks: ${convertedTopLandmarks.length} top landmarks + ${tourLandmarks.length} tour landmarks = ${combinedLandmarks.length} total`);
-    
-    return combinedLandmarks;
-  }, [tourLandmarks]);
+  // Poll for proximity markers changes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const currentProximityMarkers = getGlobalProximityMarkers();
+      // Convert proximity markers to landmarks format
+      const landmarkFormat = currentProximityMarkers.map(marker => ({
+        id: marker.id,
+        name: marker.name,
+        coordinates: marker.coordinates,
+        description: marker.description
+      }));
+      setProximityMarkers(landmarkFormat);
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Combine all landmarks
+  const allLandmarks = [...baseLandmarks, ...tourLandmarks, ...proximityMarkers];
+
+  return {
+    allLandmarks,
+    tourLandmarks,
+    proximityMarkers
+  };
 };
