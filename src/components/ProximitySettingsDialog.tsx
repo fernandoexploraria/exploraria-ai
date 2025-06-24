@@ -27,12 +27,11 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   onOpenChange,
 }) => {
   const { toast } = useToast();
-  const { proximitySettings, updateProximityEnabled, updateDefaultDistance, isSaving } = useProximityAlerts();
+  const { proximitySettings, updateProximityEnabled, updateDefaultDistance } = useProximityAlerts();
   
   // Simple local state - only for distance slider to enable smooth interaction
   const [localDistance, setLocalDistance] = useState<number>(50);
-  const [isToggleSaving, setIsToggleSaving] = useState(false);
-  const [isDistanceSaving, setIsDistanceSaving] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // Initialize local distance when proximitySettings loads
   useEffect(() => {
@@ -51,7 +50,6 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     }
 
     const timeoutId = setTimeout(async () => {
-      setIsDistanceSaving(true);
       try {
         await updateDefaultDistance(localDistance);
         console.log('✅ Successfully auto-saved distance:', localDistance);
@@ -64,43 +62,42 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
         });
         // Revert on error
         setLocalDistance(proximitySettings.default_distance);
-      } finally {
-        setIsDistanceSaving(false);
       }
     }, 500);
 
     return () => clearTimeout(timeoutId);
   }, [localDistance, proximitySettings?.default_distance, updateDefaultDistance, toast]);
 
-  // Simple toggle handler - mirrors the Map component's approach
+  // Simple toggle handler - EXACTLY like Map component
   const handleEnabledChange = async (enabled: boolean) => {
-    console.log('🎯 Toggle proximity alerts to:', enabled);
+    console.log('🎯 ProximitySettingsDialog: Toggle called with:', enabled);
     
-    if (isToggleSaving) {
-      console.log('⚠️ Toggle already in progress, ignoring');
+    if (isUpdating) {
+      console.log('⚠️ Already updating, ignoring toggle');
       return;
     }
     
-    setIsToggleSaving(true);
+    setIsUpdating(true);
 
     try {
-      // Direct database call - exactly like Map component does
+      console.log('📡 ProximitySettingsDialog: Calling updateProximityEnabled with:', enabled);
+      // Direct call - exactly like Map component does
       await updateProximityEnabled(enabled);
-      console.log('✅ Successfully updated proximity enabled to:', enabled);
+      console.log('✅ ProximitySettingsDialog: Successfully updated proximity to:', enabled);
       
       toast({
         title: enabled ? "Proximity Alerts Enabled" : "Proximity Alerts Disabled",
         description: "Settings saved successfully.",
       });
     } catch (error) {
-      console.error('❌ Error updating proximity enabled setting:', error);
+      console.error('❌ ProximitySettingsDialog: Error updating proximity:', error);
       toast({
         title: "Error",
         description: "Failed to save settings. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setIsToggleSaving(false);
+      setIsUpdating(false);
     }
   };
 
@@ -123,9 +120,8 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     isEnabled,
     currentDistance,
     localDistance,
-    isToggleSaving,
-    isDistanceSaving,
-    isSaving
+    isUpdating,
+    proximitySettingsExists: !!proximitySettings
   });
 
   return (
@@ -145,7 +141,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
               <div className="text-base font-medium flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
                 Enable Proximity Alerts
-                {isToggleSaving && (
+                {isUpdating && (
                   <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
                 )}
               </div>
@@ -156,7 +152,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
             <Switch
               checked={isEnabled}
               onCheckedChange={handleEnabledChange}
-              disabled={isToggleSaving || isSaving}
+              disabled={isUpdating}
             />
           </div>
 
@@ -165,9 +161,6 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
             <div className="flex items-center justify-between">
               <div className="text-base font-medium flex items-center gap-2">
                 Default Alert Distance: {formatDistance(localDistance)}
-                {isDistanceSaving && (
-                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-                )}
               </div>
             </div>
             
@@ -178,7 +171,6 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
               value={[localDistance]}
               onValueChange={handleDistanceChange}
               className="w-full"
-              disabled={isDistanceSaving}
             />
             
             {/* Preset Distance Buttons */}
@@ -189,7 +181,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
                   key={distance}
                   variant={localDistance === distance ? "default" : "outline"}
                   className="cursor-pointer hover:bg-primary/80"
-                  onClick={() => !isDistanceSaving && handlePresetDistance(distance)}
+                  onClick={() => handlePresetDistance(distance)}
                 >
                   {formatDistance(distance)}
                 </Badge>
