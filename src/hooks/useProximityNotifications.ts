@@ -1,10 +1,10 @@
-
 import { useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { useNearbyLandmarks } from '@/hooks/useNearbyLandmarks';
 import { Landmark } from '@/data/landmarks';
+import { supabase } from '@/integrations/supabase/client';
 
 interface NotificationState {
   [landmarkId: string]: number; // timestamp of last notification
@@ -56,6 +56,44 @@ export const useProximityNotifications = () => {
     return timeSinceLastNotification >= NOTIFICATION_COOLDOWN;
   }, []);
 
+  // Function to show route to landmark
+  const showRouteToLandmark = useCallback(async (landmark: Landmark) => {
+    if (!userLocation) {
+      console.log('No user location available for route');
+      return;
+    }
+
+    try {
+      console.log(`🗺️ Getting route to ${landmark.name}`);
+      
+      const { data, error } = await supabase.functions.invoke('mapbox-directions', {
+        body: {
+          origin: [userLocation.longitude, userLocation.latitude],
+          destination: landmark.coordinates,
+          profile: 'walking'
+        }
+      });
+
+      if (error) {
+        console.error('Error getting route:', error);
+        return;
+      }
+
+      if (data?.routes && data.routes.length > 0) {
+        const route = data.routes[0];
+        console.log(`📍 Route found: ${Math.round(route.distance)}m, ${Math.round(route.duration / 60)}min`);
+        
+        // Call global function to show route on map
+        if ((window as any).showRouteOnMap) {
+          (window as any).showRouteOnMap(route, landmark);
+        }
+      }
+      
+    } catch (error) {
+      console.error('Failed to get route:', error);
+    }
+  }, [userLocation]);
+
   // Show proximity toast notification
   const showProximityToast = useCallback((landmark: Landmark, distance: number) => {
     const formattedDistance = distance >= 1000 
@@ -68,10 +106,10 @@ export const useProximityNotifications = () => {
       description: `You're ${formattedDistance} away • ${landmark.description.substring(0, 100)}${landmark.description.length > 100 ? '...' : ''}`,
       duration: 8000,
       action: {
-        label: 'Learn More',
+        label: 'Get Me There',
         onClick: () => {
-          console.log(`User clicked learn more for ${landmark.name}`);
-          // TODO: Open landmark details or trigger selection
+          console.log(`User clicked "Get Me There" for ${landmark.name}`);
+          showRouteToLandmark(landmark);
         }
       }
     });
@@ -79,7 +117,7 @@ export const useProximityNotifications = () => {
     // Record notification
     notificationStateRef.current[landmark.id] = Date.now();
     saveNotificationState();
-  }, [saveNotificationState]);
+  }, [saveNotificationState, showRouteToLandmark]);
 
   // Monitor for newly entered proximity zones - MODIFIED TO SHOW ONLY ONE TOAST
   useEffect(() => {

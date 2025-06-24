@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -37,6 +36,7 @@ const Map: React.FC<MapProps> = ({
   const isZooming = useRef<boolean>(false);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
   const navigationMarkers = useRef<{ marker: mapboxgl.Marker; interaction: any }[]>([]);
+  const currentRouteLayer = useRef<string | null>(null);
   
   // New refs for GeolocateControl management
   const geolocateControl = useRef<mapboxgl.GeolocateControl | null>(null);
@@ -241,6 +241,18 @@ const Map: React.FC<MapProps> = ({
         if (!isMarkerClick) {
           // Stop any playing audio
           stopCurrentAudio();
+          
+          // Clear route if it exists
+          if (currentRouteLayer.current && map.current) {
+            if (map.current.getLayer(currentRouteLayer.current)) {
+              map.current.removeLayer(currentRouteLayer.current);
+            }
+            if (map.current.getSource(currentRouteLayer.current)) {
+              map.current.removeSource(currentRouteLayer.current);
+            }
+            currentRouteLayer.current = null;
+            console.log('🗺️ Route cleared');
+          }
           
           // Close all photo popups
           Object.values(photoPopups.current).forEach(popup => {
@@ -1077,11 +1089,118 @@ const Map: React.FC<MapProps> = ({
     }
   };
 
-  // Expose the function globally so InteractionCard can call it
+  // Function to show route on map
+  const showRouteOnMap = useCallback((route: any, landmark: Landmark) => {
+    if (!map.current) return;
+
+    console.log('🗺️ Adding route to map for:', landmark.name);
+
+    // Remove existing route layer if it exists
+    if (currentRouteLayer.current) {
+      if (map.current.getLayer(currentRouteLayer.current)) {
+        map.current.removeLayer(currentRouteLayer.current);
+      }
+      if (map.current.getSource(currentRouteLayer.current)) {
+        map.current.removeSource(currentRouteLayer.current);
+      }
+    }
+
+    // Create unique layer ID
+    const layerId = `route-${Date.now()}`;
+    currentRouteLayer.current = layerId;
+
+    // Add route source and layer
+    map.current.addSource(layerId, {
+      type: 'geojson',
+      data: {
+        type: 'Feature',
+        properties: {},
+        geometry: route.geometry
+      }
+    });
+
+    map.current.addLayer({
+      id: layerId,
+      type: 'line',
+      source: layerId,
+      layout: {
+        'line-join': 'round',
+        'line-cap': 'round'
+      },
+      paint: {
+        'line-color': '#3B82F6',
+        'line-width': 4,
+        'line-opacity': 0.8
+      }
+    });
+
+    // Fit map to show the entire route
+    const coordinates = route.geometry.coordinates;
+    const bounds = new mapboxgl.LngLatBounds();
+    coordinates.forEach((coord: [number, number]) => bounds.extend(coord));
+    
+    map.current.fitBounds(bounds, {
+      padding: 100,
+      duration: 1000
+    });
+
+    console.log(`🛣️ Route displayed: ${Math.round(route.distance)}m, ${Math.round(route.duration / 60)}min walk`);
+  }, []);
+
+  // Clear route when map is clicked (not on markers)
+  useEffect(() => {
+    if (!map.current) return;
+
+    const handleMapClick = (e: mapboxgl.MapMouseEvent) => {
+      // Check if the click was on a marker by looking for our marker class
+      const clickedElement = e.originalEvent.target as HTMLElement;
+      const isMarkerClick = clickedElement.closest('.w-4.h-4.rounded-full') || clickedElement.closest('.w-6.h-6.rounded-full');
+      
+      if (!isMarkerClick) {
+        // Stop any playing audio
+        stopCurrentAudio();
+        
+        // Clear route if it exists
+        if (currentRouteLayer.current && map.current) {
+          if (map.current.getLayer(currentRouteLayer.current)) {
+            map.current.removeLayer(currentRouteLayer.current);
+          }
+          if (map.current.getSource(currentRouteLayer.current)) {
+            map.current.removeSource(currentRouteLayer.current);
+          }
+          currentRouteLayer.current = null;
+          console.log('🗺️ Route cleared');
+        }
+        
+        // Close all photo popups
+        Object.values(photoPopups.current).forEach(popup => {
+          popup.remove();
+        });
+        photoPopups.current = {};
+        
+        // Also close any Mapbox popups that might be open
+        const mapboxPopups = document.querySelectorAll('.mapboxgl-popup');
+        mapboxPopups.forEach(popup => {
+          popup.remove();
+        });
+      }
+    };
+
+    map.current.on('click', handleMapClick);
+    
+    return () => {
+      if (map.current) {
+        map.current.off('click', handleMapClick);
+      }
+    };
+  }, []);
+
+  // Expose the functions globally
   React.useEffect(() => {
-    console.log('Setting up navigateToMapCoordinates on window');
+    console.log('Setting up global map functions');
     (window as any).navigateToMapCoordinates = navigateToCoordinates;
     (window as any).stopCurrentAudio = stopCurrentAudio;
+    (window as any).showRouteOnMap = showRouteOnMap;
     
     // Add global handler for interaction listen button
     (window as any).handleInteractionListen = (interactionId: string) => {
@@ -1093,12 +1212,13 @@ const Map: React.FC<MapProps> = ({
     };
     
     return () => {
-      console.log('Cleaning up navigateToMapCoordinates from window');
+      console.log('Cleaning up global map functions');
       delete (window as any).navigateToMapCoordinates;
       delete (window as any).handleInteractionListen;
       delete (window as any).stopCurrentAudio;
+      delete (window as any).showRouteOnMap;
     };
-  }, []);
+  }, [showRouteOnMap, navigateToCoordinates]);
 
   return <div ref={mapContainer} className="absolute inset-0" />;
 };
