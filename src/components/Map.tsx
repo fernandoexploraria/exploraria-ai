@@ -165,22 +165,6 @@ const Map: React.FC<MapProps> = ({
             console.log('🌍 GeolocateControl: Enabling proximity (user initiated location)');
             updateProximityEnabled(true);
           }
-          
-          // Add a small delay to check if control naturally enters tracking mode
-          setTimeout(() => {
-            const newState = (geoControl as any)._watchState;
-            console.log('🌍 GeolocateControl: State after geolocate event:', newState);
-            
-            // Only trigger manually if we're not already in ACTIVE_LOCK and we should be tracking
-            if (newState !== 'ACTIVE_LOCK' && geoControl.options.trackUserLocation) {
-              console.log('🌍 GeolocateControl: Control did not enter tracking mode naturally, manual trigger needed');
-              try {
-                geoControl.trigger();
-              } catch (error) {
-                console.log('🌍 GeolocateControl: Error with fallback trigger:', error);
-              }
-            }
-          }, 200);
         });
         
         geoControl.on('trackuserlocationstart', () => {
