@@ -30,6 +30,14 @@ export const useProximityOnboarding = () => {
     setIsOnboardingOpen(false);
   };
 
+  const openOnboarding = () => {
+    setIsOnboardingOpen(true);
+  };
+
+  const closeOnboarding = () => {
+    setIsOnboardingOpen(false);
+  };
+
   const showOnboarding = () => {
     if (hasCompletedOnboarding) return false;
     setIsOnboardingOpen(true);
@@ -43,6 +51,9 @@ export const useProximityOnboarding = () => {
   return {
     hasCompletedOnboarding,
     isOnboardingOpen,
+    openOnboarding,
+    closeOnboarding,
+    shouldShowOnboarding: !hasCompletedOnboarding,
     showOnboarding,
     hideOnboarding,
     markOnboardingComplete,

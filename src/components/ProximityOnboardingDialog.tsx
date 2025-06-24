@@ -15,13 +15,13 @@ import { MapPin, Navigation, Smartphone, AlertTriangle } from 'lucide-react';
 interface ProximityOnboardingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onContinue: () => void;
+  onComplete: () => void;
 }
 
 const ProximityOnboardingDialog: React.FC<ProximityOnboardingDialogProps> = ({
   open,
   onOpenChange,
-  onContinue,
+  onComplete,
 }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -85,7 +85,7 @@ const ProximityOnboardingDialog: React.FC<ProximityOnboardingDialogProps> = ({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Maybe Later
           </Button>
-          <Button onClick={onContinue}>
+          <Button onClick={onComplete}>
             Continue & Enable
           </Button>
         </DialogFooter>
