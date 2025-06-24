@@ -5,6 +5,7 @@ import { Sparkles, Search, ChevronDown, ChevronUp, Menu } from 'lucide-react';
 import SearchControl from '@/components/SearchControl';
 import FreeTourCounter from '@/components/FreeTourCounter';
 import ImageAnalysis from '@/components/ImageAnalysis';
+import { useDebugWindow } from '@/hooks/useDebugWindow';
 import { Landmark } from '@/data/landmarks';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -31,9 +32,17 @@ const TopControls: React.FC<TopControlsProps> = ({
 }) => {
   const isMobile = useIsMobile();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { longPressHandlers } = useDebugWindow();
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
+  };
+
+  const handleLogoClick = (e: React.MouseEvent) => {
+    // Only trigger logo click if it's not a long press
+    if (!(e.target as any).longPressTriggered) {
+      onLogoClick();
+    }
   };
 
   return (
@@ -45,7 +54,8 @@ const TopControls: React.FC<TopControlsProps> = ({
           src="/lovable-uploads/ac9cbebd-b083-4d3d-a85e-782e03045422.png" 
           alt="Exploraria Logo" 
           className="h-16 w-auto bg-yellow-400 rounded-lg p-1 flex-shrink-0 lg:h-20 cursor-pointer hover:bg-yellow-300 transition-colors"
-          onClick={onLogoClick}
+          onClick={handleLogoClick}
+          {...longPressHandlers}
         />
         
         {/* Search Control */}
