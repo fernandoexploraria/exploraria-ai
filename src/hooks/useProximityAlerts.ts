@@ -2,10 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProximityAlert, ProximitySettings, UserLocation } from '@/types/proximityAlerts';
 import { useAuth } from '@/components/AuthProvider';
-import { useToast } from '@/hooks/use-toast';
 import { useCombinedLandmarks } from '@/hooks/useCombinedLandmarks';
-import { useSortedLandmarks } from '@/hooks/useSortedLandmarks';
-import { formatDistance } from '@/utils/proximityUtils';
 
 // Global state management for proximity settings
 const globalProximityState = {
@@ -25,7 +22,6 @@ const notifySubscribers = (settings: ProximitySettings | null) => {
 
 export const useProximityAlerts = () => {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [proximityAlerts, setProximityAlerts] = useState<ProximityAlert[]>([]);
   const [proximitySettings, setProximitySettings] = useState<ProximitySettings | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
@@ -33,53 +29,8 @@ export const useProximityAlerts = () => {
   const [isSaving, setIsSaving] = useState(false);
   const isMountedRef = useRef(true);
 
-  // Ref to track the previously closest landmark ID for persistence
-  const previousClosestLandmarkIdRef = useRef<string | null>(null);
-
   // Get combined landmarks (top landmarks + tour landmarks) - ALWAYS call this hook
   const combinedLandmarks = useCombinedLandmarks();
-
-  // Get default distance - only use if proximity settings exist
-  const defaultDistance = proximitySettings?.default_distance;
-
-  // Get sorted landmarks within range - ALWAYS call this hook
-  const sortedLandmarks = useSortedLandmarks(
-    userLocation,
-    combinedLandmarks,
-    defaultDistance || 50 // Temporary fallback until settings load
-  );
-
-  // Toast logic - uses the sorted landmarks directly
-  useEffect(() => {
-    // Only run if proximity is enabled and we have a location
-    if (!proximitySettings?.is_enabled || !userLocation || !isMountedRef.current) {
-      return;
-    }
-
-    // Get the closest landmark (first in the sorted list, already filtered by distance)
-    const closestLandmark = sortedLandmarks.length > 0 ? sortedLandmarks[0] : null;
-    const currentClosestId = closestLandmark?.landmark.id || null;
-    const previousClosestId = previousClosestLandmarkIdRef.current;
-
-    // Handle changes in closest landmark
-    if (currentClosestId !== previousClosestId) {
-      if (currentClosestId && closestLandmark) {
-        // New landmark detected - send toast
-        const distance = formatDistance(closestLandmark.distance);
-        
-        toast({
-          title: "Landmark Nearby",
-          description: `${closestLandmark.landmark.name} is ${distance} away`,
-        });
-
-        // Update persisted value
-        previousClosestLandmarkIdRef.current = currentClosestId;
-      } else {
-        // No landmarks in range - clear persisted value (no toast sent)
-        previousClosestLandmarkIdRef.current = null;
-      }
-    }
-  }, [sortedLandmarks, proximitySettings?.is_enabled, userLocation, defaultDistance, toast]);
 
   // Subscribe to global proximity settings state
   useEffect(() => {
@@ -384,8 +335,7 @@ export const useProximityAlerts = () => {
     userLocation,
     isLoading,
     isSaving,
-    // Keep these for the debug window to use
-    sortedLandmarks,
+    // Keep these for compatibility
     combinedLandmarks,
     setProximityAlerts,
     setProximitySettings: notifySubscribers,
