@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -7,15 +7,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { MapPin, Navigation, Clock, Database } from 'lucide-react';
+import { MapPin, Navigation, Clock, Database, Settings, TestTube, Activity } from 'lucide-react';
 import { useSortedLandmarks } from '@/hooks/useSortedLandmarks';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useLandmarkSourceToggle, LANDMARK_SOURCE_OPTIONS, LandmarkSource } from '@/hooks/useLandmarkSourceToggle';
 import { formatDistance } from '@/utils/proximityUtils';
+import { useToast } from '@/hooks/use-toast';
 
 interface LandmarksDebugWindowProps {
   open: boolean;
@@ -26,6 +31,7 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
   open,
   onOpenChange,
 }) => {
+  const { toast } = useToast();
   const { userLocation, locationState } = useLocationTracking();
   const { proximitySettings } = useProximityAlerts();
 
@@ -37,6 +43,15 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
     sourceCounts
   } = useLandmarkSourceToggle();
 
+  // Dynamic range controls state
+  const [toastRange, setToastRange] = useState([1000]);
+  const [routeRange, setRouteRange] = useState([500]);
+  const [cardRange, setCardRange] = useState([100]);
+
+  // Test simulation state
+  const [simulatedDistance, setSimulatedDistance] = useState('');
+  const [notificationHistory, setNotificationHistory] = useState<string[]>([]);
+
   const defaultDistance = proximitySettings?.default_distance || 100;
 
   // Get the raw array from useSortedLandmarks - this is what we want to debug
@@ -46,20 +61,248 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
     defaultDistance
   );
 
+  const closestLandmark = sortedLandmarks.length > 0 ? sortedLandmarks[0] : null;
+
+  // Function to determine what notifications would trigger at a given distance
+  const getNotificationsThatWouldTrigger = (distance: number) => {
+    const triggers = [];
+    if (distance <= cardRange[0]) {
+      triggers.push('Floating Card');
+    } else if (distance <= routeRange[0]) {
+      triggers.push('Route Visualization');
+    } else if (distance <= toastRange[0]) {
+      triggers.push('Toast Notification');
+    }
+    return triggers;
+  };
+
+  // Test different distance scenarios
+  const testDistance = (distance: number) => {
+    const triggers = getNotificationsThatWouldTrigger(distance);
+    const timestamp = new Date().toLocaleTimeString();
+    
+    if (triggers.length > 0) {
+      const message = `${timestamp}: At ${distance}m would trigger: ${triggers.join(', ')}`;
+      setNotificationHistory(prev => [message, ...prev.slice(0, 9)]); // Keep last 10 entries
+      
+      // Actually trigger a test notification
+      toast({
+        title: "Test Notification",
+        description: `At ${distance}m: ${triggers.join(', ')} would trigger`,
+      });
+    } else {
+      const message = `${timestamp}: At ${distance}m no notifications would trigger`;
+      setNotificationHistory(prev => [message, ...prev.slice(0, 9)]);
+    }
+  };
+
+  const handleSimulateDistance = () => {
+    const distance = parseInt(simulatedDistance);
+    if (!isNaN(distance) && distance >= 0) {
+      testDistance(distance);
+    }
+  };
+
+  const resetToDefaults = () => {
+    setToastRange([1000]);
+    setRouteRange([500]);
+    setCardRange([100]);
+    toast({
+      title: "Reset Complete",
+      description: "Range values reset to defaults",
+    });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[600px] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[700px] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Navigation className="h-5 w-5" />
-            Landmarks Debug - Proximity Filtering
+            Proximity Debug Tool - Enhanced Controls
           </DialogTitle>
           <DialogDescription>
-            Debug proximity filtering logic and landmark sources
+            Debug and test proximity notification ranges dynamically
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Dynamic Range Controls */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Settings className="h-4 w-4" />
+                Dynamic Range Controls
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Toast Range */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  Toast Notification Range: {toastRange[0]}m
+                </Label>
+                <Slider
+                  value={toastRange}
+                  onValueChange={setToastRange}
+                  max={2000}
+                  min={100}
+                  step={50}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Route Range */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  Route Visualization Range: {routeRange[0]}m
+                </Label>
+                <Slider
+                  value={routeRange}
+                  onValueChange={setRouteRange}
+                  max={1000}
+                  min={50}
+                  step={25}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Card Range */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  Floating Card Range: {cardRange[0]}m
+                </Label>
+                <Slider
+                  value={cardRange}
+                  onValueChange={setCardRange}
+                  max={500}
+                  min={10}
+                  step={10}
+                  className="w-full"
+                />
+              </div>
+
+              <Button onClick={resetToDefaults} variant="outline" size="sm">
+                Reset to Defaults
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Test Simulation */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <TestTube className="h-4 w-4" />
+                Test Simulation
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Distance in meters"
+                  value={simulatedDistance}
+                  onChange={(e) => setSimulatedDistance(e.target.value)}
+                  type="number"
+                  min="0"
+                />
+                <Button onClick={handleSimulateDistance} size="sm">
+                  Test
+                </Button>
+              </div>
+
+              {/* Quick Test Presets */}
+              <div className="flex gap-2 flex-wrap">
+                <Button onClick={() => testDistance(50)} variant="outline" size="sm">
+                  Test 50m
+                </Button>
+                <Button onClick={() => testDistance(200)} variant="outline" size="sm">
+                  Test 200m
+                </Button>
+                <Button onClick={() => testDistance(600)} variant="outline" size="sm">
+                  Test 600m
+                </Button>
+                <Button onClick={() => testDistance(1200)} variant="outline" size="sm">
+                  Test 1200m
+                </Button>
+              </div>
+
+              {/* Notification History */}
+              {notificationHistory.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Test History:</Label>
+                  <div className="max-h-32 overflow-y-auto space-y-1">
+                    {notificationHistory.map((entry, index) => (
+                      <div key={index} className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                        {entry}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Current Status */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Activity className="h-4 w-4" />
+                Current Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {closestLandmark ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Closest Landmark:</span>
+                    <Badge variant="outline">{closestLandmark.landmark.name}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Distance:</span>
+                    <Badge variant="default">{formatDistance(closestLandmark.distance)}</Badge>
+                  </div>
+                  <div className="space-y-2">
+                    <span className="text-sm font-medium">Would Trigger:</span>
+                    <div className="flex gap-2 flex-wrap">
+                      {getNotificationsThatWouldTrigger(closestLandmark.distance).map((trigger) => (
+                        <Badge key={trigger} variant="secondary" className="text-xs">
+                          {trigger}
+                        </Badge>
+                      ))}
+                      {getNotificationsThatWouldTrigger(closestLandmark.distance).length === 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          No notifications
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center text-muted-foreground">
+                  No landmarks in range or location unavailable
+                </div>
+              )}
+
+              {/* Range Indicators */}
+              <div className="space-y-2 pt-2 border-t">
+                <span className="text-sm font-medium">Current Ranges:</span>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div className="text-center">
+                    <div className="font-medium">Toast</div>
+                    <Badge variant="outline" className="text-xs">{toastRange[0]}m</Badge>
+                  </div>
+                  <div className="text-center">
+                    <div className="font-medium">Route</div>
+                    <Badge variant="outline" className="text-xs">{routeRange[0]}m</Badge>
+                  </div>
+                  <div className="text-center">
+                    <div className="font-medium">Card</div>
+                    <Badge variant="outline" className="text-xs">{cardRange[0]}m</Badge>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Landmark Source Toggle */}
           <Card>
             <CardContent className="pt-4">
@@ -138,60 +381,6 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
               )}
             </CardContent>
           </Card>
-
-          {/* Proximity Range */}
-          <Card>
-            <CardContent className="pt-4">
-              <div className="text-sm font-medium">
-                Proximity Range: {formatDistance(defaultDistance)}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Sorted Landmarks Array */}
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium">
-              Sorted Landmarks Array ({sortedLandmarks.length})
-            </h4>
-            
-            {sortedLandmarks.length === 0 ? (
-              <Card>
-                <CardContent className="pt-4">
-                  <div className="text-center text-muted-foreground">
-                    {userLocation 
-                      ? 'No landmarks in array (filtering working correctly)'
-                      : 'Location not available - enable location tracking to see results'
-                    }
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                {sortedLandmarks.map(({ landmark, distance }, index) => (
-                  <Card key={landmark.id}>
-                    <CardContent className="pt-3 pb-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
-                            #{index + 1}
-                          </Badge>
-                          <span className="text-sm font-medium">
-                            {landmark.name}
-                          </span>
-                        </div>
-                        <Badge variant="default" className="text-xs">
-                          {formatDistance(distance)}
-                        </Badge>
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1 truncate">
-                        {landmark.description}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
 
           {locationState.lastUpdate && (
             <div className="text-xs text-muted-foreground text-center">
