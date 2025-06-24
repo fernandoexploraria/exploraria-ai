@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProximityAlert, ProximitySettings, UserLocation } from '@/types/proximityAlerts';
@@ -14,6 +13,8 @@ const globalProximityState = {
   currentUserId: null as string | null,
   isLoading: false
 };
+
+const MINIMUM_GAP = 25; // minimum gap in meters between tiers
 
 const notifySubscribers = (settings: ProximitySettings | null) => {
   console.log('📢 Notifying all subscribers with settings:', settings);
@@ -298,26 +299,26 @@ export const useProximityAlerts = () => {
       card_distance: distanceType === 'card_distance' ? distance : currentCard,
     };
 
-    // Validate the distance hierarchy: toast > route > card
-    if (newDistances.toast_distance <= newDistances.route_distance) {
-      const error = new Error('Toast distance must be greater than route distance');
+    // Enhanced validation with minimum gap requirement
+    if (newDistances.toast_distance < newDistances.route_distance + MINIMUM_GAP) {
+      const error = new Error(`Toast distance must be at least ${MINIMUM_GAP}m greater than route distance`);
       console.error('❌ Distance validation failed:', error.message);
       throw error;
     }
 
-    if (newDistances.route_distance <= newDistances.card_distance) {
-      const error = new Error('Route distance must be greater than card distance');
+    if (newDistances.route_distance < newDistances.card_distance + MINIMUM_GAP) {
+      const error = new Error(`Route distance must be at least ${MINIMUM_GAP}m greater than card distance`);
       console.error('❌ Distance validation failed:', error.message);
       throw error;
     }
 
-    if (newDistances.toast_distance <= newDistances.card_distance) {
-      const error = new Error('Toast distance must be greater than card distance');
+    if (newDistances.toast_distance < newDistances.card_distance + (2 * MINIMUM_GAP)) {
+      const error = new Error(`Toast distance must be at least ${2 * MINIMUM_GAP}m greater than card distance`);
       console.error('❌ Distance validation failed:', error.message);
       throw error;
     }
 
-    console.log('✅ Distance validation passed:', newDistances);
+    console.log('✅ Distance validation passed with minimum gaps:', newDistances);
 
     setIsSaving(true);
     try {
