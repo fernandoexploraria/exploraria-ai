@@ -1,7 +1,8 @@
-
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { UserLocation } from '@/types/proximityAlerts';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
+import { useCombinedLandmarks } from '@/hooks/useCombinedLandmarks';
+import { useNearbyLandmarks } from '@/hooks/useNearbyLandmarks';
 
 interface LocationTrackingState {
   isTracking: boolean;
@@ -31,6 +32,14 @@ export const useLocationTracking = (): LocationTrackingHook => {
   const [userLocation, setCurrentUserLocation] = useState<UserLocation | null>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pollCountRef = useRef<number>(0);
+
+  // Get combined landmarks and nearby landmarks
+  const combinedLandmarks = useCombinedLandmarks();
+  const nearbyLandmarks = useNearbyLandmarks({
+    userLocation,
+    landmarks: combinedLandmarks,
+    toastDistance: proximitySettings?.toast_distance || 100
+  });
 
   // Handle location update
   const handleLocationUpdate = useCallback((position: GeolocationPosition) => {
