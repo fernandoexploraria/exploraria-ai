@@ -3,6 +3,9 @@ import { useState, useCallback, useRef } from 'react';
 import { Landmark } from '@/data/landmarks';
 import { UserLocation } from '@/types/proximityAlerts';
 import { useToast } from '@/hooks/use-toast';
+import { useLocationTracking } from '@/hooks/useLocationTracking';
+import { useProximityDetection } from '@/hooks/useProximityDetection';
+import { useCombinedLandmarks } from '@/hooks/useCombinedLandmarks';
 
 interface ProximityNotification {
   id: string;
@@ -22,14 +25,21 @@ interface UseProximityNotificationsReturn {
   isSearchNearbyOpen: boolean;
   searchNearbyLandmark: Landmark | null;
   searchNearbyCoordinates: [number, number] | null;
+  userLocation: UserLocation | null;
 }
 
-export const useProximityNotifications = (): UseProximityNotificationsReturn => {
+export const useProximityNotifications = (maxDistance: number = 500): UseProximityNotificationsReturn => {
   const { toast } = useToast();
   const [activeNotification, setActiveNotification] = useState<ProximityNotification | null>(null);
   const [isSearchNearbyOpen, setIsSearchNearbyOpen] = useState(false);
   const [searchNearbyLandmark, setSearchNearbyLandmark] = useState<Landmark | null>(null);
   const [searchNearbyCoordinates, setSearchNearbyCoordinates] = useState<[number, number] | null>(null);
+  
+  // Get user location from the location tracking hook
+  const { userLocation } = useLocationTracking();
+  
+  // Get combined landmarks for proximity detection
+  const allLandmarks = useCombinedLandmarks();
   
   // Anti-spam mechanism
   const lastNotificationTime = useRef<{ [landmarkId: string]: number }>({});
@@ -73,15 +83,6 @@ export const useProximityNotifications = (): UseProximityNotificationsReturn => 
   const showRouteVisualization = useCallback((landmark: Landmark, distance: number) => {
     console.log('🗺️ Showing route visualization for:', landmark.name, 'at', distance + 'm');
     
-    // This will be handled by the Map component
-    const notification: ProximityNotification = {
-      id: `route-${landmark.id}-${Date.now()}`,
-      landmark,
-      distance,
-      notificationType: 'route-visual',
-      timestamp: Date.now()
-    };
-
     // For now, we'll use a toast as fallback
     toast({
       title: "Route Available",
@@ -103,6 +104,17 @@ export const useProximityNotifications = (): UseProximityNotificationsReturn => 
     setSearchNearbyCoordinates(null);
   }, []);
 
+  // Set up proximity detection with event handlers
+  useProximityDetection(
+    userLocation,
+    allLandmarks,
+    maxDistance,
+    {
+      onFloatingCardTrigger: showFloatingCard,
+      onRouteVisualizationTrigger: showRouteVisualization
+    }
+  );
+
   return {
     activeNotification,
     showFloatingCard,
@@ -112,6 +124,7 @@ export const useProximityNotifications = (): UseProximityNotificationsReturn => 
     hideSearchNearby,
     isSearchNearbyOpen,
     searchNearbyLandmark,
-    searchNearbyCoordinates
+    searchNearbyCoordinates,
+    userLocation
   };
 };
