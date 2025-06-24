@@ -133,70 +133,6 @@ const Map: React.FC<MapProps> = ({
         map.current?.setFog({}); // Add a sky layer and atmosphere
       });
 
-      // Add GeolocateControl immediately when map loads
-      geolocateControl.current = new mapboxgl.GeolocateControl({
-        positionOptions: {
-          enableHighAccuracy: true
-        },
-        trackUserLocation: true,
-        showAccuracyCircle: true,
-        fitBoundsOptions: {
-          maxZoom: 15
-        }
-      });
-
-      map.current.addControl(geolocateControl.current, 'top-right');
-
-      // Position the control below the sign-in control
-      setTimeout(() => {
-        const geolocateElement = document.querySelector('.mapboxgl-ctrl-geolocate');
-        if (geolocateElement && geolocateElement.parentElement) {
-          (geolocateElement.parentElement as HTMLElement).style.marginTop = '70px';
-        }
-      }, 100);
-
-      // Set up geolocation event listeners
-      geolocateControl.current.on('geolocate', (e: any) => {
-        console.log('🗺️ [Map] Location granted and acquired:', e);
-        
-        // Update user location for proximity alerts
-        setUserLocation({
-          latitude: e.coords.latitude,
-          longitude: e.coords.longitude,
-          accuracy: e.coords.accuracy,
-          timestamp: Date.now()
-        });
-
-        // Auto-enable proximity alerts with 50m default distance
-        if (user) {
-          updateProximityEnabled(true);
-          updateDefaultDistance(50);
-          
-          toast({
-            title: "Location enabled!",
-            description: "Proximity alerts activated with 50m range.",
-          });
-        }
-      });
-
-      geolocateControl.current.on('error', (e: any) => {
-        console.log('🗺️ [Map] Location error:', e);
-        
-        toast({
-          title: "Location access denied",
-          description: "Enable location to get proximity alerts for nearby landmarks.",
-          variant: "destructive",
-        });
-      });
-
-      geolocateControl.current.on('trackuserlocationstart', () => {
-        console.log('🗺️ [Map] Started tracking user location');
-      });
-
-      geolocateControl.current.on('trackuserlocationend', () => {
-        console.log('🗺️ [Map] Stopped tracking user location');
-      });
-
       // Close all popups when clicking on the map
       map.current.on('click', (e) => {
         // Check if the click was on a marker by looking for our marker class
@@ -244,7 +180,85 @@ const Map: React.FC<MapProps> = ({
     } catch (error) {
       console.error('🗺️ [Map] Error during map initialization:', error);
     }
-  }, [mapboxToken, user, updateProximityEnabled, updateDefaultDistance, setUserLocation, toast]);
+  }, [mapboxToken]);
+
+  // Add/remove GeolocateControl based on user authentication
+  useEffect(() => {
+    if (!map.current) return;
+
+    if (user && !geolocateControl.current) {
+      // User is logged in and control doesn't exist - add it
+      console.log('🗺️ [Map] Adding GeolocateControl for authenticated user');
+      
+      geolocateControl.current = new mapboxgl.GeolocateControl({
+        positionOptions: {
+          enableHighAccuracy: true
+        },
+        trackUserLocation: true,
+        showAccuracyCircle: true,
+        fitBoundsOptions: {
+          maxZoom: 15
+        }
+      });
+
+      map.current.addControl(geolocateControl.current, 'top-right');
+
+      // Position the control below the sign-in control
+      setTimeout(() => {
+        const geolocateElement = document.querySelector('.mapboxgl-ctrl-geolocate');
+        if (geolocateElement && geolocateElement.parentElement) {
+          (geolocateElement.parentElement as HTMLElement).style.marginTop = '70px';
+        }
+      }, 100);
+
+      // Set up geolocation event listeners
+      geolocateControl.current.on('geolocate', (e: any) => {
+        console.log('🗺️ [Map] Location granted and acquired:', e);
+        
+        // Update user location for proximity alerts
+        setUserLocation({
+          latitude: e.coords.latitude,
+          longitude: e.coords.longitude,
+          accuracy: e.coords.accuracy,
+          timestamp: Date.now()
+        });
+
+        // Auto-enable proximity alerts with 50m default distance
+        updateProximityEnabled(true);
+        updateDefaultDistance(50);
+        
+        toast({
+          title: "Location enabled!",
+          description: "Proximity alerts activated with 50m range.",
+        });
+      });
+
+      geolocateControl.current.on('error', (e: any) => {
+        console.log('🗺️ [Map] Location error:', e);
+        
+        toast({
+          title: "Location access denied",
+          description: "Enable location to get proximity alerts for nearby landmarks.",
+          variant: "destructive",
+        });
+      });
+
+      geolocateControl.current.on('trackuserlocationstart', () => {
+        console.log('🗺️ [Map] Started tracking user location');
+      });
+
+      geolocateControl.current.on('trackuserlocationend', () => {
+        console.log('🗺️ [Map] Stopped tracking user location');
+      });
+
+    } else if (!user && geolocateControl.current) {
+      // User is not logged in but control exists - remove it
+      console.log('🗺️ [Map] Removing GeolocateControl for anonymous user');
+      
+      map.current.removeControl(geolocateControl.current);
+      geolocateControl.current = null;
+    }
+  }, [user, updateProximityEnabled, updateDefaultDistance, setUserLocation, toast]);
 
   // Function to handle text-to-speech using Google Cloud TTS via edge function
   const handleTextToSpeech = async (landmark: Landmark) => {
