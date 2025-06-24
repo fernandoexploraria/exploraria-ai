@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProximityAlert, ProximitySettings, UserLocation } from '@/types/proximityAlerts';
@@ -19,7 +18,7 @@ const globalProximityState = {
 };
 
 const notifySubscribers = (settings: ProximitySettings | null) => {
-  console.log('📢 [DEBUG-PLAN-2] Notifying all subscribers with settings:', settings);
+  console.log('📢 Notifying all subscribers with settings:', settings);
   globalProximityState.settings = settings;
   globalProximityState.subscribers.forEach(callback => callback(settings));
 };
@@ -43,54 +42,30 @@ export const useProximityAlerts = () => {
   // Get default distance - only use if proximity settings exist
   const defaultDistance = proximitySettings?.default_distance;
 
-  console.log('🔍 [DEBUG-PLAN-3] useProximityAlerts: Current state:', {
-    proximitySettingsExists: !!proximitySettings,
-    defaultDistance,
-    userLocationExists: !!userLocation,
-    combinedLandmarksCount: combinedLandmarks.length
-  });
-
-  // Get sorted landmarks within range - ALWAYS call this hook (OLD SYSTEM)
+  // Get sorted landmarks within range - ALWAYS call this hook
   const sortedLandmarks = useSortedLandmarks(
     userLocation,
     combinedLandmarks,
     defaultDistance || 50 // Temporary fallback until settings load
   );
 
-  console.log('🔍 [DEBUG-PLAN-3] useProximityAlerts: Sorted landmarks result:', {
-    sortedLandmarksCount: sortedLandmarks.length,
-    usedDistance: defaultDistance || 50,
-    isUsingFallback: !defaultDistance
-  });
-
-  // OLD SYSTEM toast logic - uses the sorted landmarks directly
+  // Toast logic - uses the sorted landmarks directly
   useEffect(() => {
     // Only run if proximity is enabled and we have a location
     if (!proximitySettings?.is_enabled || !userLocation || !isMountedRef.current) {
       return;
     }
 
-    console.log('🎯 [OLD] [DEBUG-PLAN-3] Running simplified proximity detection...');
-    console.log(`📍 [OLD] [DEBUG-PLAN-3] Current location: ${userLocation.latitude.toFixed(6)}, ${userLocation.longitude.toFixed(6)}`);
-    console.log(`📏 [OLD] [DEBUG-PLAN-3] Default distance: ${defaultDistance}m`);
-    console.log(`✅ [OLD] [DEBUG-PLAN-3] Landmarks within range: ${sortedLandmarks.length}`);
-
     // Get the closest landmark (first in the sorted list, already filtered by distance)
     const closestLandmark = sortedLandmarks.length > 0 ? sortedLandmarks[0] : null;
     const currentClosestId = closestLandmark?.landmark.id || null;
     const previousClosestId = previousClosestLandmarkIdRef.current;
 
-    console.log(`🏛️ [OLD] [DEBUG-PLAN-3] Previous closest: ${previousClosestId || 'none'}`);
-    console.log(`🏛️ [OLD] [DEBUG-PLAN-3] Current closest: ${currentClosestId || 'none'}`);
-
     // Handle changes in closest landmark
     if (currentClosestId !== previousClosestId) {
-      console.log('🔄 [OLD] [DEBUG-PLAN-3] Closest landmark changed!');
-
       if (currentClosestId && closestLandmark) {
         // New landmark detected - send toast
         const distance = formatDistance(closestLandmark.distance);
-        console.log(`🚨 [OLD] [DEBUG-PLAN-3] Sending toast for ${closestLandmark.landmark.name} at ${distance}`);
         
         toast({
           title: "Landmark Nearby",
@@ -101,12 +76,8 @@ export const useProximityAlerts = () => {
         previousClosestLandmarkIdRef.current = currentClosestId;
       } else {
         // No landmarks in range - clear persisted value (no toast sent)
-        console.log('🚫 [OLD] [DEBUG-PLAN-3] No landmarks in range, clearing persisted value');
         previousClosestLandmarkIdRef.current = null;
       }
-    } else {
-      // Same landmark or both null - no action needed
-      console.log('✅ [OLD] [DEBUG-PLAN-3] No change in closest landmark');
     }
   }, [sortedLandmarks, proximitySettings?.is_enabled, userLocation, defaultDistance, toast]);
 
@@ -120,7 +91,7 @@ export const useProximityAlerts = () => {
     // Add this component as a subscriber
     const updateSettings = (settings: ProximitySettings | null) => {
       if (isMountedRef.current) {
-        console.log('🔄 [DEBUG-PLAN-2] Component received settings update:', settings);
+        console.log('🔄 Component received settings update:', settings);
         setProximitySettings(settings);
       }
     };
@@ -129,7 +100,7 @@ export const useProximityAlerts = () => {
     
     // Set initial state if already available and for the same user
     if (globalProximityState.settings && globalProximityState.currentUserId === user.id) {
-      console.log('🔄 [DEBUG-PLAN-2] Setting initial state from global state:', globalProximityState.settings);
+      console.log('🔄 Setting initial state from global state:', globalProximityState.settings);
       setProximitySettings(globalProximityState.settings);
     }
 
@@ -148,7 +119,7 @@ export const useProximityAlerts = () => {
 
     // If user changed, clean up previous subscription
     if (globalProximityState.currentUserId && globalProximityState.currentUserId !== user.id) {
-      console.log('👤 [DEBUG-PLAN-2] User changed, cleaning up previous proximity settings subscription');
+      console.log('👤 User changed, cleaning up previous proximity settings subscription');
       if (globalProximityState.channel) {
         supabase.removeChannel(globalProximityState.channel);
         globalProximityState.channel = null;
@@ -161,7 +132,7 @@ export const useProximityAlerts = () => {
 
     // Only create subscription if none exists
     if (!globalProximityState.channel && !globalProximityState.isSubscribed) {
-      console.log('📡 [DEBUG-PLAN-2] Creating new proximity settings subscription for user:', user.id);
+      console.log('📡 Creating new proximity settings subscription for user:', user.id);
       
       const channelName = `proximity-settings-${user.id}`;
       
@@ -176,7 +147,7 @@ export const useProximityAlerts = () => {
             filter: `user_id=eq.${user.id}`
           },
           (payload) => {
-            console.log('🔄 [DEBUG-PLAN-2] Real-time proximity settings update received:', payload);
+            console.log('🔄 Real-time proximity settings update received:', payload);
             if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
               const settings: ProximitySettings = {
                 id: payload.new.id,
@@ -186,25 +157,25 @@ export const useProximityAlerts = () => {
                 created_at: payload.new.created_at,
                 updated_at: payload.new.updated_at,
               };
-              console.log('🔄 [DEBUG-PLAN-2] Parsed settings from real-time update:', settings);
+              console.log('🔄 Parsed settings from real-time update:', settings);
               notifySubscribers(settings);
             } else if (payload.eventType === 'DELETE') {
-              console.log('🗑️ [DEBUG-PLAN-2] Settings deleted via real-time update');
+              console.log('🗑️ Settings deleted via real-time update');
               notifySubscribers(null);
             }
           }
         )
         .subscribe((status) => {
-          console.log('📡 [DEBUG-PLAN-2] Proximity settings subscription status:', status);
+          console.log('📡 Proximity settings subscription status:', status);
           if (status === 'SUBSCRIBED') {
             globalProximityState.isSubscribed = true;
             // Load initial data after successful subscription
             loadProximitySettings();
           } else if (status === 'CHANNEL_ERROR') {
-            console.error('❌ [DEBUG-PLAN-2] Proximity settings channel subscription error');
+            console.error('❌ Proximity settings channel subscription error');
             globalProximityState.isSubscribed = false;
           } else if (status === 'TIMED_OUT') {
-            console.error('⏰ [DEBUG-PLAN-2] Proximity settings channel subscription timed out');
+            console.error('⏰ Proximity settings channel subscription timed out');
             globalProximityState.isSubscribed = false;
           }
         });
@@ -212,7 +183,7 @@ export const useProximityAlerts = () => {
       globalProximityState.channel = channel;
     } else if (globalProximityState.isSubscribed && globalProximityState.currentUserId === user.id) {
       // If subscription already exists for this user, just load data
-      console.log('📡 [DEBUG-PLAN-2] Subscription already exists for current user, loading data');
+      console.log('📡 Subscription already exists for current user, loading data');
       if (!globalProximityState.settings) {
         loadProximitySettings();
       }
@@ -238,7 +209,7 @@ export const useProximityAlerts = () => {
     setIsLoading(true);
     
     try {
-      console.log('📥 [DEBUG-PLAN-2] Loading proximity settings for user:', user.id);
+      console.log('📥 Loading proximity settings for user:', user.id);
       const { data, error } = await supabase
         .from('proximity_settings')
         .select('*')
@@ -246,7 +217,7 @@ export const useProximityAlerts = () => {
         .maybeSingle();
 
       if (error) {
-        console.error('❌ [DEBUG-PLAN-2] Error loading proximity settings:', error);
+        console.error('❌ Error loading proximity settings:', error);
         return;
       }
 
@@ -260,14 +231,14 @@ export const useProximityAlerts = () => {
           created_at: data.created_at,
           updated_at: data.updated_at,
         };
-        console.log('📥 [DEBUG-PLAN-2] Loaded proximity settings:', settings);
+        console.log('📥 Loaded proximity settings:', settings);
         notifySubscribers(settings);
       } else {
-        console.log('📭 [DEBUG-PLAN-2] No proximity settings found for user');
+        console.log('📭 No proximity settings found for user');
         notifySubscribers(null);
       }
     } catch (error) {
-      console.error('❌ [DEBUG-PLAN-2] Error in loadProximitySettings:', error);
+      console.error('❌ Error in loadProximitySettings:', error);
     } finally {
       globalProximityState.isLoading = false;
       if (isMountedRef.current) {
@@ -309,18 +280,18 @@ export const useProximityAlerts = () => {
   };
 
   const updateProximityEnabled = useCallback(async (enabled: boolean) => {
-    console.log('🎯 [DEBUG-PLAN-1] updateProximityEnabled function called with:', { enabled, userId: user?.id });
+    console.log('🎯 updateProximityEnabled function called with:', { enabled, userId: user?.id });
     
     if (!user) {
-      console.log('❌ [DEBUG-PLAN-1] No user available for updateProximityEnabled');
+      console.log('❌ No user available for updateProximityEnabled');
       throw new Error('No user available');
     }
 
-    console.log('📡 [DEBUG-PLAN-1] updateProximityEnabled proceeding with user:', user.id);
+    console.log('📡 updateProximityEnabled proceeding with user:', user.id);
     setIsSaving(true);
     
     try {
-      console.log('💾 [DEBUG-PLAN-1] Making database request to update proximity enabled status...');
+      console.log('💾 Making database request to update proximity enabled status...');
       // Use UPSERT to ensure settings are created or updated
       const { error } = await supabase
         .from('proximity_settings')
@@ -334,14 +305,14 @@ export const useProximityAlerts = () => {
         });
 
       if (error) {
-        console.error('❌ [DEBUG-PLAN-1] Database error updating proximity enabled status:', error);
+        console.error('❌ Database error updating proximity enabled status:', error);
         throw error;
       }
 
-      console.log('✅ [DEBUG-PLAN-1] Successfully updated proximity enabled status in database to:', enabled);
+      console.log('✅ Successfully updated proximity enabled status in database to:', enabled);
       // The real-time subscription will update the state automatically
     } catch (error) {
-      console.error('❌ [DEBUG-PLAN-1] Error in updateProximityEnabled:', error);
+      console.error('❌ Error in updateProximityEnabled:', error);
       throw error;
     } finally {
       setIsSaving(false);
@@ -349,16 +320,16 @@ export const useProximityAlerts = () => {
   }, [user]);
 
   const updateDefaultDistance = useCallback(async (distance: number) => {
-    console.log('🎯 [DEBUG-PLAN-1] updateDefaultDistance called with:', { distance, userId: user?.id });
+    console.log('🎯 updateDefaultDistance called with:', { distance, userId: user?.id });
     
     if (!user) {
-      console.log('❌ [DEBUG-PLAN-1] No user available for updateDefaultDistance');
+      console.log('❌ No user available for updateDefaultDistance');
       throw new Error('No user available');
     }
 
     setIsSaving(true);
     try {
-      console.log('💾 [DEBUG-PLAN-1] Making database request to update default distance...');
+      console.log('💾 Making database request to update default distance...');
       // Use UPSERT to ensure settings are created or updated
       const { error } = await supabase
         .from('proximity_settings')
@@ -372,14 +343,14 @@ export const useProximityAlerts = () => {
         });
 
       if (error) {
-        console.error('❌ [DEBUG-PLAN-1] Database error updating default distance:', error);
+        console.error('❌ Database error updating default distance:', error);
         throw error;
       }
 
-      console.log('✅ [DEBUG-PLAN-1] Successfully updated default distance in database to:', distance);
+      console.log('✅ Successfully updated default distance in database to:', distance);
       // The real-time subscription will update the state automatically
     } catch (error) {
-      console.error('❌ [DEBUG-PLAN-1] Error in updateDefaultDistance:', error);
+      console.error('❌ Error in updateDefaultDistance:', error);
       throw error;
     } finally {
       setIsSaving(false);
@@ -413,7 +384,7 @@ export const useProximityAlerts = () => {
     userLocation,
     isLoading,
     isSaving,
-    // Keep these for the debug window to use the OLD system
+    // Keep these for the debug window to use
     sortedLandmarks,
     combinedLandmarks,
     setProximityAlerts,
