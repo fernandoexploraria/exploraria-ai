@@ -8,6 +8,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
 import { usePendingDestination } from '@/hooks/usePendingDestination';
 import { useDialogStates } from '@/hooks/useDialogStates';
+import { useProximityNotifications } from '@/hooks/useProximityNotifications';
 
 const Index: React.FC = () => {
   const [showSplash, setShowSplash] = useState(true);
@@ -37,6 +38,9 @@ const Index: React.FC = () => {
     generateTour,
     () => setIsNewTourAssistantOpen(true) // Callback to open NewTourAssistant
   );
+
+  // Initialize proximity notifications
+  useProximityNotifications();
   
   const allLandmarks = useMemo(() => {
     return [...staticLandmarks, ...plannedLandmarks, ...additionalLandmarks];
