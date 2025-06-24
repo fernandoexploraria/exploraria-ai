@@ -73,7 +73,7 @@ export const useSortedLandmarks = (
         setPreviousClosestId(closestLandmark.landmark.id);
       }
     }
-  }, [userLocation, sortedLandmarks, toast, previousClosestId, proximitySettings?.is_enabled]);
+  }, [sortedLandmarks, toast, previousClosestId, proximitySettings?.is_enabled]);
 
   return sortedLandmarks;
 };
