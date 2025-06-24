@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProximityAlert, ProximitySettings, UserLocation } from '@/types/proximityAlerts';
@@ -11,7 +10,8 @@ const globalProximityState = {
   subscribers: new Set<(settings: ProximitySettings | null) => void>(),
   channel: null as any,
   isSubscribed: false,
-  currentUserId: null as string | null
+  currentUserId: null as string | null,
+  isLoading: false
 };
 
 const notifySubscribers = (settings: ProximitySettings | null) => {
@@ -47,7 +47,7 @@ export const useProximityAlerts = () => {
     
     globalProximityState.subscribers.add(updateSettings);
     
-    // Set initial state if already available
+    // Set initial state if already available and for the same user
     if (globalProximityState.settings && globalProximityState.currentUserId === user.id) {
       console.log('🔄 Setting initial state from global state:', globalProximityState.settings);
       setProximitySettings(globalProximityState.settings);
@@ -74,6 +74,7 @@ export const useProximityAlerts = () => {
         globalProximityState.channel = null;
         globalProximityState.isSubscribed = false;
       }
+      globalProximityState.settings = null;
     }
 
     globalProximityState.currentUserId = user.id;
@@ -129,24 +130,17 @@ export const useProximityAlerts = () => {
         });
 
       globalProximityState.channel = channel;
-    } else if (globalProximityState.isSubscribed) {
-      // If subscription already exists, just load data
-      console.log('📡 Subscription already exists, loading data');
-      loadProximitySettings();
+    } else if (globalProximityState.isSubscribed && globalProximityState.currentUserId === user.id) {
+      // If subscription already exists for this user, just load data
+      console.log('📡 Subscription already exists for current user, loading data');
+      if (!globalProximityState.settings) {
+        loadProximitySettings();
+      }
     }
 
     return () => {
       // Don't clean up the global subscription here - let it persist
-      // Only clean up when the last subscriber unmounts
-      const subscriberCount = globalProximityState.subscribers.size;
-      if (subscriberCount === 0 && globalProximityState.channel) {
-        console.log('🧹 No more proximity settings subscribers, cleaning up global subscription');
-        supabase.removeChannel(globalProximityState.channel);
-        globalProximityState.channel = null;
-        globalProximityState.isSubscribed = false;
-        globalProximityState.currentUserId = null;
-        globalProximityState.settings = null;
-      }
+      isMountedRef.current = false;
     };
   }, [user?.id]);
 
@@ -158,9 +152,11 @@ export const useProximityAlerts = () => {
   }, [user]);
 
   const loadProximitySettings = async () => {
-    if (!user) return;
+    if (!user || globalProximityState.isLoading) return;
 
+    globalProximityState.isLoading = true;
     setIsLoading(true);
+    
     try {
       console.log('📥 Loading proximity settings for user:', user.id);
       const { data, error } = await supabase
@@ -193,6 +189,7 @@ export const useProximityAlerts = () => {
     } catch (error) {
       console.error('❌ Error in loadProximitySettings:', error);
     } finally {
+      globalProximityState.isLoading = false;
       if (isMountedRef.current) {
         setIsLoading(false);
       }
@@ -236,7 +233,7 @@ export const useProximityAlerts = () => {
     
     if (!user) {
       console.log('❌ No user available for updateProximityEnabled');
-      return;
+      throw new Error('No user available');
     }
 
     console.log('📡 updateProximityEnabled proceeding with user:', user.id);
@@ -250,6 +247,7 @@ export const useProximityAlerts = () => {
         .upsert({
           user_id: user.id,
           is_enabled: enabled,
+          default_distance: globalProximityState.settings?.default_distance || 50,
           updated_at: new Date().toISOString(),
         }, {
           onConflict: 'user_id'
@@ -257,11 +255,6 @@ export const useProximityAlerts = () => {
 
       if (error) {
         console.error('❌ Database error updating proximity enabled status:', error);
-        toast({
-          title: "Error",
-          description: "Failed to update proximity settings. Please try again.",
-          variant: "destructive",
-        });
         throw error;
       }
 
@@ -273,14 +266,14 @@ export const useProximityAlerts = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [user, toast]);
+  }, [user]);
 
   const updateDefaultDistance = useCallback(async (distance: number) => {
     console.log('🎯 updateDefaultDistance called with:', { distance, userId: user?.id });
     
     if (!user) {
       console.log('❌ No user available for updateDefaultDistance');
-      return;
+      throw new Error('No user available');
     }
 
     setIsSaving(true);
@@ -292,6 +285,7 @@ export const useProximityAlerts = () => {
         .upsert({
           user_id: user.id,
           default_distance: distance,
+          is_enabled: globalProximityState.settings?.is_enabled || false,
           updated_at: new Date().toISOString(),
         }, {
           onConflict: 'user_id'
@@ -299,11 +293,6 @@ export const useProximityAlerts = () => {
 
       if (error) {
         console.error('❌ Database error updating default distance:', error);
-        toast({
-          title: "Error",
-          description: "Failed to update default distance. Please try again.",
-          variant: "destructive",
-        });
         throw error;
       }
 
@@ -315,7 +304,7 @@ export const useProximityAlerts = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [user, toast]);
+  }, [user]);
 
   const updateUserLocation = (location: UserLocation) => {
     setUserLocation(location);
@@ -325,6 +314,16 @@ export const useProximityAlerts = () => {
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
+      // Clean up global subscription if no more subscribers
+      const subscriberCount = globalProximityState.subscribers.size;
+      if (subscriberCount === 0 && globalProximityState.channel) {
+        console.log('🧹 No more proximity settings subscribers, cleaning up global subscription');
+        supabase.removeChannel(globalProximityState.channel);
+        globalProximityState.channel = null;
+        globalProximityState.isSubscribed = false;
+        globalProximityState.currentUserId = null;
+        globalProximityState.settings = null;
+      }
     };
   }, []);
 
