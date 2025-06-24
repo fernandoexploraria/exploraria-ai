@@ -35,9 +35,14 @@ const Map: React.FC<MapProps> = ({
   const pendingPopupLandmark = useRef<Landmark | null>(null);
   const isZooming = useRef<boolean>(false);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
-  const navigationMarkers = useRef<{ marker: mapboxgl.Marker; interaction: any }[]>([]); // Store navigation markers with interaction data
+  const navigationMarkers = useRef<{ marker: mapboxgl.Marker; interaction: any }[]>([]);
+  
+  // New refs for GeolocateControl management
+  const geolocateControl = useRef<mapboxgl.GeolocateControl | null>(null);
+  const isUpdatingFromProximitySettings = useRef<boolean>(false);
+  
   const { user } = useAuth();
-  const { updateProximityEnabled } = useProximityAlerts();
+  const { updateProximityEnabled, proximitySettings } = useProximityAlerts();
 
   // Convert top landmarks to Landmark format
   const allLandmarksWithTop = React.useMemo(() => {
@@ -128,21 +133,64 @@ const Map: React.FC<MapProps> = ({
       // Add location control for authenticated users
       if (user) {
         console.log('🗺️ [Map] Adding GeolocateControl for authenticated user');
-        const geolocateControl = new mapboxgl.GeolocateControl({
+        
+        // Create GeolocateControl with comprehensive options
+        const geoControl = new mapboxgl.GeolocateControl({
           positionOptions: {
-            enableHighAccuracy: true
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 600000 // 10 minutes
           },
           trackUserLocation: true,
-          showUserHeading: true
+          showUserHeading: true,
+          showAccuracyCircle: true,
+          fitBoundsOptions: {
+            maxZoom: 16
+          }
         });
         
-        // Add event listener for when user enables location tracking
-        geolocateControl.on('geolocate', () => {
-          console.log('🗺️ [Map] Location tracking enabled, updating proximity settings');
-          updateProximityEnabled(true);
+        // Store reference to the control
+        geolocateControl.current = geoControl;
+        
+        // Add comprehensive event listeners
+        geoControl.on('geolocate', (e) => {
+          console.log('🌍 GeolocateControl: Location found', e);
+          // Only update proximity settings if this wasn't triggered by our own update
+          if (!isUpdatingFromProximitySettings.current) {
+            console.log('🌍 GeolocateControl: Enabling proximity (user initiated location)');
+            updateProximityEnabled(true);
+          }
         });
         
-        map.current.addControl(geolocateControl, 'top-right');
+        geoControl.on('trackuserlocationstart', () => {
+          console.log('🌍 GeolocateControl: Started tracking user location (ACTIVE state)');
+          // Only update proximity settings if this wasn't triggered by our own update
+          if (!isUpdatingFromProximitySettings.current) {
+            console.log('🌍 GeolocateControl: Enabling proximity (tracking started)');
+            updateProximityEnabled(true);
+          }
+        });
+        
+        geoControl.on('trackuserlocationend', () => {
+          console.log('🌍 GeolocateControl: Stopped tracking user location (PASSIVE/INACTIVE state)');
+          // Only update proximity settings if this wasn't triggered by our own update
+          if (!isUpdatingFromProximitySettings.current) {
+            console.log('🌍 GeolocateControl: Disabling proximity (tracking ended)');
+            updateProximityEnabled(false);
+          }
+        });
+        
+        geoControl.on('error', (e) => {
+          console.error('🌍 GeolocateControl: Error occurred', e);
+          // Only update proximity settings if this wasn't triggered by our own update
+          if (!isUpdatingFromProximitySettings.current) {
+            console.log('🌍 GeolocateControl: Disabling proximity (error occurred)');
+            updateProximityEnabled(false);
+          }
+        });
+        
+        // Add the control to the map
+        map.current.addControl(geoControl, 'top-right');
 
         // Add custom CSS to position the control 10px from top
         setTimeout(() => {
@@ -199,6 +247,7 @@ const Map: React.FC<MapProps> = ({
       return () => {
         console.log('🗺️ [Map] Cleanup function called');
         stopCurrentAudio();
+        geolocateControl.current = null;
         map.current?.remove();
         map.current = null;
       };
@@ -206,6 +255,47 @@ const Map: React.FC<MapProps> = ({
       console.error('🗺️ [Map] Error during map initialization:', error);
     }
   }, [mapboxToken, user]);
+
+  // Effect to handle proximity settings changes and sync with GeolocateControl
+  useEffect(() => {
+    if (!geolocateControl.current || !proximitySettings) {
+      return;
+    }
+
+    console.log('🔄 Proximity settings changed:', proximitySettings);
+    
+    // Set flag to prevent event loop
+    isUpdatingFromProximitySettings.current = true;
+    
+    try {
+      // Get current tracking state
+      const isCurrentlyTracking = (geolocateControl.current as any)._watchState === 'ACTIVE_LOCK';
+      const shouldBeTracking = proximitySettings.is_enabled;
+      
+      console.log('🔄 GeolocateControl sync check:', {
+        isCurrentlyTracking,
+        shouldBeTracking,
+        watchState: (geolocateControl.current as any)._watchState
+      });
+      
+      if (shouldBeTracking && !isCurrentlyTracking) {
+        console.log('🔄 Starting GeolocateControl tracking (proximity enabled)');
+        // Trigger the geolocate control to start tracking
+        geolocateControl.current.trigger();
+      } else if (!shouldBeTracking && isCurrentlyTracking) {
+        console.log('🔄 Stopping GeolocateControl tracking (proximity disabled)');
+        // Stop tracking by calling trigger again (it toggles)
+        geolocateControl.current.trigger();
+      }
+    } catch (error) {
+      console.error('🔄 Error syncing GeolocateControl with proximity settings:', error);
+    } finally {
+      // Reset flag after a short delay to ensure all events have been processed
+      setTimeout(() => {
+        isUpdatingFromProximitySettings.current = false;
+      }, 100);
+    }
+  }, [proximitySettings?.is_enabled]);
 
   // Function to handle text-to-speech using Google Cloud TTS via edge function
   const handleTextToSpeech = async (landmark: Landmark) => {
