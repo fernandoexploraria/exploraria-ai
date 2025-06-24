@@ -39,16 +39,17 @@ const LandmarksDebugWindow: React.FC<LandmarksDebugWindowProps> = ({
     sourceCounts
   } = useLandmarkSourceToggle();
 
+  const defaultDistance = proximitySettings?.default_distance || 100;
+
   // Get filtered landmarks (within range) and all landmarks for comparison
   const filteredLandmarks = useSortedLandmarks(
     userLocation, 
     currentLandmarks, 
-    proximitySettings?.default_distance
+    defaultDistance
   );
-  const allLandmarks = useSortedLandmarks(userLocation, currentLandmarks);
+  const allLandmarks = useSortedLandmarks(userLocation, currentLandmarks, 999999); // Use very large distance to get all landmarks
 
   const currentList = showAllLandmarks ? allLandmarks : filteredLandmarks;
-  const defaultDistance = proximitySettings?.default_distance || 100;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
