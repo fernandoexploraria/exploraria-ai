@@ -558,16 +558,9 @@ const Map: React.FC<MapProps> = ({
       if (!markers.current[landmark.id]) {
         const el = document.createElement('div');
         
-        // Different styling for different marker types
+        // Different styling for top landmarks vs user landmarks
         const isTopLandmark = landmark.id.startsWith('top-landmark-');
-        const isProximityMarker = landmark.id.startsWith('proximity-');
-        
-        let markerColor = 'bg-cyan-400'; // default for user landmarks
-        if (isTopLandmark) {
-          markerColor = 'bg-yellow-400';
-        } else if (isProximityMarker) {
-          markerColor = 'bg-red-500'; // red for proximity markers
-        }
+        const markerColor = isTopLandmark ? 'bg-yellow-400' : 'bg-cyan-400';
         
         el.className = `w-4 h-4 rounded-full ${markerColor} border-2 border-white shadow-lg cursor-pointer transition-transform duration-300 hover:scale-125`;
         el.style.transition = 'background-color 0.3s, transform 0.3s';
