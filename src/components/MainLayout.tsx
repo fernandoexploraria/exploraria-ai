@@ -1,11 +1,13 @@
 
 import React from 'react';
-import Map from '@/components/Map';
-import TopControls from '@/components/TopControls';
-import UserControls from '@/components/UserControls';
-import DialogManager from '@/components/DialogManager';
-import NewTourAssistant from '@/components/NewTourAssistant';
-import ProximityDetector from '@/components/ProximityDetector';
+import Map from './Map';
+import SearchControl from './SearchControl';
+import TopControls from './TopControls';
+import TourPlannerDialog from './TourPlannerDialog';
+import VoiceSearchDialog from './VoiceSearchDialog';
+import AuthDialog from './AuthDialog';
+import NewTourAssistant from './NewTourAssistant';
+import ProximityDetector from './ProximityDetector';
 import { Landmark } from '@/data/landmarks';
 import { User } from '@supabase/supabase-js';
 
@@ -20,7 +22,7 @@ interface MainLayoutProps {
   onVoiceSearchOpen: () => void;
   onVoiceAssistantOpen: () => void;
   onLogoClick: () => void;
-  onSignOut: () => Promise<void>;
+  onSignOut: () => void;
   onAuthDialogOpen: () => void;
   isTourPlannerOpen: boolean;
   onTourPlannerOpenChange: (open: boolean) => void;
@@ -62,58 +64,66 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   onNewTourAssistantOpenChange,
   tourPlan,
 }) => {
-  const handleLocationSelect = () => {
-    console.log('Location select called but no action taken');
-  };
-
   return (
-    <div className="w-screen h-screen relative">
-      <ProximityDetector landmarks={allLandmarks} />
+    <div className="relative w-screen h-screen overflow-hidden">
+      {/* Proximity Detection - Always render when user is logged in */}
+      {user && <ProximityDetector landmarks={allLandmarks} />}
       
-      <TopControls
-        allLandmarks={allLandmarks}
-        onSelectLandmark={onSelectLandmark}
-        onTourPlannerOpen={onTourPlannerOpen}
-        onVoiceSearchOpen={onVoiceSearchOpen}
-        onVoiceAssistantOpen={onVoiceAssistantOpen}
-        onLogoClick={onLogoClick}
-        user={user}
-        plannedLandmarks={plannedLandmarks}
-      />
-
-      <UserControls
-        user={user}
-        onSignOut={onSignOut}
-        onAuthDialogOpen={onAuthDialogOpen}
-      />
-
-      <Map 
+      {/* Map */}
+      <Map
         mapboxToken={mapboxToken}
         landmarks={allLandmarks}
         onSelectLandmark={onSelectLandmark}
         selectedLandmark={selectedLandmark}
-        plannedLandmarks={[...plannedLandmarks]}
+        plannedLandmarks={plannedLandmarks}
       />
 
-      <DialogManager
-        isTourPlannerOpen={isTourPlannerOpen}
-        onTourPlannerOpenChange={onTourPlannerOpenChange}
+      {/* Search Control */}
+      <SearchControl
+        landmarks={allLandmarks}
+        onSelectLandmark={onSelectLandmark}
+      />
+
+      {/* Top Controls */}
+      <TopControls
+        user={user}
+        onTourPlannerOpen={onTourPlannerOpen}
+        onVoiceSearchOpen={onVoiceSearchOpen}
+        onVoiceAssistantOpen={onVoiceAssistantOpen}
+        onLogoClick={onLogoClick}
+        onSignOut={onSignOut}
+        onAuthDialogOpen={onAuthDialogOpen}
+      />
+
+      {/* Tour Planner Dialog */}
+      <TourPlannerDialog
+        open={isTourPlannerOpen}
+        onOpenChange={onTourPlannerOpenChange}
         onGenerateTour={onGenerateTour}
-        onTourAuthRequired={onTourAuthRequired}
-        isTourLoading={isTourLoading}
-        isVoiceSearchOpen={isVoiceSearchOpen}
-        onVoiceSearchOpenChange={onVoiceSearchOpenChange}
-        isAuthDialogOpen={isAuthDialogOpen}
-        onAuthDialogOpenChange={onAuthDialogOpenChange}
-        onLocationSelect={handleLocationSelect}
+        onAuthRequired={onTourAuthRequired}
+        user={user}
+        isLoading={isTourLoading}
       />
 
+      {/* Voice Search Dialog */}
+      <VoiceSearchDialog
+        open={isVoiceSearchOpen}
+        onOpenChange={onVoiceSearchOpenChange}
+        landmarks={allLandmarks}
+        onSelectLandmark={onSelectLandmark}
+      />
+
+      {/* Auth Dialog */}
+      <AuthDialog
+        open={isAuthDialogOpen}
+        onOpenChange={onAuthDialogOpenChange}
+      />
+
+      {/* New Tour Assistant */}
       <NewTourAssistant
         open={isNewTourAssistantOpen}
         onOpenChange={onNewTourAssistantOpenChange}
-        destination={tourPlan?.destination || ''}
-        landmarks={plannedLandmarks}
-        systemPrompt={tourPlan?.systemPrompt}
+        tourPlan={tourPlan}
       />
     </div>
   );
