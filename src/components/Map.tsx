@@ -207,11 +207,11 @@ const Map: React.FC<MapProps> = ({
 
       map.current.addControl(geolocateControl.current, 'top-right');
 
-      // Position the control below the sign-in control with better alignment
+      // Position the control to align with the sign-in control
       setTimeout(() => {
         const geolocateElement = document.querySelector('.mapboxgl-ctrl-geolocate');
         if (geolocateElement && geolocateElement.parentElement) {
-          (geolocateElement.parentElement as HTMLElement).style.marginTop = '60px';
+          (geolocateElement.parentElement as HTMLElement).style.marginTop = '16px';
         }
       }, 100);
 
