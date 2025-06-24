@@ -123,6 +123,20 @@ const Map: React.FC<MapProps> = ({
 
       console.log('🗺️ [Map] Map instance created successfully');
 
+      // Add location control for authenticated users
+      if (user) {
+        console.log('🗺️ [Map] Adding GeolocateControl for authenticated user');
+        const geolocateControl = new mapboxgl.GeolocateControl({
+          positionOptions: {
+            enableHighAccuracy: true
+          },
+          trackUserLocation: true,
+          showUserHeading: true
+        });
+        
+        map.current.addControl(geolocateControl, 'top-right');
+      }
+
       map.current.on('style.load', () => {
         console.log('🗺️ [Map] Map style loaded, adding fog...');
         map.current?.setFog({}); // Add a sky layer and atmosphere
@@ -175,7 +189,7 @@ const Map: React.FC<MapProps> = ({
     } catch (error) {
       console.error('🗺️ [Map] Error during map initialization:', error);
     }
-  }, [mapboxToken]);
+  }, [mapboxToken, user]);
 
   // Function to handle text-to-speech using Google Cloud TTS via edge function
   const handleTextToSpeech = async (landmark: Landmark) => {
