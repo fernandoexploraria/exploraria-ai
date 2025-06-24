@@ -81,7 +81,7 @@ export const useProximityNotifications = () => {
     saveNotificationState();
   }, [saveNotificationState]);
 
-  // Monitor for newly entered proximity zones
+  // Monitor for newly entered proximity zones - MODIFIED TO SHOW ONLY ONE TOAST
   useEffect(() => {
     if (!proximitySettings?.is_enabled || !userLocation || nearbyLandmarks.length === 0) {
       return;
@@ -95,15 +95,18 @@ export const useProximityNotifications = () => {
 
     console.log(`🎯 Proximity check: ${currentNearbyIds.size} nearby, ${newlyEnteredIds.length} newly entered`);
 
-    // Show notifications for newly entered landmarks
-    for (const landmarkId of newlyEnteredIds) {
-      if (canNotify(landmarkId)) {
-        const nearbyLandmark = nearbyLandmarks.find(nl => nl.landmark.id === landmarkId);
-        if (nearbyLandmark) {
-          showProximityToast(nearbyLandmark.landmark, nearbyLandmark.distance);
-        }
+    // Show notification for ONLY the closest newly entered landmark that can be notified
+    if (newlyEnteredIds.length > 0) {
+      // Find the first (closest) newly entered landmark that can be notified
+      // nearbyLandmarks is already sorted by distance (closest first)
+      const closestNewLandmark = nearbyLandmarks.find(nl => 
+        newlyEnteredIds.includes(nl.landmark.id) && canNotify(nl.landmark.id)
+      );
+
+      if (closestNewLandmark) {
+        showProximityToast(closestNewLandmark.landmark, closestNewLandmark.distance);
       } else {
-        console.log(`🔕 Skipping notification for ${landmarkId} - still in cooldown`);
+        console.log(`🔕 No notifications shown - all newly entered landmarks still in cooldown`);
       }
     }
 
