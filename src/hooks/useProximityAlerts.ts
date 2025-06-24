@@ -1,8 +1,12 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProximityAlert, ProximitySettings, UserLocation } from '@/types/proximityAlerts';
 import { useAuth } from '@/components/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
+import { useCombinedLandmarks } from '@/hooks/useCombinedLandmarks';
+import { useSortedLandmarks } from '@/hooks/useSortedLandmarks';
+import { formatDistance } from '@/utils/proximityUtils';
 
 // Global state management for proximity settings
 const globalProximityState = {
@@ -29,6 +33,68 @@ export const useProximityAlerts = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const isMountedRef = useRef(true);
+
+  // Ref to track the previously closest landmark ID for persistence
+  const previousClosestLandmarkIdRef = useRef<string | null>(null);
+
+  // Get combined landmarks (top landmarks + tour landmarks)
+  const combinedLandmarks = useCombinedLandmarks();
+
+  // Get sorted landmarks within range using the default distance
+  const defaultDistance = proximitySettings?.default_distance || 100;
+  const sortedLandmarks = useSortedLandmarks(
+    userLocation,
+    combinedLandmarks,
+    defaultDistance
+  );
+
+  // Core proximity detection logic - runs every time location or settings change
+  useEffect(() => {
+    // Only run if proximity is enabled and we have a location
+    if (!proximitySettings?.is_enabled || !userLocation || !isMountedRef.current) {
+      return;
+    }
+
+    console.log('🎯 Running proximity detection...');
+    console.log(`📍 Current location: ${userLocation.latitude.toFixed(6)}, ${userLocation.longitude.toFixed(6)}`);
+    console.log(`📏 Default distance: ${defaultDistance}m`);
+    console.log(`🗺️ Total landmarks: ${combinedLandmarks.length}`);
+    console.log(`✅ Landmarks within range: ${sortedLandmarks.length}`);
+
+    // Get the closest landmark (first in the sorted list, already filtered by distance)
+    const closestLandmark = sortedLandmarks.length > 0 ? sortedLandmarks[0] : null;
+    const currentClosestId = closestLandmark?.landmark.id || null;
+    const previousClosestId = previousClosestLandmarkIdRef.current;
+
+    console.log(`🏛️ Previous closest: ${previousClosestId || 'none'}`);
+    console.log(`🏛️ Current closest: ${currentClosestId || 'none'}`);
+
+    // Compare with persisted value and handle changes
+    if (currentClosestId !== previousClosestId) {
+      console.log('🔄 Closest landmark changed!');
+
+      if (currentClosestId && closestLandmark) {
+        // New landmark detected - send toast
+        const distance = formatDistance(closestLandmark.distance);
+        console.log(`🚨 Sending toast for ${closestLandmark.landmark.name} at ${distance}`);
+        
+        toast({
+          title: "Landmark Nearby",
+          description: `${closestLandmark.landmark.name} is ${distance} away`,
+        });
+
+        // Update persisted value
+        previousClosestLandmarkIdRef.current = currentClosestId;
+      } else {
+        // No landmarks in range - clear persisted value (no toast sent)
+        console.log('🚫 No landmarks in range, clearing persisted value');
+        previousClosestLandmarkIdRef.current = null;
+      }
+    } else {
+      // Same landmark or both null - no action needed
+      console.log('✅ No change in closest landmark');
+    }
+  }, [userLocation, proximitySettings?.is_enabled, defaultDistance, sortedLandmarks, combinedLandmarks.length, toast]);
 
   // Subscribe to global proximity settings state
   useEffect(() => {
