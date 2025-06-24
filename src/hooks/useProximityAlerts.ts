@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProximityAlert, ProximitySettings, UserLocation } from '@/types/proximityAlerts';
@@ -230,10 +231,12 @@ export const useProximityAlerts = () => {
   const updateProximityEnabled = useCallback(async (enabled: boolean) => {
     if (!user) return;
 
+    console.log('updateProximityEnabled called with:', enabled, 'for user:', user.id);
     setIsSaving(true);
+    
     try {
       // Use upsert to handle both update and insert cases
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('proximity_settings')
         .upsert({
           user_id: user.id,
@@ -242,7 +245,8 @@ export const useProximityAlerts = () => {
           updated_at: new Date().toISOString(),
         }, {
           onConflict: 'user_id'
-        });
+        })
+        .select();
 
       if (error) {
         console.error('Error updating proximity enabled status:', error);
@@ -255,7 +259,11 @@ export const useProximityAlerts = () => {
       }
 
       console.log('Proximity enabled status updated successfully:', enabled);
-      // The real-time subscription will update the state automatically
+      console.log('Database response:', data);
+      
+      // Force reload settings to ensure we have the latest state
+      await loadProximitySettings();
+      
     } catch (error) {
       console.error('Error in updateProximityEnabled:', error);
       throw error;
@@ -327,3 +335,4 @@ export const useProximityAlerts = () => {
     updateDefaultDistance,
   };
 };
+
