@@ -258,7 +258,7 @@ const Map: React.FC<MapProps> = ({
       map.current.removeControl(geolocateControl.current);
       geolocateControl.current = null;
     }
-  }, [user, updateProximityEnabled, updateDefaultDistance, setUserLocation, toast]);
+  }, [user]); // Only depend on user - the functions are now stable
 
   // Function to handle text-to-speech using Google Cloud TTS via edge function
   const handleTextToSpeech = async (landmark: Landmark) => {
