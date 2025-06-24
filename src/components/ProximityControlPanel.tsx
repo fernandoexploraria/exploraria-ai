@@ -8,8 +8,6 @@ import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { formatDistance } from '@/utils/proximityUtils';
 import ProximitySettingsDialog from '@/components/ProximitySettingsDialog';
-import ProximityOnboardingDialog from '@/components/ProximityOnboardingDialog';
-import { useProximityOnboarding } from '@/hooks/useProximityOnboarding';
 
 interface ProximityControlPanelProps {
   className?: string;
@@ -19,15 +17,6 @@ const ProximityControlPanel: React.FC<ProximityControlPanelProps> = ({ className
   const { userLocation, locationState } = useLocationTracking();
   const { proximitySettings, proximityAlerts } = useProximityAlerts();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  
-  // Use the proximity onboarding hook
-  const {
-    isOnboardingOpen,
-    openOnboarding,
-    closeOnboarding,
-    shouldShowOnboarding,
-    markOnboardingComplete
-  } = useProximityOnboarding();
 
   const activeAlertsCount = proximityAlerts.filter(alert => alert.is_enabled).length;
   const totalAlertsCount = proximityAlerts.length;
@@ -35,16 +24,6 @@ const ProximityControlPanel: React.FC<ProximityControlPanelProps> = ({ className
   const defaultDistance = proximitySettings?.default_distance || 50;
 
   const handleEnableProximity = () => {
-    if (shouldShowOnboarding) {
-      openOnboarding();
-    } else {
-      setIsSettingsOpen(true);
-    }
-  };
-
-  const handleOnboardingComplete = () => {
-    markOnboardingComplete();
-    closeOnboarding();
     setIsSettingsOpen(true);
   };
 
@@ -162,13 +141,6 @@ const ProximityControlPanel: React.FC<ProximityControlPanelProps> = ({ className
       <ProximitySettingsDialog
         open={isSettingsOpen}
         onOpenChange={setIsSettingsOpen}
-      />
-
-      {/* Onboarding Dialog */}
-      <ProximityOnboardingDialog
-        open={isOnboardingOpen}
-        onOpenChange={closeOnboarding}
-        onComplete={handleOnboardingComplete}
       />
     </>
   );

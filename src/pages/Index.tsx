@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback } from 'react';
 import SplashScreen from '@/components/SplashScreen';
 import MainLayout from '@/components/MainLayout';
@@ -7,7 +8,6 @@ import { useAuth } from '@/components/AuthProvider';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
 import { usePendingDestination } from '@/hooks/usePendingDestination';
 import { useDialogStates } from '@/hooks/useDialogStates';
-import { useProximityNotifications } from '@/hooks/useProximityNotifications';
 
 const Index: React.FC = () => {
   const [showSplash, setShowSplash] = useState(true);
@@ -16,20 +16,6 @@ const Index: React.FC = () => {
   const { tourPlan, plannedLandmarks, isLoading: isTourLoading, generateTour } = useTourPlanner();
   const { user, signOut } = useAuth();
   const mapboxToken = useMapboxToken();
-  
-  // Use the new proximity notifications hook with testing mode enabled (1200km max range)
-  const {
-    activeNotification,
-    showFloatingCard,
-    hideFloatingCard,
-    showRouteVisualization,
-    showSearchNearby,
-    hideSearchNearby,
-    isSearchNearbyOpen,
-    searchNearbyLandmark,
-    searchNearbyCoordinates,
-    userLocation
-  } = useProximityNotifications(true); // true = testing mode with large thresholds
   
   const {
     selectedLandmark,
@@ -149,21 +135,6 @@ const Index: React.FC = () => {
         isNewTourAssistantOpen={isNewTourAssistantOpen}
         onNewTourAssistantOpenChange={setIsNewTourAssistantOpen}
         tourPlan={tourPlan}
-        // Pass proximity notification handlers (now managed internally)
-        proximityEventHandlers={{
-          onFloatingCardTrigger: showFloatingCard,
-          onRouteVisualizationTrigger: showRouteVisualization
-        }}
-        // Pass active notification state
-        activeProximityNotification={activeNotification}
-        onHideFloatingCard={hideFloatingCard}
-        onShowSearchNearby={showSearchNearby}
-        // Search nearby state
-        isSearchNearbyOpen={isSearchNearbyOpen}
-        searchNearbyLandmark={searchNearbyLandmark}
-        searchNearbyCoordinates={searchNearbyCoordinates}
-        onHideSearchNearby={hideSearchNearby}
-        userLocation={userLocation ? [userLocation.longitude, userLocation.latitude] : null}
       />
     </>
   );
