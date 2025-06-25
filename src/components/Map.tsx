@@ -12,6 +12,8 @@ import { useStreetView } from '@/hooks/useStreetView';
 import { useStreetViewNavigation } from '@/hooks/useStreetViewNavigation';
 import { useEnhancedStreetView } from '@/hooks/useEnhancedStreetView';
 import EnhancedStreetViewModal from './EnhancedStreetViewModal';
+import { useEnhancedPhotos, PhotoData } from '@/hooks/useEnhancedPhotos';
+import EnhancedProgressiveImage from './EnhancedProgressiveImage';
 
 interface MapProps {
   mapboxToken: string;
@@ -506,48 +508,65 @@ const Map: React.FC<MapProps> = ({
     });
   };
 
-  // Function to fetch landmark image using Supabase edge function
-  const fetchLandmarkImage = async (landmark: Landmark): Promise<string> => {
+  // Updated function to fetch enhanced landmark photos
+  const fetchLandmarkPhotos = async (landmark: Landmark): Promise<PhotoData[]> => {
     const cacheKey = `${landmark.name}-${landmark.coordinates[0]}-${landmark.coordinates[1]}`;
     
-    if (imageCache.current[cacheKey]) {
-      console.log('Using cached image for:', landmark.name);
-      return imageCache.current[cacheKey];
+    if (enhancedPhotosCache.current[cacheKey]) {
+      console.log('Using cached enhanced photos for:', landmark.name);
+      return enhancedPhotosCache.current[cacheKey];
     }
 
     try {
-      console.log('Fetching image via edge function for:', landmark.name);
+      console.log('🖼️ Fetching enhanced photos for:', landmark.name);
       
-      const { data, error } = await supabase.functions.invoke('fetch-landmark-image', {
+      // First try to get place ID using existing place search
+      const { data: searchData, error: searchError } = await supabase.functions.invoke('google-places-search', {
         body: { 
-          landmarkName: landmark.name,
-          coordinates: landmark.coordinates
+          query: `${landmark.name} ${landmark.coordinates[1]},${landmark.coordinates[0]}`,
+          location: landmark.coordinates
         }
       });
 
-      if (error) {
-        console.error('Edge function error:', error);
-        throw error;
+      if (searchError || !searchData?.results?.[0]?.place_id) {
+        console.log('No place ID found for:', landmark.name);
+        return [];
       }
 
-      if (data && data.imageUrl) {
-        console.log('Received image URL for:', landmark.name, data.isFallback ? '(fallback)' : '(Google Places)');
-        imageCache.current[cacheKey] = data.imageUrl;
-        return data.imageUrl;
+      const placeId = searchData.results[0].place_id;
+      console.log('Found place ID for', landmark.name, ':', placeId);
+
+      // Fetch enhanced photos using new v2 API
+      const photosResponse = await fetchPhotos(placeId, 800, 'medium');
+      
+      if (photosResponse?.photos && photosResponse.photos.length > 0) {
+        console.log(`✅ Got ${photosResponse.photos.length} enhanced photos for:`, landmark.name);
+        enhancedPhotosCache.current[cacheKey] = photosResponse.photos;
+        return photosResponse.photos;
       }
 
-      throw new Error('No image URL received from edge function');
+      console.log('ℹ️ No enhanced photos available for:', landmark.name);
+      return [];
       
     } catch (error) {
-      console.error('Error fetching image for', landmark.name, error);
-      
-      // Fallback to a seeded placeholder image
-      console.log('Using local fallback image for:', landmark.name);
-      const seed = landmark.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-      const fallbackUrl = `https://picsum.photos/seed/${seed}/400/300`;
-      imageCache.current[cacheKey] = fallbackUrl;
-      return fallbackUrl;
+      console.error('Error fetching enhanced photos for', landmark.name, error);
+      return [];
     }
+  };
+
+  // Fallback function for simple image URL (kept for compatibility)
+  const fetchLandmarkImage = async (landmark: Landmark): Promise<string> => {
+    const photos = await fetchLandmarkPhotos(landmark);
+    
+    if (photos.length > 0) {
+      // Return the medium quality URL from the first photo
+      return photos[0].urls.medium;
+    }
+    
+    // Fallback to seeded placeholder image
+    console.log('Using local fallback image for:', landmark.name);
+    const seed = landmark.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    return `https://picsum.photos/seed/${seed}/400/300`;
   };
 
   // Function to show landmark popup
@@ -589,7 +608,7 @@ const Map: React.FC<MapProps> = ({
     const hasStreetView = streetViewDataFromUseStreetView !== null || streetViewDataFromEnhanced !== null;
     console.log('👁️ Has Street View available:', hasStreetView);
     
-    // Create new photo popup with image and action buttons
+    // Create new photo popup with loading state
     const photoPopup = new mapboxgl.Popup({
       closeButton: true,
       closeOnClick: false,
@@ -626,7 +645,7 @@ const Map: React.FC<MapProps> = ({
             transition: background-color 0.2s;
           " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
           <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
-          <div style="margin-bottom: 10px; color: #666;">Loading image...</div>
+          <div style="margin-bottom: 10px; color: #666;">Loading enhanced photos...</div>
         </div>
       `)
       .addTo(map.current!);
@@ -649,15 +668,16 @@ const Map: React.FC<MapProps> = ({
       };
     }
 
-    // Fetch and display image with action buttons
+    // Fetch and display enhanced photos
     try {
-      const imageUrl = await fetchLandmarkImage(landmark);
+      const photos = await fetchLandmarkPhotos(landmark);
       const isPlaying = playingAudio[landmark.id] || false;
       
-      // Store the interaction ONLY ONCE with the fetched image URL
-      await storeMapMarkerInteraction(landmark, imageUrl);
+      // Store the interaction with the first photo URL if available
+      const firstPhotoUrl = photos.length > 0 ? photos[0].urls.medium : undefined;
+      await storeMapMarkerInteraction(landmark, firstPhotoUrl);
       
-      console.log('🎨 Creating buttons HTML. Has Street View:', hasStreetView);
+      console.log('🎨 Creating enhanced popup. Photos available:', photos.length, 'Has Street View:', hasStreetView);
       
       // Create buttons HTML - Street View button only if data is available
       const streetViewButton = hasStreetView ? `
@@ -687,67 +707,142 @@ const Map: React.FC<MapProps> = ({
         </button>
       ` : '';
       
-      console.log('🎨 Street View button HTML length:', streetViewButton.length);
-      
-      photoPopup.setHTML(`
-        <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
-          <button class="custom-close-btn" onclick="
-            if (window.handlePopupClose) window.handlePopupClose('${landmark.id}');
-            this.closest('.mapboxgl-popup').remove();
-          " style="
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            font-weight: bold;
-            z-index: 1000;
-            transition: background-color 0.2s;
-          " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
-          <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
-          <div style="position: relative; margin-bottom: 10px;">
-            <img src="${imageUrl}" alt="${landmark.name}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px;" />
-            <div style="position: absolute; bottom: 10px; right: 10px; display: flex; gap: 8px;">
-              ${streetViewButton}
-              <button 
-                class="listen-btn-${landmark.id}" 
-                onclick="window.handleLandmarkListen('${landmark.id}')"
-                style="
-                  background: rgba(0, 0, 0, 0.9);
-                  color: white;
-                  border: 3px solid rgba(255, 255, 255, 0.9);
-                  border-radius: 50%;
-                  width: 56px;
-                  height: 56px;
-                  cursor: pointer;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  font-size: 24px;
-                  transition: all 0.3s ease;
-                  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-                  ${isPlaying ? 'opacity: 0.7;' : ''}
-                "
-                onmouseover="this.style.backgroundColor='rgba(59, 130, 246, 0.95)'; this.style.borderColor='white'; this.style.transform='scale(1.15)'; this.style.boxShadow='0 6px 20px rgba(0, 0, 0, 0.5)'"
-                onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'; this.style.borderColor='rgba(255, 255, 255, 0.9)'; this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.4)'"
-                ${isPlaying ? 'disabled' : ''}
-                title="Listen to description"
-              >
-                🔊
-              </button>
+      if (photos.length > 0) {
+        // Display first photo with enhanced quality and attribution
+        const firstPhoto = photos[0];
+        const attributionText = firstPhoto.attributions.length > 0 
+          ? firstPhoto.attributions[0].displayName 
+          : 'Google';
+
+        photoPopup.setHTML(`
+          <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
+            <button class="custom-close-btn" onclick="
+              if (window.handlePopupClose) window.handlePopupClose('${landmark.id}');
+              this.closest('.mapboxgl-popup').remove();
+            " style="
+              position: absolute;
+              top: 5px;
+              right: 5px;
+              background: rgba(0, 0, 0, 0.7);
+              color: white;
+              border: none;
+              border-radius: 50%;
+              width: 24px;
+              height: 24px;
+              cursor: pointer;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 14px;
+              font-weight: bold;
+              z-index: 1000;
+              transition: background-color 0.2s;
+            " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
+            <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
+            <div style="position: relative; margin-bottom: 10px;">
+              <img src="${firstPhoto.urls.medium}" alt="${landmark.name}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px;" />
+              <div style="position: absolute; bottom: 2px; left: 2px; background: rgba(0, 0, 0, 0.7); color: white; text-xs px-1 py-0.5 rounded; font-size: 10px;">
+                📸 ${attributionText}
+              </div>
+              ${photos.length > 1 ? `
+                <div style="position: absolute; top: 5px; left: 5px; background: rgba(0, 0, 0, 0.7); color: white; text-xs px-2 py-1 rounded;">
+                  1/${photos.length}
+                </div>
+              ` : ''}
+              <div style="position: absolute; bottom: 10px; right: 10px; display: flex; gap: 8px;">
+                ${streetViewButton}
+                <button 
+                  class="listen-btn-${landmark.id}" 
+                  onclick="window.handleLandmarkListen('${landmark.id}')"
+                  style="
+                    background: rgba(0, 0, 0, 0.9);
+                    color: white;
+                    border: 3px solid rgba(255, 255, 255, 0.9);
+                    border-radius: 50%;
+                    width: 56px;
+                    height: 56px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 24px;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+                    ${isPlaying ? 'opacity: 0.7;' : ''}
+                  "
+                  onmouseover="this.style.backgroundColor='rgba(59, 130, 246, 0.95)'; this.style.borderColor='white'; this.style.transform='scale(1.15)'; this.style.boxShadow='0 6px 20px rgba(0, 0, 0, 0.5)'"
+                  onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'; this.style.borderColor='rgba(255, 255, 255, 0.9)'; this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.4)'"
+                  ${isPlaying ? 'disabled' : ''}
+                  title="Listen to description"
+                >
+                  🔊
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      `);
+        `);
+      } else {
+        // No photos case with fallback
+        const fallbackUrl = await fetchLandmarkImage(landmark);
+        
+        photoPopup.setHTML(`
+          <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
+            <button class="custom-close-btn" onclick="
+              if (window.handlePopupClose) window.handlePopupClose('${landmark.id}');
+              this.closest('.mapboxgl-popup').remove();
+            " style="
+              position: absolute;
+              top: 5px;
+              right: 5px;
+              background: rgba(0, 0, 0, 0.7);
+              color: white;
+              border: none;
+              border-radius: 50%;
+              width: 24px;
+              height: 24px;
+              cursor: pointer;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 14px;
+              font-weight: bold;
+              z-index: 1000;
+              transition: background-color 0.2s;
+            " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
+            <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
+            <div style="position: relative; margin-bottom: 10px;">
+              <img src="${fallbackUrl}" alt="${landmark.name}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px;" />
+              <div style="position: absolute; bottom: 10px; right: 10px; display: flex; gap: 8px;">
+                ${streetViewButton}
+                <button 
+                  class="listen-btn-${landmark.id}" 
+                  onclick="window.handleLandmarkListen('${landmark.id}')"
+                  style="
+                    background: rgba(0, 0, 0, 0.9);
+                    color: white;
+                    border: 3px solid rgba(255, 255, 255, 0.9);
+                    border-radius: 50%;
+                    width: 56px;
+                    height: 56px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 24px;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+                  "
+                  onmouseover="this.style.backgroundColor='rgba(59, 130, 246, 0.95)'; this.style.borderColor='white'; this.style.transform='scale(1.15)'; this.style.boxShadow='0 6px 20px rgba(0, 0, 0, 0.5)'"
+                  onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'; this.style.borderColor='rgba(255, 255, 255, 0.9)'; this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.4)'"
+                  title="Listen to description"
+                >
+                  🔊
+                </button>
+              </div>
+            </div>
+          </div>
+        `);
+      }
 
       // Add global handler for listen button if it doesn't exist
       if (!(window as any).handleLandmarkListen) {
@@ -765,15 +860,22 @@ const Map: React.FC<MapProps> = ({
           const targetLandmark = allLandmarksWithTop.find(l => l.id === landmarkId);
           if (targetLandmark) {
             console.log(`🔍 Opening Street View modal for ${targetLandmark.name} from marker popup`);
-            await openStreetViewModal([targetLandmark], targetLandmark);
+            try {
+              await openStreetViewModal([targetLandmark], targetLandmark);
+              console.log('✅ openStreetViewModal call completed');
+            } catch (error) {
+              console.error('❌ Error calling openStreetViewModal:', error);
+            }
+          } else {
+            console.error('❌ Landmark not found for ID:', landmarkId);
           }
         };
       }
 
     } catch (error) {
-      console.error('Failed to load image for', landmark.name, error);
+      console.error('Failed to load enhanced photos for', landmark.name, error);
       
-      // Store the interaction even without image
+      // Store the interaction even without enhanced photos
       await storeMapMarkerInteraction(landmark);
       
       // Create buttons HTML for no-image case - Street View button only if data is available
