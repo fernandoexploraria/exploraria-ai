@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List } from 'lucide-react';
+import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerTrigger } from '@/components/ui/drawer';
 import SearchControl from '@/components/SearchControl';
 import FreeTourCounter from '@/components/FreeTourCounter';
@@ -9,6 +9,8 @@ import ImageAnalysis from '@/components/ImageAnalysis';
 import DebugWindow from '@/components/DebugWindow';
 import { Landmark } from '@/data/landmarks';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface TopControlsProps {
   allLandmarks: Landmark[];
@@ -34,9 +36,46 @@ const TopControls: React.FC<TopControlsProps> = ({
   const isMobile = useIsMobile();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDebugDrawerOpen, setIsDebugDrawerOpen] = useState(false);
+  const [isTestingCors, setIsTestingCors] = useState(false);
+  const { toast } = useToast();
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
+  };
+
+  const handleTestCors = async () => {
+    setIsTestingCors(true);
+    console.log('🧪 Starting CORS test...');
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('test-cors', {
+        body: { test: 'cors-functionality' }
+      });
+
+      if (error) {
+        console.error('🧪 CORS test error:', error);
+        toast({
+          title: "CORS Test Failed",
+          description: `Error: ${error.message}`,
+          variant: "destructive",
+        });
+      } else {
+        console.log('🧪 CORS test success:', data);
+        toast({
+          title: "CORS Test Successful!",
+          description: `Response: ${data.message}`,
+        });
+      }
+    } catch (error) {
+      console.error('🧪 CORS test exception:', error);
+      toast({
+        title: "CORS Test Exception",
+        description: `Exception: ${error.message}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsTestingCors(false);
+    }
   };
 
   return (
@@ -111,6 +150,18 @@ const TopControls: React.FC<TopControlsProps> = ({
 
             {/* Image Analysis Button */}
             <ImageAnalysis plannedLandmarks={plannedLandmarks} />
+            
+            {/* Test CORS Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
+              onClick={handleTestCors}
+              disabled={isTestingCors}
+            >
+              <TestTube className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+              {isTestingCors ? 'Testing...' : 'Test CORS'}
+            </Button>
             
             {/* Debug Button wrapped in Drawer */}
             <Drawer open={isDebugDrawerOpen} onOpenChange={setIsDebugDrawerOpen}>
