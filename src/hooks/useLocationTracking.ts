@@ -9,6 +9,7 @@ import {
   calculateAdaptiveInterval, 
   getOptimalLocationOptions,
   isSignificantLocationChange,
+  calculateDistance,
   MovementState,
   LocationHistory
 } from '@/utils/locationUtils';
