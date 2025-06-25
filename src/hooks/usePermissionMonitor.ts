@@ -22,7 +22,7 @@ const PERMISSION_CACHE_DURATION = 10000; // 10 seconds
 
 export const usePermissionMonitor = (): PermissionMonitorHook => {
   const [permissionState, setPermissionState] = useState<PermissionState>({
-    state: 'prompt', // Changed from 'unknown' to 'prompt' for better initial UX
+    state: 'prompt',
     isMonitoring: false,
     lastChecked: null,
     hasPermissionAPI: 'permissions' in navigator,
@@ -54,14 +54,14 @@ export const usePermissionMonitor = (): PermissionMonitorHook => {
         const result = permission.state as 'granted' | 'denied' | 'prompt';
         console.log('Permission API result:', result);
         cacheRef.current = { state: result, timestamp: now };
-        retryCountRef.current = 0; // Reset retry count on success
+        retryCountRef.current = 0;
         return result;
       }
       
-      // Fallback: try to get position to check permission with shorter timeout
+      // Fallback: try to get position with optimized settings for permission check
       console.log('Using geolocation fallback to check permission...');
       return new Promise((resolve) => {
-        const timeoutDuration = retryCountRef.current > 2 ? 8000 : 5000; // Shorter timeout for retries
+        const timeoutDuration = 8000; // Shorter timeout for permission checks
         
         navigator.geolocation.getCurrentPosition(
           () => {
@@ -78,25 +78,28 @@ export const usePermissionMonitor = (): PermissionMonitorHook => {
             if (error.code === error.PERMISSION_DENIED) {
               result = 'denied';
             } else if (error.code === error.TIMEOUT || error.code === error.POSITION_UNAVAILABLE) {
-              // For timeout/unavailable, assume prompt state (permission likely available but having technical issues)
               retryCountRef.current++;
-              result = retryCountRef.current > 3 ? 'unknown' : 'prompt';
+              result = retryCountRef.current > 2 ? 'unknown' : 'prompt';
               console.log(`Setting to ${result} after ${retryCountRef.current} retries for error code ${error.code}`);
             } else {
-              result = retryCountRef.current > 3 ? 'unknown' : 'prompt';
+              result = retryCountRef.current > 2 ? 'unknown' : 'prompt';
               retryCountRef.current++;
             }
             
             cacheRef.current = { state: result, timestamp: now };
             resolve(result);
           },
-          { timeout: timeoutDuration }
+          { 
+            timeout: timeoutDuration,
+            enableHighAccuracy: false, // Don't require high accuracy for permission check
+            maximumAge: 300000 // Allow 5-minute old location for permission check
+          }
         );
       });
     } catch (error) {
       console.error('Error checking permission:', error);
       retryCountRef.current++;
-      const result = retryCountRef.current > 3 ? 'unknown' : 'prompt';
+      const result = retryCountRef.current > 2 ? 'unknown' : 'prompt';
       cacheRef.current = { state: result, timestamp: now };
       return result;
     }
@@ -180,8 +183,8 @@ export const usePermissionMonitor = (): PermissionMonitorHook => {
           },
           { 
             timeout: 12000,
-            enableHighAccuracy: false,
-            maximumAge: 300000
+            enableHighAccuracy: false, // Don't require high accuracy for permission request
+            maximumAge: 300000 // Allow 5-minute old location for permission request
           }
         );
       });
