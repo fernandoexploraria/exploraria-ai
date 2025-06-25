@@ -23,7 +23,7 @@ const MarkerManager: React.FC<MarkerManagerProps> = ({
 
   // Update markers when landmarks change
   useEffect(() => {
-    if (!map) {
+    if (!map || !map.isStyleLoaded()) {
       console.log('🗺️ [MarkerManager] Map not ready yet, skipping marker update');
       return;
     }
@@ -54,8 +54,8 @@ const MarkerManager: React.FC<MarkerManagerProps> = ({
         const marker = new mapboxgl.Marker(el)
           .setLngLat(landmark.coordinates);
 
-        // Only add to map if map is available and not null
-        if (map && map.getCanvasContainer) {
+        // Only add to map if map is fully loaded and ready
+        try {
           marker.addTo(map);
           
           marker.getElement().addEventListener('click', async (e) => {
@@ -65,8 +65,8 @@ const MarkerManager: React.FC<MarkerManagerProps> = ({
           });
 
           markersRef.current[landmark.id] = marker;
-        } else {
-          console.warn('🗺️ [MarkerManager] Map not ready for marker:', landmark.name);
+        } catch (error) {
+          console.warn('🗺️ [MarkerManager] Failed to add marker for:', landmark.name, error);
         }
       }
     });
@@ -76,7 +76,7 @@ const MarkerManager: React.FC<MarkerManagerProps> = ({
 
   // Update marker styles when selected landmark changes
   useEffect(() => {
-    if (!map) return;
+    if (!map || !map.isStyleLoaded()) return;
     
     Object.entries(markersRef.current).forEach(([id, marker]) => {
       const landmark = landmarks.find(l => l.id === id);
