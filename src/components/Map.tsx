@@ -10,6 +10,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useStreetView } from '@/hooks/useStreetView';
 import { useStreetViewNavigation } from '@/hooks/useStreetViewNavigation';
+import { useEnhancedStreetView } from '@/hooks/useEnhancedStreetView';
 
 interface MapProps {
   mapboxToken: string;
@@ -55,6 +56,7 @@ const Map: React.FC<MapProps> = ({
   
   // Street View hooks for checking cached data and opening modal
   const { getCachedData } = useStreetView();
+  const { getStreetViewWithOfflineSupport } = useEnhancedStreetView();
   const { openStreetViewModal } = useStreetViewNavigation();
 
   // Convert top landmarks and tour landmarks to Landmark format
@@ -558,9 +560,24 @@ const Map: React.FC<MapProps> = ({
     });
     photoPopups.current = {};
     
-    // Check if Street View data is cached for this landmark
-    const streetViewData = getCachedData(landmark.id);
-    const hasStreetView = streetViewData !== null;
+    // Check if Street View data is cached for this landmark - using multiple methods for debugging
+    console.log('🔍 Checking Street View availability for:', landmark.name, 'ID:', landmark.id);
+    
+    const streetViewDataFromUseStreetView = getCachedData(landmark.id);
+    console.log('📋 Street View data from useStreetView:', streetViewDataFromUseStreetView);
+    
+    // Also try to get data from enhanced hook
+    let streetViewDataFromEnhanced = null;
+    try {
+      streetViewDataFromEnhanced = await getStreetViewWithOfflineSupport(landmark);
+      console.log('🔍 Street View data from enhanced hook:', streetViewDataFromEnhanced);
+    } catch (error) {
+      console.log('❌ Error getting Street View from enhanced hook:', error);
+    }
+    
+    // Use either source of Street View data
+    const hasStreetView = streetViewDataFromUseStreetView !== null || streetViewDataFromEnhanced !== null;
+    console.log('👁️ Has Street View available:', hasStreetView);
     
     // Create new photo popup with image and action buttons
     const photoPopup = new mapboxgl.Popup({
@@ -630,6 +647,8 @@ const Map: React.FC<MapProps> = ({
       // Store the interaction ONLY ONCE with the fetched image URL
       await storeMapMarkerInteraction(landmark, imageUrl);
       
+      console.log('🎨 Creating buttons HTML. Has Street View:', hasStreetView);
+      
       // Create buttons HTML - Street View button only if data is available
       const streetViewButton = hasStreetView ? `
         <button 
@@ -657,6 +676,8 @@ const Map: React.FC<MapProps> = ({
           👁️
         </button>
       ` : '';
+      
+      console.log('🎨 Street View button HTML length:', streetViewButton.length);
       
       photoPopup.setHTML(`
         <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
