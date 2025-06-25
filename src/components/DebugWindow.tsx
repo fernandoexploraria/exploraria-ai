@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { X, MapPin, Eye, Timer, Target } from 'lucide-react';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -31,7 +32,7 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
   };
 
   return (
-    <div className="fixed top-4 right-4 w-96 bg-black/90 text-white rounded-lg shadow-2xl z-[9999] max-h-[80vh] overflow-auto">
+    <div className="fixed inset-4 md:top-4 md:right-4 md:left-auto md:bottom-auto md:w-96 bg-black/90 text-white rounded-lg shadow-2xl z-[9999] max-h-[80vh] md:max-h-[80vh] overflow-auto">
       <div className="flex items-center justify-between p-3 border-b border-gray-700">
         <div className="flex items-center gap-2">
           <Eye className="w-4 h-4" />
