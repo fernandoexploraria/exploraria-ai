@@ -11,6 +11,7 @@ import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useStreetView } from '@/hooks/useStreetView';
 import { useStreetViewNavigation } from '@/hooks/useStreetViewNavigation';
 import { useEnhancedStreetView } from '@/hooks/useEnhancedStreetView';
+import EnhancedStreetViewModal from './EnhancedStreetViewModal';
 
 interface MapProps {
   mapboxToken: string;
@@ -57,7 +58,16 @@ const Map: React.FC<MapProps> = ({
   // Street View hooks for checking cached data and opening modal
   const { getCachedData } = useStreetView();
   const { getStreetViewWithOfflineSupport } = useEnhancedStreetView();
-  const { openStreetViewModal } = useStreetViewNavigation();
+  const { 
+    openStreetViewModal, 
+    closeStreetViewModal, 
+    isModalOpen, 
+    streetViewItems, 
+    currentIndex,
+    navigateToIndex,
+    navigateNext,
+    navigatePrevious 
+  } = useStreetViewNavigation();
 
   // Convert top landmarks and tour landmarks to Landmark format
   const allLandmarksWithTop = React.useMemo(() => {
@@ -1355,6 +1365,35 @@ const Map: React.FC<MapProps> = ({
         handleTextToSpeechForInteraction(markerData.interaction.assistant_response);
       }
     };
+
+    // Add global handler for Street View button with better debugging
+    (window as any).handleStreetViewOpen = async (landmarkId: string) => {
+      console.log('🔍 handleStreetViewOpen called with landmark ID:', landmarkId);
+      const targetLandmark = allLandmarksWithTop.find(l => l.id === landmarkId);
+      console.log('🎯 Found landmark:', targetLandmark?.name);
+      
+      if (targetLandmark) {
+        console.log(`🔍 Opening Street View modal for ${targetLandmark.name} from marker popup`);
+        try {
+          await openStreetViewModal([targetLandmark], targetLandmark);
+          console.log('✅ openStreetViewModal call completed');
+        } catch (error) {
+          console.error('❌ Error calling openStreetViewModal:', error);
+        }
+      } else {
+        console.error('❌ Landmark not found for ID:', landmarkId);
+      }
+    };
+
+    // Add test function for debugging
+    (window as any).testStreetViewModal = async () => {
+      console.log('🧪 Testing Street View modal with first available landmark...');
+      const testLandmark = allLandmarksWithTop[0];
+      if (testLandmark) {
+        console.log('🧪 Test landmark:', testLandmark.name);
+        await openStreetViewModal([testLandmark], testLandmark);
+      }
+    };
     
     return () => {
       console.log('Cleaning up global map functions');
@@ -1362,10 +1401,28 @@ const Map: React.FC<MapProps> = ({
       delete (window as any).handleInteractionListen;
       delete (window as any).stopCurrentAudio;
       delete (window as any).showRouteOnMap;
+      delete (window as any).handleStreetViewOpen;
+      delete (window as any).testStreetViewModal;
     };
-  }, [showRouteOnMap, navigateToCoordinates]);
+  }, [showRouteOnMap, navigateToCoordinates, openStreetViewModal, allLandmarksWithTop]);
 
-  return <div ref={mapContainer} className="absolute inset-0" />;
+  return (
+    <>
+      <div ref={mapContainer} className="absolute inset-0" />
+      
+      {/* Add the Enhanced Street View Modal */}
+      <EnhancedStreetViewModal
+        isOpen={isModalOpen}
+        onClose={closeStreetViewModal}
+        streetViewItems={streetViewItems}
+        initialIndex={currentIndex}
+        onLocationSelect={(coordinates) => {
+          navigateToCoordinates(coordinates);
+          closeStreetViewModal();
+        }}
+      />
+    </>
+  );
 };
 
 export default Map;

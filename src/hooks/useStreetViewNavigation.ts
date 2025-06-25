@@ -1,6 +1,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useStreetViewBatch } from '@/hooks/useStreetViewBatch';
+import { useEnhancedStreetView } from '@/hooks/useEnhancedStreetView';
 import { Landmark } from '@/data/landmarks';
 
 interface StreetViewNavigationState {
@@ -20,35 +21,81 @@ export const useStreetViewNavigation = () => {
   });
 
   const { batchPreloadStreetView, results } = useStreetViewBatch();
+  const { getStreetViewWithOfflineSupport } = useEnhancedStreetView();
 
   const openStreetViewModal = useCallback(async (
     landmarks: Landmark[], 
     initialLandmark?: Landmark
   ) => {
     console.log(`🔍 Opening Street View modal for ${landmarks.length} landmarks`);
+    console.log('📍 Landmarks to process:', landmarks.map(l => l.name));
     
-    // Start batch pre-loading
-    await batchPreloadStreetView(landmarks);
-    
-    // Convert results to street view items
-    const streetViewItems = results.map(result => ({
-      landmark: result.landmark,
-      streetViewData: result.data
-    }));
+    if (landmarks.length === 0) {
+      console.error('❌ No landmarks provided to openStreetViewModal');
+      return;
+    }
 
-    // Find initial index
-    const initialIndex = initialLandmark 
-      ? landmarks.findIndex(l => l.id === initialLandmark.id)
-      : 0;
+    try {
+      // Try batch pre-loading first
+      console.log('🔄 Attempting batch pre-loading...');
+      await batchPreloadStreetView(landmarks);
+      
+      let streetViewItems = [];
+      
+      // If batch results are available, use them
+      if (results.length > 0) {
+        console.log('✅ Using batch results:', results.length);
+        streetViewItems = results.map(result => ({
+          landmark: result.landmark,
+          streetViewData: result.data
+        }));
+      } else {
+        // Fallback: try to get Street View data individually
+        console.log('🔄 Batch failed, trying individual Street View requests...');
+        
+        for (const landmark of landmarks) {
+          try {
+            console.log(`🔍 Getting Street View for ${landmark.name}...`);
+            const streetViewData = await getStreetViewWithOfflineSupport(landmark);
+            streetViewItems.push({
+              landmark,
+              streetViewData
+            });
+            console.log(`✅ Got Street View data for ${landmark.name}`);
+          } catch (error) {
+            console.log(`❌ Failed to get Street View for ${landmark.name}:`, error);
+            streetViewItems.push({
+              landmark,
+              streetViewData: null
+            });
+          }
+        }
+      }
 
-    setState({
-      isModalOpen: true,
-      currentIndex: Math.max(0, initialIndex),
-      streetViewItems
-    });
-  }, [batchPreloadStreetView, results]);
+      console.log('📋 Final street view items:', streetViewItems.length);
+      
+      // Find initial index
+      const initialIndex = initialLandmark 
+        ? landmarks.findIndex(l => l.id === initialLandmark.id)
+        : 0;
+
+      console.log('🎯 Setting initial index:', initialIndex);
+
+      setState({
+        isModalOpen: true,
+        currentIndex: Math.max(0, initialIndex),
+        streetViewItems
+      });
+
+      console.log('✅ Street View modal state updated, should be visible now');
+      
+    } catch (error) {
+      console.error('❌ Error in openStreetViewModal:', error);
+    }
+  }, [batchPreloadStreetView, results, getStreetViewWithOfflineSupport]);
 
   const closeStreetViewModal = useCallback(() => {
+    console.log('🔒 Closing Street View modal');
     setState(prev => ({ ...prev, isModalOpen: false }));
   }, []);
 
@@ -80,6 +127,7 @@ export const useStreetViewNavigation = () => {
   // Update street view items when batch results change
   useEffect(() => {
     if (results.length > 0) {
+      console.log('🔄 Updating street view items from batch results:', results.length);
       setState(prev => ({
         ...prev,
         streetViewItems: results.map(result => ({
