@@ -37,6 +37,7 @@ const Map: React.FC<MapProps> = ({
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<{ [key: string]: mapboxgl.Marker }>({});
   const imageCache = useRef<{ [key: string]: string }>({});
+  const enhancedPhotosCache = useRef<{ [key: string]: PhotoData[] }>({});
   const photoPopups = useRef<{ [key: string]: mapboxgl.Popup }>({});
   const [playingAudio, setPlayingAudio] = useState<{ [key: string]: boolean }>({});
   const pendingPopupLandmark = useRef<Landmark | null>(null);
