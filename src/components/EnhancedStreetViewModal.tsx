@@ -222,6 +222,14 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
 
   const availableItems = streetViewItems.filter(item => item.streetViewData);
 
+  // Convert streetViewItems to thumbnailData format for the grid
+  const thumbnailData = streetViewItems.map(item => ({
+    landmark: item.landmark,
+    streetViewData: item.streetViewData && isMultiViewpointData(item.streetViewData) 
+      ? item.streetViewData.primary 
+      : item.streetViewData as StreetViewData | null
+  }));
+
   return (
     <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/90 ${isFullscreen ? 'p-0' : 'p-4'}`}>
       <div className={`relative w-full h-full bg-black rounded-lg overflow-hidden ${isFullscreen ? 'max-w-none max-h-none' : 'max-w-7xl max-h-[95vh]'}`}>
@@ -325,7 +333,7 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
         {availableItems.length > 1 && (
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
             <StreetViewThumbnailGrid
-              thumbnails={streetViewItems}
+              thumbnails={thumbnailData}
               onThumbnailClick={handleThumbnailClick}
               selectedIndex={currentIndex}
               className="justify-center"
