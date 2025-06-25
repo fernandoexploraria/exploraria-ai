@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { X, MapPin, Eye, Timer, Target } from 'lucide-react';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -18,7 +17,6 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
   
   const nearbyLandmarks = useNearbyLandmarks({
     userLocation,
-    landmarks: combinedLandmarks,
     toastDistance: proximitySettings?.toast_distance || 100
   });
 
@@ -50,7 +48,6 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
       </div>
 
       <div className="p-3 space-y-4 font-mono text-xs">
-        {/* Location Status */}
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-green-400">
             <MapPin className="w-3 h-3" />
@@ -82,7 +79,6 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
           </div>
         </div>
 
-        {/* Current Location */}
         {userLocation && (
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-blue-400">
@@ -112,7 +108,6 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
           </div>
         )}
 
-        {/* Proximity Settings */}
         {proximitySettings && (
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-purple-400">
@@ -142,7 +137,6 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
           </div>
         )}
 
-        {/* Landmarks Summary */}
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-yellow-400">
             <MapPin className="w-3 h-3" />
@@ -164,7 +158,6 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
           </div>
         </div>
 
-        {/* Nearby Landmarks Array */}
         {nearbyLandmarks.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-green-400">
@@ -202,7 +195,6 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
           </div>
         )}
 
-        {/* No Nearby Landmarks */}
         {nearbyLandmarks.length === 0 && userLocation && proximitySettings?.is_enabled && (
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-gray-500">
@@ -215,7 +207,6 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
           </div>
         )}
 
-        {/* Instructions */}
         <div className="border-t border-gray-700 pt-2 text-gray-500 text-xs">
           Press <kbd className="bg-gray-800 px-1 rounded">Ctrl+D</kbd> to toggle this window
         </div>

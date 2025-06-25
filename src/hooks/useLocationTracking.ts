@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { UserLocation } from '@/types/proximityAlerts';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
-import { useCombinedLandmarks } from '@/hooks/useCombinedLandmarks';
 import { useNearbyLandmarks } from '@/hooks/useNearbyLandmarks';
 import { useStreetViewBatch } from '@/hooks/useStreetViewBatch';
 import { 
@@ -37,7 +36,7 @@ const BASE_POLLING_INTERVAL = 15000; // 15 seconds base interval
 const MAX_LOCATION_HISTORY = 10;
 const LOCATION_CHANGE_THRESHOLD = 20; // meters
 
-export const useLocationTracking = (tourLandmarks: any[] = []): LocationTrackingHook => {
+export const useLocationTracking = (): LocationTrackingHook => {
   const { proximitySettings, setUserLocation } = useProximityAlerts();
   
   const [locationState, setLocationState] = useState<LocationTrackingState>({
@@ -61,11 +60,9 @@ export const useLocationTracking = (tourLandmarks: any[] = []): LocationTracking
   const locationHistoryRef = useRef<LocationHistory[]>([]);
   const lastSignificantLocationRef = useRef<UserLocation | null>(null);
 
-  // Get combined landmarks (top landmarks + tour landmarks) - pass tour landmarks as parameter
-  const combinedLandmarks = useCombinedLandmarks(tourLandmarks);
+  // Get nearby landmarks using TOP_LANDMARKS directly
   const nearbyLandmarks = useNearbyLandmarks({
     userLocation,
-    landmarks: combinedLandmarks,
     toastDistance: proximitySettings?.toast_distance || 100
   });
 
