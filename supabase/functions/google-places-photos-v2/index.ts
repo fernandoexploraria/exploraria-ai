@@ -25,11 +25,11 @@ serve(async (req) => {
       );
     }
 
-    const GOOGLE_API_KEY = Deno.env.get('GOOGLE_PLACES_API_KEY');
+    const GOOGLE_API_KEY = Deno.env.get('GOOGLE_API_KEY');
     if (!GOOGLE_API_KEY) {
-      console.error('Google Places API key not found');
+      console.error('Google API key not found');
       return new Response(
-        JSON.stringify({ error: 'Google Places API key not configured' }),
+        JSON.stringify({ error: 'Google API key not configured' }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
