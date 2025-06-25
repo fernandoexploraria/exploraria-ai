@@ -11,11 +11,11 @@ import { useStreetView } from '@/hooks/useStreetView';
 import { useStreetViewNavigation } from '@/hooks/useStreetViewNavigation';
 import { useEnhancedStreetView } from '@/hooks/useEnhancedStreetView';
 import { useMapEventHandlers } from '@/hooks/useMapEventHandlers';
+import { usePopupManager } from '@/hooks/usePopupManager';
+import { useRouteManager } from '@/hooks/useRouteManager';
 import EnhancedStreetViewModal from './EnhancedStreetViewModal';
 import MapContainer from './map/MapContainer';
 import MarkerManager from './map/MarkerManager';
-import PopupManager from './map/PopupManager';
-import RouteManager from './map/RouteManager';
 import LocationManager from './map/LocationManager';
 
 interface MapProps {
@@ -54,6 +54,20 @@ const Map: React.FC<MapProps> = ({
     navigateNext,
     navigatePrevious 
   } = useStreetViewNavigation();
+
+  // Custom hooks for popup and route management
+  const { showLandmarkPopup, stopCurrentAudio } = usePopupManager({
+    map: map.current,
+    photoPopupsRef: photoPopups,
+    currentAudio,
+    playingAudio,
+    setPlayingAudio,
+    onStreetViewOpen: handleStreetViewOpen
+  });
+
+  const { showRouteOnMap, clearRoute, navigateToCoordinates } = useRouteManager({
+    map: map.current
+  });
 
   // Convert top landmarks and tour landmarks to Landmark format
   const allLandmarksWithTop = React.useMemo(() => {
@@ -132,14 +146,14 @@ const Map: React.FC<MapProps> = ({
       });
     } else {
       // Show popup immediately for marker clicks when already zoomed
-      await showLandmarkPopup(landmark);
+      await showLandmarkPopupWithStreetView(landmark);
     }
     
     onSelectLandmark(landmark);
-  }, [onSelectLandmark, setIsZooming, setPendingPopupLandmark]);
+  }, [onSelectLandmark, setIsZooming, setPendingPopupLandmark, showLandmarkPopup]);
 
   // Function to check Street View availability and show popup
-  const showLandmarkPopup = useCallback(async (landmark: Landmark) => {
+  const showLandmarkPopupWithStreetView = useCallback(async (landmark: Landmark) => {
     console.log('🔍 [Map] Checking Street View for:', landmark.name);
     
     const streetViewDataFromCache = getCachedData(landmark.id);
@@ -158,17 +172,8 @@ const Map: React.FC<MapProps> = ({
     await storeMapMarkerInteraction(landmark);
     
     // Show popup with Street View availability
-    const popupManager = PopupManager({
-      map: map.current,
-      photoPopupsRef: photoPopups,
-      currentAudio,
-      playingAudio,
-      setPlayingAudio,
-      onStreetViewOpen: handleStreetViewOpen
-    });
-    
-    await popupManager.showLandmarkPopup(landmark, hasStreetView);
-  }, [getCachedData, getStreetViewWithOfflineSupport, playingAudio, setPlayingAudio]);
+    await showLandmarkPopup(landmark, hasStreetView);
+  }, [getCachedData, getStreetViewWithOfflineSupport, showLandmarkPopup]);
 
   // Function to store map marker interaction
   const storeMapMarkerInteraction = async (landmark: Landmark, imageUrl?: string) => {
@@ -197,15 +202,15 @@ const Map: React.FC<MapProps> = ({
   };
 
   // Function to handle Street View opening
-  const handleStreetViewOpen = useCallback(async (landmarkId: string) => {
+  function handleStreetViewOpen(landmarkId: string) {
     console.log('🔍 [Map] Opening Street View for landmark ID:', landmarkId);
     const targetLandmark = allLandmarksWithTop.find(l => l.id === landmarkId);
     
     if (targetLandmark) {
       console.log(`🔍 Opening Street View modal for ${targetLandmark.name}`);
-      await openStreetViewModal([targetLandmark], targetLandmark);
+      openStreetViewModal([targetLandmark], targetLandmark);
     }
-  }, [allLandmarksWithTop, openStreetViewModal]);
+  }
 
   // Function to handle text-to-speech
   const handleTextToSpeech = async (landmark: Landmark) => {
@@ -316,11 +321,11 @@ const Map: React.FC<MapProps> = ({
         });
         
         setTimeout(() => {
-          showLandmarkPopup(selectedLandmark);
+          showLandmarkPopupWithStreetView(selectedLandmark);
         }, 500);
       }
     }
-  }, [selectedLandmark, setIsZooming, setPendingPopupLandmark, showLandmarkPopup]);
+  }, [selectedLandmark, setIsZooming, setPendingPopupLandmark, showLandmarkPopupWithStreetView]);
 
   // Zoom to fit planned landmarks when a new tour is generated
   useEffect(() => {
@@ -391,7 +396,7 @@ const Map: React.FC<MapProps> = ({
       delete (window as any).handlePopupClose;
       delete (window as any).handleStreetViewOpen;
     };
-  }, [allLandmarksWithTop, handleTextToSpeech, handleStreetViewOpen]);
+  }, [allLandmarksWithTop, handleTextToSpeech]);
 
   return (
     <>
@@ -403,8 +408,6 @@ const Map: React.FC<MapProps> = ({
           onMarkerClick={handleMarkerClick}
           markersRef={markers}
         />
-        
-        <RouteManager map={map.current} />
         
         <LocationManager map={map.current} user={user} />
       </MapContainer>
