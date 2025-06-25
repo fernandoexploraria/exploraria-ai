@@ -1,10 +1,10 @@
-
 import { useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { useNearbyLandmarks } from '@/hooks/useNearbyLandmarks';
 import { useTTSContext } from '@/contexts/TTSContext';
+import { useStreetView } from '@/hooks/useStreetView';
 import { Landmark } from '@/data/landmarks';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -12,21 +12,39 @@ interface NotificationState {
   [landmarkId: string]: number; // timestamp of last notification
 }
 
+interface PrepZoneState {
+  [landmarkId: string]: {
+    entered: boolean;
+    streetViewPreloaded: boolean;
+    timestamp: number;
+  };
+}
+
 const NOTIFICATION_COOLDOWN = 5 * 60 * 1000; // 5 minutes in milliseconds
 const STORAGE_KEY = 'proximity_notifications_state';
+const PREP_ZONE_STORAGE_KEY = 'prep_zone_state';
 
 export const useProximityNotifications = () => {
   const { proximitySettings, combinedLandmarks } = useProximityAlerts();
   const { userLocation } = useLocationTracking();
   const { speak } = useTTSContext();
+  const { preloadStreetView, getCachedData } = useStreetView();
   const notificationStateRef = useRef<NotificationState>({});
+  const prepZoneStateRef = useRef<PrepZoneState>({});
   const previousNearbyLandmarksRef = useRef<Set<string>>(new Set());
 
-  // Get nearby landmarks within toast distance
+  // Get nearby landmarks within toast distance (1500m)
   const nearbyLandmarks = useNearbyLandmarks({
     userLocation,
     landmarks: combinedLandmarks,
-    toastDistance: proximitySettings?.toast_distance || 100
+    toastDistance: proximitySettings?.toast_distance || 1500
+  });
+
+  // Get landmarks within prep zone (route_distance = 1000m)
+  const prepZoneLandmarks = useNearbyLandmarks({
+    userLocation,
+    landmarks: combinedLandmarks,
+    toastDistance: proximitySettings?.route_distance || 1000
   });
 
   // Load notification state from localStorage
@@ -35,6 +53,11 @@ export const useProximityNotifications = () => {
       const savedState = localStorage.getItem(STORAGE_KEY);
       if (savedState) {
         notificationStateRef.current = JSON.parse(savedState);
+      }
+
+      const savedPrepState = localStorage.getItem(PREP_ZONE_STORAGE_KEY);
+      if (savedPrepState) {
+        prepZoneStateRef.current = JSON.parse(savedPrepState);
       }
     } catch (error) {
       console.error('Failed to load notification state:', error);
@@ -45,6 +68,7 @@ export const useProximityNotifications = () => {
   const saveNotificationState = useCallback(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(notificationStateRef.current));
+      localStorage.setItem(PREP_ZONE_STORAGE_KEY, JSON.stringify(prepZoneStateRef.current));
     } catch (error) {
       console.error('Failed to save notification state:', error);
     }
@@ -121,7 +145,43 @@ export const useProximityNotifications = () => {
     }
   }, [userLocation]);
 
-  // Show proximity toast notification with sound and TTS
+  // Handle prep zone entry and Street View pre-loading
+  const handlePrepZoneEntry = useCallback(async (landmark: Landmark) => {
+    const landmarkId = landmark.id;
+    const prepState = prepZoneStateRef.current[landmarkId];
+
+    // Check if we've already handled this landmark's prep zone
+    if (prepState?.entered && prepState?.streetViewPreloaded) {
+      return;
+    }
+
+    console.log(`🎯 Entered prep zone for ${landmark.name} - starting Street View pre-load`);
+
+    // Update prep zone state
+    prepZoneStateRef.current[landmarkId] = {
+      entered: true,
+      streetViewPreloaded: false,
+      timestamp: Date.now()
+    };
+
+    // Start Street View pre-loading in the background
+    try {
+      await preloadStreetView(landmark);
+      
+      // Update state to indicate Street View is preloaded
+      prepZoneStateRef.current[landmarkId] = {
+        ...prepZoneStateRef.current[landmarkId],
+        streetViewPreloaded: true
+      };
+
+      console.log(`✅ Street View pre-loaded for ${landmark.name}`);
+      saveNotificationState();
+    } catch (error) {
+      console.error(`❌ Failed to pre-load Street View for ${landmark.name}:`, error);
+    }
+  }, [preloadStreetView, saveNotificationState]);
+
+  // Show proximity toast notification with sound, TTS, and Street View
   const showProximityToast = useCallback(async (landmark: Landmark, distance: number) => {
     const formattedDistance = distance >= 1000 
       ? `${(distance / 1000).toFixed(1)} km` 
@@ -140,9 +200,13 @@ export const useProximityNotifications = () => {
       console.log('TTS announcement failed:', error);
     }
 
-    // Show visual toast
+    // Check if Street View is pre-loaded for enhanced toast
+    const streetViewData = getCachedData(landmark.id);
+    const hasStreetView = !!streetViewData;
+
+    // Show visual toast with optional Street View enhancement
     toast(`🗺️ ${landmark.name}`, {
-      description: `You're ${formattedDistance} away • ${landmark.description.substring(0, 100)}${landmark.description.length > 100 ? '...' : ''}`,
+      description: `You're ${formattedDistance} away${hasStreetView ? ' • Street View ready' : ''} • ${landmark.description.substring(0, 100)}${landmark.description.length > 100 ? '...' : ''}`,
       duration: 8000,
       action: {
         label: 'Get Me There',
@@ -156,7 +220,34 @@ export const useProximityNotifications = () => {
     // Record notification
     notificationStateRef.current[landmark.id] = Date.now();
     saveNotificationState();
-  }, [saveNotificationState, showRouteToLandmark, playNotificationSound, speak]);
+  }, [saveNotificationState, showRouteToLandmark, playNotificationSound, speak, getCachedData]);
+
+  // Monitor prep zone entries (1000m)
+  useEffect(() => {
+    if (!proximitySettings?.is_enabled || !userLocation || prepZoneLandmarks.length === 0) {
+      return;
+    }
+
+    // Handle newly entered prep zones
+    prepZoneLandmarks.forEach(({ landmark }) => {
+      const landmarkId = landmark.id;
+      const prepState = prepZoneStateRef.current[landmarkId];
+      
+      if (!prepState?.entered) {
+        handlePrepZoneEntry(landmark);
+      }
+    });
+
+    // Clean up prep zone state for landmarks that are no longer nearby
+    const currentPrepZoneIds = new Set(prepZoneLandmarks.map(nl => nl.landmark.id));
+    Object.keys(prepZoneStateRef.current).forEach(landmarkId => {
+      if (!currentPrepZoneIds.has(landmarkId)) {
+        console.log(`🚪 Exited prep zone for landmark ${landmarkId}`);
+        delete prepZoneStateRef.current[landmarkId];
+        saveNotificationState();
+      }
+    });
+  }, [prepZoneLandmarks, proximitySettings?.is_enabled, userLocation, handlePrepZoneEntry, saveNotificationState]);
 
   // Monitor for newly entered proximity zones - MODIFIED TO SHOW ONLY ONE TOAST
   useEffect(() => {
@@ -197,9 +288,18 @@ export const useProximityNotifications = () => {
       const now = Date.now();
       let hasChanges = false;
 
+      // Clean up notification state
       for (const [landmarkId, timestamp] of Object.entries(notificationStateRef.current)) {
         if (now - timestamp > NOTIFICATION_COOLDOWN * 2) { // Keep for 2x cooldown period
           delete notificationStateRef.current[landmarkId];
+          hasChanges = true;
+        }
+      }
+
+      // Clean up prep zone state (keep for 1 hour)
+      for (const [landmarkId, state] of Object.entries(prepZoneStateRef.current)) {
+        if (now - state.timestamp > 60 * 60 * 1000) { // 1 hour
+          delete prepZoneStateRef.current[landmarkId];
           hasChanges = true;
         }
       }
@@ -214,7 +314,9 @@ export const useProximityNotifications = () => {
 
   return {
     nearbyLandmarks,
+    prepZoneLandmarks,
     notificationState: notificationStateRef.current,
+    prepZoneState: prepZoneStateRef.current,
     isEnabled: proximitySettings?.is_enabled || false
   };
 };
