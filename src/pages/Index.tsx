@@ -1,7 +1,7 @@
-
 import React, { useState, useMemo, useCallback } from 'react';
 import SplashScreen from '@/components/SplashScreen';
 import MainLayout from '@/components/MainLayout';
+import DebugWindow from '@/components/DebugWindow';
 import { landmarks as staticLandmarks, Landmark } from '@/data/landmarks';
 import { useTourPlanner } from '@/hooks/useTourPlanner';
 import { useAuth } from '@/components/AuthProvider';
@@ -9,6 +9,7 @@ import { useMapboxToken } from '@/hooks/useMapboxToken';
 import { usePendingDestination } from '@/hooks/usePendingDestination';
 import { useDialogStates } from '@/hooks/useDialogStates';
 import { useProximityNotifications } from '@/hooks/useProximityNotifications';
+import { useDebugWindow } from '@/hooks/useDebugWindow';
 
 const Index: React.FC = () => {
   const [showSplash, setShowSplash] = useState(true);
@@ -17,6 +18,7 @@ const Index: React.FC = () => {
   const { tourPlan, plannedLandmarks, isLoading: isTourLoading, generateTour } = useTourPlanner();
   const { user, signOut } = useAuth();
   const mapboxToken = useMapboxToken();
+  const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
   
   const {
     selectedLandmark,
@@ -139,6 +141,10 @@ const Index: React.FC = () => {
         isNewTourAssistantOpen={isNewTourAssistantOpen}
         onNewTourAssistantOpenChange={setIsNewTourAssistantOpen}
         tourPlan={tourPlan}
+      />
+      <DebugWindow 
+        isVisible={isDebugVisible}
+        onClose={toggleDebug}
       />
     </>
   );
