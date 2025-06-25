@@ -2,9 +2,8 @@
 import { useState } from 'react';
 import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS, TopLandmark } from '@/data/topLandmarks';
-import { useCombinedLandmarks } from '@/hooks/useCombinedLandmarks';
 
-export type LandmarkSource = 'top100' | 'tour' | 'combined';
+export type LandmarkSource = 'all';
 
 export interface LandmarkSourceOption {
   value: LandmarkSource;
@@ -14,19 +13,9 @@ export interface LandmarkSourceOption {
 
 export const LANDMARK_SOURCE_OPTIONS: LandmarkSourceOption[] = [
   {
-    value: 'top100',
-    label: 'Top 100 Only',
-    description: 'Show only the static top 100 landmarks'
-  },
-  {
-    value: 'tour',
-    label: 'Tour Only', 
-    description: 'Show only tour-generated landmarks'
-  },
-  {
-    value: 'combined',
-    label: 'Combined',
-    description: 'Show both top 100 and tour landmarks'
+    value: 'all',
+    label: 'All Landmarks',
+    description: 'Show all available landmarks (top 100 + tour-generated)'
   }
 ];
 
@@ -40,36 +29,18 @@ const convertTopLandmarkToLandmark = (topLandmark: TopLandmark): Landmark => {
   };
 };
 
-export const useLandmarkSourceToggle = (tourLandmarks: Landmark[] = []) => {
-  const [selectedSource, setSelectedSource] = useState<LandmarkSource>('combined');
+export const useLandmarkSourceToggle = () => {
+  const [selectedSource, setSelectedSource] = useState<LandmarkSource>('all');
   
-  // Get all landmark sources
-  const combinedLandmarks = useCombinedLandmarks(tourLandmarks);
-  const top100Landmarks = TOP_LANDMARKS.map(convertTopLandmarkToLandmark);
-
-  // Select the appropriate landmark set based on current selection
-  const getCurrentLandmarks = (): Landmark[] => {
-    switch (selectedSource) {
-      case 'top100':
-        return top100Landmarks;
-      case 'tour':
-        return tourLandmarks;
-      case 'combined':
-      default:
-        return combinedLandmarks;
-    }
-  };
-
-  const currentLandmarks = getCurrentLandmarks();
+  // Get all landmarks from TOP_LANDMARKS array (includes tour landmarks)
+  const allLandmarks = TOP_LANDMARKS.map(convertTopLandmarkToLandmark);
 
   return {
     selectedSource,
     setSelectedSource,
-    currentLandmarks,
+    currentLandmarks: allLandmarks,
     sourceCounts: {
-      top100: top100Landmarks.length,
-      tour: tourLandmarks.length,
-      combined: combinedLandmarks.length
+      all: allLandmarks.length
     }
   };
 };

@@ -25,7 +25,7 @@ const STORAGE_KEY = 'proximity_notifications_state';
 const PREP_ZONE_STORAGE_KEY = 'prep_zone_state';
 
 export const useProximityNotifications = () => {
-  const { proximitySettings, combinedLandmarks } = useProximityAlerts();
+  const { proximitySettings } = useProximityAlerts();
   const { userLocation } = useLocationTracking();
   const { speak } = useTTSContext();
   const { preloadStreetView, getCachedData } = useStreetView();
@@ -33,17 +33,15 @@ export const useProximityNotifications = () => {
   const prepZoneStateRef = useRef<PrepZoneState>({});
   const previousNearbyLandmarksRef = useRef<Set<string>>(new Set());
 
-  // Get nearby landmarks within toast distance (1500m)
+  // Get nearby landmarks within toast distance
   const nearbyLandmarks = useNearbyLandmarks({
     userLocation,
-    landmarks: combinedLandmarks,
     toastDistance: proximitySettings?.toast_distance || 1500
   });
 
-  // Get landmarks within prep zone (route_distance = 1000m)
+  // Get landmarks within prep zone (route_distance)
   const prepZoneLandmarks = useNearbyLandmarks({
     userLocation,
-    landmarks: combinedLandmarks,
     toastDistance: proximitySettings?.route_distance || 1000
   });
 
@@ -222,7 +220,7 @@ export const useProximityNotifications = () => {
     saveNotificationState();
   }, [saveNotificationState, showRouteToLandmark, playNotificationSound, speak, getCachedData]);
 
-  // Monitor prep zone entries (1000m)
+  // Monitor prep zone entries
   useEffect(() => {
     if (!proximitySettings?.is_enabled || !userLocation || prepZoneLandmarks.length === 0) {
       return;

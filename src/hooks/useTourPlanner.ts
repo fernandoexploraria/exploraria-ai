@@ -1,5 +1,7 @@
+
 import { useState } from 'react';
 import { Landmark } from '@/data/landmarks';
+import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { toast } from "sonner";
 import { supabase } from '@/integrations/supabase/client';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -104,6 +106,16 @@ export const useTourPlanner = () => {
         id: `ai-${crypto.randomUUID()}`,
       }));
 
+      // Add tour landmarks directly to TOP_LANDMARKS array
+      console.log('Adding tour landmarks to TOP_LANDMARKS array:', newLandmarks.length);
+      tourData.landmarks.forEach((lm: any) => {
+        TOP_LANDMARKS.push({
+          name: lm.name,
+          coordinates: lm.coordinates,
+          description: lm.description
+        });
+      });
+
       const newTourPlan: TourPlan = {
         landmarks: newLandmarks,
         systemPrompt: tourData.systemPrompt,
@@ -154,7 +166,7 @@ export const useTourPlanner = () => {
         console.error('Failed to update tour count:', countErr);
       }
       
-      toast.success(`Generated a comprehensive tour for ${destination}!`);
+      toast.success(`Generated a comprehensive tour for ${destination}! Landmarks added to proximity detection.`);
       
     } catch (err) {
       console.error("Error generating tour:", err);
@@ -163,7 +175,8 @@ export const useTourPlanner = () => {
       toast.error(`Failed to generate tour: ${errorMessage}`);
       setTourPlan(null);
     } finally {
-      setIsLoading(false);    }
+      setIsLoading(false);
+    }
   };
 
   return { 

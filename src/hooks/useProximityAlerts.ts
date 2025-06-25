@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProximityAlert, ProximitySettings, UserLocation } from '@/types/proximityAlerts';
 import { useAuth } from '@/components/AuthProvider';
-import { useCombinedLandmarks } from '@/hooks/useCombinedLandmarks';
+import { TOP_LANDMARKS } from '@/data/topLandmarks';
+import { Landmark } from '@/data/landmarks';
 
 // Global state management for proximity settings
 const globalProximityState = {
@@ -22,7 +23,17 @@ const notifySubscribers = (settings: ProximitySettings | null) => {
   globalProximityState.subscribers.forEach(callback => callback(settings));
 };
 
-export const useProximityAlerts = (tourLandmarks: any[] = []) => {
+// Convert TopLandmark to Landmark format
+const convertTopLandmarkToLandmark = (topLandmark: any): Landmark => {
+  return {
+    id: `top-${topLandmark.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+    name: topLandmark.name,
+    coordinates: topLandmark.coordinates,
+    description: topLandmark.description
+  };
+};
+
+export const useProximityAlerts = () => {
   const { user } = useAuth();
   const [proximityAlerts, setProximityAlerts] = useState<ProximityAlert[]>([]);
   const [proximitySettings, setProximitySettings] = useState<ProximitySettings | null>(null);
@@ -31,8 +42,8 @@ export const useProximityAlerts = (tourLandmarks: any[] = []) => {
   const [isSaving, setIsSaving] = useState(false);
   const isMountedRef = useRef(true);
 
-  // Get combined landmarks (top landmarks + tour landmarks) - pass tour landmarks as parameter
-  const combinedLandmarks = useCombinedLandmarks(tourLandmarks);
+  // Get landmarks from TOP_LANDMARKS array (includes tour landmarks)
+  const combinedLandmarks = TOP_LANDMARKS.map(convertTopLandmarkToLandmark);
 
   // Subscribe to global proximity settings state
   useEffect(() => {

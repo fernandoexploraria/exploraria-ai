@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { Landmark } from '@/data/landmarks';
 import { UserLocation } from '@/types/proximityAlerts';
 import { calculateDistance, filterLandmarksWithinRadius } from '@/utils/proximityUtils';
+import { TOP_LANDMARKS } from '@/data/topLandmarks';
 
 export interface NearbyLandmark {
   landmark: Landmark;
@@ -11,18 +12,34 @@ export interface NearbyLandmark {
 
 interface UseNearbyLandmarksProps {
   userLocation: UserLocation | null;
-  landmarks: Landmark[];
   toastDistance: number;
 }
 
+// Convert TopLandmark to Landmark format
+const convertTopLandmarkToLandmark = (topLandmark: any): Landmark => {
+  return {
+    id: `top-${topLandmark.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+    name: topLandmark.name,
+    coordinates: topLandmark.coordinates,
+    description: topLandmark.description
+  };
+};
+
 export const useNearbyLandmarks = ({ 
   userLocation, 
-  landmarks, 
   toastDistance 
 }: UseNearbyLandmarksProps): NearbyLandmark[] => {
   return useMemo(() => {
-    if (!userLocation || landmarks.length === 0) {
-      console.log('🎯 No nearby landmarks: missing location or landmarks');
+    if (!userLocation) {
+      console.log('🎯 No nearby landmarks: missing location');
+      return [];
+    }
+
+    // Get landmarks from TOP_LANDMARKS array (includes tour landmarks)
+    const landmarks = TOP_LANDMARKS.map(convertTopLandmarkToLandmark);
+
+    if (landmarks.length === 0) {
+      console.log('🎯 No nearby landmarks: no landmarks available');
       return [];
     }
 
@@ -63,5 +80,5 @@ export const useNearbyLandmarks = ({
     }
 
     return sortedLandmarks;
-  }, [userLocation, landmarks, toastDistance]);
+  }, [userLocation, toastDistance]);
 };
