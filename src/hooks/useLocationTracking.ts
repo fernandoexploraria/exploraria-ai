@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { UserLocation } from '@/types/proximityAlerts';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -96,7 +95,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [locationState.isTracking]);
 
-  // Handle location update with movement detection and filtering
+  // Handle location update with better user interaction awareness
   const handleLocationUpdate = useCallback((position: GeolocationPosition) => {
     const newLocation: UserLocation = {
       latitude: position.coords.latitude,
@@ -128,7 +127,6 @@ export const useLocationTracking = (): LocationTrackingHook => {
 
     pollCountRef.current += 1;
     
-    // NEW: Show user interaction mode status in logs
     console.log(`📍 Location poll #${pollCountRef.current}:`, {
       lat: newLocation.latitude.toFixed(6),
       lng: newLocation.longitude.toFixed(6),
@@ -141,16 +139,15 @@ export const useLocationTracking = (): LocationTrackingHook => {
       time: new Date().toLocaleTimeString()
     });
 
-    // Only update state if location change is significant or we're moving
+    // Always update our tracked location
+    setCurrentUserLocation(newLocation);
+
+    // FIXED: Only update proximity system location if significant change AND not in user interaction mode
     if (isSignificant || movementState.isMoving) {
-      setCurrentUserLocation(newLocation);
-      
-      // NEW: Only update proximity system location if not in manual interaction mode
       if (!isUserInteractionMode) {
         setUserLocation(newLocation);
         console.log(`✅ Location updated in proximity system (moved ${lastSignificant ? 
-          Math.round(isSignificantLocationChange(lastSignificant, newLocationHistory, 0) ? 
-            calculateDistance(lastSignificant.latitude, lastSignificant.longitude, newLocation.latitude, newLocation.longitude) : 0) : 0}m)`);
+          Math.round(calculateDistance(lastSignificant.latitude, lastSignificant.longitude, newLocation.latitude, newLocation.longitude)) : 0}m)`);
       } else {
         console.log(`🔄 Location tracked but not sent to proximity system (user interaction mode active)`);
       }
@@ -194,10 +191,10 @@ export const useLocationTracking = (): LocationTrackingHook => {
       BASE_POLLING_INTERVAL
     );
 
-    // Increase interval if in background or user is manually interacting
+    // FIXED: Increase interval more significantly during user interaction to reduce conflicts
     const backgroundMultiplier = locationState.isInBackground ? 2 : 1;
-    const interactionMultiplier = isUserInteractionMode ? 1.5 : 1; // Reduce frequency during manual interaction
-    const finalInterval = Math.min(adaptiveInterval * backgroundMultiplier * interactionMultiplier, 60000);
+    const interactionMultiplier = isUserInteractionMode ? 3 : 1; // Reduced frequency significantly during manual interaction
+    const finalInterval = Math.min(adaptiveInterval * backgroundMultiplier * interactionMultiplier, 120000); // Max 2 minutes
 
     setLocationState(prev => ({
       ...prev,

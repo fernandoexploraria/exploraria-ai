@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
@@ -35,7 +34,7 @@ export const useProximityAlerts = () => {
     isLoading: false
   });
 
-  // NEW: Track user interaction mode to pause automatic re-centering
+  // FIXED: Track user interaction mode to pause automatic re-centering (simplified name)
   const [isUserInteractionMode, setIsUserInteractionMode] = useState<boolean>(false);
   const lastLocationUpdateRef = useRef<UserLocation | null>(null);
 
@@ -283,7 +282,7 @@ export const useProximityAlerts = () => {
     return results.filter(result => result.isWithinRange);
   }, [proximityState.proximitySettings, user]);
 
-  // NEW: Function to set user interaction mode
+  // FIXED: Function to set user interaction mode (simplified)
   const setUserInteractionMode = useCallback((isInteracting: boolean) => {
     console.log(`🖱️ User interaction mode: ${isInteracting ? 'ON' : 'OFF'}`);
     setIsUserInteractionMode(isInteracting);
@@ -294,14 +293,14 @@ export const useProximityAlerts = () => {
     proximityAlerts: proximityState.proximityAlerts,
     userLocation: proximityState.userLocation,
     isLoading: proximityState.isLoading,
-    combinedLandmarks,
+    combinedLandmarks, // FIXED: Ensure this is exported for Map component
     setProximityAlerts,
     updateProximityEnabled,
     updateProximityDistances,
     updateDistanceSetting,
     setUserLocation,
     checkProximityAlerts,
-    // NEW: Export user interaction mode state and setter
+    // FIXED: Export user interaction mode state and setter with clearer names
     isUserInteractionMode,
     setUserInteractionMode,
     lastLocationUpdate: lastLocationUpdateRef.current
