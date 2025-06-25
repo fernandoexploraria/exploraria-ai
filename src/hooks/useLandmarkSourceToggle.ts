@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS, TopLandmark } from '@/data/topLandmarks';
-import { getGlobalTourLandmarks } from '@/data/tourLandmarks';
 import { useCombinedLandmarks } from '@/hooks/useCombinedLandmarks';
 
 export type LandmarkSource = 'top100' | 'tour' | 'combined';
@@ -41,12 +40,11 @@ const convertTopLandmarkToLandmark = (topLandmark: TopLandmark): Landmark => {
   };
 };
 
-export const useLandmarkSourceToggle = () => {
+export const useLandmarkSourceToggle = (tourLandmarks: Landmark[] = []) => {
   const [selectedSource, setSelectedSource] = useState<LandmarkSource>('combined');
   
   // Get all landmark sources
-  const combinedLandmarks = useCombinedLandmarks();
-  const tourLandmarks = getGlobalTourLandmarks();
+  const combinedLandmarks = useCombinedLandmarks(tourLandmarks);
   const top100Landmarks = TOP_LANDMARKS.map(convertTopLandmarkToLandmark);
 
   // Select the appropriate landmark set based on current selection
