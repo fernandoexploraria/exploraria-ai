@@ -1,9 +1,9 @@
-
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { UserLocation } from '@/types/proximityAlerts';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useCombinedLandmarks } from '@/hooks/useCombinedLandmarks';
 import { useNearbyLandmarks } from '@/hooks/useNearbyLandmarks';
+import { useStreetViewBatch } from '@/hooks/useStreetViewBatch';
 import { 
   detectMovement, 
   calculateAdaptiveInterval, 
@@ -68,6 +68,11 @@ export const useLocationTracking = (): LocationTrackingHook => {
     landmarks: combinedLandmarks,
     toastDistance: proximitySettings?.toast_distance || 100
   });
+
+  // Add Street View batch pre-loading
+  const { batchPreloadStreetView } = useStreetViewBatch();
+  const lastPreloadLocationRef = useRef<UserLocation | null>(null);
+  const PRELOAD_DISTANCE_THRESHOLD = 200; // meters - trigger preload when moving this distance
 
   // Monitor page visibility for background/foreground detection
   useEffect(() => {
@@ -141,6 +146,31 @@ export const useLocationTracking = (): LocationTrackingHook => {
       console.log(`🔄 Location unchanged (within ${LOCATION_CHANGE_THRESHOLD}m threshold)`);
     }
 
+    // Trigger Street View pre-loading for nearby landmarks when location changes significantly
+    const shouldPreloadStreetView = () => {
+      if (!lastPreloadLocationRef.current) return true;
+      
+      const distanceFromLastPreload = calculateDistance(
+        lastPreloadLocationRef.current.latitude,
+        lastPreloadLocationRef.current.longitude,
+        newLocation.latitude,
+        newLocation.longitude
+      );
+      
+      return distanceFromLastPreload >= PRELOAD_DISTANCE_THRESHOLD;
+    };
+
+    if (isSignificant && nearbyLandmarks.length > 0 && shouldPreloadStreetView()) {
+      console.log(`🔄 Triggering Street View pre-loading for ${nearbyLandmarks.length} nearby landmarks`);
+      
+      // Pre-load Street View for nearby landmarks in the background
+      batchPreloadStreetView(nearbyLandmarks).catch(error => {
+        console.warn('⚠️ Street View pre-loading failed:', error);
+      });
+      
+      lastPreloadLocationRef.current = newLocation;
+    }
+
     // Calculate adaptive polling interval
     const adaptiveInterval = calculateAdaptiveInterval(
       movementState,
@@ -166,7 +196,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
       console.log(`⏱️ Adapting poll interval: ${locationState.pollInterval}ms → ${finalInterval}ms`);
       scheduleNextPoll(finalInterval);
     }
-  }, [setUserLocation, nearbyLandmarks.length, locationState.isInBackground, locationState.pollInterval]);
+  }, [setUserLocation, nearbyLandmarks.length, locationState.isInBackground, locationState.pollInterval, batchPreloadStreetView]);
 
   // Handle location error with exponential backoff
   const handleLocationError = useCallback((error: GeolocationPositionError) => {
