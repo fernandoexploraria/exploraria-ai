@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Landmark } from '@/data/landmarks';
-import { setTourLandmarks } from '@/data/tourLandmarks';
+import { setTourLandmarks, clearTourMarkers } from '@/data/tourLandmarks';
 import { toast } from "sonner";
 import { supabase } from '@/integrations/supabase/client';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -33,6 +33,9 @@ export const useTourPlanner = () => {
     }
 
     console.log('Generating tour for user:', user.id);
+
+    // Clear existing tour markers first
+    clearTourMarkers();
 
     // Check if user is subscribed or within free tour limit
     const FREE_TOUR_LIMIT = 3;

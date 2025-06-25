@@ -4,7 +4,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { Volume2, VolumeX } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
-import { TOUR_LANDMARKS } from '@/data/tourLandmarks';
+import { TOUR_LANDMARKS, setMapMarkersRef } from '@/data/tourLandmarks';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -143,6 +143,9 @@ const Map: React.FC<MapProps> = ({
       });
 
       console.log('🗺️ [Map] Map instance created successfully');
+
+      // Set the markers reference for tour landmarks management
+      setMapMarkersRef(markers, photoPopups);
 
       // Add location control for authenticated users
       if (user) {
