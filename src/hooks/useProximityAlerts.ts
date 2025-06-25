@@ -22,7 +22,7 @@ const notifySubscribers = (settings: ProximitySettings | null) => {
   globalProximityState.subscribers.forEach(callback => callback(settings));
 };
 
-export const useProximityAlerts = () => {
+export const useProximityAlerts = (tourLandmarks: any[] = []) => {
   const { user } = useAuth();
   const [proximityAlerts, setProximityAlerts] = useState<ProximityAlert[]>([]);
   const [proximitySettings, setProximitySettings] = useState<ProximitySettings | null>(null);
@@ -31,8 +31,8 @@ export const useProximityAlerts = () => {
   const [isSaving, setIsSaving] = useState(false);
   const isMountedRef = useRef(true);
 
-  // Get combined landmarks (top landmarks + tour landmarks) - ALWAYS call this hook
-  const combinedLandmarks = useCombinedLandmarks();
+  // Get combined landmarks (top landmarks + tour landmarks) - pass tour landmarks as parameter
+  const combinedLandmarks = useCombinedLandmarks(tourLandmarks);
 
   // Subscribe to global proximity settings state
   useEffect(() => {

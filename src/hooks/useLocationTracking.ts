@@ -37,7 +37,7 @@ const BASE_POLLING_INTERVAL = 15000; // 15 seconds base interval
 const MAX_LOCATION_HISTORY = 10;
 const LOCATION_CHANGE_THRESHOLD = 20; // meters
 
-export const useLocationTracking = (): LocationTrackingHook => {
+export const useLocationTracking = (tourLandmarks: any[] = []): LocationTrackingHook => {
   const { proximitySettings, setUserLocation } = useProximityAlerts();
   
   const [locationState, setLocationState] = useState<LocationTrackingState>({
@@ -61,8 +61,8 @@ export const useLocationTracking = (): LocationTrackingHook => {
   const locationHistoryRef = useRef<LocationHistory[]>([]);
   const lastSignificantLocationRef = useRef<UserLocation | null>(null);
 
-  // Get combined landmarks and nearby landmarks
-  const combinedLandmarks = useCombinedLandmarks();
+  // Get combined landmarks (top landmarks + tour landmarks) - pass tour landmarks as parameter
+  const combinedLandmarks = useCombinedLandmarks(tourLandmarks);
   const nearbyLandmarks = useNearbyLandmarks({
     userLocation,
     landmarks: combinedLandmarks,

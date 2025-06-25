@@ -1,7 +1,7 @@
-import { useMemo, useEffect, useState } from 'react';
+
+import { useMemo } from 'react';
 import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS, TopLandmark } from '@/data/topLandmarks';
-import { getGlobalTourLandmarks } from '@/data/tourLandmarks';
 
 // Convert TopLandmark to Landmark format
 const convertTopLandmarkToLandmark = (topLandmark: TopLandmark): Landmark => {
@@ -13,25 +13,7 @@ const convertTopLandmarkToLandmark = (topLandmark: TopLandmark): Landmark => {
   };
 };
 
-export const useCombinedLandmarks = (): Landmark[] => {
-  const [tourLandmarks, setTourLandmarks] = useState<Landmark[]>([]);
-
-  // Poll for tour landmarks changes (since it's a global store)
-  useEffect(() => {
-    const updateTourLandmarks = () => {
-      const currentTourLandmarks = getGlobalTourLandmarks();
-      setTourLandmarks(currentTourLandmarks);
-    };
-
-    // Initial load
-    updateTourLandmarks();
-
-    // Poll every 30 seconds to check for changes (changed from 10000ms)
-    const interval = setInterval(updateTourLandmarks, 30000);
-
-    return () => clearInterval(interval);
-  }, []);
-
+export const useCombinedLandmarks = (tourLandmarks: Landmark[] = []): Landmark[] => {
   return useMemo(() => {
     // Convert top landmarks to Landmark format
     const convertedTopLandmarks = TOP_LANDMARKS.map(convertTopLandmarkToLandmark);
