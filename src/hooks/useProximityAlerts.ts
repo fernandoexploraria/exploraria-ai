@@ -11,6 +11,7 @@ import {
   ProximityDetectionResult
 } from '@/types/proximityAlerts';
 import { Landmark } from '@/data/landmarks';
+import { useCombinedLandmarks } from '@/hooks/useCombinedLandmarks';
 import { calculateDistance } from '@/utils/proximityUtils';
 
 const DEFAULT_TOAST_DISTANCE = 100; // meters
@@ -38,10 +39,14 @@ export const useProximityAlerts = () => {
   const [isUserInteractionMode, setIsUserInteractionMode] = useState<boolean>(false);
   const lastLocationUpdateRef = useRef<UserLocation | null>(null);
 
+  // Get combined landmarks from the dedicated hook
+  const combinedLandmarks = useCombinedLandmarks();
+
   // Load proximity settings on mount
   useEffect(() => {
     if (user) {
       loadProximitySettings();
+      loadProximityAlerts();
     }
   }, [user]);
 
@@ -101,6 +106,36 @@ export const useProximityAlerts = () => {
     }
   };
 
+  const loadProximityAlerts = async () => {
+    if (!user) return;
+
+    try {
+      const { data: alerts, error } = await supabase
+        .from('proximity_alerts')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error loading proximity alerts:', error);
+        return;
+      }
+
+      setProximityState(prev => ({
+        ...prev,
+        proximityAlerts: alerts || []
+      }));
+    } catch (error) {
+      console.error('Error in loadProximityAlerts:', error);
+    }
+  };
+
+  const setProximityAlerts = useCallback((alerts: ProximityAlert[] | ((prev: ProximityAlert[]) => ProximityAlert[])) => {
+    setProximityState(prev => ({
+      ...prev,
+      proximityAlerts: typeof alerts === 'function' ? alerts(prev.proximityAlerts) : alerts
+    }));
+  }, []);
+
   const updateProximityEnabled = useCallback(async (enabled: boolean) => {
     if (!user || !proximityState.proximitySettings) return;
 
@@ -158,6 +193,37 @@ export const useProximityAlerts = () => {
       console.log('✅ Proximity distances updated:', distances);
     } catch (error) {
       console.error('Error in updateProximityDistances:', error);
+    }
+  }, [user, proximityState.proximitySettings]);
+
+  const updateDistanceSetting = useCallback(async (
+    setting: 'toast_distance' | 'route_distance' | 'card_distance',
+    value: number
+  ) => {
+    if (!user || !proximityState.proximitySettings) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('proximity_settings')
+        .update({ [setting]: value })
+        .eq('user_id', user.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error(`Error updating ${setting}:`, error);
+        throw error;
+      }
+
+      setProximityState(prev => ({
+        ...prev,
+        proximitySettings: { ...data }
+      }));
+
+      console.log(`✅ ${setting} updated to:`, value);
+    } catch (error) {
+      console.error(`Error in updateDistanceSetting for ${setting}:`, error);
+      throw error;
     }
   }, [user, proximityState.proximitySettings]);
 
@@ -225,10 +291,14 @@ export const useProximityAlerts = () => {
 
   return {
     proximitySettings: proximityState.proximitySettings,
+    proximityAlerts: proximityState.proximityAlerts,
     userLocation: proximityState.userLocation,
     isLoading: proximityState.isLoading,
+    combinedLandmarks,
+    setProximityAlerts,
     updateProximityEnabled,
     updateProximityDistances,
+    updateDistanceSetting,
     setUserLocation,
     checkProximityAlerts,
     // NEW: Export user interaction mode state and setter
