@@ -38,50 +38,26 @@ const Map: React.FC<MapProps> = ({
   const navigationMarkers = useRef<{ marker: mapboxgl.Marker; interaction: any }[]>([]);
   const currentRouteLayer = useRef<string | null>(null);
   
-  // Enhanced refs for GeolocateControl management and user interaction detection
+  // New refs for GeolocateControl management
   const geolocateControl = useRef<mapboxgl.GeolocateControl | null>(null);
   const isUpdatingFromProximitySettings = useRef<boolean>(false);
   const userInitiatedLocationRequest = useRef<boolean>(false);
   const lastLocationEventTime = useRef<number>(0);
   
-  // NEW: Simplified user interaction state - only for map manipulation, not location button
-  const [isUserManipulatingMap, setIsUserManipulatingMap] = useState<boolean>(false);
-  const userManipulationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastUserManipulationTime = useRef<number>(0);
-  const USER_MANIPULATION_COOLDOWN = 5000; // 5 seconds of no map manipulation before resuming auto-tracking
-  
   const { user } = useAuth();
-  const { updateProximityEnabled, proximitySettings, setUserInteractionMode } = useProximityAlerts();
+  const { updateProximityEnabled, proximitySettings } = useProximityAlerts();
 
-  // FIXED: Use combinedLandmarks from the proximity alerts hook to ensure all landmarks are displayed
-  const { combinedLandmarks } = useProximityAlerts();
-
-  // NEW: Function to handle ONLY map manipulation (not location button clicks)
-  const handleMapManipulation = useCallback((interactionType: string) => {
-    const now = Date.now();
-    lastUserManipulationTime.current = now;
+  // Convert top landmarks to Landmark format
+  const allLandmarksWithTop = React.useMemo(() => {
+    const topLandmarksConverted: Landmark[] = TOP_LANDMARKS.map((topLandmark, index) => ({
+      id: `top-landmark-${index}`,
+      name: topLandmark.name,
+      coordinates: topLandmark.coordinates,
+      description: topLandmark.description
+    }));
     
-    console.log(`🖱️ Map manipulation detected: ${interactionType}`);
-    
-    if (!isUserManipulatingMap) {
-      setIsUserManipulatingMap(true);
-      // Notify proximity system that user is manually controlling map
-      setUserInteractionMode?.(true);
-      console.log('🔄 Entering manual map exploration mode');
-    }
-    
-    // Clear existing timeout
-    if (userManipulationTimeoutRef.current) {
-      clearTimeout(userManipulationTimeoutRef.current);
-    }
-    
-    // Set new timeout to exit manual mode after cooldown
-    userManipulationTimeoutRef.current = setTimeout(() => {
-      setIsUserManipulatingMap(false);
-      setUserInteractionMode?.(false);
-      console.log('🔄 Exiting manual map exploration mode - resuming auto-tracking');
-    }, USER_MANIPULATION_COOLDOWN);
-  }, [isUserManipulatingMap, setUserInteractionMode]);
+    return [...landmarks, ...topLandmarksConverted];
+  }, [landmarks]);
 
   // Function to store map marker interaction
   const storeMapMarkerInteraction = async (landmark: Landmark, imageUrl?: string) => {
@@ -161,14 +137,14 @@ const Map: React.FC<MapProps> = ({
       if (user) {
         console.log('🗺️ [Map] Adding GeolocateControl for authenticated user');
         
-        // FIXED: Create GeolocateControl with simpler, non-conflicting options
+        // Create GeolocateControl with comprehensive options
         const geoControl = new mapboxgl.GeolocateControl({
           positionOptions: {
             enableHighAccuracy: true,
             timeout: 10000,
-            maximumAge: 300000 // 5 minutes
+            maximumAge: 600000 // 10 minutes
           },
-          trackUserLocation: false, // Keep disabled to prevent conflicts
+          trackUserLocation: true,
           showUserHeading: true,
           showAccuracyCircle: true,
           fitBoundsOptions: {
@@ -179,24 +155,60 @@ const Map: React.FC<MapProps> = ({
         // Store reference to the control
         geolocateControl.current = geoControl;
         
-        // FIXED: Simplified event handling - don't interfere with location button functionality
+        // Monitor button clicks to detect user-initiated requests
+        const controlElement = geoControl._container;
+        if (controlElement) {
+          controlElement.addEventListener('click', () => {
+            const currentState = (geoControl as any)._watchState;
+            console.log('🌍 GeolocateControl: Button clicked, current state:', currentState);
+            userInitiatedLocationRequest.current = true;
+            lastLocationEventTime.current = Date.now();
+            console.log('🌍 GeolocateControl: Marked as user-initiated request');
+          });
+        }
+        
+        // Add comprehensive event listeners with detailed state monitoring
         geoControl.on('geolocate', (e) => {
+          const currentState = (geoControl as any)._watchState;
           console.log('🌍 GeolocateControl: Location found', { 
             coordinates: [e.coords.longitude, e.coords.latitude],
-            userManipulating: isUserManipulatingMap
+            state: currentState,
+            userInitiated: userInitiatedLocationRequest.current
           });
           
           lastLocationEventTime.current = Date.now();
           
-          // Only update proximity if user isn't actively manipulating the map
-          if (!isUpdatingFromProximitySettings.current && !isUserManipulatingMap) {
-            console.log('🌍 GeolocateControl: Enabling proximity (location button used)');
+          // Only update proximity settings if this wasn't triggered by our own update
+          if (!isUpdatingFromProximitySettings.current) {
+            console.log('🌍 GeolocateControl: Enabling proximity (user initiated location)');
             updateProximityEnabled(true);
+          }
+        });
+        
+        geoControl.on('trackuserlocationstart', () => {
+          console.log('🌍 GeolocateControl: Started tracking user location (ACTIVE state)');
+          lastLocationEventTime.current = Date.now();
+          
+          // Only update proximity settings if this wasn't triggered by our own update
+          if (!isUpdatingFromProximitySettings.current) {
+            console.log('🌍 GeolocateControl: Enabling proximity (tracking started)');
+            updateProximityEnabled(true);
+          }
+        });
+        
+        geoControl.on('trackuserlocationend', () => {
+          console.log('🌍 GeolocateControl: Stopped tracking user location (PASSIVE/INACTIVE state)');
+          // Only update proximity settings if this wasn't triggered by our own update
+          if (!isUpdatingFromProximitySettings.current) {
+            console.log('🌍 GeolocateControl: Disabling proximity (tracking ended)');
+            updateProximityEnabled(false);
           }
         });
         
         geoControl.on('error', (e) => {
           console.error('🌍 GeolocateControl: Error occurred', e);
+          userInitiatedLocationRequest.current = false;
+          // Only update proximity settings if this wasn't triggered by our own update
           if (!isUpdatingFromProximitySettings.current) {
             console.log('🌍 GeolocateControl: Disabling proximity (error occurred)');
             updateProximityEnabled(false);
@@ -219,16 +231,6 @@ const Map: React.FC<MapProps> = ({
         console.log('🗺️ [Map] Map style loaded, adding fog...');
         map.current?.setFog({}); // Add a sky layer and atmosphere
       });
-
-      // FIXED: Only track actual map manipulation, not location button usage
-      map.current.on('dragstart', () => handleMapManipulation('drag'));
-      map.current.on('zoomstart', () => handleMapManipulation('zoom'));
-      map.current.on('rotatestart', () => handleMapManipulation('rotate'));
-      map.current.on('pitchstart', () => handleMapManipulation('pitch'));
-      map.current.on('wheel', () => handleMapManipulation('wheel'));
-
-      // Also handle wheel events for zoom
-      map.current.on('wheel', () => handleMapManipulation('wheel'));
 
       // Close all popups when clicking on the map
       map.current.on('click', (e) => {
@@ -284,43 +286,103 @@ const Map: React.FC<MapProps> = ({
         console.log('🗺️ [Map] Cleanup function called');
         stopCurrentAudio();
         geolocateControl.current = null;
-        if (userManipulationTimeoutRef.current) {
-          clearTimeout(userManipulationTimeoutRef.current);
-        }
         map.current?.remove();
         map.current = null;
       };
     } catch (error) {
       console.error('🗺️ [Map] Error during map initialization:', error);
     }
-  }, [mapboxToken, user, handleMapManipulation, isUserManipulatingMap]);
+  }, [mapboxToken, user]);
 
-  // FIXED: Simplified proximity settings sync that doesn't interfere with location button
+  // Effect to handle proximity settings changes and sync with GeolocateControl
   useEffect(() => {
     if (!geolocateControl.current || !proximitySettings) {
       return;
     }
 
-    console.log('🔄 Proximity settings changed:', proximitySettings, 'Map manipulation mode:', isUserManipulatingMap);
+    console.log('🔄 Proximity settings changed:', proximitySettings);
     
-    // Don't interfere if user is actively manipulating the map
-    if (isUserManipulatingMap) {
-      console.log('🔄 Skipping proximity sync - user is manipulating map');
-      return;
-    }
-    
-    // Simple timing check to avoid conflicts with user location requests
+    // Check if we should avoid interfering with a recent user-initiated request
     const timeSinceLastLocationEvent = Date.now() - lastLocationEventTime.current;
-    const isRecentLocationEvent = timeSinceLastLocationEvent < 1000; // 1 second
+    const isRecentLocationEvent = timeSinceLastLocationEvent < 2000; // 2 seconds
     
-    if (isRecentLocationEvent) {
-      console.log('🔄 Skipping proximity sync - recent location event');
+    console.log('🔄 Timing check:', {
+      timeSinceLastLocationEvent,
+      isRecentLocationEvent,
+      userInitiated: userInitiatedLocationRequest.current
+    });
+    
+    // If there was a recent user-initiated location request, wait longer before interfering
+    if (userInitiatedLocationRequest.current && isRecentLocationEvent) {
+      console.log('🔄 Skipping proximity sync - recent user-initiated request in progress');
+      // Reset the flag after a delay to allow future automatic syncs
+      setTimeout(() => {
+        userInitiatedLocationRequest.current = false;
+        console.log('🔄 Reset user-initiated flag');
+      }, 3000);
       return;
     }
     
-    // No automatic triggering - let user control the location button
-    console.log('🔄 Proximity settings sync complete (no automatic actions)');
-  }, [proximitySettings?.is_enabled, isUserManipulatingMap]);
+    // Set flag to prevent event loop
+    isUpdatingFromProximitySettings.current = true;
+    
+    try {
+      // Get current tracking state with more comprehensive checks
+      const currentWatchState = (geolocateControl.current as any)._watchState;
+      const isCurrentlyTracking = currentWatchState === 'ACTIVE_LOCK';
+      const isTransitioning = currentWatchState === 'WAITING_ACTIVE' || currentWatchState === 'BACKGROUND';
+      const shouldBeTracking = proximitySettings.is_enabled;
+      
+      console.log('🔄 GeolocateControl sync check:', {
+        isCurrentlyTracking,
+        isTransitioning,
+        shouldBeTracking,
+        watchState: currentWatchState,
+        willInterfere: isTransitioning && shouldBeTracking
+      });
+      
+      // Don't interfere if the control is in a transitional state
+      if (isTransitioning) {
+        console.log('🔄 Control is transitioning, avoiding interference');
+        setTimeout(() => {
+          isUpdatingFromProximitySettings.current = false;
+        }, 500);
+        return;
+      }
+      
+      // Add a small delay to allow any natural transitions to complete
+      setTimeout(() => {
+        try {
+          const finalWatchState = (geolocateControl.current as any)._watchState;
+          const finalIsTracking = finalWatchState === 'ACTIVE_LOCK';
+          
+          console.log('🔄 Final state check before sync:', {
+            finalWatchState,
+            finalIsTracking,
+            shouldBeTracking
+          });
+          
+          if (shouldBeTracking && !finalIsTracking && !isTransitioning) {
+            console.log('🔄 Starting GeolocateControl tracking (proximity enabled)');
+            geolocateControl.current?.trigger();
+          } else if (!shouldBeTracking && finalIsTracking) {
+            console.log('🔄 Stopping GeolocateControl tracking (proximity disabled)');
+            geolocateControl.current?.trigger();
+          } else {
+            console.log('🔄 No sync needed - states already match');
+          }
+        } catch (error) {
+          console.error('🔄 Error during delayed sync:', error);
+        } finally {
+          isUpdatingFromProximitySettings.current = false;
+        }
+      }, isRecentLocationEvent ? 1000 : 200);
+      
+    } catch (error) {
+      console.error('🔄 Error syncing GeolocateControl with proximity settings:', error);
+      isUpdatingFromProximitySettings.current = false;
+    }
+  }, [proximitySettings?.is_enabled]);
 
   // Function to handle text-to-speech using Google Cloud TTS via edge function
   const handleTextToSpeech = async (landmark: Landmark) => {
@@ -607,7 +669,7 @@ const Map: React.FC<MapProps> = ({
       // Add global handler for listen button if it doesn't exist
       if (!(window as any).handleLandmarkListen) {
         (window as any).handleLandmarkListen = (landmarkId: string) => {
-          const targetLandmark = combinedLandmarks.find(l => l.id === landmarkId);
+          const targetLandmark = allLandmarksWithTop.find(l => l.id === landmarkId);
           if (targetLandmark) {
             handleTextToSpeech(targetLandmark);
           }
@@ -684,9 +746,7 @@ const Map: React.FC<MapProps> = ({
   useEffect(() => {
     if (!map.current) return;
 
-    console.log('🗺️ Updating markers with combined landmarks:', combinedLandmarks.length);
-
-    const landmarkIds = new Set(combinedLandmarks.map(l => l.id));
+    const landmarkIds = new Set(allLandmarksWithTop.map(l => l.id));
 
     // Remove markers that are no longer in the landmarks list
     Object.keys(markers.current).forEach(markerId => {
@@ -701,12 +761,12 @@ const Map: React.FC<MapProps> = ({
     });
 
     // Add new markers
-    combinedLandmarks.forEach((landmark) => {
+    allLandmarksWithTop.forEach((landmark) => {
       if (!markers.current[landmark.id]) {
         const el = document.createElement('div');
         
         // Different styling for top landmarks vs user landmarks
-        const isTopLandmark = landmark.id.startsWith('top-');
+        const isTopLandmark = landmark.id.startsWith('top-landmark-');
         const markerColor = isTopLandmark ? 'bg-yellow-400' : 'bg-cyan-400';
         
         el.className = `w-4 h-4 rounded-full ${markerColor} border-2 border-white shadow-lg cursor-pointer transition-transform duration-300 hover:scale-125`;
@@ -746,7 +806,7 @@ const Map: React.FC<MapProps> = ({
       }
     });
 
-  }, [combinedLandmarks, playingAudio, onSelectLandmark]);
+  }, [allLandmarksWithTop, playingAudio, onSelectLandmark]);
 
   // Fly to selected landmark and update marker styles
   useEffect(() => {
@@ -788,7 +848,7 @@ const Map: React.FC<MapProps> = ({
     Object.entries(markers.current).forEach(([id, marker]) => {
       const element = marker.getElement();
       const isSelected = id === selectedLandmark?.id;
-      const isTopLandmark = id.startsWith('top-');
+      const isTopLandmark = id.startsWith('top-landmark-');
       
       if (isSelected) {
         element.style.backgroundColor = '#f87171'; // red-400

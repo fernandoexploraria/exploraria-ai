@@ -1,107 +1,206 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { ProximityAlert, ProximitySettings, UserLocation } from '@/types/proximityAlerts';
 import { useAuth } from '@/components/AuthProvider';
-import { toast } from 'sonner';
-import { 
-  ProximityAlert, 
-  ProximitySettings, 
-  UserLocation, 
-  ProximityState,
-  ProximityDetectionResult
-} from '@/types/proximityAlerts';
-import { Landmark } from '@/data/landmarks';
 import { useCombinedLandmarks } from '@/hooks/useCombinedLandmarks';
-import { calculateDistance } from '@/utils/proximityUtils';
 
-const DEFAULT_TOAST_DISTANCE = 100; // meters
-const DEFAULT_ROUTE_DISTANCE = 500; // meters  
-const DEFAULT_CARD_DISTANCE = 250; // meters
+// Global state management for proximity settings
+const globalProximityState = {
+  settings: null as ProximitySettings | null,
+  subscribers: new Set<(settings: ProximitySettings | null) => void>(),
+  channel: null as any,
+  isSubscribed: false,
+  currentUserId: null as string | null,
+  isLoading: false
+};
+
+const MINIMUM_GAP = 25; // minimum gap in meters between tiers
+
+const notifySubscribers = (settings: ProximitySettings | null) => {
+  console.log('📢 Notifying all subscribers with settings:', settings);
+  globalProximityState.settings = settings;
+  globalProximityState.subscribers.forEach(callback => callback(settings));
+};
 
 export const useProximityAlerts = () => {
   const { user } = useAuth();
-  const [proximityState, setProximityState] = useState<ProximityState>({
-    proximityAlerts: [],
-    proximitySettings: null,
-    userLocation: null,
-    locationTracking: {
-      isTracking: false,
-      isPermissionGranted: null,
-      error: null,
-      lastUpdate: null,
-      movementDetected: false,
-      pollInterval: 15000
-    },
-    isLoading: false
-  });
+  const [proximityAlerts, setProximityAlerts] = useState<ProximityAlert[]>([]);
+  const [proximitySettings, setProximitySettings] = useState<ProximitySettings | null>(null);
+  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const isMountedRef = useRef(true);
 
-  // FIXED: Track user interaction mode to pause automatic re-centering (simplified name)
-  const [isUserInteractionMode, setIsUserInteractionMode] = useState<boolean>(false);
-  const lastLocationUpdateRef = useRef<UserLocation | null>(null);
-
-  // Get combined landmarks from the dedicated hook
+  // Get combined landmarks (top landmarks + tour landmarks) - ALWAYS call this hook
   const combinedLandmarks = useCombinedLandmarks();
 
-  // Load proximity settings on mount
+  // Subscribe to global proximity settings state
+  useEffect(() => {
+    if (!user) {
+      setProximitySettings(null);
+      return;
+    }
+
+    // Add this component as a subscriber
+    const updateSettings = (settings: ProximitySettings | null) => {
+      if (isMountedRef.current) {
+        console.log('🔄 Component received settings update:', settings);
+        setProximitySettings(settings);
+      }
+    };
+    
+    globalProximityState.subscribers.add(updateSettings);
+    
+    // Set initial state if already available and for the same user
+    if (globalProximityState.settings && globalProximityState.currentUserId === user.id) {
+      console.log('🔄 Setting initial state from global state:', globalProximityState.settings);
+      setProximitySettings(globalProximityState.settings);
+    }
+
+    return () => {
+      globalProximityState.subscribers.delete(updateSettings);
+    };
+  }, [user]);
+
+  // Set up real-time subscription for proximity settings
+  useEffect(() => {
+    if (!user?.id) {
+      setProximitySettings(null);
+      setIsLoading(false);
+      return;
+    }
+
+    // If user changed, clean up previous subscription
+    if (globalProximityState.currentUserId && globalProximityState.currentUserId !== user.id) {
+      console.log('👤 User changed, cleaning up previous proximity settings subscription');
+      if (globalProximityState.channel) {
+        supabase.removeChannel(globalProximityState.channel);
+        globalProximityState.channel = null;
+        globalProximityState.isSubscribed = false;
+      }
+      globalProximityState.settings = null;
+    }
+
+    globalProximityState.currentUserId = user.id;
+
+    // Only create subscription if none exists
+    if (!globalProximityState.channel && !globalProximityState.isSubscribed) {
+      console.log('📡 Creating new proximity settings subscription for user:', user.id);
+      
+      const channelName = `proximity-settings-${user.id}`;
+      
+      const channel = supabase
+        .channel(channelName)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'proximity_settings',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('🔄 Real-time proximity settings update received:', payload);
+            if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+              const settings: ProximitySettings = {
+                id: payload.new.id,
+                user_id: payload.new.user_id,
+                is_enabled: payload.new.is_enabled,
+                toast_distance: payload.new.toast_distance,
+                route_distance: payload.new.route_distance,
+                card_distance: payload.new.card_distance,
+                created_at: payload.new.created_at,
+                updated_at: payload.new.updated_at,
+              };
+              console.log('🔄 Parsed settings from real-time update:', settings);
+              notifySubscribers(settings);
+            } else if (payload.eventType === 'DELETE') {
+              console.log('🗑️ Settings deleted via real-time update');
+              notifySubscribers(null);
+            }
+          }
+        )
+        .subscribe((status) => {
+          console.log('📡 Proximity settings subscription status:', status);
+          if (status === 'SUBSCRIBED') {
+            globalProximityState.isSubscribed = true;
+            // Load initial data after successful subscription
+            loadProximitySettings();
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error('❌ Proximity settings channel subscription error');
+            globalProximityState.isSubscribed = false;
+          } else if (status === 'TIMED_OUT') {
+            console.error('⏰ Proximity settings channel subscription timed out');
+            globalProximityState.isSubscribed = false;
+          }
+        });
+
+      globalProximityState.channel = channel;
+    } else if (globalProximityState.isSubscribed && globalProximityState.currentUserId === user.id) {
+      // If subscription already exists for this user, just load data
+      console.log('📡 Subscription already exists for current user, loading data');
+      if (!globalProximityState.settings) {
+        loadProximitySettings();
+      }
+    }
+
+    return () => {
+      // Don't clean up the global subscription here - let it persist
+      isMountedRef.current = false;
+    };
+  }, [user?.id]);
+
+  // Load proximity alerts on user change
   useEffect(() => {
     if (user) {
-      loadProximitySettings();
       loadProximityAlerts();
     }
   }, [user]);
 
   const loadProximitySettings = async () => {
-    if (!user) return;
+    if (!user || globalProximityState.isLoading) return;
 
+    globalProximityState.isLoading = true;
+    setIsLoading(true);
+    
     try {
-      setProximityState(prev => ({ ...prev, isLoading: true }));
-
-      const { data: settings, error } = await supabase
+      console.log('📥 Loading proximity settings for user:', user.id);
+      const { data, error } = await supabase
         .from('proximity_settings')
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error loading proximity settings:', error);
+      if (error) {
+        console.error('❌ Error loading proximity settings:', error);
         return;
       }
 
-      if (!settings) {
-        // Create default settings
-        const defaultSettings: Omit<ProximitySettings, 'id' | 'created_at' | 'updated_at'> = {
-          user_id: user.id,
-          is_enabled: false,
-          toast_distance: DEFAULT_TOAST_DISTANCE,
-          route_distance: DEFAULT_ROUTE_DISTANCE,
-          card_distance: DEFAULT_CARD_DISTANCE
+      if (data) {
+        // Cast the data to match our interface types
+        const settings: ProximitySettings = {
+          id: data.id,
+          user_id: data.user_id,
+          is_enabled: data.is_enabled,
+          toast_distance: data.toast_distance,
+          route_distance: data.route_distance,
+          card_distance: data.card_distance,
+          created_at: data.created_at,
+          updated_at: data.updated_at,
         };
-
-        const { data: newSettings, error: createError } = await supabase
-          .from('proximity_settings')
-          .insert(defaultSettings)
-          .select()
-          .single();
-
-        if (createError) {
-          console.error('Error creating default proximity settings:', createError);
-          return;
-        }
-
-        setProximityState(prev => ({
-          ...prev,
-          proximitySettings: newSettings,
-          isLoading: false
-        }));
+        console.log('📥 Loaded proximity settings:', settings);
+        notifySubscribers(settings);
       } else {
-        setProximityState(prev => ({
-          ...prev,
-          proximitySettings: settings,
-          isLoading: false
-        }));
+        console.log('📭 No proximity settings found for user');
+        notifySubscribers(null);
       }
     } catch (error) {
-      console.error('Error in loadProximitySettings:', error);
-      setProximityState(prev => ({ ...prev, isLoading: false }));
+      console.error('❌ Error in loadProximitySettings:', error);
+    } finally {
+      globalProximityState.isLoading = false;
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -109,7 +208,7 @@ export const useProximityAlerts = () => {
     if (!user) return;
 
     try {
-      const { data: alerts, error } = await supabase
+      const { data, error } = await supabase
         .from('proximity_alerts')
         .select('*')
         .eq('user_id', user.id);
@@ -119,190 +218,177 @@ export const useProximityAlerts = () => {
         return;
       }
 
-      setProximityState(prev => ({
-        ...prev,
-        proximityAlerts: alerts || []
+      // Cast the data to match our interface types
+      const alerts: ProximityAlert[] = (data || []).map(item => ({
+        id: item.id,
+        user_id: item.user_id,
+        landmark_id: item.landmark_id,
+        distance: item.distance,
+        is_enabled: item.is_enabled,
+        last_triggered: item.last_triggered || undefined,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
       }));
+
+      setProximityAlerts(alerts);
     } catch (error) {
       console.error('Error in loadProximityAlerts:', error);
     }
   };
 
-  const setProximityAlerts = useCallback((alerts: ProximityAlert[] | ((prev: ProximityAlert[]) => ProximityAlert[])) => {
-    setProximityState(prev => ({
-      ...prev,
-      proximityAlerts: typeof alerts === 'function' ? alerts(prev.proximityAlerts) : alerts
-    }));
-  }, []);
-
   const updateProximityEnabled = useCallback(async (enabled: boolean) => {
-    if (!user || !proximityState.proximitySettings) return;
-
-    try {
-      console.log(`🔔 Updating proximity enabled status to: ${enabled}`);
-      
-      const { data, error } = await supabase
-        .from('proximity_settings')
-        .update({ is_enabled: enabled })
-        .eq('user_id', user.id)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error updating proximity settings:', error);
-        return;
-      }
-
-      setProximityState(prev => ({
-        ...prev,
-        proximitySettings: { ...data }
-      }));
-
-      console.log(`✅ Proximity alerts ${enabled ? 'enabled' : 'disabled'}`);
-    } catch (error) {
-      console.error('Error in updateProximityEnabled:', error);
+    console.log('🎯 updateProximityEnabled function called with:', { enabled, userId: user?.id });
+    
+    if (!user) {
+      console.log('❌ No user available for updateProximityEnabled');
+      throw new Error('No user available');
     }
-  }, [user, proximityState.proximitySettings]);
 
-  const updateProximityDistances = useCallback(async (distances: {
-    toast_distance?: number;
-    route_distance?: number;
-    card_distance?: number;
-  }) => {
-    if (!user || !proximityState.proximitySettings) return;
-
+    console.log('📡 updateProximityEnabled proceeding with user:', user.id);
+    setIsSaving(true);
+    
     try {
-      const { data, error } = await supabase
+      console.log('💾 Making database request to update proximity enabled status...');
+      // Use UPSERT to ensure settings are created or updated
+      const { error } = await supabase
         .from('proximity_settings')
-        .update(distances)
-        .eq('user_id', user.id)
-        .select()
-        .single();
+        .upsert({
+          user_id: user.id,
+          is_enabled: enabled,
+          toast_distance: globalProximityState.settings?.toast_distance || 100,
+          route_distance: globalProximityState.settings?.route_distance || 250,
+          card_distance: globalProximityState.settings?.card_distance || 50,
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'user_id'
+        });
 
       if (error) {
-        console.error('Error updating proximity distances:', error);
-        return;
-      }
-
-      setProximityState(prev => ({
-        ...prev,
-        proximitySettings: { ...data }
-      }));
-
-      console.log('✅ Proximity distances updated:', distances);
-    } catch (error) {
-      console.error('Error in updateProximityDistances:', error);
-    }
-  }, [user, proximityState.proximitySettings]);
-
-  const updateDistanceSetting = useCallback(async (
-    setting: 'toast_distance' | 'route_distance' | 'card_distance',
-    value: number
-  ) => {
-    if (!user || !proximityState.proximitySettings) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('proximity_settings')
-        .update({ [setting]: value })
-        .eq('user_id', user.id)
-        .select()
-        .single();
-
-      if (error) {
-        console.error(`Error updating ${setting}:`, error);
+        console.error('❌ Database error updating proximity enabled status:', error);
         throw error;
       }
 
-      setProximityState(prev => ({
-        ...prev,
-        proximitySettings: { ...data }
-      }));
-
-      console.log(`✅ ${setting} updated to:`, value);
+      console.log('✅ Successfully updated proximity enabled status in database to:', enabled);
+      // The real-time subscription will update the state automatically
     } catch (error) {
-      console.error(`Error in updateDistanceSetting for ${setting}:`, error);
+      console.error('❌ Error in updateProximityEnabled:', error);
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [user]);
+
+  const updateDistanceSetting = useCallback(async (distanceType: 'toast_distance' | 'route_distance' | 'card_distance', distance: number) => {
+    console.log('🎯 updateDistanceSetting called with:', { distanceType, distance, userId: user?.id });
+    
+    if (!user) {
+      console.log('❌ No user available for updateDistanceSetting');
+      throw new Error('No user available');
+    }
+
+    // Get current settings to validate against
+    const currentSettings = globalProximityState.settings;
+    const currentToast = currentSettings?.toast_distance || 100;
+    const currentRoute = currentSettings?.route_distance || 250;
+    const currentCard = currentSettings?.card_distance || 50;
+
+    // Create the new distance configuration
+    const newDistances = {
+      toast_distance: distanceType === 'toast_distance' ? distance : currentToast,
+      route_distance: distanceType === 'route_distance' ? distance : currentRoute,
+      card_distance: distanceType === 'card_distance' ? distance : currentCard,
+    };
+
+    // Enhanced validation with minimum gap requirement
+    if (newDistances.toast_distance < newDistances.route_distance + MINIMUM_GAP) {
+      const error = new Error(`Toast distance must be at least ${MINIMUM_GAP}m greater than route distance`);
+      console.error('❌ Distance validation failed:', error.message);
       throw error;
     }
-  }, [user, proximityState.proximitySettings]);
 
-  const setUserLocation = useCallback((location: UserLocation | null) => {
-    console.log('📍 Setting user location:', location ? 
-      `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}` : 'null');
-    
-    // Store reference to last location update
-    if (location) {
-      lastLocationUpdateRef.current = location;
-    }
-    
-    setProximityState(prev => ({
-      ...prev,
-      userLocation: location
-    }));
-  }, []);
-
-  const checkProximityAlerts = useCallback((landmarks: Landmark[], userLocation: UserLocation): ProximityDetectionResult[] => {
-    if (!proximityState.proximitySettings?.is_enabled) {
-      return [];
+    if (newDistances.route_distance < newDistances.card_distance + MINIMUM_GAP) {
+      const error = new Error(`Route distance must be at least ${MINIMUM_GAP}m greater than card distance`);
+      console.error('❌ Distance validation failed:', error.message);
+      throw error;
     }
 
-    const results: ProximityDetectionResult[] = [];
-    const toastDistance = proximityState.proximitySettings.toast_distance || DEFAULT_TOAST_DISTANCE;
+    if (newDistances.toast_distance < newDistances.card_distance + (2 * MINIMUM_GAP)) {
+      const error = new Error(`Toast distance must be at least ${2 * MINIMUM_GAP}m greater than card distance`);
+      console.error('❌ Distance validation failed:', error.message);
+      throw error;
+    }
 
-    landmarks.forEach(landmark => {
-      const distance = calculateDistance(
-        userLocation.latitude,
-        userLocation.longitude,
-        landmark.coordinates[1],
-        landmark.coordinates[0]
-      );
+    console.log('✅ Distance validation passed with minimum gaps:', newDistances);
 
-      const isWithinRange = distance <= toastDistance;
+    setIsSaving(true);
+    try {
+      console.log('💾 Making database request to update distance setting...');
       
-      // Create a mock proximity alert for this landmark
-      const alert: ProximityAlert = {
-        id: `temp-${landmark.id}`,
-        user_id: user?.id || '',
-        landmark_id: landmark.id,
-        distance: toastDistance,
-        is_enabled: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+      const updateData = {
+        user_id: user.id,
+        is_enabled: currentSettings?.is_enabled || false,
+        toast_distance: newDistances.toast_distance,
+        route_distance: newDistances.route_distance,
+        card_distance: newDistances.card_distance,
+        updated_at: new Date().toISOString(),
       };
 
-      results.push({
-        alert,
-        distance,
-        isWithinRange,
-        hasEntered: isWithinRange, // Simplified for now
-        hasExited: false
-      });
-    });
+      const { error } = await supabase
+        .from('proximity_settings')
+        .upsert(updateData, {
+          onConflict: 'user_id'
+        });
 
-    return results.filter(result => result.isWithinRange);
-  }, [proximityState.proximitySettings, user]);
+      if (error) {
+        console.error('❌ Database error updating distance setting:', error);
+        throw error;
+      }
 
-  // FIXED: Function to set user interaction mode (simplified)
-  const setUserInteractionMode = useCallback((isInteracting: boolean) => {
-    console.log(`🖱️ User interaction mode: ${isInteracting ? 'ON' : 'OFF'}`);
-    setIsUserInteractionMode(isInteracting);
+      console.log('✅ Successfully updated distance setting in database:', distanceType, distance);
+      // The real-time subscription will update the state automatically
+    } catch (error) {
+      console.error('❌ Error in updateDistanceSetting:', error);
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [user]);
+
+  const updateUserLocation = (location: UserLocation) => {
+    setUserLocation(location);
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      // Clean up global subscription if no more subscribers
+      const subscriberCount = globalProximityState.subscribers.size;
+      if (subscriberCount === 0 && globalProximityState.channel) {
+        console.log('🧹 No more proximity settings subscribers, cleaning up global subscription');
+        supabase.removeChannel(globalProximityState.channel);
+        globalProximityState.channel = null;
+        globalProximityState.isSubscribed = false;
+        globalProximityState.currentUserId = null;
+        globalProximityState.settings = null;
+      }
+    };
   }, []);
 
   return {
-    proximitySettings: proximityState.proximitySettings,
-    proximityAlerts: proximityState.proximityAlerts,
-    userLocation: proximityState.userLocation,
-    isLoading: proximityState.isLoading,
-    combinedLandmarks, // FIXED: Ensure this is exported for Map component
+    proximityAlerts,
+    proximitySettings,
+    userLocation,
+    isLoading,
+    isSaving,
+    // Keep these for compatibility
+    combinedLandmarks,
     setProximityAlerts,
+    setProximitySettings: notifySubscribers,
+    setUserLocation: updateUserLocation,
+    loadProximitySettings,
+    loadProximityAlerts,
     updateProximityEnabled,
-    updateProximityDistances,
     updateDistanceSetting,
-    setUserLocation,
-    checkProximityAlerts,
-    // FIXED: Export user interaction mode state and setter with clearer names
-    isUserInteractionMode,
-    setUserInteractionMode,
-    lastLocationUpdate: lastLocationUpdateRef.current
   };
 };
