@@ -13,7 +13,7 @@ export interface NearbyLandmark {
 
 interface UseNearbyLandmarksProps {
   userLocation: UserLocation | null;
-  toastDistance: number;
+  notificationDistance: number;
 }
 
 // Convert TopLandmark to Landmark format
@@ -38,7 +38,7 @@ const convertTourLandmarkToLandmark = (tourLandmark: any): Landmark => {
 
 export const useNearbyLandmarks = ({ 
   userLocation, 
-  toastDistance 
+  notificationDistance 
 }: UseNearbyLandmarksProps): NearbyLandmark[] => {
   return useMemo(() => {
     if (!userLocation) {
@@ -58,11 +58,11 @@ export const useNearbyLandmarks = ({
       return [];
     }
 
-    // Step 2: Filter landmarks within toast_distance
+    // Step 2: Filter landmarks within notification distance
     const nearbyLandmarks = filterLandmarksWithinRadius(
       userLocation,
       combinedLandmarks,
-      toastDistance
+      notificationDistance
     );
 
     // Step 3: Calculate distance for each nearby landmark and create NearbyLandmark objects
@@ -89,11 +89,11 @@ export const useNearbyLandmarks = ({
         .map(({ landmark, distance }) => `${landmark.name} (${Math.round(distance)}m)`)
         .join(', ');
       
-      console.log(`🎯 Found ${sortedLandmarks.length} landmarks within ${toastDistance}m: ${landmarkSummary}`);
+      console.log(`🎯 Found ${sortedLandmarks.length} landmarks within ${notificationDistance}m: ${landmarkSummary}`);
     } else {
-      console.log(`🎯 No landmarks found within ${toastDistance}m`);
+      console.log(`🎯 No landmarks found within ${notificationDistance}m`);
     }
 
     return sortedLandmarks;
-  }, [userLocation, toastDistance]);
+  }, [userLocation, notificationDistance]);
 };

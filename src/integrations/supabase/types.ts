@@ -210,8 +210,8 @@ export type Database = {
           created_at: string
           id: string
           is_enabled: boolean
-          route_distance: number
-          toast_distance: number
+          notification_distance: number
+          outer_distance: number
           unit: string
           updated_at: string
           user_id: string
@@ -221,8 +221,8 @@ export type Database = {
           created_at?: string
           id?: string
           is_enabled?: boolean
-          route_distance?: number
-          toast_distance?: number
+          notification_distance?: number
+          outer_distance?: number
           unit?: string
           updated_at?: string
           user_id: string
@@ -232,8 +232,8 @@ export type Database = {
           created_at?: string
           id?: string
           is_enabled?: boolean
-          route_distance?: number
-          toast_distance?: number
+          notification_distance?: number
+          outer_distance?: number
           unit?: string
           updated_at?: string
           user_id?: string

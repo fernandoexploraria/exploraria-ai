@@ -36,20 +36,20 @@ export const useProximityNotifications = () => {
 
   // Check if proximity settings are loaded with valid distance values
   const isProximitySettingsReady = proximitySettings && 
-    typeof proximitySettings.toast_distance === 'number' && 
-    typeof proximitySettings.route_distance === 'number' && 
+    typeof proximitySettings.notification_distance === 'number' && 
+    typeof proximitySettings.outer_distance === 'number' && 
     typeof proximitySettings.card_distance === 'number';
 
-  // Get nearby landmarks within toast distance - only if settings are ready
+  // Get nearby landmarks within notification distance - only if settings are ready
   const nearbyLandmarks = useNearbyLandmarks({
     userLocation,
-    toastDistance: isProximitySettingsReady ? proximitySettings.toast_distance : undefined
+    notificationDistance: isProximitySettingsReady ? proximitySettings.notification_distance : 100
   });
 
-  // Get landmarks within prep zone (route_distance) - only if settings are ready
+  // Get landmarks within prep zone (outer_distance) - only if settings are ready
   const prepZoneLandmarks = useNearbyLandmarks({
     userLocation,
-    toastDistance: isProximitySettingsReady ? proximitySettings.route_distance : undefined
+    notificationDistance: isProximitySettingsReady ? proximitySettings.outer_distance : 250
   });
 
   // Load notification state from localStorage

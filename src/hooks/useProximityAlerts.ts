@@ -16,6 +16,7 @@ const globalProximityState = {
 };
 
 const MINIMUM_GAP = 25; // minimum gap in meters between tiers
+const NOTIFICATION_OUTER_GAP = 50; // minimum gap between notification and outer distance
 
 const notifySubscribers = (settings: ProximitySettings | null) => {
   console.log('📢 Notifying all subscribers with settings:', settings);
@@ -117,8 +118,8 @@ export const useProximityAlerts = () => {
                 id: payload.new.id,
                 user_id: payload.new.user_id,
                 is_enabled: payload.new.is_enabled,
-                toast_distance: payload.new.toast_distance,
-                route_distance: payload.new.route_distance,
+                notification_distance: payload.new.notification_distance,
+                outer_distance: payload.new.outer_distance,
                 card_distance: payload.new.card_distance,
                 created_at: payload.new.created_at,
                 updated_at: payload.new.updated_at,
@@ -193,8 +194,8 @@ export const useProximityAlerts = () => {
           id: data.id,
           user_id: data.user_id,
           is_enabled: data.is_enabled,
-          toast_distance: data.toast_distance,
-          route_distance: data.route_distance,
+          notification_distance: data.notification_distance,
+          outer_distance: data.outer_distance,
           card_distance: data.card_distance,
           created_at: data.created_at,
           updated_at: data.updated_at,
@@ -272,8 +273,8 @@ export const useProximityAlerts = () => {
 
       // Only include distance fields if they exist in current settings
       if (currentSettings) {
-        updateData.toast_distance = currentSettings.toast_distance;
-        updateData.route_distance = currentSettings.route_distance;
+        updateData.notification_distance = currentSettings.notification_distance;
+        updateData.outer_distance = currentSettings.outer_distance;
         updateData.card_distance = currentSettings.card_distance;
       }
 
@@ -298,7 +299,7 @@ export const useProximityAlerts = () => {
     }
   }, [user]);
 
-  const updateDistanceSetting = useCallback(async (distanceType: 'toast_distance' | 'route_distance' | 'card_distance', distance: number) => {
+  const updateDistanceSetting = useCallback(async (distanceType: 'notification_distance' | 'outer_distance' | 'card_distance', distance: number) => {
     console.log('🎯 updateDistanceSetting called with:', { distanceType, distance, userId: user?.id });
     
     if (!user) {
@@ -314,32 +315,26 @@ export const useProximityAlerts = () => {
       throw new Error('No proximity settings found');
     }
 
-    const currentToast = currentSettings.toast_distance;
-    const currentRoute = currentSettings.route_distance;
+    const currentNotification = currentSettings.notification_distance;
+    const currentOuter = currentSettings.outer_distance;
     const currentCard = currentSettings.card_distance;
 
     // Create the new distance configuration
     const newDistances = {
-      toast_distance: distanceType === 'toast_distance' ? distance : currentToast,
-      route_distance: distanceType === 'route_distance' ? distance : currentRoute,
+      notification_distance: distanceType === 'notification_distance' ? distance : currentNotification,
+      outer_distance: distanceType === 'outer_distance' ? distance : currentOuter,
       card_distance: distanceType === 'card_distance' ? distance : currentCard,
     };
 
-    // Enhanced validation with minimum gap requirement
-    if (newDistances.toast_distance < newDistances.route_distance + MINIMUM_GAP) {
-      const error = new Error(`Toast distance must be at least ${MINIMUM_GAP}m greater than route distance`);
+    // Enhanced validation with refined hierarchy: outer_distance ≥ notification_distance + 50m ≥ card_distance + 25m
+    if (newDistances.outer_distance < newDistances.notification_distance + NOTIFICATION_OUTER_GAP) {
+      const error = new Error(`Outer distance must be at least ${NOTIFICATION_OUTER_GAP}m greater than notification distance`);
       console.error('❌ Distance validation failed:', error.message);
       throw error;
     }
 
-    if (newDistances.route_distance < newDistances.card_distance + MINIMUM_GAP) {
-      const error = new Error(`Route distance must be at least ${MINIMUM_GAP}m greater than card distance`);
-      console.error('❌ Distance validation failed:', error.message);
-      throw error;
-    }
-
-    if (newDistances.toast_distance < newDistances.card_distance + (2 * MINIMUM_GAP)) {
-      const error = new Error(`Toast distance must be at least ${2 * MINIMUM_GAP}m greater than card distance`);
+    if (newDistances.notification_distance < newDistances.card_distance + MINIMUM_GAP) {
+      const error = new Error(`Notification distance must be at least ${MINIMUM_GAP}m greater than card distance`);
       console.error('❌ Distance validation failed:', error.message);
       throw error;
     }
@@ -353,8 +348,8 @@ export const useProximityAlerts = () => {
       const updateData = {
         user_id: user.id,
         is_enabled: currentSettings.is_enabled,
-        toast_distance: newDistances.toast_distance,
-        route_distance: newDistances.route_distance,
+        notification_distance: newDistances.notification_distance,
+        outer_distance: newDistances.outer_distance,
         card_distance: newDistances.card_distance,
         updated_at: new Date().toISOString(),
       };

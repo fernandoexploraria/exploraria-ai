@@ -14,8 +14,8 @@ export interface ProximitySettings {
   id?: string;
   user_id: string;
   is_enabled: boolean;
-  toast_distance: number; // in meters - for toast notifications
-  route_distance: number; // in meters - for route visualization
+  notification_distance: number; // in meters - for toast notifications
+  outer_distance: number; // in meters - for Street View prep zone
   card_distance: number; // in meters - for floating card notifications
   created_at?: string;
   updated_at?: string;

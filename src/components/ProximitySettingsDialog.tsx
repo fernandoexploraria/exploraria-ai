@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Sheet,
@@ -9,7 +10,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Loader2, MessageSquare, Route, CreditCard, AlertTriangle } from 'lucide-react';
+import { MapPin, Loader2, MessageSquare, Eye, CreditCard, AlertTriangle } from 'lucide-react';
 import { formatDistance } from '@/utils/proximityUtils';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useToast } from '@/hooks/use-toast';
@@ -20,11 +21,12 @@ interface ProximitySettingsDialogProps {
 }
 
 interface ValidationError {
-  field: 'toast' | 'route' | 'card';
+  field: 'notification' | 'outer' | 'card';
   message: string;
 }
 
-const MINIMUM_GAP = 25; // minimum gap in meters between tiers
+const MINIMUM_GAP = 25; // minimum gap in meters between card and notification
+const NOTIFICATION_OUTER_GAP = 50; // minimum gap between notification and outer distance
 
 const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   open,
@@ -34,8 +36,8 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   const { proximitySettings, updateProximityEnabled, updateDistanceSetting } = useProximityAlerts();
   
   // Local state for smooth slider interactions - initialize with null to wait for settings
-  const [localToastDistance, setLocalToastDistance] = useState<number | null>(null);
-  const [localRouteDistance, setLocalRouteDistance] = useState<number | null>(null);
+  const [localNotificationDistance, setLocalNotificationDistance] = useState<number | null>(null);
+  const [localOuterDistance, setLocalOuterDistance] = useState<number | null>(null);
   const [localCardDistance, setLocalCardDistance] = useState<number | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
@@ -44,36 +46,28 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   useEffect(() => {
     if (proximitySettings) {
       console.log('📏 ProximitySettingsDialog: Settings loaded, setting local distances');
-      setLocalToastDistance(proximitySettings.toast_distance);
-      setLocalRouteDistance(proximitySettings.route_distance);
+      setLocalNotificationDistance(proximitySettings.notification_distance);
+      setLocalOuterDistance(proximitySettings.outer_distance);
       setLocalCardDistance(proximitySettings.card_distance);
     }
   }, [proximitySettings]);
 
-  // Enhanced validation function with minimum gap requirement
-  const validateDistances = (toast: number, route: number, card: number): ValidationError[] => {
+  // Enhanced validation function with refined hierarchy: outer_distance ≥ notification_distance + 50m ≥ card_distance + 25m
+  const validateDistances = (outer: number, notification: number, card: number): ValidationError[] => {
     const errors: ValidationError[] = [];
     
-    // Check minimum gaps between tiers
-    if (toast < route + MINIMUM_GAP) {
+    // Check minimum gaps between tiers with refined hierarchy
+    if (outer < notification + NOTIFICATION_OUTER_GAP) {
       errors.push({
-        field: 'toast',
-        message: `Toast distance must be at least ${MINIMUM_GAP}m greater than route distance`
+        field: 'outer',
+        message: `Outer distance must be at least ${NOTIFICATION_OUTER_GAP}m greater than notification distance`
       });
     }
     
-    if (route < card + MINIMUM_GAP) {
+    if (notification < card + MINIMUM_GAP) {
       errors.push({
-        field: 'route',
-        message: `Route distance must be at least ${MINIMUM_GAP}m greater than card distance`
-      });
-    }
-    
-    // Additional check to ensure toast is sufficiently greater than card
-    if (toast < card + (2 * MINIMUM_GAP)) {
-      errors.push({
-        field: 'toast',
-        message: `Toast distance must be at least ${2 * MINIMUM_GAP}m greater than card distance`
+        field: 'notification',
+        message: `Notification distance must be at least ${MINIMUM_GAP}m greater than card distance`
       });
     }
     
@@ -82,79 +76,79 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
 
   // Update validation errors when distances change
   useEffect(() => {
-    if (localToastDistance !== null && localRouteDistance !== null && localCardDistance !== null) {
-      const errors = validateDistances(localToastDistance, localRouteDistance, localCardDistance);
+    if (localOuterDistance !== null && localNotificationDistance !== null && localCardDistance !== null) {
+      const errors = validateDistances(localOuterDistance, localNotificationDistance, localCardDistance);
       setValidationErrors(errors);
     }
-  }, [localToastDistance, localRouteDistance, localCardDistance]);
+  }, [localOuterDistance, localNotificationDistance, localCardDistance]);
 
-  // Auto-save toast distance with validation
+  // Auto-save notification distance with validation
   useEffect(() => {
-    if (!proximitySettings || localToastDistance === null || localToastDistance === proximitySettings.toast_distance) return;
+    if (!proximitySettings || localNotificationDistance === null || localNotificationDistance === proximitySettings.notification_distance) return;
     
-    if (localRouteDistance === null || localCardDistance === null) return;
+    if (localOuterDistance === null || localCardDistance === null) return;
     
-    const errors = validateDistances(localToastDistance, localRouteDistance, localCardDistance);
+    const errors = validateDistances(localOuterDistance, localNotificationDistance, localCardDistance);
     if (errors.length > 0) {
-      console.log('⚠️ Validation errors prevent saving toast distance:', errors);
+      console.log('⚠️ Validation errors prevent saving notification distance:', errors);
       return;
     }
 
     const timeoutId = setTimeout(async () => {
       try {
-        await updateDistanceSetting('toast_distance', localToastDistance);
-        console.log('✅ Auto-saved toast distance:', localToastDistance);
+        await updateDistanceSetting('notification_distance', localNotificationDistance);
+        console.log('✅ Auto-saved notification distance:', localNotificationDistance);
       } catch (error) {
-        console.error('❌ Error auto-saving toast distance:', error);
+        console.error('❌ Error auto-saving notification distance:', error);
         toast({
           title: "Error",
-          description: error instanceof Error ? error.message : "Failed to save toast distance. Please try again.",
+          description: error instanceof Error ? error.message : "Failed to save notification distance. Please try again.",
           variant: "destructive",
         });
-        setLocalToastDistance(proximitySettings.toast_distance);
+        setLocalNotificationDistance(proximitySettings.notification_distance);
       }
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [localToastDistance, localRouteDistance, localCardDistance, proximitySettings?.toast_distance, updateDistanceSetting, toast]);
+  }, [localNotificationDistance, localOuterDistance, localCardDistance, proximitySettings?.notification_distance, updateDistanceSetting, toast]);
 
-  // Auto-save route distance with validation
+  // Auto-save outer distance with validation
   useEffect(() => {
-    if (!proximitySettings || localRouteDistance === null || localRouteDistance === proximitySettings.route_distance) return;
+    if (!proximitySettings || localOuterDistance === null || localOuterDistance === proximitySettings.outer_distance) return;
     
-    if (localToastDistance === null || localCardDistance === null) return;
+    if (localNotificationDistance === null || localCardDistance === null) return;
     
-    const errors = validateDistances(localToastDistance, localRouteDistance, localCardDistance);
+    const errors = validateDistances(localOuterDistance, localNotificationDistance, localCardDistance);
     if (errors.length > 0) {
-      console.log('⚠️ Validation errors prevent saving route distance:', errors);
+      console.log('⚠️ Validation errors prevent saving outer distance:', errors);
       return;
     }
 
     const timeoutId = setTimeout(async () => {
       try {
-        await updateDistanceSetting('route_distance', localRouteDistance);
-        console.log('✅ Auto-saved route distance:', localRouteDistance);
+        await updateDistanceSetting('outer_distance', localOuterDistance);
+        console.log('✅ Auto-saved outer distance:', localOuterDistance);
       } catch (error) {
-        console.error('❌ Error auto-saving route distance:', error);
+        console.error('❌ Error auto-saving outer distance:', error);
         toast({
           title: "Error",
-          description: error instanceof Error ? error.message : "Failed to save route distance. Please try again.",
+          description: error instanceof Error ? error.message : "Failed to save outer distance. Please try again.",
           variant: "destructive",
         });
-        setLocalRouteDistance(proximitySettings.route_distance);
+        setLocalOuterDistance(proximitySettings.outer_distance);
       }
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [localToastDistance, localRouteDistance, localCardDistance, proximitySettings?.route_distance, updateDistanceSetting, toast]);
+  }, [localNotificationDistance, localOuterDistance, localCardDistance, proximitySettings?.outer_distance, updateDistanceSetting, toast]);
 
   // Auto-save card distance with validation
   useEffect(() => {
     if (!proximitySettings || localCardDistance === null || localCardDistance === proximitySettings.card_distance) return;
     
-    if (localToastDistance === null || localRouteDistance === null) return;
+    if (localNotificationDistance === null || localOuterDistance === null) return;
     
-    const errors = validateDistances(localToastDistance, localRouteDistance, localCardDistance);
+    const errors = validateDistances(localOuterDistance, localNotificationDistance, localCardDistance);
     if (errors.length > 0) {
       console.log('⚠️ Validation errors prevent saving card distance:', errors);
       return;
@@ -176,42 +170,42 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [localToastDistance, localRouteDistance, localCardDistance, proximitySettings?.card_distance, updateDistanceSetting, toast]);
+  }, [localNotificationDistance, localOuterDistance, localCardDistance, proximitySettings?.card_distance, updateDistanceSetting, toast]);
 
   // Helper to check if a field has validation errors
-  const hasError = (field: 'toast' | 'route' | 'card') => {
+  const hasError = (field: 'notification' | 'outer' | 'card') => {
     return validationErrors.some(error => error.field === field);
   };
 
   // Helper to get validation message for a field
-  const getErrorMessage = (field: 'toast' | 'route' | 'card') => {
+  const getErrorMessage = (field: 'notification' | 'outer' | 'card') => {
     const error = validationErrors.find(error => error.field === field);
     return error?.message;
   };
 
-  // Enhanced auto-adjust distances to maintain hierarchy with minimum gaps
-  const handlePresetDistance = (distance: number, type: 'toast' | 'route' | 'card') => {
+  // Enhanced auto-adjust distances to maintain hierarchy with refined gaps
+  const handlePresetDistance = (distance: number, type: 'notification' | 'outer' | 'card') => {
     console.log('📏 ProximitySettingsDialog: Preset distance selected:', distance, 'for', type);
     
-    if (localToastDistance === null || localRouteDistance === null || localCardDistance === null) return;
+    if (localNotificationDistance === null || localOuterDistance === null || localCardDistance === null) return;
     
     switch (type) {
-      case 'toast':
-        setLocalToastDistance(distance);
-        // Auto-adjust route and card if they become invalid with minimum gaps
-        if (distance <= localRouteDistance + MINIMUM_GAP) {
-          const newRouteDistance = Math.max(25, distance - MINIMUM_GAP);
-          setLocalRouteDistance(newRouteDistance);
-          if (newRouteDistance <= localCardDistance + MINIMUM_GAP) {
-            setLocalCardDistance(Math.max(25, newRouteDistance - MINIMUM_GAP));
+      case 'outer':
+        setLocalOuterDistance(distance);
+        // Auto-adjust notification and card if they become invalid with minimum gaps
+        if (distance <= localNotificationDistance + NOTIFICATION_OUTER_GAP) {
+          const newNotificationDistance = Math.max(25, distance - NOTIFICATION_OUTER_GAP);
+          setLocalNotificationDistance(newNotificationDistance);
+          if (newNotificationDistance <= localCardDistance + MINIMUM_GAP) {
+            setLocalCardDistance(Math.max(25, newNotificationDistance - MINIMUM_GAP));
           }
         }
         break;
-      case 'route':
-        setLocalRouteDistance(distance);
-        // Auto-adjust toast and card if they become invalid with minimum gaps
-        if (distance >= localToastDistance - MINIMUM_GAP) {
-          setLocalToastDistance(distance + MINIMUM_GAP);
+      case 'notification':
+        setLocalNotificationDistance(distance);
+        // Auto-adjust outer and card if they become invalid with minimum gaps
+        if (distance >= localOuterDistance - NOTIFICATION_OUTER_GAP) {
+          setLocalOuterDistance(distance + NOTIFICATION_OUTER_GAP);
         }
         if (distance <= localCardDistance + MINIMUM_GAP) {
           setLocalCardDistance(Math.max(25, distance - MINIMUM_GAP));
@@ -219,12 +213,12 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
         break;
       case 'card':
         setLocalCardDistance(distance);
-        // Auto-adjust route and toast if they become invalid with minimum gaps
-        if (distance >= localRouteDistance - MINIMUM_GAP) {
-          const newRouteDistance = distance + MINIMUM_GAP;
-          setLocalRouteDistance(newRouteDistance);
-          if (newRouteDistance >= localToastDistance - MINIMUM_GAP) {
-            setLocalToastDistance(newRouteDistance + MINIMUM_GAP);
+        // Auto-adjust notification and outer if they become invalid with minimum gaps
+        if (distance >= localNotificationDistance - MINIMUM_GAP) {
+          const newNotificationDistance = distance + MINIMUM_GAP;
+          setLocalNotificationDistance(newNotificationDistance);
+          if (newNotificationDistance >= localOuterDistance - NOTIFICATION_OUTER_GAP) {
+            setLocalOuterDistance(newNotificationDistance + NOTIFICATION_OUTER_GAP);
           }
         }
         break;
@@ -265,7 +259,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   const isEnabled = proximitySettings?.is_enabled ?? false;
 
   // Don't render until we have loaded the settings and initialized local state
-  if (!proximitySettings || localToastDistance === null || localRouteDistance === null || localCardDistance === null) {
+  if (!proximitySettings || localNotificationDistance === null || localOuterDistance === null || localCardDistance === null) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent className="sm:max-w-[500px] overflow-y-auto">
@@ -280,8 +274,8 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   console.log('🔍 ProximitySettingsDialog render state:', {
     isEnabled,
     proximitySettingsExists: !!proximitySettings,
-    localToastDistance,
-    localRouteDistance,
+    localNotificationDistance,
+    localOuterDistance,
     localCardDistance,
     isUpdating,
     validationErrors: validationErrors.length
@@ -295,7 +289,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
           <SheetDescription>
             Configure proximity alerts to get notified when you're near landmarks. Set different distances for different types of notifications.
             <br />
-            <strong>Rule:</strong> Toast distance must be at least {MINIMUM_GAP}m greater than route distance, which must be at least {MINIMUM_GAP}m greater than card distance.
+            <strong>Rule:</strong> Outer distance must be at least {NOTIFICATION_OUTER_GAP}m greater than notification distance, which must be at least {MINIMUM_GAP}m greater than card distance.
           </SheetDescription>
         </SheetHeader>
 
@@ -347,104 +341,104 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>Card ({formatDistance(localCardDistance)})</span>
               <span>+{MINIMUM_GAP}m</span>
-              <span>Route ({formatDistance(localRouteDistance)})</span>
-              <span>+{MINIMUM_GAP}m</span>
-              <span>Toast ({formatDistance(localToastDistance)})</span>
+              <span>Notification ({formatDistance(localNotificationDistance)})</span>
+              <span>+{NOTIFICATION_OUTER_GAP}m</span>
+              <span>Outer ({formatDistance(localOuterDistance)})</span>
             </div>
           </div>
 
-          {/* Toast Distance Settings */}
+          {/* Outer Distance Settings */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="text-base font-medium flex items-center gap-2">
+                <Eye className="h-4 w-4" />
+                Outer Zone (Street View Prep): {formatDistance(localOuterDistance)}
+                {hasError('outer') && (
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                )}
+              </div>
+            </div>
+            
+            <Slider
+              min={Math.max(150, localNotificationDistance + NOTIFICATION_OUTER_GAP)}
+              max={1000}
+              step={25}
+              value={[localOuterDistance]}
+              onValueChange={(value) => setLocalOuterDistance(value[0])}
+              className="w-full"
+            />
+            
+            <div className="flex flex-wrap gap-2">
+              <span className="text-sm text-muted-foreground mr-2">Quick select:</span>
+              {[200, 250, 300, 400, 500].filter(distance => distance >= localNotificationDistance + NOTIFICATION_OUTER_GAP).map((distance) => (
+                <Badge
+                  key={`outer-${distance}`}
+                  variant={localOuterDistance === distance ? "default" : "outline"}
+                  className="cursor-pointer hover:bg-primary/80"
+                  onClick={() => handlePresetDistance(distance, 'outer')}
+                >
+                  {formatDistance(distance)}
+                </Badge>
+              ))}
+            </div>
+            
+            {hasError('outer') && (
+              <div className="text-sm text-destructive">
+                {getErrorMessage('outer')}
+              </div>
+            )}
+            
+            <div className="text-sm text-muted-foreground">
+              Far range for Street View pre-loading (minimum {formatDistance(localNotificationDistance + NOTIFICATION_OUTER_GAP)} - 1000m)
+            </div>
+          </div>
+
+          {/* Notification Distance Settings */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="text-base font-medium flex items-center gap-2">
                 <MessageSquare className="h-4 w-4" />
-                Toast Notifications: {formatDistance(localToastDistance)}
-                {hasError('toast') && (
+                Notification Zone (Toasts): {formatDistance(localNotificationDistance)}
+                {hasError('notification') && (
                   <AlertTriangle className="h-4 w-4 text-destructive" />
                 )}
               </div>
             </div>
             
             <Slider
-              min={Math.max(25, localRouteDistance + MINIMUM_GAP)}
-              max={500}
+              min={Math.max(50, localCardDistance + MINIMUM_GAP)}
+              max={Math.min(500, localOuterDistance - NOTIFICATION_OUTER_GAP)}
               step={25}
-              value={[localToastDistance]}
-              onValueChange={(value) => setLocalToastDistance(value[0])}
+              value={[localNotificationDistance]}
+              onValueChange={(value) => setLocalNotificationDistance(value[0])}
               className="w-full"
             />
             
             <div className="flex flex-wrap gap-2">
               <span className="text-sm text-muted-foreground mr-2">Quick select:</span>
-              {[100, 150, 200, 300, 400].filter(distance => distance >= localRouteDistance + MINIMUM_GAP).map((distance) => (
-                <Badge
-                  key={`toast-${distance}`}
-                  variant={localToastDistance === distance ? "default" : "outline"}
-                  className="cursor-pointer hover:bg-primary/80"
-                  onClick={() => handlePresetDistance(distance, 'toast')}
-                >
-                  {formatDistance(distance)}
-                </Badge>
-              ))}
-            </div>
-            
-            {hasError('toast') && (
-              <div className="text-sm text-destructive">
-                {getErrorMessage('toast')}
-              </div>
-            )}
-            
-            <div className="text-sm text-muted-foreground">
-              Close-range notifications for immediate awareness (minimum {formatDistance(localRouteDistance + MINIMUM_GAP)} - 500m)
-            </div>
-          </div>
-
-          {/* Route Distance Settings */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="text-base font-medium flex items-center gap-2">
-                <Route className="h-4 w-4" />
-                Route Visualization: {formatDistance(localRouteDistance)}
-                {hasError('route') && (
-                  <AlertTriangle className="h-4 w-4 text-destructive" />
-                )}
-              </div>
-            </div>
-            
-            <Slider
-              min={Math.max(100, localCardDistance + MINIMUM_GAP)}
-              max={Math.min(1000, localToastDistance - MINIMUM_GAP)}
-              step={25}
-              value={[localRouteDistance]}
-              onValueChange={(value) => setLocalRouteDistance(value[0])}
-              className="w-full"
-            />
-            
-            <div className="flex flex-wrap gap-2">
-              <span className="text-sm text-muted-foreground mr-2">Quick select:</span>
-              {[150, 200, 250, 300, 400].filter(distance => 
+              {[75, 100, 125, 150, 200].filter(distance => 
                 distance >= localCardDistance + MINIMUM_GAP && 
-                distance <= localToastDistance - MINIMUM_GAP
+                distance <= localOuterDistance - NOTIFICATION_OUTER_GAP
               ).map((distance) => (
                 <Badge
-                  key={`route-${distance}`}
-                  variant={localRouteDistance === distance ? "default" : "outline"}
+                  key={`notification-${distance}`}
+                  variant={localNotificationDistance === distance ? "default" : "outline"}
                   className="cursor-pointer hover:bg-primary/80"
-                  onClick={() => handlePresetDistance(distance, 'route')}
+                  onClick={() => handlePresetDistance(distance, 'notification')}
                 >
                   {formatDistance(distance)}
                 </Badge>
               ))}
             </div>
             
-            {hasError('route') && (
+            {hasError('notification') && (
               <div className="text-sm text-destructive">
-                {getErrorMessage('route')}
+                {getErrorMessage('notification')}
               </div>
             )}
             
             <div className="text-sm text-muted-foreground">
-              Medium-range for route planning and navigation ({formatDistance(localCardDistance + MINIMUM_GAP)} - {formatDistance(localToastDistance - MINIMUM_GAP)})
+              Medium range for toast notifications ({formatDistance(localCardDistance + MINIMUM_GAP)} - {formatDistance(localOuterDistance - NOTIFICATION_OUTER_GAP)})
             </div>
           </div>
 
@@ -453,7 +447,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
             <div className="flex items-center justify-between">
               <div className="text-base font-medium flex items-center gap-2">
                 <CreditCard className="h-4 w-4" />
-                Floating Cards: {formatDistance(localCardDistance)}
+                Card Zone (Floating Cards): {formatDistance(localCardDistance)}
                 {hasError('card') && (
                   <AlertTriangle className="h-4 w-4 text-destructive" />
                 )}
@@ -462,7 +456,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
             
             <Slider
               min={25}
-              max={Math.min(300, localRouteDistance - MINIMUM_GAP)}
+              max={Math.min(200, localNotificationDistance - MINIMUM_GAP)}
               step={25}
               value={[localCardDistance]}
               onValueChange={(value) => setLocalCardDistance(value[0])}
@@ -471,7 +465,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
             
             <div className="flex flex-wrap gap-2">
               <span className="text-sm text-muted-foreground mr-2">Quick select:</span>
-              {[25, 50, 75, 100, 150].filter(distance => distance <= localRouteDistance - MINIMUM_GAP).map((distance) => (
+              {[25, 50, 75, 100].filter(distance => distance <= localNotificationDistance - MINIMUM_GAP).map((distance) => (
                 <Badge
                   key={`card-${distance}`}
                   variant={localCardDistance === distance ? "default" : "outline"}
@@ -490,12 +484,12 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
             )}
             
             <div className="text-sm text-muted-foreground">
-              Very close range for detailed information cards (25m - {formatDistance(localRouteDistance - MINIMUM_GAP)})
+              Very close range for detailed information cards (25m - {formatDistance(localNotificationDistance - MINIMUM_GAP)})
             </div>
           </div>
 
           <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-md">
-            <strong>Note:</strong> All changes save automatically when validation passes. Each distance tier must be at least {MINIMUM_GAP}m apart to ensure meaningful separation. Make sure location permissions are enabled for proximity alerts to work.
+            <strong>Note:</strong> All changes save automatically when validation passes. The refined hierarchy ensures: Street View prep happens first in the outer zone, notifications appear in the middle zone, and detailed cards show up close to landmarks. Make sure location permissions are enabled for proximity alerts to work.
           </div>
         </div>
       </SheetContent>

@@ -18,7 +18,7 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
   
   const nearbyLandmarks = useNearbyLandmarks({
     userLocation,
-    toastDistance: proximitySettings?.toast_distance || 100
+    notificationDistance: proximitySettings?.notification_distance || 100
   });
 
   if (!isVisible) return null;
@@ -123,12 +123,12 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                 </Badge>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Toast Distance:</span>
-                <span className="text-orange-600">{formatDistance(proximitySettings.toast_distance)}</span>
+                <span className="text-muted-foreground">Notification Distance:</span>
+                <span className="text-orange-600">{formatDistance(proximitySettings.notification_distance)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Route Distance:</span>
-                <span className="text-yellow-600">{formatDistance(proximitySettings.route_distance)}</span>
+                <span className="text-muted-foreground">Outer Distance:</span>
+                <span className="text-yellow-600">{formatDistance(proximitySettings.outer_distance)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Card Distance:</span>
@@ -154,7 +154,7 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Search Radius:</span>
-              <span className="text-orange-600">{formatDistance(proximitySettings?.toast_distance || 100)}</span>
+              <span className="text-orange-600">{formatDistance(proximitySettings?.notification_distance || 100)}</span>
             </div>
           </div>
         </div>
@@ -203,7 +203,7 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
               <span className="font-semibold">No Nearby Landmarks</span>
             </div>
             <div className="pl-5 text-muted-foreground text-xs">
-              No landmarks found within {formatDistance(proximitySettings?.toast_distance || 100)} radius
+              No landmarks found within {formatDistance(proximitySettings?.notification_distance || 100)} radius
             </div>
           </div>
         )}
