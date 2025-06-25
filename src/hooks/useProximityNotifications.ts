@@ -1,8 +1,10 @@
+
 import { useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { useNearbyLandmarks } from '@/hooks/useNearbyLandmarks';
+import { useTTSContext } from '@/contexts/TTSContext';
 import { Landmark } from '@/data/landmarks';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -16,6 +18,7 @@ const STORAGE_KEY = 'proximity_notifications_state';
 export const useProximityNotifications = () => {
   const { proximitySettings, combinedLandmarks } = useProximityAlerts();
   const { userLocation } = useLocationTracking();
+  const { speak } = useTTSContext();
   const notificationStateRef = useRef<NotificationState>({});
   const previousNearbyLandmarksRef = useRef<Set<string>>(new Set());
 
@@ -56,6 +59,30 @@ export const useProximityNotifications = () => {
     return timeSinceLastNotification >= NOTIFICATION_COOLDOWN;
   }, []);
 
+  // Play notification sound
+  const playNotificationSound = useCallback(() => {
+    try {
+      // Create a simple notification beep using Web Audio API
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+      oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.1);
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.3);
+    } catch (error) {
+      console.log('Could not play notification sound:', error);
+    }
+  }, []);
+
   // Function to show route to landmark
   const showRouteToLandmark = useCallback(async (landmark: Landmark) => {
     if (!userLocation) {
@@ -94,14 +121,26 @@ export const useProximityNotifications = () => {
     }
   }, [userLocation]);
 
-  // Show proximity toast notification
-  const showProximityToast = useCallback((landmark: Landmark, distance: number) => {
+  // Show proximity toast notification with sound and TTS
+  const showProximityToast = useCallback(async (landmark: Landmark, distance: number) => {
     const formattedDistance = distance >= 1000 
       ? `${(distance / 1000).toFixed(1)} km` 
       : `${Math.round(distance)} m`;
 
     console.log(`🔔 Showing proximity notification for ${landmark.name} at ${formattedDistance}`);
 
+    // Play notification sound first
+    playNotificationSound();
+
+    // Speak landmark name with TTS (brief announcement)
+    const ttsText = `Approaching ${landmark.name}`;
+    try {
+      await speak(ttsText, false);
+    } catch (error) {
+      console.log('TTS announcement failed:', error);
+    }
+
+    // Show visual toast
     toast(`🗺️ ${landmark.name}`, {
       description: `You're ${formattedDistance} away • ${landmark.description.substring(0, 100)}${landmark.description.length > 100 ? '...' : ''}`,
       duration: 8000,
@@ -117,7 +156,7 @@ export const useProximityNotifications = () => {
     // Record notification
     notificationStateRef.current[landmark.id] = Date.now();
     saveNotificationState();
-  }, [saveNotificationState, showRouteToLandmark]);
+  }, [saveNotificationState, showRouteToLandmark, playNotificationSound, speak]);
 
   // Monitor for newly entered proximity zones - MODIFIED TO SHOW ONLY ONE TOAST
   useEffect(() => {
