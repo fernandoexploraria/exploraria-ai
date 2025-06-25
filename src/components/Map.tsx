@@ -57,6 +57,7 @@ const Map: React.FC<MapProps> = ({
   
   const { user } = useAuth();
   const { updateProximityEnabled, proximitySettings } = useProximityAlerts();
+  const { fetchPhotos } = useEnhancedPhotos();
   
   // Street View hooks for checking cached data and opening modal
   const { getCachedData } = useStreetView();
