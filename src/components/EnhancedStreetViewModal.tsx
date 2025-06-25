@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, Wifi, WifiOff, RotateCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -83,8 +82,9 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
 
     const handleKeyPress = (e: KeyboardEvent) => {
       const currentItem = streetViewItems[currentIndex];
-      const isMultiViewpoint = currentItem?.streetViewData && isMultiViewpointData(currentItem.streetViewData);
-      const maxViewpoints = isMultiViewpoint ? currentItem.streetViewData.viewpoints.length : 1;
+      const currentStreetViewData = currentItem?.streetViewData;
+      const isMultiViewpoint = currentStreetViewData && isMultiViewpointData(currentStreetViewData);
+      const maxViewpoints = isMultiViewpoint ? currentStreetViewData.viewpoints.length : 1;
 
       switch (e.key) {
         case 'ArrowLeft':
