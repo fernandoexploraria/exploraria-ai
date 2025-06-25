@@ -163,8 +163,10 @@ export const useLocationTracking = (): LocationTrackingHook => {
     if (isSignificant && nearbyLandmarks.length > 0 && shouldPreloadStreetView()) {
       console.log(`🔄 Triggering Street View pre-loading for ${nearbyLandmarks.length} nearby landmarks`);
       
-      // Pre-load Street View for nearby landmarks in the background
-      batchPreloadStreetView(nearbyLandmarks).catch(error => {
+      // Extract landmarks from NearbyLandmark objects and pre-load Street View
+      const landmarksToPreload = nearbyLandmarks.map(nearbyLandmark => nearbyLandmark.landmark);
+      
+      batchPreloadStreetView(landmarksToPreload).catch(error => {
         console.warn('⚠️ Street View pre-loading failed:', error);
       });
       
@@ -196,7 +198,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
       console.log(`⏱️ Adapting poll interval: ${locationState.pollInterval}ms → ${finalInterval}ms`);
       scheduleNextPoll(finalInterval);
     }
-  }, [setUserLocation, nearbyLandmarks.length, locationState.isInBackground, locationState.pollInterval, batchPreloadStreetView]);
+  }, [setUserLocation, nearbyLandmarks.length, locationState.isInBackground, locationState.pollInterval, batchPreloadStreetView, nearbyLandmarks]);
 
   // Handle location error with exponential backoff
   const handleLocationError = useCallback((error: GeolocationPositionError) => {
