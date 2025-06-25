@@ -1,5 +1,3 @@
-
-
 import { useMemo, useEffect, useState } from 'react';
 import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS, TopLandmark } from '@/data/topLandmarks';
@@ -28,8 +26,8 @@ export const useCombinedLandmarks = (): Landmark[] => {
     // Initial load
     updateTourLandmarks();
 
-    // Poll every 10 seconds to check for changes (changed from 500ms)
-    const interval = setInterval(updateTourLandmarks, 10000);
+    // Poll every 30 seconds to check for changes (changed from 10000ms)
+    const interval = setInterval(updateTourLandmarks, 30000);
 
     return () => clearInterval(interval);
   }, []);
@@ -46,4 +44,3 @@ export const useCombinedLandmarks = (): Landmark[] => {
     return combinedLandmarks;
   }, [tourLandmarks]);
 };
-
