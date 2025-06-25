@@ -82,20 +82,20 @@ const ProximityControlPanel: React.FC<ProximityControlPanelProps> = ({ className
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1 text-xs">
                     <MessageSquare className="h-3 w-3" />
-                    Toast
+                    Notification
                   </div>
                   <Badge variant="outline" className="text-xs">
-                    {formatDistance(proximitySettings.toast_distance)}
+                    {formatDistance(proximitySettings.notification_distance)}
                   </Badge>
                 </div>
                 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1 text-xs">
                     <Route className="h-3 w-3" />
-                    Route
+                    Outer Zone
                   </div>
                   <Badge variant="outline" className="text-xs">
-                    {formatDistance(proximitySettings.route_distance)}
+                    {formatDistance(proximitySettings.outer_distance)}
                   </Badge>
                 </div>
                 

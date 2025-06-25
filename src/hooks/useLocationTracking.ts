@@ -63,7 +63,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
   // Get nearby landmarks using TOP_LANDMARKS directly
   const nearbyLandmarks = useNearbyLandmarks({
     userLocation,
-    toastDistance: proximitySettings?.toast_distance || 100
+    notificationDistance: proximitySettings?.notification_distance || 100
   });
 
   // Add Street View batch pre-loading
