@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselApi } from '@/components/ui/carousel';
 import { Search, Star } from 'lucide-react';
 import InteractionCard from './InteractionCard';
 import CarouselControls from './CarouselControls';
+import SkeletonLoader from './ui/skeleton-loader';
 import { Interaction } from './InteractionCarouselLogic';
 import { useTTSContext } from '@/contexts/TTSContext';
 
@@ -68,8 +68,8 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-white">Loading your interactions...</div>
+      <div className="flex-1 flex items-center justify-center p-4">
+        <SkeletonLoader variant="carousel" />
       </div>
     );
   }

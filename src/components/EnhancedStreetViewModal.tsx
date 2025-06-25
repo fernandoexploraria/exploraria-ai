@@ -1,9 +1,12 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
-import { X } from 'lucide-react';
+import { X, Wifi, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import StreetViewNavigationControls from './StreetViewNavigationControls';
 import StreetViewThumbnailGrid from './StreetViewThumbnailGrid';
+import SkeletonLoader from './ui/skeleton-loader';
+import OfflineIndicator from './OfflineIndicator';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 interface StreetViewData {
   imageUrl: string;
@@ -43,6 +46,8 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
 }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [imageLoading, setImageLoading] = useState<{[key: number]: boolean}>({});
+  const { isOnline, isSlowConnection } = useNetworkStatus();
 
   // Reset index when modal opens or items change
   useEffect(() => {
@@ -104,18 +109,33 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
     }
   }, [currentIndex, streetViewItems, onLocationSelect, onClose]);
 
+  const handleImageLoad = useCallback((index: number) => {
+    setImageLoading(prev => ({ ...prev, [index]: false }));
+  }, []);
+
+  const handleImageLoadStart = useCallback((index: number) => {
+    setImageLoading(prev => ({ ...prev, [index]: true }));
+  }, []);
+
   if (!isOpen || streetViewItems.length === 0) return null;
 
   const currentItem = streetViewItems[currentIndex];
   const currentStreetView = currentItem?.streetViewData;
+  const isCurrentImageLoading = imageLoading[currentIndex];
 
   if (!currentStreetView) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
         <div className="bg-white rounded-lg p-8 max-w-md text-center">
+          <div className="mb-4">
+            {!isOnline ? <WifiOff className="w-12 h-12 mx-auto text-gray-400" /> : null}
+          </div>
           <h2 className="text-xl font-bold mb-4">Street View Not Available</h2>
           <p className="text-gray-600 mb-4">
-            Street View is not available for {currentItem?.landmark.name}.
+            {!isOnline 
+              ? `Street View data for ${currentItem?.landmark.name} is not available offline.`
+              : `Street View is not available for ${currentItem?.landmark.name}.`
+            }
           </p>
           <Button onClick={onClose}>Close</Button>
         </div>
@@ -133,10 +153,18 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
         <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 to-transparent p-4">
           <div className="flex items-center justify-between text-white">
             <div className="flex-1">
-              <h2 className="text-xl font-bold">{currentStreetView.landmarkName}</h2>
+              <div className="flex items-center gap-2 mb-1">
+                <h2 className="text-xl font-bold">{currentStreetView.landmarkName}</h2>
+                <OfflineIndicator />
+              </div>
               <p className="text-sm opacity-90">
                 Street View • {currentStreetView.location.lat.toFixed(6)}, {currentStreetView.location.lng.toFixed(6)}
               </p>
+              {isSlowConnection && (
+                <p className="text-xs text-yellow-400 mt-1">
+                  Slow connection detected - images may take longer to load
+                </p>
+              )}
             </div>
             
             {/* Navigation Controls */}
@@ -165,12 +193,31 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
         </div>
 
         {/* Street View Image */}
-        <div className="w-full h-full">
+        <div className="w-full h-full relative">
+          {isCurrentImageLoading && (
+            <div className="absolute inset-0 z-20">
+              <SkeletonLoader variant="streetview" />
+            </div>
+          )}
+          
           <img
             src={currentStreetView.imageUrl}
             alt={`Street View of ${currentStreetView.landmarkName}`}
-            className="w-full h-full object-cover"
+            className={`w-full h-full object-cover transition-opacity duration-300 ${
+              isCurrentImageLoading ? 'opacity-0' : 'opacity-100'
+            }`}
+            onLoadStart={() => handleImageLoadStart(currentIndex)}
+            onLoad={() => handleImageLoad(currentIndex)}
+            onError={() => handleImageLoad(currentIndex)}
           />
+          
+          {/* Connection indicator for image */}
+          {!isOnline && (
+            <div className="absolute top-4 right-4 bg-red-600 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
+              <WifiOff className="h-3 w-3" />
+              Cached Offline
+            </div>
+          )}
         </div>
 
         {/* Thumbnail Navigation */}
