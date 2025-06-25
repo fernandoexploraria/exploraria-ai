@@ -249,17 +249,26 @@ export const useProximityAlerts = (tourLandmarks: any[] = []) => {
     
     try {
       console.log('💾 Making database request to update proximity enabled status...');
-      // Use UPSERT to ensure settings are created or updated
+      
+      // Get current settings or use database defaults
+      const currentSettings = globalProximityState.settings;
+      
+      const updateData: any = {
+        user_id: user.id,
+        is_enabled: enabled,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Only include distance fields if they exist in current settings
+      if (currentSettings) {
+        updateData.toast_distance = currentSettings.toast_distance;
+        updateData.route_distance = currentSettings.route_distance;
+        updateData.card_distance = currentSettings.card_distance;
+      }
+
       const { error } = await supabase
         .from('proximity_settings')
-        .upsert({
-          user_id: user.id,
-          is_enabled: enabled,
-          toast_distance: globalProximityState.settings?.toast_distance || 100,
-          route_distance: globalProximityState.settings?.route_distance || 250,
-          card_distance: globalProximityState.settings?.card_distance || 50,
-          updated_at: new Date().toISOString(),
-        }, {
+        .upsert(updateData, {
           onConflict: 'user_id'
         });
 
@@ -288,9 +297,15 @@ export const useProximityAlerts = (tourLandmarks: any[] = []) => {
 
     // Get current settings to validate against
     const currentSettings = globalProximityState.settings;
-    const currentToast = currentSettings?.toast_distance || 100;
-    const currentRoute = currentSettings?.route_distance || 250;
-    const currentCard = currentSettings?.card_distance || 50;
+    
+    if (!currentSettings) {
+      console.log('❌ No current settings available for updateDistanceSetting');
+      throw new Error('No proximity settings found');
+    }
+
+    const currentToast = currentSettings.toast_distance;
+    const currentRoute = currentSettings.route_distance;
+    const currentCard = currentSettings.card_distance;
 
     // Create the new distance configuration
     const newDistances = {
@@ -326,7 +341,7 @@ export const useProximityAlerts = (tourLandmarks: any[] = []) => {
       
       const updateData = {
         user_id: user.id,
-        is_enabled: currentSettings?.is_enabled || false,
+        is_enabled: currentSettings.is_enabled,
         toast_distance: newDistances.toast_distance,
         route_distance: newDistances.route_distance,
         card_distance: newDistances.card_distance,

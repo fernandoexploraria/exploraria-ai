@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Sheet,
@@ -34,10 +33,10 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   const { toast } = useToast();
   const { proximitySettings, updateProximityEnabled, updateDistanceSetting } = useProximityAlerts();
   
-  // Local state for smooth slider interactions
-  const [localToastDistance, setLocalToastDistance] = useState<number>(100);
-  const [localRouteDistance, setLocalRouteDistance] = useState<number>(250);
-  const [localCardDistance, setLocalCardDistance] = useState<number>(50);
+  // Local state for smooth slider interactions - initialize with null to wait for settings
+  const [localToastDistance, setLocalToastDistance] = useState<number | null>(null);
+  const [localRouteDistance, setLocalRouteDistance] = useState<number | null>(null);
+  const [localCardDistance, setLocalCardDistance] = useState<number | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
 
@@ -83,13 +82,17 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
 
   // Update validation errors when distances change
   useEffect(() => {
-    const errors = validateDistances(localToastDistance, localRouteDistance, localCardDistance);
-    setValidationErrors(errors);
+    if (localToastDistance !== null && localRouteDistance !== null && localCardDistance !== null) {
+      const errors = validateDistances(localToastDistance, localRouteDistance, localCardDistance);
+      setValidationErrors(errors);
+    }
   }, [localToastDistance, localRouteDistance, localCardDistance]);
 
   // Auto-save toast distance with validation
   useEffect(() => {
-    if (!proximitySettings || localToastDistance === proximitySettings.toast_distance) return;
+    if (!proximitySettings || localToastDistance === null || localToastDistance === proximitySettings.toast_distance) return;
+    
+    if (localRouteDistance === null || localCardDistance === null) return;
     
     const errors = validateDistances(localToastDistance, localRouteDistance, localCardDistance);
     if (errors.length > 0) {
@@ -117,7 +120,9 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
 
   // Auto-save route distance with validation
   useEffect(() => {
-    if (!proximitySettings || localRouteDistance === proximitySettings.route_distance) return;
+    if (!proximitySettings || localRouteDistance === null || localRouteDistance === proximitySettings.route_distance) return;
+    
+    if (localToastDistance === null || localCardDistance === null) return;
     
     const errors = validateDistances(localToastDistance, localRouteDistance, localCardDistance);
     if (errors.length > 0) {
@@ -145,7 +150,9 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
 
   // Auto-save card distance with validation
   useEffect(() => {
-    if (!proximitySettings || localCardDistance === proximitySettings.card_distance) return;
+    if (!proximitySettings || localCardDistance === null || localCardDistance === proximitySettings.card_distance) return;
+    
+    if (localToastDistance === null || localRouteDistance === null) return;
     
     const errors = validateDistances(localToastDistance, localRouteDistance, localCardDistance);
     if (errors.length > 0) {
@@ -185,6 +192,8 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   // Enhanced auto-adjust distances to maintain hierarchy with minimum gaps
   const handlePresetDistance = (distance: number, type: 'toast' | 'route' | 'card') => {
     console.log('📏 ProximitySettingsDialog: Preset distance selected:', distance, 'for', type);
+    
+    if (localToastDistance === null || localRouteDistance === null || localCardDistance === null) return;
     
     switch (type) {
       case 'toast':
@@ -254,6 +263,19 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
 
   // Get current state directly from proximitySettings (real-time synced)
   const isEnabled = proximitySettings?.is_enabled ?? false;
+
+  // Don't render until we have loaded the settings and initialized local state
+  if (!proximitySettings || localToastDistance === null || localRouteDistance === null || localCardDistance === null) {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent className="sm:max-w-[500px] overflow-y-auto">
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
 
   console.log('🔍 ProximitySettingsDialog render state:', {
     isEnabled,
