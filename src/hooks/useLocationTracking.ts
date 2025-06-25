@@ -60,10 +60,10 @@ export const useLocationTracking = (): LocationTrackingHook => {
   const locationHistoryRef = useRef<LocationHistory[]>([]);
   const lastSignificantLocationRef = useRef<UserLocation | null>(null);
 
-  // Get nearby landmarks using TOP_LANDMARKS directly
+  // Get nearby landmarks using outer_distance for Street View pre-loading
   const nearbyLandmarks = useNearbyLandmarks({
     userLocation,
-    notificationDistance: proximitySettings?.notification_distance || 100
+    notificationDistance: proximitySettings?.outer_distance || 250
   });
 
   // Add Street View batch pre-loading
@@ -158,7 +158,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
     };
 
     if (isSignificant && nearbyLandmarks.length > 0 && shouldPreloadStreetView()) {
-      console.log(`🔄 Triggering Street View pre-loading for ${nearbyLandmarks.length} nearby landmarks`);
+      console.log(`🔄 Triggering Street View pre-loading for ${nearbyLandmarks.length} nearby landmarks (within ${proximitySettings?.outer_distance || 250}m outer zone)`);
       
       // Extract landmarks from NearbyLandmark objects and pre-load Street View
       const landmarksToPreload = nearbyLandmarks.map(nearbyLandmark => nearbyLandmark.landmark);
@@ -195,7 +195,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
       console.log(`⏱️ Adapting poll interval: ${locationState.pollInterval}ms → ${finalInterval}ms`);
       scheduleNextPoll(finalInterval);
     }
-  }, [setUserLocation, nearbyLandmarks.length, locationState.isInBackground, locationState.pollInterval, batchPreloadStreetView, nearbyLandmarks]);
+  }, [setUserLocation, nearbyLandmarks.length, locationState.isInBackground, locationState.pollInterval, batchPreloadStreetView, nearbyLandmarks, proximitySettings?.outer_distance]);
 
   // Handle location error with exponential backoff
   const handleLocationError = useCallback((error: GeolocationPositionError) => {
