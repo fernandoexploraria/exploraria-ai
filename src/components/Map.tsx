@@ -1,13 +1,15 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { Volume2, VolumeX } from 'lucide-react';
+import { Volume2, VolumeX, Eye } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { TOUR_LANDMARKS, setMapMarkersRef } from '@/data/tourLandmarks';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
+import { useStreetView } from '@/hooks/useStreetView';
+import { useStreetViewNavigation } from '@/hooks/useStreetViewNavigation';
 
 interface MapProps {
   mapboxToken: string;
@@ -50,6 +52,10 @@ const Map: React.FC<MapProps> = ({
   
   const { user } = useAuth();
   const { updateProximityEnabled, proximitySettings } = useProximityAlerts();
+  
+  // Street View hooks for checking cached data and opening modal
+  const { getCachedData } = useStreetView();
+  const { openStreetViewModal } = useStreetViewNavigation();
 
   // Convert top landmarks and tour landmarks to Landmark format
   const allLandmarksWithTop = React.useMemo(() => {
@@ -552,7 +558,11 @@ const Map: React.FC<MapProps> = ({
     });
     photoPopups.current = {};
     
-    // Create new photo popup with image and listen button
+    // Check if Street View data is cached for this landmark
+    const streetViewData = getCachedData(landmark.id);
+    const hasStreetView = streetViewData !== null;
+    
+    // Create new photo popup with image and action buttons
     const photoPopup = new mapboxgl.Popup({
       closeButton: true,
       closeOnClick: false,
@@ -612,13 +622,41 @@ const Map: React.FC<MapProps> = ({
       };
     }
 
-    // Fetch and display image with listen button
+    // Fetch and display image with action buttons
     try {
       const imageUrl = await fetchLandmarkImage(landmark);
       const isPlaying = playingAudio[landmark.id] || false;
       
       // Store the interaction ONLY ONCE with the fetched image URL
       await storeMapMarkerInteraction(landmark, imageUrl);
+      
+      // Create buttons HTML - Street View button only if data is available
+      const streetViewButton = hasStreetView ? `
+        <button 
+          class="streetview-btn-${landmark.id}" 
+          onclick="window.handleStreetViewOpen('${landmark.id}')"
+          style="
+            background: rgba(59, 130, 246, 0.95);
+            color: white;
+            border: 3px solid rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            width: 56px;
+            height: 56px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+          "
+          onmouseover="this.style.backgroundColor='rgba(37, 99, 235, 1)'; this.style.borderColor='white'; this.style.transform='scale(1.15)'; this.style.boxShadow='0 6px 20px rgba(0, 0, 0, 0.5)'"
+          onmouseout="this.style.backgroundColor='rgba(59, 130, 246, 0.95)'; this.style.borderColor='rgba(255, 255, 255, 0.9)'; this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.4)'"
+          title="View Street View"
+        >
+          👁️
+        </button>
+      ` : '';
       
       photoPopup.setHTML(`
         <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
@@ -647,35 +685,35 @@ const Map: React.FC<MapProps> = ({
           <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
           <div style="position: relative; margin-bottom: 10px;">
             <img src="${imageUrl}" alt="${landmark.name}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px;" />
-            <button 
-              class="listen-btn-${landmark.id}" 
-              onclick="window.handleLandmarkListen('${landmark.id}')"
-              style="
-                position: absolute;
-                bottom: 10px;
-                right: 10px;
-                background: rgba(0, 0, 0, 0.9);
-                color: white;
-                border: 3px solid rgba(255, 255, 255, 0.9);
-                border-radius: 50%;
-                width: 56px;
-                height: 56px;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 24px;
-                transition: all 0.3s ease;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-                ${isPlaying ? 'opacity: 0.7;' : ''}
-              "
-              onmouseover="this.style.backgroundColor='rgba(59, 130, 246, 0.95)'; this.style.borderColor='white'; this.style.transform='scale(1.15)'; this.style.boxShadow='0 6px 20px rgba(0, 0, 0, 0.5)'"
-              onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'; this.style.borderColor='rgba(255, 255, 255, 0.9)'; this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.4)'"
-              ${isPlaying ? 'disabled' : ''}
-              title="Listen to description"
-            >
-              🔊
-            </button>
+            <div style="position: absolute; bottom: 10px; right: 10px; display: flex; gap: 8px;">
+              ${streetViewButton}
+              <button 
+                class="listen-btn-${landmark.id}" 
+                onclick="window.handleLandmarkListen('${landmark.id}')"
+                style="
+                  background: rgba(0, 0, 0, 0.9);
+                  color: white;
+                  border: 3px solid rgba(255, 255, 255, 0.9);
+                  border-radius: 50%;
+                  width: 56px;
+                  height: 56px;
+                  cursor: pointer;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-size: 24px;
+                  transition: all 0.3s ease;
+                  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+                  ${isPlaying ? 'opacity: 0.7;' : ''}
+                "
+                onmouseover="this.style.backgroundColor='rgba(59, 130, 246, 0.95)'; this.style.borderColor='white'; this.style.transform='scale(1.15)'; this.style.boxShadow='0 6px 20px rgba(0, 0, 0, 0.5)'"
+                onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'; this.style.borderColor='rgba(255, 255, 255, 0.9)'; this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.4)'"
+                ${isPlaying ? 'disabled' : ''}
+                title="Listen to description"
+              >
+                🔊
+              </button>
+            </div>
           </div>
         </div>
       `);
@@ -690,11 +728,50 @@ const Map: React.FC<MapProps> = ({
         };
       }
 
+      // Add global handler for Street View button if it doesn't exist
+      if (!(window as any).handleStreetViewOpen) {
+        (window as any).handleStreetViewOpen = async (landmarkId: string) => {
+          const targetLandmark = allLandmarksWithTop.find(l => l.id === landmarkId);
+          if (targetLandmark) {
+            console.log(`🔍 Opening Street View modal for ${targetLandmark.name} from marker popup`);
+            await openStreetViewModal([targetLandmark], targetLandmark);
+          }
+        };
+      }
+
     } catch (error) {
       console.error('Failed to load image for', landmark.name, error);
       
       // Store the interaction even without image
       await storeMapMarkerInteraction(landmark);
+      
+      // Create buttons HTML for no-image case - Street View button only if data is available
+      const streetViewButtonNoImage = hasStreetView ? `
+        <button 
+          class="streetview-btn-${landmark.id}" 
+          onclick="window.handleStreetViewOpen('${landmark.id}')"
+          style="
+            background: rgba(59, 130, 246, 0.95);
+            color: white;
+            border: 3px solid rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            width: 56px;
+            height: 56px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+          "
+          onmouseover="this.style.backgroundColor='rgba(37, 99, 235, 1)'; this.style.borderColor='white'; this.style.transform='scale(1.15)'; this.style.boxShadow='0 6px 20px rgba(0, 0, 0, 0.5)'"
+          onmouseout="this.style.backgroundColor='rgba(59, 130, 246, 0.95)'; this.style.borderColor='rgba(255, 255, 255, 0.9)'; this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.4)'"
+          title="View Street View"
+        >
+          👁️
+        </button>
+      ` : '';
       
       photoPopup.setHTML(`
         <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
@@ -723,33 +800,33 @@ const Map: React.FC<MapProps> = ({
           <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
           <div style="width: 100%; height: 150px; background-color: #f0f0f0; border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; color: #888; position: relative;">
             No image available
-            <button 
-              class="listen-btn-${landmark.id}" 
-              onclick="window.handleLandmarkListen('${landmark.id}')"
-              style="
-                position: absolute;
-                bottom: 10px;
-                right: 10px;
-                background: rgba(0, 0, 0, 0.9);
-                color: white;
-                border: 3px solid rgba(255, 255, 255, 0.9);
-                border-radius: 50%;
-                width: 56px;
-                height: 56px;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 24px;
-                transition: all 0.3s ease;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-              "
-              onmouseover="this.style.backgroundColor='rgba(59, 130, 246, 0.95)'; this.style.borderColor='white'; this.style.transform='scale(1.15)'; this.style.boxShadow='0 6px 20px rgba(0, 0, 0, 0.5)'"
-              onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'; this.style.borderColor='rgba(255, 255, 255, 0.9)'; this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.4)'"
-              title="Listen to description"
-            >
-              🔊
-            </button>
+            <div style="position: absolute; bottom: 10px; right: 10px; display: flex; gap: 8px;">
+              ${streetViewButtonNoImage}
+              <button 
+                class="listen-btn-${landmark.id}" 
+                onclick="window.handleLandmarkListen('${landmark.id}')"
+                style="
+                  background: rgba(0, 0, 0, 0.9);
+                  color: white;
+                  border: 3px solid rgba(255, 255, 255, 0.9);
+                  border-radius: 50%;
+                  width: 56px;
+                  height: 56px;
+                  cursor: pointer;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-size: 24px;
+                  transition: all 0.3s ease;
+                  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+                "
+                onmouseover="this.style.backgroundColor='rgba(59, 130, 246, 0.95)'; this.style.borderColor='white'; this.style.transform='scale(1.15)'; this.style.boxShadow='0 6px 20px rgba(0, 0, 0, 0.5)'"
+                onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'; this.style.borderColor='rgba(255, 255, 255, 0.9)'; this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.4)'"
+                title="Listen to description"
+              >
+                🔊
+              </button>
+            </div>
           </div>
         </div>
       `);
