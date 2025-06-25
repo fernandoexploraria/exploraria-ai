@@ -1,7 +1,6 @@
-
 import { useState } from 'react';
 import { Landmark } from '@/data/landmarks';
-import { TOP_LANDMARKS } from '@/data/topLandmarks';
+import { setTourLandmarks } from '@/data/tourLandmarks';
 import { toast } from "sonner";
 import { supabase } from '@/integrations/supabase/client';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -52,6 +51,7 @@ export const useTourPlanner = () => {
     setTourPlan(null); // Clear previous results
 
     try {
+      // ... keep existing code (systemInstruction and prompt definitions)
       const systemInstruction = `You are an expert tour planner. Your response MUST be a valid JSON object with exactly this structure:
       {
         "landmarks": [array of landmark objects],
@@ -103,18 +103,16 @@ export const useTourPlanner = () => {
 
       const newLandmarks: Landmark[] = tourData.landmarks.map((lm: Omit<Landmark, 'id'>) => ({
         ...lm,
-        id: `ai-${crypto.randomUUID()}`,
+        id: `tour-landmark-${crypto.randomUUID()}`,
       }));
 
-      // Add tour landmarks directly to TOP_LANDMARKS array
-      console.log('Adding tour landmarks to TOP_LANDMARKS array:', newLandmarks.length);
-      tourData.landmarks.forEach((lm: any) => {
-        TOP_LANDMARKS.push({
-          name: lm.name,
-          coordinates: lm.coordinates,
-          description: lm.description
-        });
-      });
+      // Set tour landmarks in the separate array (this clears and repopulates)
+      console.log('Setting tour landmarks in separate array:', newLandmarks.length);
+      setTourLandmarks(tourData.landmarks.map((lm: any) => ({
+        name: lm.name,
+        coordinates: lm.coordinates,
+        description: lm.description
+      })));
 
       const newTourPlan: TourPlan = {
         landmarks: newLandmarks,
@@ -124,7 +122,7 @@ export const useTourPlanner = () => {
 
       setTourPlan(newTourPlan);
       
-      // Increment tour count with corrected parameter name
+      // ... keep existing code (increment tour count logic)
       try {
         console.log('Calling increment_tour_count function for user:', user.id);
         
@@ -166,7 +164,7 @@ export const useTourPlanner = () => {
         console.error('Failed to update tour count:', countErr);
       }
       
-      toast.success(`Generated a comprehensive tour for ${destination}! Landmarks added to proximity detection.`);
+      toast.success(`Generated a comprehensive tour for ${destination}! Tour landmarks added with green markers.`);
       
     } catch (err) {
       console.error("Error generating tour:", err);

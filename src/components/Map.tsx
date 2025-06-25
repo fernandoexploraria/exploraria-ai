@@ -4,6 +4,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { Volume2, VolumeX } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
+import { TOUR_LANDMARKS } from '@/data/tourLandmarks';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -50,7 +51,7 @@ const Map: React.FC<MapProps> = ({
   const { user } = useAuth();
   const { updateProximityEnabled, proximitySettings } = useProximityAlerts();
 
-  // Convert top landmarks to Landmark format
+  // Convert top landmarks and tour landmarks to Landmark format
   const allLandmarksWithTop = React.useMemo(() => {
     const topLandmarksConverted: Landmark[] = TOP_LANDMARKS.map((topLandmark, index) => ({
       id: `top-landmark-${index}`,
@@ -59,7 +60,14 @@ const Map: React.FC<MapProps> = ({
       description: topLandmark.description
     }));
     
-    return [...landmarks, ...topLandmarksConverted];
+    const tourLandmarksConverted: Landmark[] = TOUR_LANDMARKS.map((tourLandmark, index) => ({
+      id: `tour-landmark-${index}`,
+      name: tourLandmark.name,
+      coordinates: tourLandmark.coordinates,
+      description: tourLandmark.description
+    }));
+    
+    return [...landmarks, ...topLandmarksConverted, ...tourLandmarksConverted];
   }, [landmarks]);
 
   // Function to store map marker interaction
@@ -768,9 +776,18 @@ const Map: React.FC<MapProps> = ({
       if (!markers.current[landmark.id]) {
         const el = document.createElement('div');
         
-        // Different styling for top landmarks vs user landmarks
+        // Different styling for different landmark types
         const isTopLandmark = landmark.id.startsWith('top-landmark-');
-        const markerColor = isTopLandmark ? 'bg-yellow-400' : 'bg-cyan-400';
+        const isTourLandmark = landmark.id.startsWith('tour-landmark-');
+        
+        let markerColor;
+        if (isTopLandmark) {
+          markerColor = 'bg-yellow-400';
+        } else if (isTourLandmark) {
+          markerColor = 'bg-green-400';
+        } else {
+          markerColor = 'bg-cyan-400';
+        }
         
         el.className = `w-4 h-4 rounded-full ${markerColor} border-2 border-white shadow-lg cursor-pointer transition-transform duration-300 hover:scale-125`;
         el.style.transition = 'background-color 0.3s, transform 0.3s';
@@ -852,12 +869,19 @@ const Map: React.FC<MapProps> = ({
       const element = marker.getElement();
       const isSelected = id === selectedLandmark?.id;
       const isTopLandmark = id.startsWith('top-landmark-');
+      const isTourLandmark = id.startsWith('tour-landmark-');
       
       if (isSelected) {
         element.style.backgroundColor = '#f87171'; // red-400
         element.style.transform = 'scale(1.5)';
       } else {
-        element.style.backgroundColor = isTopLandmark ? '#facc15' : '#22d3ee'; // yellow-400 or cyan-400
+        if (isTopLandmark) {
+          element.style.backgroundColor = '#facc15'; // yellow-400
+        } else if (isTourLandmark) {
+          element.style.backgroundColor = '#4ade80'; // green-400
+        } else {
+          element.style.backgroundColor = '#22d3ee'; // cyan-400
+        }
         element.style.transform = 'scale(1)';
       }
     });
