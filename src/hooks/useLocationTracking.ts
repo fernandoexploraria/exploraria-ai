@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { UserLocation } from '@/types/proximityAlerts';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -38,7 +39,11 @@ const MAX_LOCATION_HISTORY = 10;
 const LOCATION_CHANGE_THRESHOLD = 20; // meters
 
 export const useLocationTracking = (): LocationTrackingHook => {
-  const { proximitySettings, setUserLocation } = useProximityAlerts();
+  const { 
+    proximitySettings, 
+    setUserLocation, 
+    isUserInteractionMode 
+  } = useProximityAlerts();
   
   const [locationState, setLocationState] = useState<LocationTrackingState>({
     isTracking: false,
@@ -122,6 +127,8 @@ export const useLocationTracking = (): LocationTrackingHook => {
     const movementState = detectMovement(locationHistoryRef.current.slice(0, -1), newLocationHistory);
 
     pollCountRef.current += 1;
+    
+    // NEW: Show user interaction mode status in logs
     console.log(`📍 Location poll #${pollCountRef.current}:`, {
       lat: newLocation.latitude.toFixed(6),
       lng: newLocation.longitude.toFixed(6),
@@ -130,18 +137,25 @@ export const useLocationTracking = (): LocationTrackingHook => {
       speed: `${movementState.averageSpeed.toFixed(1)} m/s`,
       significant: isSignificant,
       nearbyCount: nearbyLandmarks.length,
+      userInteractionMode: isUserInteractionMode,
       time: new Date().toLocaleTimeString()
     });
 
     // Only update state if location change is significant or we're moving
     if (isSignificant || movementState.isMoving) {
       setCurrentUserLocation(newLocation);
-      setUserLocation(newLocation);
-      lastSignificantLocationRef.current = newLocation;
       
-      console.log(`✅ Location updated (moved ${lastSignificant ? 
-        Math.round(isSignificantLocationChange(lastSignificant, newLocationHistory, 0) ? 
-          calculateDistance(lastSignificant.latitude, lastSignificant.longitude, newLocation.latitude, newLocation.longitude) : 0) : 0}m)`);
+      // NEW: Only update proximity system location if not in manual interaction mode
+      if (!isUserInteractionMode) {
+        setUserLocation(newLocation);
+        console.log(`✅ Location updated in proximity system (moved ${lastSignificant ? 
+          Math.round(isSignificantLocationChange(lastSignificant, newLocationHistory, 0) ? 
+            calculateDistance(lastSignificant.latitude, lastSignificant.longitude, newLocation.latitude, newLocation.longitude) : 0) : 0}m)`);
+      } else {
+        console.log(`🔄 Location tracked but not sent to proximity system (user interaction mode active)`);
+      }
+      
+      lastSignificantLocationRef.current = newLocation;
     } else {
       console.log(`🔄 Location unchanged (within ${LOCATION_CHANGE_THRESHOLD}m threshold)`);
     }
@@ -180,9 +194,10 @@ export const useLocationTracking = (): LocationTrackingHook => {
       BASE_POLLING_INTERVAL
     );
 
-    // Increase interval if in background
-    const finalInterval = locationState.isInBackground ? 
-      Math.min(adaptiveInterval * 2, 60000) : adaptiveInterval;
+    // Increase interval if in background or user is manually interacting
+    const backgroundMultiplier = locationState.isInBackground ? 2 : 1;
+    const interactionMultiplier = isUserInteractionMode ? 1.5 : 1; // Reduce frequency during manual interaction
+    const finalInterval = Math.min(adaptiveInterval * backgroundMultiplier * interactionMultiplier, 60000);
 
     setLocationState(prev => ({
       ...prev,
@@ -195,10 +210,10 @@ export const useLocationTracking = (): LocationTrackingHook => {
 
     // Update polling interval if it changed significantly
     if (Math.abs(finalInterval - locationState.pollInterval) > 2000) {
-      console.log(`⏱️ Adapting poll interval: ${locationState.pollInterval}ms → ${finalInterval}ms`);
+      console.log(`⏱️ Adapting poll interval: ${locationState.pollInterval}ms → ${finalInterval}ms (bg: ${backgroundMultiplier}x, interaction: ${interactionMultiplier}x)`);
       scheduleNextPoll(finalInterval);
     }
-  }, [setUserLocation, nearbyLandmarks.length, locationState.isInBackground, locationState.pollInterval, batchPreloadStreetView, nearbyLandmarks]);
+  }, [setUserLocation, nearbyLandmarks.length, locationState.isInBackground, locationState.pollInterval, batchPreloadStreetView, nearbyLandmarks, isUserInteractionMode]);
 
   // Handle location error with exponential backoff
   const handleLocationError = useCallback((error: GeolocationPositionError) => {
@@ -301,7 +316,8 @@ export const useLocationTracking = (): LocationTrackingHook => {
       enableHighAccuracy: options.enableHighAccuracy,
       timeout: `${options.timeout}ms`,
       maximumAge: `${options.maximumAge}ms`,
-      interval: `${locationState.pollInterval}ms`
+      interval: `${locationState.pollInterval}ms`,
+      userInteractionMode: isUserInteractionMode
     });
     
     navigator.geolocation.getCurrentPosition(
@@ -312,7 +328,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
 
     // Schedule next poll
     scheduleNextPoll();
-  }, [handleLocationUpdate, handleLocationError, locationState, nearbyLandmarks.length, scheduleNextPoll]);
+  }, [handleLocationUpdate, handleLocationError, locationState, nearbyLandmarks.length, scheduleNextPoll, isUserInteractionMode]);
 
   // Start optimized tracking
   const startTracking = useCallback(async (): Promise<void> => {

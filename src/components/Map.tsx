@@ -38,14 +38,21 @@ const Map: React.FC<MapProps> = ({
   const navigationMarkers = useRef<{ marker: mapboxgl.Marker; interaction: any }[]>([]);
   const currentRouteLayer = useRef<string | null>(null);
   
-  // New refs for GeolocateControl management
+  // Enhanced refs for GeolocateControl management and user interaction detection
   const geolocateControl = useRef<mapboxgl.GeolocateControl | null>(null);
   const isUpdatingFromProximitySettings = useRef<boolean>(false);
   const userInitiatedLocationRequest = useRef<boolean>(false);
   const lastLocationEventTime = useRef<number>(0);
   
+  // NEW: User interaction state management
+  const [isUserInteracting, setIsUserInteracting] = useState<boolean>(false);
+  const [isManualExploreMode, setIsManualExploreMode] = useState<boolean>(false);
+  const userInteractionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastUserInteractionTime = useRef<number>(0);
+  const USER_INTERACTION_COOLDOWN = 8000; // 8 seconds of no interaction before resuming auto-tracking
+  
   const { user } = useAuth();
-  const { updateProximityEnabled, proximitySettings } = useProximityAlerts();
+  const { updateProximityEnabled, proximitySettings, setUserInteractionMode } = useProximityAlerts();
 
   // Convert top landmarks to Landmark format
   const allLandmarksWithTop = React.useMemo(() => {
@@ -58,6 +65,35 @@ const Map: React.FC<MapProps> = ({
     
     return [...landmarks, ...topLandmarksConverted];
   }, [landmarks]);
+
+  // NEW: Function to handle user interaction detection
+  const handleUserInteraction = useCallback((interactionType: string) => {
+    const now = Date.now();
+    lastUserInteractionTime.current = now;
+    
+    console.log(`🖱️ User interaction detected: ${interactionType}`);
+    
+    if (!isUserInteracting) {
+      setIsUserInteracting(true);
+      setIsManualExploreMode(true);
+      // Notify proximity system that user is manually controlling map
+      setUserInteractionMode?.(true);
+      console.log('🔄 Entering manual explore mode');
+    }
+    
+    // Clear existing timeout
+    if (userInteractionTimeoutRef.current) {
+      clearTimeout(userInteractionTimeoutRef.current);
+    }
+    
+    // Set new timeout to exit manual mode after cooldown
+    userInteractionTimeoutRef.current = setTimeout(() => {
+      setIsUserInteracting(false);
+      setIsManualExploreMode(false);
+      setUserInteractionMode?.(false);
+      console.log('🔄 Exiting manual explore mode - resuming auto-tracking');
+    }, USER_INTERACTION_COOLDOWN);
+  }, [isUserInteracting, setUserInteractionMode]);
 
   // Function to store map marker interaction
   const storeMapMarkerInteraction = async (landmark: Landmark, imageUrl?: string) => {
@@ -144,7 +180,7 @@ const Map: React.FC<MapProps> = ({
             timeout: 10000,
             maximumAge: 600000 // 10 minutes
           },
-          trackUserLocation: true,
+          trackUserLocation: false, // CHANGED: Disable persistent tracking to prevent conflicts
           showUserHeading: true,
           showAccuracyCircle: true,
           fitBoundsOptions: {
@@ -163,23 +199,25 @@ const Map: React.FC<MapProps> = ({
             console.log('🌍 GeolocateControl: Button clicked, current state:', currentState);
             userInitiatedLocationRequest.current = true;
             lastLocationEventTime.current = Date.now();
-            console.log('🌍 GeolocateControl: Marked as user-initiated request');
+            // NEW: This is a user-initiated location request, not manual map exploration
+            console.log('🌍 GeolocateControl: User requested location (not manual exploration)');
           });
         }
         
-        // Add comprehensive event listeners with detailed state monitoring
+        // Add comprehensive event listeners with manual interaction awareness
         geoControl.on('geolocate', (e) => {
           const currentState = (geoControl as any)._watchState;
           console.log('🌍 GeolocateControl: Location found', { 
             coordinates: [e.coords.longitude, e.coords.latitude],
             state: currentState,
-            userInitiated: userInitiatedLocationRequest.current
+            userInitiated: userInitiatedLocationRequest.current,
+            isManualMode: isManualExploreMode
           });
           
           lastLocationEventTime.current = Date.now();
           
-          // Only update proximity settings if this wasn't triggered by our own update
-          if (!isUpdatingFromProximitySettings.current) {
+          // Only update proximity settings if this wasn't triggered by our own update and user isn't manually exploring
+          if (!isUpdatingFromProximitySettings.current && !isManualExploreMode) {
             console.log('🌍 GeolocateControl: Enabling proximity (user initiated location)');
             updateProximityEnabled(true);
           }
@@ -189,8 +227,8 @@ const Map: React.FC<MapProps> = ({
           console.log('🌍 GeolocateControl: Started tracking user location (ACTIVE state)');
           lastLocationEventTime.current = Date.now();
           
-          // Only update proximity settings if this wasn't triggered by our own update
-          if (!isUpdatingFromProximitySettings.current) {
+          // Only update proximity settings if this wasn't triggered by our own update and user isn't manually exploring
+          if (!isUpdatingFromProximitySettings.current && !isManualExploreMode) {
             console.log('🌍 GeolocateControl: Enabling proximity (tracking started)');
             updateProximityEnabled(true);
           }
@@ -198,8 +236,8 @@ const Map: React.FC<MapProps> = ({
         
         geoControl.on('trackuserlocationend', () => {
           console.log('🌍 GeolocateControl: Stopped tracking user location (PASSIVE/INACTIVE state)');
-          // Only update proximity settings if this wasn't triggered by our own update
-          if (!isUpdatingFromProximitySettings.current) {
+          // Only update proximity settings if this wasn't triggered by our own update and user isn't manually exploring
+          if (!isUpdatingFromProximitySettings.current && !isManualExploreMode) {
             console.log('🌍 GeolocateControl: Disabling proximity (tracking ended)');
             updateProximityEnabled(false);
           }
@@ -231,6 +269,15 @@ const Map: React.FC<MapProps> = ({
         console.log('🗺️ [Map] Map style loaded, adding fog...');
         map.current?.setFog({}); // Add a sky layer and atmosphere
       });
+
+      // NEW: Add user interaction event listeners
+      map.current.on('dragstart', () => handleUserInteraction('drag'));
+      map.current.on('zoomstart', () => handleUserInteraction('zoom'));
+      map.current.on('rotatestart', () => handleUserInteraction('rotate'));
+      map.current.on('pitchstart', () => handleUserInteraction('pitch'));
+      
+      // Also handle wheel events for zoom
+      map.current.on('wheel', () => handleUserInteraction('wheel'));
 
       // Close all popups when clicking on the map
       map.current.on('click', (e) => {
@@ -286,21 +333,30 @@ const Map: React.FC<MapProps> = ({
         console.log('🗺️ [Map] Cleanup function called');
         stopCurrentAudio();
         geolocateControl.current = null;
+        if (userInteractionTimeoutRef.current) {
+          clearTimeout(userInteractionTimeoutRef.current);
+        }
         map.current?.remove();
         map.current = null;
       };
     } catch (error) {
       console.error('🗺️ [Map] Error during map initialization:', error);
     }
-  }, [mapboxToken, user]);
+  }, [mapboxToken, user, handleUserInteraction, isManualExploreMode]);
 
-  // Effect to handle proximity settings changes and sync with GeolocateControl
+  // ENHANCED: Effect to handle proximity settings changes with manual interaction awareness
   useEffect(() => {
     if (!geolocateControl.current || !proximitySettings) {
       return;
     }
 
-    console.log('🔄 Proximity settings changed:', proximitySettings);
+    console.log('🔄 Proximity settings changed:', proximitySettings, 'Manual mode:', isManualExploreMode);
+    
+    // Don't interfere if user is manually exploring the map
+    if (isManualExploreMode) {
+      console.log('🔄 Skipping proximity sync - user is manually exploring map');
+      return;
+    }
     
     // Check if we should avoid interfering with a recent user-initiated request
     const timeSinceLastLocationEvent = Date.now() - lastLocationEventTime.current;
@@ -382,7 +438,7 @@ const Map: React.FC<MapProps> = ({
       console.error('🔄 Error syncing GeolocateControl with proximity settings:', error);
       isUpdatingFromProximitySettings.current = false;
     }
-  }, [proximitySettings?.is_enabled]);
+  }, [proximitySettings?.is_enabled, isManualExploreMode]);
 
   // Function to handle text-to-speech using Google Cloud TTS via edge function
   const handleTextToSpeech = async (landmark: Landmark) => {
