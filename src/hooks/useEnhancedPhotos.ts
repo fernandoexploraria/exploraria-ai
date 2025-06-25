@@ -17,6 +17,7 @@ export interface PhotoData {
   }>;
   width: number;
   height: number;
+  qualityScore?: number;
 }
 
 export interface PhotosResponse {
@@ -25,9 +26,50 @@ export interface PhotosResponse {
   totalPhotos: number;
 }
 
+const calculatePhotoScore = (photo: PhotoData, index: number): number => {
+  let score = 0;
+  
+  // Resolution quality (0-40 points)
+  const pixels = photo.width * photo.height;
+  score += Math.min(40, pixels / 50000);
+  
+  // Aspect ratio preference (0-20 points)
+  const aspectRatio = photo.width / photo.height;
+  if (aspectRatio >= 1.2 && aspectRatio <= 2.0) {
+    score += 20; // Ideal landscape ratio for landmarks
+  } else if (aspectRatio >= 1.0) {
+    score += 10; // Acceptable landscape
+  }
+  
+  // Google's order bonus (0-10 points)
+  score += Math.max(0, 10 - index * 2);
+  
+  // Size threshold penalty
+  if (photo.width < 400) {
+    score -= 20;
+  }
+  
+  return score;
+};
+
 export const useEnhancedPhotos = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const selectBestPhoto = useCallback((photos: PhotoData[]): PhotoData | null => {
+    if (!photos || photos.length === 0) return null;
+    
+    // Calculate scores and sort by quality
+    const scoredPhotos = photos.map((photo, index) => ({
+      ...photo,
+      qualityScore: calculatePhotoScore(photo, index)
+    }));
+    
+    // Sort by quality score (highest first)
+    scoredPhotos.sort((a, b) => (b.qualityScore || 0) - (a.qualityScore || 0));
+    
+    return scoredPhotos[0];
+  }, []);
 
   const fetchPhotos = useCallback(async (
     placeId: string, 
@@ -60,8 +102,22 @@ export const useEnhancedPhotos = () => {
       }
 
       if (data?.photos && data.photos.length > 0) {
-        console.log(`✅ Successfully fetched ${data.photos.length} photos for place: ${placeId}`);
-        return data;
+        // Apply quality scoring and sort photos
+        const photosWithScores = data.photos.map((photo: PhotoData, index: number) => ({
+          ...photo,
+          qualityScore: calculatePhotoScore(photo, index)
+        }));
+        
+        // Sort by quality score (highest first)
+        photosWithScores.sort((a: PhotoData, b: PhotoData) => 
+          (b.qualityScore || 0) - (a.qualityScore || 0)
+        );
+        
+        console.log(`✅ Successfully fetched ${photosWithScores.length} photos for place: ${placeId} (sorted by quality)`);
+        return {
+          ...data,
+          photos: photosWithScores
+        };
       } else {
         console.log(`ℹ️ No photos available for place: ${placeId}`);
         return { photos: [], placeId, totalPhotos: 0 };
@@ -89,9 +145,15 @@ export const useEnhancedPhotos = () => {
     }
   }, []);
 
+  const getBestPhoto = useCallback((photos: PhotoData[]): PhotoData | null => {
+    return selectBestPhoto(photos);
+  }, [selectBestPhoto]);
+
   return {
     fetchPhotos,
     getOptimalPhotoUrl,
+    getBestPhoto,
+    selectBestPhoto,
     loading,
     error
   };
