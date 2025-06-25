@@ -142,12 +142,12 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                 </Badge>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Notification Distance:</span>
-                <span className="text-orange-600">{formatDistance(proximitySettings.notification_distance)}</span>
-              </div>
-              <div className="flex justify-between">
                 <span className="text-muted-foreground">Outer Distance (Prep):</span>
                 <span className="text-yellow-600">{formatDistance(proximitySettings.outer_distance)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Notification Distance:</span>
+                <span className="text-orange-600">{formatDistance(proximitySettings.notification_distance)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Card Distance:</span>
