@@ -23,7 +23,10 @@ const MarkerManager: React.FC<MarkerManagerProps> = ({
 
   // Update markers when landmarks change
   useEffect(() => {
-    if (!map) return;
+    if (!map) {
+      console.log('🗺️ [MarkerManager] Map not ready yet, skipping marker update');
+      return;
+    }
 
     const landmarkIds = new Set(landmarks.map(l => l.id));
     const currentLandmarkSignature = landmarks.map(l => l.id).sort().join(',');
@@ -49,16 +52,22 @@ const MarkerManager: React.FC<MarkerManagerProps> = ({
         const el = createMarkerElement(landmark);
         
         const marker = new mapboxgl.Marker(el)
-          .setLngLat(landmark.coordinates)
-          .addTo(map);
+          .setLngLat(landmark.coordinates);
 
-        marker.getElement().addEventListener('click', async (e) => {
-          e.stopPropagation();
-          console.log('🗺️ [MarkerManager] Marker clicked:', landmark.name);
-          onMarkerClick(landmark);
-        });
+        // Only add to map if map is available and not null
+        if (map && map.getCanvasContainer) {
+          marker.addTo(map);
+          
+          marker.getElement().addEventListener('click', async (e) => {
+            e.stopPropagation();
+            console.log('🗺️ [MarkerManager] Marker clicked:', landmark.name);
+            onMarkerClick(landmark);
+          });
 
-        markersRef.current[landmark.id] = marker;
+          markersRef.current[landmark.id] = marker;
+        } else {
+          console.warn('🗺️ [MarkerManager] Map not ready for marker:', landmark.name);
+        }
       }
     });
 
@@ -67,6 +76,8 @@ const MarkerManager: React.FC<MarkerManagerProps> = ({
 
   // Update marker styles when selected landmark changes
   useEffect(() => {
+    if (!map) return;
+    
     Object.entries(markersRef.current).forEach(([id, marker]) => {
       const landmark = landmarks.find(l => l.id === id);
       if (landmark) {
@@ -75,7 +86,7 @@ const MarkerManager: React.FC<MarkerManagerProps> = ({
         updateMarkerStyle(element, isSelected, landmark);
       }
     });
-  }, [selectedLandmark, landmarks, markersRef]);
+  }, [selectedLandmark, landmarks, markersRef, map]);
 
   return null; // This component doesn't render anything directly
 };
