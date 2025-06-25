@@ -44,6 +44,9 @@ const Map: React.FC<MapProps> = ({
   const userInitiatedLocationRequest = useRef<boolean>(false);
   const lastLocationEventTime = useRef<number>(0);
   
+  // New ref to track processed planned landmarks to prevent repeated fly-to operations
+  const processedPlannedLandmarks = useRef<string[]>([]);
+  
   const { user } = useAuth();
   const { updateProximityEnabled, proximitySettings } = useProximityAlerts();
 
@@ -865,6 +868,23 @@ const Map: React.FC<MapProps> = ({
     if (!map.current || !plannedLandmarks || plannedLandmarks.length === 0) {
       return;
     }
+
+    // Create a unique identifier for the current set of planned landmarks
+    const currentLandmarkIds = plannedLandmarks.map(landmark => landmark.id).sort();
+    const currentLandmarkSignature = currentLandmarkIds.join(',');
+    
+    // Check if we've already processed this exact set of planned landmarks
+    const previousSignature = processedPlannedLandmarks.current.join(',');
+    
+    if (currentLandmarkSignature === previousSignature) {
+      console.log('🗺️ Planned landmarks unchanged, skipping fly-to animation');
+      return;
+    }
+
+    console.log('🗺️ New planned landmarks detected, flying to show tour');
+    
+    // Update the processed landmarks reference
+    processedPlannedLandmarks.current = currentLandmarkIds;
 
     if (plannedLandmarks.length > 1) {
       const bounds = new mapboxgl.LngLatBounds();
