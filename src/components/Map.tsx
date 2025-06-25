@@ -522,20 +522,20 @@ const Map: React.FC<MapProps> = ({
     try {
       console.log('🖼️ Fetching enhanced photos for:', landmark.name);
       
-      // First try to get place ID using existing place search
+      // Fixed: Pass clean landmark name as query and coordinates separately
       const { data: searchData, error: searchError } = await supabase.functions.invoke('google-places-search', {
         body: { 
-          query: `${landmark.name} ${landmark.coordinates[1]},${landmark.coordinates[0]}`,
-          location: landmark.coordinates
+          query: landmark.name, // Clean landmark name without coordinates
+          coordinates: landmark.coordinates // Pass coordinates separately as [lng, lat]
         }
       });
 
-      if (searchError || !searchData?.results?.[0]?.place_id) {
+      if (searchError || !searchData?.results?.[0]?.placeId) {
         console.log('No place ID found for:', landmark.name);
         return [];
       }
 
-      const placeId = searchData.results[0].place_id;
+      const placeId = searchData.results[0].placeId;
       console.log('Found place ID for', landmark.name, ':', placeId);
 
       // Fetch enhanced photos using new v2 API
