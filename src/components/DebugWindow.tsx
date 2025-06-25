@@ -191,17 +191,17 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
               {prepZoneLandmarks.map((nearby, index) => {
                 const isInNotificationZone = notificationZoneLandmarks.some(n => n.landmark.id === nearby.landmark.id);
                 return (
-                  <div key={nearby.landmark.id} className="border rounded p-2 space-y-1 bg-yellow-50 dark:bg-yellow-950/10">
+                  <div key={nearby.landmark.id} className="border border-yellow-200 dark:border-yellow-800 rounded p-2 space-y-1 bg-yellow-100 dark:bg-yellow-900/20">
                     <div className="flex justify-between items-start">
-                      <span className="font-semibold text-xs leading-tight">
+                      <span className="font-semibold text-xs leading-tight text-yellow-900 dark:text-yellow-100">
                         {nearby.landmark.name}
                       </span>
                       <div className="flex gap-1 ml-2 flex-shrink-0">
-                        <Badge variant="outline" className="text-xs">
+                        <Badge variant="outline" className="text-xs border-yellow-300 dark:border-yellow-700 text-yellow-800 dark:text-yellow-200">
                           #{index + 1}
                         </Badge>
                         {isInNotificationZone && (
-                          <Badge variant="default" className="text-xs bg-orange-500">
+                          <Badge variant="default" className="text-xs bg-orange-600 hover:bg-orange-700 text-white">
                             <Bell className="w-2 h-2 mr-1" />
                             Notify
                           </Badge>
@@ -209,12 +209,12 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                       </div>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Distance:</span>
-                      <span className="text-yellow-600">{formatDistance(nearby.distance)}</span>
+                      <span className="text-yellow-700 dark:text-yellow-300">Distance:</span>
+                      <span className="text-yellow-800 dark:text-yellow-200 font-medium">{formatDistance(nearby.distance)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Coordinates:</span>
-                      <span className="text-blue-600 text-xs">
+                      <span className="text-yellow-700 dark:text-yellow-300">Coordinates:</span>
+                      <span className="text-blue-700 dark:text-blue-300 text-xs font-mono">
                         [{formatCoordinate(nearby.landmark.coordinates[0])}, {formatCoordinate(nearby.landmark.coordinates[1])}]
                       </span>
                     </div>
@@ -236,20 +236,20 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
             </div>
             <div className="pl-5 space-y-2 max-h-40 overflow-y-auto">
               {notificationZoneLandmarks.map((nearby, index) => (
-                <div key={nearby.landmark.id} className="border rounded p-2 space-y-1 bg-orange-50 dark:bg-orange-950/10">
+                <div key={nearby.landmark.id} className="border border-orange-200 dark:border-orange-800 rounded p-2 space-y-1 bg-orange-100 dark:bg-orange-900/20">
                   <div className="flex justify-between items-start">
-                    <span className="font-semibold text-xs leading-tight">
+                    <span className="font-semibold text-xs leading-tight text-orange-900 dark:text-orange-100">
                       {nearby.landmark.name}
                     </span>
-                    <Badge variant="outline" className="text-xs ml-2 flex-shrink-0">
+                    <Badge variant="outline" className="text-xs ml-2 flex-shrink-0 border-orange-300 dark:border-orange-700 text-orange-800 dark:text-orange-200">
                       #{index + 1}
                     </Badge>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Distance:</span>
-                    <span className="text-orange-600">{formatDistance(nearby.distance)}</span>
+                    <span className="text-orange-700 dark:text-orange-300">Distance:</span>
+                    <span className="text-orange-800 dark:text-orange-200 font-medium">{formatDistance(nearby.distance)}</span>
                   </div>
-                  <div className="text-muted-foreground text-xs leading-tight">
+                  <div className="text-orange-700 dark:text-orange-300 text-xs leading-tight">
                     {nearby.landmark.description.substring(0, 60)}
                     {nearby.landmark.description.length > 60 && '...'}
                   </div>
