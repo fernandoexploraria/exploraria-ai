@@ -1,11 +1,9 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Wifi, WifiOff, RotateCw } from 'lucide-react';
+import { X, Wifi, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import StreetViewNavigationControls from './StreetViewNavigationControls';
 import StreetViewThumbnailGrid from './StreetViewThumbnailGrid';
-import StreetViewCompass from './StreetViewCompass';
 import SkeletonLoader from './ui/skeleton-loader';
 import OfflineIndicator from './OfflineIndicator';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -26,19 +24,9 @@ interface StreetViewData {
   };
 }
 
-interface MultiViewpointData {
-  primary: StreetViewData;
-  viewpoints: StreetViewData[];
-  metadata: {
-    totalViews: number;
-    recommendedView: number;
-    dataUsage: string;
-  };
-}
-
 interface StreetViewItem {
   landmark: any;
-  streetViewData: StreetViewData | MultiViewpointData | null;
+  streetViewData: StreetViewData | null;
 }
 
 interface EnhancedStreetViewModalProps {
@@ -49,10 +37,6 @@ interface EnhancedStreetViewModalProps {
   onLocationSelect?: (coordinates: [number, number]) => void;
 }
 
-const isMultiViewpointData = (data: any): data is MultiViewpointData => {
-  return data && 'primary' in data && 'viewpoints' in data && 'metadata' in data;
-};
-
 const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
   isOpen,
   onClose,
@@ -61,63 +45,28 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
   onLocationSelect
 }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const [currentViewpoint, setCurrentViewpoint] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [imageLoading, setImageLoading] = useState<{[key: string]: boolean}>({});
+  const [imageLoading, setImageLoading] = useState<{[key: number]: boolean}>({});
   const { isOnline, isSlowConnection } = useNetworkStatus();
 
-  // Reset indices when modal opens or items change
+  // Reset index when modal opens or items change
   useEffect(() => {
     setCurrentIndex(initialIndex);
-    setCurrentViewpoint(0);
   }, [initialIndex, streetViewItems]);
-
-  // Reset viewpoint when landmark changes
-  useEffect(() => {
-    setCurrentViewpoint(0);
-  }, [currentIndex]);
 
   // Keyboard navigation
   useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyPress = (e: KeyboardEvent) => {
-      const currentItem = streetViewItems[currentIndex];
-      const isMultiViewpoint = currentItem?.streetViewData && isMultiViewpointData(currentItem.streetViewData);
-      const maxViewpoints = isMultiViewpoint ? currentItem.streetViewData.viewpoints.length : 1;
-
       switch (e.key) {
         case 'ArrowLeft':
           e.preventDefault();
-          if (e.shiftKey && isMultiViewpoint) {
-            // Shift+Left: Previous viewpoint
-            setCurrentViewpoint(prev => prev > 0 ? prev - 1 : maxViewpoints - 1);
-          } else {
-            // Left: Previous landmark
-            handlePrevious();
-          }
+          handlePrevious();
           break;
         case 'ArrowRight':
           e.preventDefault();
-          if (e.shiftKey && isMultiViewpoint) {
-            // Shift+Right: Next viewpoint
-            setCurrentViewpoint(prev => prev < maxViewpoints - 1 ? prev + 1 : 0);
-          } else {
-            // Right: Next landmark
-            handleNext();
-          }
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          if (isMultiViewpoint) {
-            setCurrentViewpoint(prev => prev > 0 ? prev - 1 : maxViewpoints - 1);
-          }
-          break;
-        case 'ArrowDown':
-          e.preventDefault();
-          if (isMultiViewpoint) {
-            setCurrentViewpoint(prev => prev < maxViewpoints - 1 ? prev + 1 : 0);
-          }
+          handleNext();
           break;
         case 'Escape':
           e.preventDefault();
@@ -133,7 +82,7 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
 
     document.addEventListener('keydown', handleKeyPress);
     return () => document.removeEventListener('keydown', handleKeyPress);
-  }, [isOpen, currentIndex, currentViewpoint, streetViewItems.length]);
+  }, [isOpen, currentIndex, streetViewItems.length]);
 
   const handlePrevious = useCallback(() => {
     setCurrentIndex(prev => prev > 0 ? prev - 1 : streetViewItems.length - 1);
@@ -154,36 +103,27 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
   const handleShowOnMap = useCallback(() => {
     const currentItem = streetViewItems[currentIndex];
     if (currentItem?.streetViewData && onLocationSelect) {
-      let location;
-      
-      if (isMultiViewpointData(currentItem.streetViewData)) {
-        const currentStreetView = currentItem.streetViewData.viewpoints[currentViewpoint];
-        location = currentStreetView.location;
-      } else {
-        location = currentItem.streetViewData.location;
-      }
-      
-      if (location) {
-        onLocationSelect([location.lng, location.lat]);
-        onClose();
-      }
+      const { lat, lng } = currentItem.streetViewData.location;
+      onLocationSelect([lng, lat]);
+      onClose();
     }
-  }, [currentIndex, currentViewpoint, streetViewItems, onLocationSelect, onClose]);
+  }, [currentIndex, streetViewItems, onLocationSelect, onClose]);
 
-  const handleImageLoad = useCallback((key: string) => {
-    setImageLoading(prev => ({ ...prev, [key]: false }));
+  const handleImageLoad = useCallback((index: number) => {
+    setImageLoading(prev => ({ ...prev, [index]: false }));
   }, []);
 
-  const handleImageLoadStart = useCallback((key: string) => {
-    setImageLoading(prev => ({ ...prev, [key]: true }));
+  const handleImageLoadStart = useCallback((index: number) => {
+    setImageLoading(prev => ({ ...prev, [index]: true }));
   }, []);
 
   if (!isOpen || streetViewItems.length === 0) return null;
 
   const currentItem = streetViewItems[currentIndex];
-  const currentStreetViewData = currentItem?.streetViewData;
+  const currentStreetView = currentItem?.streetViewData;
+  const isCurrentImageLoading = imageLoading[currentIndex];
 
-  if (!currentStreetViewData) {
+  if (!currentStreetView) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
         <div className="bg-white rounded-lg p-8 max-w-md text-center">
@@ -203,32 +143,7 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
     );
   }
 
-  // Handle both single and multi-viewpoint data
-  const isMultiViewpoint = isMultiViewpointData(currentStreetViewData);
-  const currentStreetView = isMultiViewpoint 
-    ? currentStreetViewData.viewpoints[currentViewpoint]
-    : currentStreetViewData;
-  
-  const allViewpoints = isMultiViewpoint 
-    ? currentStreetViewData.viewpoints 
-    : [currentStreetViewData];
-    
-  const dataUsage = isMultiViewpoint 
-    ? currentStreetViewData.metadata.dataUsage 
-    : 'Single view';
-
-  const imageKey = `${currentIndex}-${currentViewpoint}`;
-  const isCurrentImageLoading = imageLoading[imageKey];
-
   const availableItems = streetViewItems.filter(item => item.streetViewData);
-
-  // Convert streetViewItems to thumbnailData format for the grid
-  const thumbnailData = streetViewItems.map(item => ({
-    landmark: item.landmark,
-    streetViewData: item.streetViewData && isMultiViewpointData(item.streetViewData) 
-      ? item.streetViewData.primary 
-      : item.streetViewData as StreetViewData | null
-  }));
 
   return (
     <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/90 ${isFullscreen ? 'p-0' : 'p-4'}`}>
@@ -241,23 +156,10 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
               <div className="flex items-center gap-2 mb-1">
                 <h2 className="text-xl font-bold">{currentStreetView.landmarkName}</h2>
                 <OfflineIndicator />
-                {isMultiViewpoint && (
-                  <div className="flex items-center gap-1">
-                    <RotateCw className="w-4 h-4" />
-                    <span className="text-sm">{allViewpoints.length} views</span>
-                  </div>
-                )}
               </div>
-              <div className="flex items-center gap-4 text-sm opacity-90">
-                <span>
-                  Street View • {currentStreetView.location.lat.toFixed(6)}, {currentStreetView.location.lng.toFixed(6)}
-                </span>
-                {isMultiViewpoint && (
-                  <span className="text-blue-400">
-                    {dataUsage}
-                  </span>
-                )}
-              </div>
+              <p className="text-sm opacity-90">
+                Street View • {currentStreetView.location.lat.toFixed(6)}, {currentStreetView.location.lng.toFixed(6)}
+              </p>
               {isSlowConnection && (
                 <p className="text-xs text-yellow-400 mt-1">
                   Slow connection detected - images may take longer to load
@@ -300,13 +202,13 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
           
           <img
             src={currentStreetView.imageUrl}
-            alt={`Street View of ${currentStreetView.landmarkName} (${currentStreetView.heading}°)`}
+            alt={`Street View of ${currentStreetView.landmarkName}`}
             className={`w-full h-full object-cover transition-opacity duration-300 ${
               isCurrentImageLoading ? 'opacity-0' : 'opacity-100'
             }`}
-            onLoadStart={() => handleImageLoadStart(imageKey)}
-            onLoad={() => handleImageLoad(imageKey)}
-            onError={() => handleImageLoad(imageKey)}
+            onLoadStart={() => handleImageLoadStart(currentIndex)}
+            onLoad={() => handleImageLoad(currentIndex)}
+            onError={() => handleImageLoad(currentIndex)}
           />
           
           {/* Connection indicator for image */}
@@ -318,22 +220,11 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
           )}
         </div>
 
-        {/* Multi-viewpoint Compass */}
-        {isMultiViewpoint && allViewpoints.length > 1 && (
-          <div className="absolute top-1/2 right-4 transform -translate-y-1/2">
-            <StreetViewCompass
-              viewpoints={allViewpoints}
-              currentViewpoint={currentViewpoint}
-              onViewpointChange={setCurrentViewpoint}
-            />
-          </div>
-        )}
-
         {/* Thumbnail Navigation */}
         {availableItems.length > 1 && (
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
             <StreetViewThumbnailGrid
-              thumbnails={thumbnailData}
+              thumbnails={streetViewItems}
               onThumbnailClick={handleThumbnailClick}
               selectedIndex={currentIndex}
               className="justify-center"
@@ -352,7 +243,7 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
 
         {/* Keyboard shortcuts hint */}
         <div className="absolute bottom-4 right-4 text-white text-xs opacity-50">
-          ← → Navigate • {isMultiViewpoint ? '↑ ↓ / Shift+← → Change View • ' : ''}F Fullscreen • ESC Close
+          ← → Navigate • F Fullscreen • ESC Close
         </div>
       </div>
     </div>
