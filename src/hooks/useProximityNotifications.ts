@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -33,16 +34,22 @@ export const useProximityNotifications = () => {
   const prepZoneStateRef = useRef<PrepZoneState>({});
   const previousNearbyLandmarksRef = useRef<Set<string>>(new Set());
 
-  // Get nearby landmarks within toast distance
+  // Check if proximity settings are loaded with valid distance values
+  const isProximitySettingsReady = proximitySettings && 
+    typeof proximitySettings.toast_distance === 'number' && 
+    typeof proximitySettings.route_distance === 'number' && 
+    typeof proximitySettings.card_distance === 'number';
+
+  // Get nearby landmarks within toast distance - only if settings are ready
   const nearbyLandmarks = useNearbyLandmarks({
     userLocation,
-    toastDistance: proximitySettings?.toast_distance || 1500
+    toastDistance: isProximitySettingsReady ? proximitySettings.toast_distance : undefined
   });
 
-  // Get landmarks within prep zone (route_distance)
+  // Get landmarks within prep zone (route_distance) - only if settings are ready
   const prepZoneLandmarks = useNearbyLandmarks({
     userLocation,
-    toastDistance: proximitySettings?.route_distance || 1000
+    toastDistance: isProximitySettingsReady ? proximitySettings.route_distance : undefined
   });
 
   // Load notification state from localStorage
@@ -220,9 +227,9 @@ export const useProximityNotifications = () => {
     saveNotificationState();
   }, [saveNotificationState, showRouteToLandmark, playNotificationSound, speak, getCachedData]);
 
-  // Monitor prep zone entries
+  // Monitor prep zone entries - only when settings are ready
   useEffect(() => {
-    if (!proximitySettings?.is_enabled || !userLocation || prepZoneLandmarks.length === 0) {
+    if (!isProximitySettingsReady || !proximitySettings.is_enabled || !userLocation || prepZoneLandmarks.length === 0) {
       return;
     }
 
@@ -245,11 +252,11 @@ export const useProximityNotifications = () => {
         saveNotificationState();
       }
     });
-  }, [prepZoneLandmarks, proximitySettings?.is_enabled, userLocation, handlePrepZoneEntry, saveNotificationState]);
+  }, [prepZoneLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, handlePrepZoneEntry, saveNotificationState]);
 
-  // Monitor for newly entered proximity zones - MODIFIED TO SHOW ONLY ONE TOAST
+  // Monitor for newly entered proximity zones - only when settings are ready
   useEffect(() => {
-    if (!proximitySettings?.is_enabled || !userLocation || nearbyLandmarks.length === 0) {
+    if (!isProximitySettingsReady || !proximitySettings.is_enabled || !userLocation || nearbyLandmarks.length === 0) {
       return;
     }
 
@@ -278,7 +285,7 @@ export const useProximityNotifications = () => {
 
     // Update previous nearby landmarks
     previousNearbyLandmarksRef.current = currentNearbyIds;
-  }, [nearbyLandmarks, proximitySettings?.is_enabled, userLocation, canNotify, showProximityToast]);
+  }, [nearbyLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, canNotify, showProximityToast]);
 
   // Cleanup expired notifications from state
   useEffect(() => {
