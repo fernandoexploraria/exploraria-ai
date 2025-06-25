@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { UserLocation } from '@/types/proximityAlerts';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useNearbyLandmarks } from '@/hooks/useNearbyLandmarks';
-import { useStreetViewBatch } from '@/hooks/useStreetViewBatch';
+import { useEnhancedStreetViewMulti } from '@/hooks/useEnhancedStreetViewMulti';
 import { 
   detectMovement, 
   calculateAdaptiveInterval, 
@@ -60,14 +60,14 @@ export const useLocationTracking = (): LocationTrackingHook => {
   const locationHistoryRef = useRef<LocationHistory[]>([]);
   const lastSignificantLocationRef = useRef<UserLocation | null>(null);
 
-  // Get nearby landmarks using outer_distance for Street View pre-loading
+  // Get nearby landmarks using outer_distance for enhanced Street View pre-loading
   const nearbyLandmarks = useNearbyLandmarks({
     userLocation,
     notificationDistance: proximitySettings?.outer_distance || 250
   });
 
-  // Add Street View batch pre-loading
-  const { batchPreloadStreetView } = useStreetViewBatch();
+  // Add enhanced Street View multi-viewpoint pre-loading
+  const { preloadForProximity } = useEnhancedStreetViewMulti();
   const lastPreloadLocationRef = useRef<UserLocation | null>(null);
   const PRELOAD_DISTANCE_THRESHOLD = 200; // meters - trigger preload when moving this distance
 
@@ -143,7 +143,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
       console.log(`🔄 Location unchanged (within ${LOCATION_CHANGE_THRESHOLD}m threshold)`);
     }
 
-    // Trigger Street View pre-loading for nearby landmarks when location changes significantly
+    // Trigger enhanced Street View multi-viewpoint pre-loading for nearby landmarks when location changes significantly
     const shouldPreloadStreetView = () => {
       if (!lastPreloadLocationRef.current) return true;
       
@@ -158,13 +158,16 @@ export const useLocationTracking = (): LocationTrackingHook => {
     };
 
     if (isSignificant && nearbyLandmarks.length > 0 && shouldPreloadStreetView()) {
-      console.log(`🔄 Triggering Street View pre-loading for ${nearbyLandmarks.length} nearby landmarks (within ${proximitySettings?.outer_distance || 250}m outer zone)`);
+      console.log(`🔄 Triggering enhanced Street View multi-viewpoint pre-loading for ${nearbyLandmarks.length} nearby landmarks (within ${proximitySettings?.outer_distance || 250}m outer zone)`);
       
-      // Extract landmarks from NearbyLandmark objects and pre-load Street View
+      // Extract landmarks from NearbyLandmark objects and pre-load enhanced Street View
       const landmarksToPreload = nearbyLandmarks.map(nearbyLandmark => nearbyLandmark.landmark);
       
-      batchPreloadStreetView(landmarksToPreload).catch(error => {
-        console.warn('⚠️ Street View pre-loading failed:', error);
+      preloadForProximity(landmarksToPreload, {
+        latitude: newLocation.latitude,
+        longitude: newLocation.longitude
+      }).catch(error => {
+        console.warn('⚠️ Enhanced Street View multi-viewpoint pre-loading failed:', error);
       });
       
       lastPreloadLocationRef.current = newLocation;
@@ -195,7 +198,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
       console.log(`⏱️ Adapting poll interval: ${locationState.pollInterval}ms → ${finalInterval}ms`);
       scheduleNextPoll(finalInterval);
     }
-  }, [setUserLocation, nearbyLandmarks.length, locationState.isInBackground, locationState.pollInterval, batchPreloadStreetView, nearbyLandmarks, proximitySettings?.outer_distance]);
+  }, [setUserLocation, nearbyLandmarks.length, locationState.isInBackground, locationState.pollInterval, preloadForProximity, nearbyLandmarks, proximitySettings?.outer_distance]);
 
   // Handle location error with exponential backoff
   const handleLocationError = useCallback((error: GeolocationPositionError) => {
@@ -313,7 +316,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
 
   // Start optimized tracking
   const startTracking = useCallback(async (): Promise<void> => {
-    console.log(`🚀 Starting optimized location tracking...`);
+    console.log(`🚀 Starting optimized location tracking with enhanced Street View...`);
     
     if (!navigator.geolocation) {
       console.error('❌ Geolocation not supported');
@@ -343,7 +346,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
     // Start adaptive polling
     scheduleNextPoll(BASE_POLLING_INTERVAL);
 
-    console.log(`✅ Optimized location tracking started`);
+    console.log(`✅ Optimized location tracking with enhanced Street View started`);
   }, [requestCurrentLocation, scheduleNextPoll]);
 
   // Stop tracking

@@ -1,7 +1,6 @@
 
 import { useState, useCallback, useEffect } from 'react';
-import { useStreetViewBatch } from '@/hooks/useStreetViewBatch';
-import { useEnhancedStreetView } from '@/hooks/useEnhancedStreetView';
+import { useEnhancedStreetViewMulti } from '@/hooks/useEnhancedStreetViewMulti';
 import { Landmark } from '@/data/landmarks';
 
 interface StreetViewNavigationState {
@@ -20,14 +19,18 @@ export const useStreetViewNavigation = () => {
     streetViewItems: []
   });
 
-  const { batchPreloadStreetView, results } = useStreetViewBatch();
-  const { getStreetViewWithOfflineSupport } = useEnhancedStreetView();
+  const { 
+    fetchEnhancedStreetView, 
+    preloadForProximity,
+    getViewpointStrategy 
+  } = useEnhancedStreetViewMulti();
 
   const openStreetViewModal = useCallback(async (
     landmarks: Landmark[], 
-    initialLandmark?: Landmark
+    initialLandmark?: Landmark,
+    userLocation?: { latitude: number; longitude: number }
   ) => {
-    console.log(`🔍 Opening Street View modal for ${landmarks.length} landmarks`);
+    console.log(`🔍 Opening enhanced Street View modal for ${landmarks.length} landmarks`);
     console.log('📍 Landmarks to process:', landmarks.map(l => l.name));
     
     if (landmarks.length === 0) {
@@ -36,43 +39,52 @@ export const useStreetViewNavigation = () => {
     }
 
     try {
-      // Try batch pre-loading first
-      console.log('🔄 Attempting batch pre-loading...');
-      await batchPreloadStreetView(landmarks);
+      // If user location is provided, use proximity-based preloading
+      if (userLocation) {
+        console.log('🔄 Using proximity-based enhanced Street View preloading...');
+        await preloadForProximity(landmarks, userLocation);
+      }
       
       let streetViewItems = [];
       
-      // If batch results are available, use them
-      if (results.length > 0) {
-        console.log('✅ Using batch results:', results.length);
-        streetViewItems = results.map(result => ({
-          landmark: result.landmark,
-          streetViewData: result.data
-        }));
-      } else {
-        // Fallback: try to get Street View data individually
-        console.log('🔄 Batch failed, trying individual Street View requests...');
-        
-        for (const landmark of landmarks) {
-          try {
-            console.log(`🔍 Getting Street View for ${landmark.name}...`);
-            const streetViewData = await getStreetViewWithOfflineSupport(landmark);
-            streetViewItems.push({
-              landmark,
-              streetViewData
-            });
-            console.log(`✅ Got Street View data for ${landmark.name}`);
-          } catch (error) {
-            console.log(`❌ Failed to get Street View for ${landmark.name}:`, error);
-            streetViewItems.push({
-              landmark,
-              streetViewData: null
-            });
+      // Fetch enhanced Street View data individually with distance-based strategies
+      for (const landmark of landmarks) {
+        try {
+          console.log(`🔍 Getting enhanced Street View for ${landmark.name}...`);
+          
+          // Calculate distance if user location is available
+          let distance;
+          if (userLocation) {
+            distance = Math.sqrt(
+              Math.pow((landmark.coordinates[1] - userLocation.latitude) * 111000, 2) +
+              Math.pow((landmark.coordinates[0] - userLocation.longitude) * 111000, 2)
+            );
           }
+          
+          const streetViewData = await fetchEnhancedStreetView(landmark, distance);
+          streetViewItems.push({
+            landmark,
+            streetViewData
+          });
+          
+          if (streetViewData) {
+            const isMultiViewpoint = 'viewpoints' in streetViewData;
+            const viewCount = isMultiViewpoint ? streetViewData.viewpoints.length : 1;
+            const dataUsage = isMultiViewpoint ? streetViewData.metadata.dataUsage : 'Single view';
+            console.log(`✅ Got enhanced Street View for ${landmark.name}: ${viewCount} viewpoints (${dataUsage})`);
+          } else {
+            console.log(`❌ No enhanced Street View available for ${landmark.name}`);
+          }
+        } catch (error) {
+          console.log(`❌ Failed to get enhanced Street View for ${landmark.name}:`, error);
+          streetViewItems.push({
+            landmark,
+            streetViewData: null
+          });
         }
       }
 
-      console.log('📋 Final street view items:', streetViewItems.length);
+      console.log('📋 Final enhanced street view items:', streetViewItems.length);
       
       // Find initial index
       const initialIndex = initialLandmark 
@@ -87,15 +99,15 @@ export const useStreetViewNavigation = () => {
         streetViewItems
       });
 
-      console.log('✅ Street View modal state updated, should be visible now');
+      console.log('✅ Enhanced Street View modal state updated, should be visible now');
       
     } catch (error) {
       console.error('❌ Error in openStreetViewModal:', error);
     }
-  }, [batchPreloadStreetView, results, getStreetViewWithOfflineSupport]);
+  }, [fetchEnhancedStreetView, preloadForProximity]);
 
   const closeStreetViewModal = useCallback(() => {
-    console.log('🔒 Closing Street View modal');
+    console.log('🔒 Closing enhanced Street View modal');
     setState(prev => ({ ...prev, isModalOpen: false }));
   }, []);
 
@@ -124,20 +136,6 @@ export const useStreetViewNavigation = () => {
     }));
   }, []);
 
-  // Update street view items when batch results change
-  useEffect(() => {
-    if (results.length > 0) {
-      console.log('🔄 Updating street view items from batch results:', results.length);
-      setState(prev => ({
-        ...prev,
-        streetViewItems: results.map(result => ({
-          landmark: result.landmark,
-          streetViewData: result.data
-        }))
-      }));
-    }
-  }, [results]);
-
   return {
     isModalOpen: state.isModalOpen,
     currentIndex: state.currentIndex,
@@ -146,6 +144,7 @@ export const useStreetViewNavigation = () => {
     closeStreetViewModal,
     navigateToIndex,
     navigateNext,
-    navigatePrevious
+    navigatePrevious,
+    getViewpointStrategy // Expose for external use
   };
 };
