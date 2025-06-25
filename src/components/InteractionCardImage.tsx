@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Download, Eye } from 'lucide-react';
+import { Download, Eye, EyeOff, Satellite, Link } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { useStreetView } from '@/hooks/useStreetView';
 import StreetViewModal from './StreetViewModal';
@@ -34,7 +34,8 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
   const [isStreetViewModalOpen, setIsStreetViewModalOpen] = useState(false);
   const [streetViewData, setStreetViewData] = useState(null);
   const [isLoadingStreetView, setIsLoadingStreetView] = useState(false);
-  const { getStreetView } = useStreetView();
+  const [streetViewStatus, setStreetViewStatus] = useState<'unknown' | 'available' | 'unavailable'>('unknown');
+  const { getStreetView, getCachedData, isKnownUnavailable } = useStreetView();
 
   // Convert interaction coordinates to Landmark format
   const landmarkFromInteraction: Landmark | null = React.useMemo(() => {
@@ -61,24 +62,40 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
     };
   }, [interaction]);
 
-  // Pre-load Street View data when component mounts
+  // Check Street View status on mount
   useEffect(() => {
     if (landmarkFromInteraction) {
-      const preloadStreetView = async () => {
-        try {
-          const data = await getStreetView(landmarkFromInteraction);
-          if (data) {
-            setStreetViewData(data);
-            console.log(`✅ Street View pre-loaded for ${landmarkFromInteraction.name}`);
+      const cached = getCachedData(landmarkFromInteraction.id);
+      const isUnavailable = isKnownUnavailable(landmarkFromInteraction.id);
+      
+      if (cached) {
+        setStreetViewData(cached);
+        setStreetViewStatus('available');
+      } else if (isUnavailable) {
+        setStreetViewStatus('unavailable');
+      } else {
+        // Try to pre-load in the background
+        const preloadStreetView = async () => {
+          try {
+            const data = await getStreetView(landmarkFromInteraction);
+            if (data) {
+              setStreetViewData(data);
+              setStreetViewStatus('available');
+              console.log(`✅ Street View pre-loaded for ${landmarkFromInteraction.name}`);
+            } else {
+              setStreetViewStatus('unavailable');
+              console.log(`❌ Street View not available for ${landmarkFromInteraction.name}`);
+            }
+          } catch (error) {
+            setStreetViewStatus('unavailable');
+            console.log(`❌ Failed to pre-load Street View for ${landmarkFromInteraction.name}:`, error);
           }
-        } catch (error) {
-          console.log(`❌ Failed to pre-load Street View for ${landmarkFromInteraction.name}:`, error);
-        }
-      };
+        };
 
-      preloadStreetView();
+        preloadStreetView();
+      }
     }
-  }, [landmarkFromInteraction, getStreetView]);
+  }, [landmarkFromInteraction, getStreetView, getCachedData, isKnownUnavailable]);
 
   const handleStreetViewClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -102,16 +119,38 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
       
       if (data) {
         setStreetViewData(data);
+        setStreetViewStatus('available');
         setIsStreetViewModalOpen(true);
         console.log(`✅ Street View loaded for ${landmarkFromInteraction.name}`);
       } else {
+        setStreetViewStatus('unavailable');
         console.log(`❌ No Street View available for ${landmarkFromInteraction.name}`);
       }
     } catch (error) {
+      setStreetViewStatus('unavailable');
       console.error(`❌ Error loading Street View for ${landmarkFromInteraction.name}:`, error);
     } finally {
       setIsLoadingStreetView(false);
     }
+  };
+
+  const handleFallbackClick = (e: React.MouseEvent, type: 'satellite' | 'maps') => {
+    e.stopPropagation();
+    
+    if (!landmarkFromInteraction) return;
+    
+    const [lng, lat] = landmarkFromInteraction.coordinates;
+    let url: string;
+    
+    if (type === 'satellite') {
+      // Google Maps satellite view
+      url = `https://www.google.com/maps/@${lat},${lng},18z/data=!3m1!1e3`;
+    } else {
+      // Google Maps regular view
+      url = `https://www.google.com/maps/place/${lat},${lng}/@${lat},${lng},17z`;
+    }
+    
+    window.open(url, '_blank');
   };
 
   const handleImageDownload = async (e: React.MouseEvent) => {
@@ -119,24 +158,19 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
     console.log('Download button clicked');
 
     try {
-      // Check if we're on a native platform (mobile app or PWA with native capabilities)
+      // Check if we're on a native platform
       const isNativePlatform = Capacitor.isNativePlatform() || 
                               (Capacitor.getPlatform() === 'web' && 'serviceWorker' in navigator);
 
       if (isNativePlatform && Capacitor.isNativePlatform()) {
         console.log('Attempting native save...');
-        
-        // For native platforms, we would need a different plugin like @capacitor/filesystem
-        // and @capacitor/share to save to gallery. For now, fall back to download.
         throw new Error('Native save not implemented yet, using fallback');
-        
       } else {
         throw new Error('Not a native platform, using fallback');
       }
     } catch (error) {
       console.log('Using standard download:', error);
       
-      // Standard download approach for all platforms
       try {
         const response = await fetch(imageUrl);
         const blob = await response.blob();
@@ -166,8 +200,8 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
           className="w-full h-20 object-cover rounded"
         />
         
-        {/* Street View Available Badge */}
-        {streetViewData && (
+        {/* Street View Status Badge */}
+        {streetViewStatus === 'available' && (
           <div className="absolute top-1 left-1">
             <Badge variant="secondary" className="text-xs bg-blue-500/80 text-white border-0">
               Street View
@@ -175,19 +209,80 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
           </div>
         )}
         
+        {streetViewStatus === 'unavailable' && (
+          <div className="absolute top-1 left-1">
+            <Badge variant="secondary" className="text-xs bg-gray-500/80 text-white border-0">
+              No Street View
+            </Badge>
+          </div>
+        )}
+        
         {/* Action Buttons */}
         <div className="absolute top-1 right-1 flex gap-1">
           {/* Street View Button */}
-          {landmarkFromInteraction && (
+          {landmarkFromInteraction && streetViewStatus === 'available' && (
             <Button
               variant="ghost"
               size="sm"
               className="h-6 w-6 p-0 bg-black/50 hover:bg-black/70"
               onClick={handleStreetViewClick}
               disabled={isLoadingStreetView}
-              title={streetViewData ? "View Street View" : "Load Street View"}
+              title="View Street View"
             >
               <Eye className={`w-3 h-3 text-white ${isLoadingStreetView ? 'animate-pulse' : ''}`} />
+            </Button>
+          )}
+          
+          {/* Disabled Street View Button */}
+          {landmarkFromInteraction && streetViewStatus === 'unavailable' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 bg-gray-500/50 cursor-not-allowed"
+              disabled
+              title="Street View not available"
+            >
+              <EyeOff className="w-3 h-3 text-gray-400" />
+            </Button>
+          )}
+          
+          {/* Loading Street View Button */}
+          {landmarkFromInteraction && streetViewStatus === 'unknown' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 bg-black/50 hover:bg-black/70"
+              onClick={handleStreetViewClick}
+              disabled={isLoadingStreetView}
+              title="Checking Street View availability..."
+            >
+              <Eye className={`w-3 h-3 text-white ${isLoadingStreetView ? 'animate-pulse' : ''}`} />
+            </Button>
+          )}
+          
+          {/* Fallback: Satellite View Button */}
+          {landmarkFromInteraction && streetViewStatus === 'unavailable' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 bg-black/50 hover:bg-black/70"
+              onClick={(e) => handleFallbackClick(e, 'satellite')}
+              title="View satellite imagery"
+            >
+              <Satellite className="w-3 h-3 text-white" />
+            </Button>
+          )}
+          
+          {/* Fallback: Maps Link Button */}
+          {landmarkFromInteraction && streetViewStatus === 'unavailable' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 bg-black/50 hover:bg-black/70"
+              onClick={(e) => handleFallbackClick(e, 'maps')}
+              title="Open in Google Maps"
+            >
+              <Link className="w-3 h-3 text-white" />
             </Button>
           )}
           

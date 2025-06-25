@@ -21,12 +21,14 @@ interface StreetViewData {
 
 interface StreetViewCache {
   [landmarkId: string]: {
-    data: StreetViewData;
+    data: StreetViewData | null; // null indicates Street View not available
     timestamp: number;
+    isAvailable: boolean;
   };
 }
 
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+const NEGATIVE_CACHE_DURATION = 60 * 60 * 1000; // 1 hour for failed requests
 
 export const useStreetView = () => {
   const [isLoading, setIsLoading] = useState<{[key: string]: boolean}>({});
@@ -38,13 +40,24 @@ export const useStreetView = () => {
     const cached = cacheRef.current[landmarkId];
     if (!cached) return null;
 
-    const isExpired = Date.now() - cached.timestamp > CACHE_DURATION;
-    if (isExpired) {
+    const cacheAge = Date.now() - cached.timestamp;
+    const maxAge = cached.isAvailable ? CACHE_DURATION : NEGATIVE_CACHE_DURATION;
+    
+    if (cacheAge > maxAge) {
       delete cacheRef.current[landmarkId];
       return null;
     }
 
     return cached.data;
+  }, []);
+
+  // Check if Street View is known to be unavailable (cached negative result)
+  const isKnownUnavailable = useCallback((landmarkId: string): boolean => {
+    const cached = cacheRef.current[landmarkId];
+    if (!cached) return false;
+
+    const cacheAge = Date.now() - cached.timestamp;
+    return !cached.isAvailable && cacheAge <= NEGATIVE_CACHE_DURATION;
   }, []);
 
   // Fetch Street View data for a landmark
@@ -53,9 +66,15 @@ export const useStreetView = () => {
     
     // Check cache first
     const cached = getCachedData(landmarkId);
-    if (cached) {
+    if (cached !== null) {
       console.log(`📋 Using cached Street View data for ${landmark.name}`);
       return cached;
+    }
+
+    // Check if we know it's unavailable
+    if (isKnownUnavailable(landmarkId)) {
+      console.log(`🚫 Street View known to be unavailable for ${landmark.name} (cached)`);
+      return null;
     }
 
     setIsLoading(prev => ({ ...prev, [landmarkId]: true }));
@@ -76,19 +95,36 @@ export const useStreetView = () => {
 
       if (error) {
         console.error(`❌ Error fetching Street View for ${landmark.name}:`, error);
+        
+        // Cache negative result
+        cacheRef.current[landmarkId] = {
+          data: null,
+          timestamp: Date.now(),
+          isAvailable: false
+        };
+        
         setError(`Failed to fetch Street View: ${error.message}`);
         return null;
       }
 
       if (!data) {
         console.log(`📭 No Street View data received for ${landmark.name}`);
+        
+        // Cache negative result
+        cacheRef.current[landmarkId] = {
+          data: null,
+          timestamp: Date.now(),
+          isAvailable: false
+        };
+        
         return null;
       }
 
-      // Cache the data
+      // Cache successful result
       cacheRef.current[landmarkId] = {
         data,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        isAvailable: true
       };
 
       console.log(`✅ Street View data cached for ${landmark.name}`);
@@ -97,24 +133,32 @@ export const useStreetView = () => {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       console.error(`❌ Exception fetching Street View for ${landmark.name}:`, err);
+      
+      // Cache negative result for network errors too
+      cacheRef.current[landmarkId] = {
+        data: null,
+        timestamp: Date.now(),
+        isAvailable: false
+      };
+      
       setError(errorMessage);
       return null;
     } finally {
       setIsLoading(prev => ({ ...prev, [landmarkId]: false }));
     }
-  }, [getCachedData]);
+  }, [getCachedData, isKnownUnavailable]);
 
   // Pre-load Street View data in the background
   const preloadStreetView = useCallback(async (landmark: Landmark): Promise<void> => {
     const cached = getCachedData(landmark.id);
-    if (cached) {
-      console.log(`🚀 Street View already cached for ${landmark.name}`);
+    if (cached !== null || isKnownUnavailable(landmark.id)) {
+      console.log(`🚀 Street View already processed for ${landmark.name}`);
       return;
     }
 
     console.log(`🔄 Pre-loading Street View for ${landmark.name}`);
     await fetchStreetView(landmark);
-  }, [fetchStreetView, getCachedData]);
+  }, [fetchStreetView, getCachedData, isKnownUnavailable]);
 
   // Get Street View data (from cache or fetch)
   const getStreetView = useCallback(async (landmark: Landmark): Promise<StreetViewData | null> => {
@@ -137,6 +181,7 @@ export const useStreetView = () => {
     preloadStreetView,
     getStreetView,
     getCachedData,
+    isKnownUnavailable,
     clearCache,
     isLoading,
     error
