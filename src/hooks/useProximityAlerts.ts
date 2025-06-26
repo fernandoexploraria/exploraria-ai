@@ -299,10 +299,6 @@ const convertTopLandmarkToLandmark = (topLandmark: any): Landmark => {
     id: `top-${topLandmark.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
     name: topLandmark.name,
     coordinates: topLandmark.coordinates,
-    location: {
-      lat: topLandmark.coordinates[1],
-      lng: topLandmark.coordinates[0]
-    },
     description: topLandmark.description
   };
 };
