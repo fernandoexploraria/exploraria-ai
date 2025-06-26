@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { X, MapPin, Eye, Timer, Target, Route, Bell, Camera, TestTube, Loader2, Database, Wifi, WifiOff } from 'lucide-react';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -322,7 +321,7 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                             <Badge className={`text-xs text-white ${getStrategyColor(strategyInfo.strategy)}`}>
                               {strategyInfo.strategy.toUpperCase()}
                             </Badge>
-                            <Badge variant="outline" className="text-xs">
+                            <Badge className="text-xs bg-cyan-600 text-white font-bold">
                               {strategyInfo.viewpointCount}v
                             </Badge>
                             {strategyInfo.loading && <Loader2 className="w-3 h-3 animate-spin text-blue-500" />}
@@ -394,7 +393,7 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                             <Badge className={`text-xs text-white ${getStrategyColor(strategyInfo.strategy)}`}>
                               {strategyInfo.strategy.toUpperCase()}
                             </Badge>
-                            <Badge variant="outline" className="text-xs">
+                            <Badge className="text-xs bg-cyan-600 text-white font-bold">
                               {strategyInfo.viewpointCount}v
                             </Badge>
                             {strategyInfo.loading && <Loader2 className="w-3 h-3 animate-spin text-blue-500" />}
