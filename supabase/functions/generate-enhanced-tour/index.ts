@@ -41,8 +41,212 @@ interface EnhancedTourResponse {
     };
     processingTime: number;
     fallbacksUsed: string[];
+    searchStats: {
+      totalSearches: number;
+      successfulSearches: number;
+      searchStrategies: { [key: string]: number };
+    };
   };
 }
+
+interface GeographicContext {
+  city: string;
+  state?: string;
+  country: string;
+  region?: string;
+  administrativeAreas: string[];
+}
+
+interface SearchQuery {
+  query: string;
+  strategy: string;
+  priority: number;
+}
+
+// Enhanced geographic context extraction
+const extractGeographicContext = async (destination: string, googleApiKey: string): Promise<GeographicContext> => {
+  try {
+    const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(destination)}&key=${googleApiKey}`;
+    const response = await fetch(geocodeUrl);
+    const data = await response.json();
+    
+    if (data.results && data.results.length > 0) {
+      const result = data.results[0];
+      const components = result.address_components;
+      
+      let city = destination;
+      let state: string | undefined;
+      let country = '';
+      let region: string | undefined;
+      const administrativeAreas: string[] = [];
+      
+      for (const component of components) {
+        const types = component.types;
+        
+        if (types.includes('locality') || types.includes('administrative_area_level_2')) {
+          city = component.long_name;
+        } else if (types.includes('administrative_area_level_1')) {
+          state = component.long_name;
+          administrativeAreas.push(component.long_name);
+        } else if (types.includes('country')) {
+          country = component.long_name;
+        } else if (types.includes('sublocality') || types.includes('administrative_area_level_3')) {
+          region = component.long_name;
+          administrativeAreas.push(component.long_name);
+        }
+      }
+      
+      return { city, state, country, region, administrativeAreas };
+    }
+  } catch (error) {
+    console.error('Geographic context extraction error:', error);
+  }
+  
+  // Fallback context
+  return {
+    city: destination,
+    country: '',
+    administrativeAreas: []
+  };
+};
+
+// Smart search term generation
+const generateSearchQueries = (landmark: LandmarkFromGemini, geoContext: GeographicContext): SearchQuery[] => {
+  const queries: SearchQuery[] = [];
+  const landmarkName = landmark.name;
+  const category = landmark.category || '';
+  
+  // Strategy 1: Exact name + full location hierarchy (highest priority)
+  if (geoContext.state && geoContext.country) {
+    queries.push({
+      query: `${landmarkName} ${geoContext.city} ${geoContext.state} ${geoContext.country}`,
+      strategy: 'exact_full_hierarchy',
+      priority: 10
+    });
+  }
+  
+  queries.push({
+    query: `${landmarkName} ${geoContext.city} ${geoContext.country}`,
+    strategy: 'exact_city_country',
+    priority: 9
+  });
+  
+  // Strategy 2: Category-enhanced searches
+  if (category) {
+    queries.push({
+      query: `${landmarkName} ${category} ${geoContext.city}`,
+      strategy: 'category_enhanced',
+      priority: 8
+    });
+    
+    queries.push({
+      query: `${category} ${landmarkName} in ${geoContext.city}`,
+      strategy: 'category_natural_language',
+      priority: 7
+    });
+  }
+  
+  // Strategy 3: Alternative names with full context
+  if (landmark.alternativeNames) {
+    landmark.alternativeNames.forEach((altName, index) => {
+      queries.push({
+        query: `${altName} ${geoContext.city} ${geoContext.country}`,
+        strategy: `alternative_name_${index + 1}`,
+        priority: 6 - index * 0.5
+      });
+    });
+  }
+  
+  // Strategy 4: Regional context searches
+  if (geoContext.region) {
+    queries.push({
+      query: `${landmarkName} ${geoContext.region} ${geoContext.city}`,
+      strategy: 'regional_context',
+      priority: 6
+    });
+  }
+  
+  // Strategy 5: Administrative area searches
+  geoContext.administrativeAreas.forEach((area, index) => {
+    queries.push({
+      query: `${landmarkName} ${area}`,
+      strategy: `administrative_area_${index + 1}`,
+      priority: 5 - index * 0.2
+    });
+  });
+  
+  // Strategy 6: Simplified searches (fallback)
+  queries.push({
+    query: `${landmarkName} ${geoContext.city}`,
+    strategy: 'simple_city',
+    priority: 4
+  });
+  
+  queries.push({
+    query: landmarkName,
+    strategy: 'name_only',
+    priority: 2
+  });
+  
+  // Strategy 7: Multilingual variations (if landmark name contains non-Latin characters)
+  if (/[^\x00-\x7F]/.test(landmarkName)) {
+    queries.push({
+      query: `${landmarkName} landmark ${geoContext.city}`,
+      strategy: 'multilingual_landmark',
+      priority: 5
+    });
+  }
+  
+  // Sort by priority (highest first) and return top 8 queries
+  return queries
+    .sort((a, b) => b.priority - a.priority)
+    .slice(0, 8);
+};
+
+// Enhanced Places Text Search with multiple query attempts
+const searchPlacesWithStrategies = async (searchQueries: SearchQuery[], googleApiKey: string) => {
+  const searchStats = {
+    totalSearches: 0,
+    successfulSearches: 0,
+    searchStrategies: {} as { [key: string]: number }
+  };
+  
+  for (const searchQuery of searchQueries) {
+    try {
+      console.log(`🔍 Trying ${searchQuery.strategy}: "${searchQuery.query}"`);
+      
+      searchStats.totalSearches++;
+      searchStats.searchStrategies[searchQuery.strategy] = (searchStats.searchStrategies[searchQuery.strategy] || 0) + 1;
+      
+      const searchUrl = 'https://places.googleapis.com/v1/places:searchText';
+      const response = await fetch(searchUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': googleApiKey,
+          'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.types,places.photos,places.location'
+        },
+        body: JSON.stringify({
+          textQuery: searchQuery.query,
+          maxResultCount: 5
+        })
+      });
+
+      if (!response.ok) continue;
+      
+      const data = await response.json();
+      if (data.places && data.places.length > 0) {
+        console.log(`✅ ${searchQuery.strategy} success: Found ${data.places.length} results`);
+        searchStats.successfulSearches++;
+        return { places: data.places, strategy: searchQuery.strategy, searchStats };
+      }
+    } catch (error) {
+      console.error(`Search strategy ${searchQuery.strategy} failed:`, error);
+    }
+  }
+  
+  return { places: null, strategy: 'none', searchStats };
+};
 
 // Helper function to get city center coordinates
 const getCityCenterCoordinates = async (destination: string, googleApiKey: string): Promise<[number, number] | null> => {
@@ -73,32 +277,6 @@ const calculateDistance = (coord1: [number, number], coord2: [number, number]): 
     Math.sin(dLng/2) * Math.sin(dLng/2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   return R * c;
-};
-
-// Layer 1: Google Places Text Search
-const searchPlacesByText = async (searchQuery: string, googleApiKey: string) => {
-  try {
-    const searchUrl = 'https://places.googleapis.com/v1/places:searchText';
-    const response = await fetch(searchUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': googleApiKey,
-        'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.types,places.photos,places.location'
-      },
-      body: JSON.stringify({
-        textQuery: searchQuery,
-        maxResultCount: 5
-      })
-    });
-
-    if (!response.ok) return null;
-    const data = await response.json();
-    return data.places || [];
-  } catch (error) {
-    console.error('Places text search error:', error);
-    return null;
-  }
 };
 
 // Layer 4: Google Geocoding API
@@ -153,14 +331,14 @@ const getGeminiCoordinates = async (landmarkName: string, destination: string, g
   return null;
 };
 
-// Multi-layered coordinate refinement
+// Enhanced coordinate refinement with smart search
 const refineCoordinates = async (
   landmark: LandmarkFromGemini, 
-  destination: string, 
+  geoContext: GeographicContext,
   cityCenter: [number, number] | null,
   googleApiKey: string,
   googleAiApiKey: string
-): Promise<EnhancedLandmark> => {
+): Promise<{ enhancedLandmark: EnhancedLandmark; searchStats: any }> => {
   const fallbacksUsed: string[] = [];
   let coordinates: [number, number] | null = null;
   let coordinateSource: 'places' | 'geocoding' | 'gemini' = 'gemini';
@@ -170,17 +348,43 @@ const refineCoordinates = async (
   let photos: string[] | undefined;
   let types: string[] | undefined;
   let formattedAddress: string | undefined;
+  let usedStrategy = 'none';
+  let searchStats = {
+    totalSearches: 0,
+    successfulSearches: 0,
+    searchStrategies: {} as { [key: string]: number }
+  };
 
-  // Layer 1: Primary text search
-  console.log(`🔍 Layer 1: Searching for "${landmark.name}" in ${destination}`);
-  const primarySearch = await searchPlacesByText(`${landmark.name} ${destination}`, googleApiKey);
+  // Generate smart search queries
+  const searchQueries = generateSearchQueries(landmark, geoContext);
+  console.log(`🔍 Generated ${searchQueries.length} search strategies for "${landmark.name}"`);
+
+  // Layer 1: Enhanced Places search with multiple strategies
+  const placesResult = await searchPlacesWithStrategies(searchQueries, googleApiKey);
+  searchStats = placesResult.searchStats;
   
-  if (primarySearch && primarySearch.length > 0) {
-    const place = primarySearch[0];
+  if (placesResult.places && placesResult.places.length > 0) {
+    const place = placesResult.places[0];
+    usedStrategy = placesResult.strategy;
+    
     if (place.location) {
       coordinates = [place.location.longitude, place.location.latitude];
       coordinateSource = 'places';
-      confidence = 0.9;
+      
+      // Enhanced confidence scoring based on strategy used
+      const strategyConfidence = {
+        'exact_full_hierarchy': 0.95,
+        'exact_city_country': 0.9,
+        'category_enhanced': 0.85,
+        'category_natural_language': 0.8,
+        'alternative_name_1': 0.8,
+        'regional_context': 0.75,
+        'simple_city': 0.7,
+        'multilingual_landmark': 0.75
+      };
+      
+      confidence = strategyConfidence[usedStrategy as keyof typeof strategyConfidence] || 0.6;
+      
       placeId = place.id;
       rating = place.rating;
       types = place.types;
@@ -192,88 +396,76 @@ const refineCoordinates = async (
         );
       }
       
-      console.log(`✅ Layer 1 success: Found via primary search`);
+      console.log(`✅ Enhanced Places search success using strategy: ${usedStrategy}`);
     }
   }
 
-  // Layer 2: Alternative name search
-  if (!coordinates && landmark.alternativeNames) {
-    for (const altName of landmark.alternativeNames) {
-      console.log(`🔍 Layer 2: Trying alternative name "${altName}"`);
-      const altSearch = await searchPlacesByText(`${altName} ${destination}`, googleApiKey);
+  // Layer 2: Enhanced geocoding with geographic context
+  if (!coordinates) {
+    console.log(`🔍 Trying enhanced geocoding for "${landmark.name}"`);
+    
+    const geocodingQueries = [
+      `${landmark.name}, ${geoContext.city}, ${geoContext.country}`,
+      `${landmark.name}, ${geoContext.city}`,
+      landmark.name
+    ];
+    
+    for (const query of geocodingQueries) {
+      const geocoded = await geocodeLandmark(query, googleApiKey);
+      searchStats.totalSearches++;
+      searchStats.searchStrategies['geocoding'] = (searchStats.searchStrategies['geocoding'] || 0) + 1;
       
-      if (altSearch && altSearch.length > 0) {
-        const place = altSearch[0];
-        if (place.location) {
-          coordinates = [place.location.longitude, place.location.latitude];
-          coordinateSource = 'places';
-          confidence = 0.8;
-          placeId = place.id;
-          rating = place.rating;
-          types = place.types;
-          formattedAddress = place.formattedAddress;
-          
-          if (place.photos && place.photos.length > 0) {
-            photos = place.photos.slice(0, 3).map((photo: any) => 
-              `https://places.googleapis.com/v1/${photo.name}/media?maxWidthPx=600&key=${googleApiKey}`
-            );
-          }
-          
-          fallbacksUsed.push('alternative_names');
-          console.log(`✅ Layer 2 success: Found via alternative name "${altName}"`);
-          break;
-        }
+      if (geocoded) {
+        coordinates = geocoded.coordinates;
+        coordinateSource = 'geocoding';
+        confidence = 0.6;
+        formattedAddress = geocoded.formattedAddress;
+        fallbacksUsed.push('enhanced_geocoding');
+        searchStats.successfulSearches++;
+        console.log(`✅ Enhanced geocoding success with query: ${query}`);
+        break;
       }
     }
   }
 
-  // Layer 4: Geocoding API (skipping Layer 3 nearby search for now)
+  // Layer 3: Gemini fallback with enhanced context
   if (!coordinates) {
-    console.log(`🔍 Layer 4: Geocoding "${landmark.name}, ${destination}"`);
-    const geocoded = await geocodeLandmark(`${landmark.name}, ${destination}`, googleApiKey);
-    
-    if (geocoded) {
-      coordinates = geocoded.coordinates;
-      coordinateSource = 'geocoding';
-      confidence = 0.6;
-      formattedAddress = geocoded.formattedAddress;
-      fallbacksUsed.push('geocoding');
-      console.log(`✅ Layer 4 success: Found via geocoding`);
-    }
-  }
-
-  // Layer 5: Gemini fallback
-  if (!coordinates) {
-    console.log(`🔍 Layer 5: Gemini fallback for "${landmark.name}"`);
-    const geminiCoords = await getGeminiCoordinates(landmark.name, destination, googleAiApiKey);
+    console.log(`🔍 Gemini fallback for "${landmark.name}"`);
+    const contextualPrompt = `${landmark.name} in ${geoContext.city}, ${geoContext.country}`;
+    const geminiCoords = await getGeminiCoordinates(contextualPrompt, geoContext.city, googleAiApiKey);
+    searchStats.totalSearches++;
+    searchStats.searchStrategies['gemini'] = (searchStats.searchStrategies['gemini'] || 0) + 1;
     
     if (geminiCoords) {
       coordinates = geminiCoords;
       coordinateSource = 'gemini';
       confidence = 0.3;
       fallbacksUsed.push('gemini_coordinates');
-      console.log(`✅ Layer 5 success: Gemini provided coordinates`);
+      searchStats.successfulSearches++;
+      console.log(`✅ Gemini fallback success`);
     }
   }
 
-  // Final fallback - use default coordinates if all else fails
+  // Final fallback
   if (!coordinates) {
-    console.log(`❌ All layers failed for "${landmark.name}", using default coordinates`);
-    coordinates = [0, 0]; // Default coordinates
+    console.log(`❌ All enhanced strategies failed for "${landmark.name}", using default coordinates`);
+    coordinates = [0, 0];
     confidence = 0.1;
     fallbacksUsed.push('default');
   }
 
-  // Validate coordinates are within reasonable bounds
+  // Enhanced geographic validation
   if (cityCenter && coordinates) {
     const distance = calculateDistance(coordinates, cityCenter);
-    if (distance > 100) { // More than 100km from city center
+    if (distance > 100) {
       console.log(`⚠️ Coordinates for "${landmark.name}" seem too far from city center (${distance}km)`);
       confidence = Math.max(0.1, confidence - 0.3);
+    } else if (distance > 50) {
+      confidence = Math.max(0.1, confidence - 0.1);
     }
   }
 
-  return {
+  const enhancedLandmark: EnhancedLandmark = {
     id: `tour-landmark-${crypto.randomUUID()}`,
     name: landmark.name,
     coordinates,
@@ -286,6 +478,8 @@ const refineCoordinates = async (
     types,
     formattedAddress
   };
+
+  return { enhancedLandmark, searchStats };
 };
 
 serve(async (req) => {
@@ -309,7 +503,11 @@ serve(async (req) => {
 
     console.log(`🚀 Starting enhanced tour generation for: ${destination}`);
 
-    // Step 1: Get city center coordinates
+    // Step 1: Extract enhanced geographic context
+    const geoContext = await extractGeographicContext(destination, googleApiKey);
+    console.log(`📍 Geographic context:`, geoContext);
+
+    // Step 2: Get city center coordinates
     const cityCenter = await getCityCenterCoordinates(destination, googleApiKey);
     console.log(`📍 City center coordinates:`, cityCenter);
 
@@ -378,25 +576,40 @@ serve(async (req) => {
       throw new Error('Invalid tour data structure received from Gemini');
     }
 
-    console.log(`🔍 Refining coordinates for ${tourData.landmarks.length} landmarks...`);
+    console.log(`🔍 Refining coordinates for ${tourData.landmarks.length} landmarks with enhanced search...`);
 
-    // Step 3: Refine coordinates for each landmark
+    // Step 4: Enhanced coordinate refinement
     const fallbacksUsed: string[] = [];
     const enhancedLandmarks: EnhancedLandmark[] = [];
+    const aggregatedSearchStats = {
+      totalSearches: 0,
+      successfulSearches: 0,
+      searchStrategies: {} as { [key: string]: number }
+    };
 
     for (const landmark of tourData.landmarks) {
       console.log(`\n🏛️ Processing: ${landmark.name}`);
-      const enhanced = await refineCoordinates(
+      const { enhancedLandmark, searchStats } = await refineCoordinates(
         landmark, 
-        destination, 
+        geoContext,
         cityCenter, 
         googleApiKey, 
         googleAiApiKey
       );
-      enhancedLandmarks.push(enhanced);
+      
+      enhancedLandmarks.push(enhancedLandmark);
+      
+      // Aggregate search statistics
+      aggregatedSearchStats.totalSearches += searchStats.totalSearches;
+      aggregatedSearchStats.successfulSearches += searchStats.successfulSearches;
+      
+      Object.entries(searchStats.searchStrategies).forEach(([strategy, count]) => {
+        aggregatedSearchStats.searchStrategies[strategy] = 
+          (aggregatedSearchStats.searchStrategies[strategy] || 0) + count;
+      });
     }
 
-    // Step 4: Calculate quality metrics
+    // Step 5: Calculate quality metrics
     const coordinateQuality = enhancedLandmarks.reduce(
       (acc, landmark) => {
         if (landmark.confidence >= 0.8) acc.highConfidence++;
@@ -417,12 +630,14 @@ serve(async (req) => {
         totalLandmarks: enhancedLandmarks.length,
         coordinateQuality,
         processingTime,
-        fallbacksUsed: [...new Set(fallbacksUsed)]
+        fallbacksUsed: [...new Set(fallbacksUsed)],
+        searchStats: aggregatedSearchStats
       }
     };
 
     console.log(`✅ Enhanced tour generation completed in ${processingTime}ms`);
     console.log(`📊 Quality: ${coordinateQuality.highConfidence} high, ${coordinateQuality.mediumConfidence} medium, ${coordinateQuality.lowConfidence} low confidence`);
+    console.log(`🔍 Search stats: ${aggregatedSearchStats.successfulSearches}/${aggregatedSearchStats.totalSearches} successful searches`);
 
     return new Response(JSON.stringify(response), {
       status: 200,
