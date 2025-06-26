@@ -115,14 +115,14 @@ const TourPlannerDialog: React.FC<TourPlannerDialogProps> = ({
             <div className="space-y-3 bg-blue-50 p-4 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 {getPhaseIcon(progressState.phase)}
-                <span className="font-medium text-sm">
+                <span className="font-medium text-sm text-blue-900">
                   {progressState.currentStep || getPhaseDescription(progressState.phase)}
                 </span>
               </div>
               
               <Progress value={progressState.percentage} className="h-2" />
               
-              <div className="text-xs text-blue-600 space-y-1">
+              <div className="text-xs text-blue-800 space-y-1">
                 {progressState.totalLandmarks > 0 && (
                   <div>
                     Processed {progressState.processedLandmarks} of {progressState.totalLandmarks} landmarks
@@ -131,20 +131,20 @@ const TourPlannerDialog: React.FC<TourPlannerDialogProps> = ({
                 
                 {progressState.qualityMetrics && (
                   <div className="flex gap-4 text-xs">
-                    <span className="text-green-600">
+                    <span className="text-green-800">
                       ✓ {progressState.qualityMetrics.highConfidence} high-quality
                     </span>
-                    <span className="text-yellow-600">
+                    <span className="text-amber-700">
                       ~ {progressState.qualityMetrics.mediumConfidence} medium
                     </span>
-                    <span className="text-red-600">
+                    <span className="text-red-700">
                       ! {progressState.qualityMetrics.lowConfidence} low
                     </span>
                   </div>
                 )}
                 
                 {progressState.errors.length > 0 && (
-                  <div className="text-red-600">
+                  <div className="text-red-800">
                     {progressState.errors.map((error, index) => (
                       <div key={index} className="flex items-center gap-1">
                         <AlertCircle className="h-3 w-3" />
