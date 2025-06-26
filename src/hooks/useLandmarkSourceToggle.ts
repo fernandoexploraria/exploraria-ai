@@ -1,7 +1,8 @@
 
 import { useState } from 'react';
 import { Landmark } from '@/data/landmarks';
-import { TOP_LANDMARKS, TopLandmark } from '@/data/topLandmarks';
+import { TOP_LANDMARKS } from '@/data/topLandmarks';
+import { convertTopLandmarkToLandmark } from '@/utils/landmarkUtils';
 
 export type LandmarkSource = 'all';
 
@@ -19,25 +20,15 @@ export const LANDMARK_SOURCE_OPTIONS: LandmarkSourceOption[] = [
   }
 ];
 
-// Convert TopLandmark to Landmark format
-const convertTopLandmarkToLandmark = (topLandmark: TopLandmark): Landmark => {
-  return {
-    id: `top-${topLandmark.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
-    name: topLandmark.name,
-    coordinates: topLandmark.coordinates,
-    location: {
-      lat: topLandmark.coordinates[1],
-      lng: topLandmark.coordinates[0]
-    },
-    description: topLandmark.description
-  };
-};
-
 export const useLandmarkSourceToggle = () => {
   const [selectedSource, setSelectedSource] = useState<LandmarkSource>('all');
   
-  // Get all landmarks from TOP_LANDMARKS array (includes tour landmarks)
-  const allLandmarks = TOP_LANDMARKS.map(convertTopLandmarkToLandmark);
+  // Get all landmarks from TOP_LANDMARKS array with validation
+  const allLandmarks = TOP_LANDMARKS
+    .map(convertTopLandmarkToLandmark)
+    .filter((landmark): landmark is Landmark => landmark !== null);
+
+  console.log(`useLandmarkSourceToggle: Processed ${allLandmarks.length} valid landmarks from ${TOP_LANDMARKS.length} total`);
 
   return {
     selectedSource,

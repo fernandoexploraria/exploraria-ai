@@ -6,6 +6,7 @@ import { Landmark } from '@/data/landmarks';
 import { useStreetView } from '@/hooks/useStreetView';
 import { useEnhancedPhotos, PhotoData } from '@/hooks/useEnhancedPhotos';
 import { useToast } from '@/hooks/use-toast';
+import { validateLandmarkArray, ValidatedLandmark } from '@/utils/landmarkUtils';
 
 interface MapProps {
   mapboxToken: string;
@@ -41,8 +42,16 @@ const Map: React.FC<MapProps> = ({
   const { fetchPhotos, getBestPhoto, getOptimalPhotoUrl } = useEnhancedPhotos();
   const { toast } = useToast();
   const [photoCache, setPhotoCache] = useState<{ [key: string]: PhotoData | null }>({});
+  const [isMapLoading, setIsMapLoading] = useState(true);
+  const [mapError, setMapError] = useState<string | null>(null);
 
-  const fetchLandmarkPhoto = useCallback(async (landmark: Landmark): Promise<PhotoData | null> => {
+  // Validate landmarks before processing
+  const validatedLandmarks = validateLandmarkArray(landmarks);
+  const validatedPlannedLandmarks = validateLandmarkArray(plannedLandmarks);
+
+  console.log(`📍 Map: Processing ${validatedLandmarks.length} validated landmarks out of ${landmarks.length} total`);
+
+  const fetchLandmarkPhoto = useCallback(async (landmark: ValidatedLandmark): Promise<PhotoData | null> => {
     if (!landmark.placeId) return null;
     
     // Check cache first
@@ -84,7 +93,7 @@ const Map: React.FC<MapProps> = ({
     }
   }, [fetchPhotos, getBestPhoto, photoCache]);
 
-  const createPopupContent = useCallback(async (landmark: Landmark): Promise<string> => {
+  const createPopupContent = useCallback(async (landmark: ValidatedLandmark): Promise<string> => {
     const photo = await fetchLandmarkPhoto(landmark);
     
     const photoHtml = photo ? `
@@ -134,164 +143,203 @@ const Map: React.FC<MapProps> = ({
     `;
   }, [fetchLandmarkPhoto, getOptimalPhotoUrl]);
 
-  const addMarkers = useCallback((landmarks: Landmark[]) => {
-    if (!map.current) return;
+  const addMarkers = useCallback(async (landmarks: ValidatedLandmark[]) => {
+    if (!map.current) {
+      console.log('📍 Cannot add markers: map not initialized');
+      return;
+    }
+
+    console.log(`📍 Adding markers for ${landmarks.length} landmarks`);
 
     // Clear existing markers and popups
     Object.keys(markersRef.current).forEach((key) => {
       markersRef.current[key].remove();
       delete markersRef.current[key];
-      popupsRef.current[key].remove();
-      delete popupsRef.current[key];
-    });
-
-    landmarks.forEach(async (landmark) => {
-      if (showPlannedOnly && !plannedLandmarks.find(planned => planned.id === landmark.id)) {
-        return;
+      if (popupsRef.current[key]) {
+        popupsRef.current[key].remove();
+        delete popupsRef.current[key];
       }
-
-      const el = document.createElement('div');
-      el.className = 'marker';
-      el.style.backgroundImage = `url(/marker.svg)`;
-      el.style.width = `30px`;
-      el.style.height = `30px`;
-      el.style.backgroundSize = '100%';
-
-      const marker = new mapboxgl.Marker(el)
-        .setLngLat([landmark.location.lng, landmark.location.lat]);
-
-      // Create popup content
-      const popupContent = await createPopupContent(landmark);
-
-      const popup = new mapboxgl.Popup({
-        closeButton: false,
-        closeOnClick: false,
-        anchor: 'top',
-        maxWidth: '300px',
-      }).setHTML(popupContent);
-
-      marker.setPopup(popup);
-
-      el.addEventListener('click', () => {
-        onLandmarkSelect(landmark);
-      });
-
-      marker.on('popupopen', () => {
-        el.classList.add('active');
-      });
-
-      marker.on('popupclose', () => {
-        el.classList.remove('active');
-      });
-
-      marker.addTo(map.current);
-
-      markersRef.current[landmark.id] = marker;
-      popupsRef.current[landmark.id] = popup;
     });
-  }, [showPlannedOnly, plannedLandmarks, onLandmarkSelect, createPopupContent]);
+
+    // Filter landmarks based on showPlannedOnly
+    const landmarksToShow = showPlannedOnly 
+      ? landmarks.filter(landmark => validatedPlannedLandmarks.find(planned => planned.id === landmark.id))
+      : landmarks;
+
+    console.log(`📍 Showing ${landmarksToShow.length} markers (showPlannedOnly: ${showPlannedOnly})`);
+
+    // Process all landmarks in parallel
+    await Promise.all(landmarksToShow.map(async (landmark) => {
+      try {
+        // Validate landmark has required location data
+        if (!landmark.location || typeof landmark.location.lng !== 'number' || typeof landmark.location.lat !== 'number') {
+          console.warn('📍 Skipping landmark with invalid location:', landmark);
+          return;
+        }
+
+        const el = document.createElement('div');
+        el.className = 'marker';
+        el.style.backgroundImage = `url(/marker.svg)`;
+        el.style.width = `30px`;
+        el.style.height = `30px`;
+        el.style.backgroundSize = '100%';
+        el.style.cursor = 'pointer';
+
+        const marker = new mapboxgl.Marker(el)
+          .setLngLat([landmark.location.lng, landmark.location.lat]);
+
+        // Create popup content
+        const popupContent = await createPopupContent(landmark);
+
+        const popup = new mapboxgl.Popup({
+          closeButton: false,
+          closeOnClick: false,
+          anchor: 'top',
+          maxWidth: '300px',
+        }).setHTML(popupContent);
+
+        marker.setPopup(popup);
+
+        el.addEventListener('click', () => {
+          console.log('📍 Marker clicked:', landmark.name);
+          onLandmarkSelect(landmark);
+        });
+
+        marker.on('popupopen', () => {
+          el.classList.add('active');
+        });
+
+        marker.on('popupclose', () => {
+          el.classList.remove('active');
+        });
+
+        marker.addTo(map.current);
+
+        markersRef.current[landmark.id] = marker;
+        popupsRef.current[landmark.id] = popup;
+
+        console.log(`📍 Added marker for ${landmark.name} at [${landmark.location.lng}, ${landmark.location.lat}]`);
+      } catch (error) {
+        console.error(`📍 Error adding marker for ${landmark.name}:`, error);
+      }
+    }));
+
+    console.log(`📍 Successfully added ${Object.keys(markersRef.current).length} markers`);
+  }, [showPlannedOnly, validatedPlannedLandmarks, onLandmarkSelect, createPopupContent]);
 
   useEffect(() => {
     if (map.current) return; // prevent re-initialization
 
-    map.current = new mapboxgl.Map({
-      accessToken: mapboxToken,
-      container: mapContainer.current as HTMLDivElement,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: [-122.4194, 37.7749], // San Francisco coordinates
-      zoom: 12,
-    });
+    if (!mapboxToken) {
+      setMapError('Mapbox token is required');
+      setIsMapLoading(false);
+      return;
+    }
 
-    // Add navigation control (the +/- zoom buttons)
-    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+    if (!mapContainer.current) {
+      setMapError('Map container not found');
+      setIsMapLoading(false);
+      return;
+    }
 
-    // Disable map rotation using touch rotation gesture.
-    map.current.touchZoomRotate.disableRotation();
-
-    // Add geolocation control to the map.
-    map.current.addControl(
-      new mapboxgl.GeolocateControl({
-        positionOptions: {
-          enableHighAccuracy: true
-        },
-        trackUserLocation: true,
-        showUserHeading: true
-      })
-    );
-
-    // Load initial landmarks
-    addMarkers(landmarks);
-
-    // Handle landmark selection from popups
-    window.selectLandmark = (landmarkId: string) => {
-      const landmark = landmarks.find((lm) => lm.id === landmarkId);
-      if (landmark) {
-        onLandmarkSelect(landmark);
-      }
-    };
-
-    // Handle street view requests from popups
-    window.openStreetView = async (landmarkId: string) => {
-      const landmark = landmarks.find((lm) => lm.id === landmarkId);
-      if (landmark) {
-        try {
-          const streetViewData = await fetchStreetView(landmark);
-          if (streetViewData) {
-            const { location } = streetViewData;
-            const streetViewUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${location.lat},${location.lng}&heading=${streetViewData.heading}&pitch=${streetViewData.pitch}`;
-            window.open(streetViewUrl, '_blank');
-          } else {
-            toast({
-              title: "Street View Not Available",
-              description: "Could not retrieve street view for this location.",
-            });
-          }
-        } catch (error) {
-          console.error("Error fetching street view:", error);
-          toast({
-            title: "Error",
-            description: "Failed to open street view.",
-            variant: "destructive",
-          });
-        }
-      }
-    };
-
-    return () => {
-      map.current?.remove();
-      map.current = null;
-    };
-  }, [mapboxToken, landmarks, fetchStreetView, onLandmarkSelect, toast, addMarkers]);
-
-  useEffect(() => {
-    if (!map.current) return;
-
-    map.current.on('load', () => {
-      addMarkers(landmarks);
-    });
-
-    addMarkers(landmarks);
-
-    // Fly to the selected landmark
-    if (selectedLandmark) {
-      map.current.flyTo({
-        center: [selectedLandmark.location.lng, selectedLandmark.location.lat],
-        zoom: 14,
-        essential: true
+    try {
+      console.log('📍 Initializing Mapbox map...');
+      
+      map.current = new mapboxgl.Map({
+        accessToken: mapboxToken,
+        container: mapContainer.current as HTMLDivElement,
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: [-122.4194, 37.7749], // San Francisco coordinates
+        zoom: 12,
       });
 
-      // Open the popup for the selected landmark
-      if (markersRef.current[selectedLandmark.id]) {
-        markersRef.current[selectedLandmark.id].togglePopup();
-      }
+      // Add error handling
+      map.current.on('error', (e) => {
+        console.error('📍 Mapbox error:', e);
+        setMapError(`Map error: ${e.error?.message || 'Unknown error'}`);
+        setIsMapLoading(false);
+      });
+
+      // Add load handling
+      map.current.on('load', () => {
+        console.log('📍 Map loaded successfully');
+        setIsMapLoading(false);
+        setMapError(null);
+        
+        // Add markers after map loads
+        addMarkers(validatedLandmarks);
+      });
+
+      // Add navigation control (the +/- zoom buttons)
+      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+      // Disable map rotation using touch rotation gesture.
+      map.current.touchZoomRotate.disableRotation();
+
+      // Add geolocation control to the map.
+      map.current.addControl(
+        new mapboxgl.GeolocateControl({
+          positionOptions: {
+            enableHighAccuracy: true
+          },
+          trackUserLocation: true,
+          showUserHeading: true
+        })
+      );
+
+    } catch (error) {
+      console.error('📍 Error initializing map:', error);
+      setMapError(`Failed to initialize map: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setIsMapLoading(false);
     }
-  }, [landmarks, selectedLandmark, addMarkers]);
+
+    return () => {
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
+      }
+    };
+  }, [mapboxToken, addMarkers, validatedLandmarks]);
+
+  // Update markers when landmarks change
+  useEffect(() => {
+    if (!map.current || isMapLoading) return;
+
+    console.log('📍 Landmarks changed, updating markers...');
+    addMarkers(validatedLandmarks);
+  }, [validatedLandmarks, addMarkers, isMapLoading]);
+
+  // Handle selected landmark
+  useEffect(() => {
+    if (!map.current || !selectedLandmark) return;
+
+    // Validate selected landmark has location
+    const validatedSelected = validateLandmarkArray([selectedLandmark])[0];
+    if (!validatedSelected) {
+      console.warn('📍 Selected landmark has invalid location data:', selectedLandmark);
+      return;
+    }
+
+    console.log('📍 Flying to selected landmark:', validatedSelected.name);
+
+    // Fly to the selected landmark
+    map.current.flyTo({
+      center: [validatedSelected.location.lng, validatedSelected.location.lat],
+      zoom: 14,
+      essential: true
+    });
+
+    // Open the popup for the selected landmark
+    if (markersRef.current[validatedSelected.id]) {
+      markersRef.current[validatedSelected.id].togglePopup();
+    }
+  }, [selectedLandmark]);
 
   // Define window functions
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.openStreetView = async (landmarkId: string) => {
-        const landmark = landmarks.find((lm) => lm.id === landmarkId);
+        const landmark = validatedLandmarks.find((lm) => lm.id === landmarkId);
         if (landmark) {
           try {
             const streetViewData = await fetchStreetView(landmark);
@@ -317,7 +365,7 @@ const Map: React.FC<MapProps> = ({
       };
 
       window.selectLandmark = (landmarkId: string) => {
-        const landmark = landmarks.find((lm) => lm.id === landmarkId);
+        const landmark = validatedLandmarks.find((lm) => lm.id === landmarkId);
         if (landmark) {
           onLandmarkSelect(landmark);
         }
@@ -329,21 +377,49 @@ const Map: React.FC<MapProps> = ({
       delete window.openStreetView;
       delete window.selectLandmark;
     };
-  }, [landmarks, fetchStreetView, onLandmarkSelect, toast]);
+  }, [validatedLandmarks, fetchStreetView, onLandmarkSelect, toast]);
 
   useEffect(() => {
     return () => {
       Object.keys(markersRef.current).forEach((key) => {
         markersRef.current[key].remove();
-        popupsRef.current[key].remove();
+        if (popupsRef.current[key]) {
+          popupsRef.current[key].remove();
+        }
       });
     };
   }, []);
+
+  // Render loading state
+  if (isMapLoading) {
+    return (
+      <div className={`flex items-center justify-center bg-gray-100 ${className}`}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading map...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Render error state
+  if (mapError) {
+    return (
+      <div className={`flex items-center justify-center bg-red-50 ${className}`}>
+        <div className="text-center p-4">
+          <div className="text-red-500 mb-2">⚠️</div>
+          <p className="text-red-700 font-medium">Map Error</p>
+          <p className="text-red-600 text-sm">{mapError}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
       ref={mapContainer}
       className={`map-container ${className}`}
+      style={{ width: '100%', height: '100%' }}
     />
   );
 };

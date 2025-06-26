@@ -5,6 +5,7 @@ import { UserLocation } from '@/types/proximityAlerts';
 import { calculateDistance, filterLandmarksWithinRadius } from '@/utils/proximityUtils';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { TOUR_LANDMARKS } from '@/data/tourLandmarks';
+import { convertTopLandmarkToLandmark, convertTourLandmarkToLandmark } from '@/utils/landmarkUtils';
 
 export interface NearbyLandmark {
   landmark: Landmark;
@@ -16,34 +17,6 @@ interface UseNearbyLandmarksProps {
   notificationDistance: number;
 }
 
-// Convert TopLandmark to Landmark format
-const convertTopLandmarkToLandmark = (topLandmark: any): Landmark => {
-  return {
-    id: `top-${topLandmark.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
-    name: topLandmark.name,
-    coordinates: topLandmark.coordinates,
-    location: {
-      lat: topLandmark.coordinates[1],
-      lng: topLandmark.coordinates[0]
-    },
-    description: topLandmark.description
-  };
-};
-
-// Convert TourLandmark to Landmark format
-const convertTourLandmarkToLandmark = (tourLandmark: any): Landmark => {
-  return {
-    id: `tour-landmark-${tourLandmark.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
-    name: tourLandmark.name,
-    coordinates: tourLandmark.coordinates,
-    location: {
-      lat: tourLandmark.coordinates[1],
-      lng: tourLandmark.coordinates[0]
-    },
-    description: tourLandmark.description
-  };
-};
-
 export const useNearbyLandmarks = ({ 
   userLocation, 
   notificationDistance 
@@ -54,9 +27,15 @@ export const useNearbyLandmarks = ({
       return [];
     }
 
-    // Step 1: Combine TOP_LANDMARKS and TOUR_LANDMARKS into a single array
-    const staticLandmarks = TOP_LANDMARKS.map(convertTopLandmarkToLandmark);
-    const tourLandmarks = TOUR_LANDMARKS.map(convertTourLandmarkToLandmark);
+    // Step 1: Combine TOP_LANDMARKS and TOUR_LANDMARKS into a single array with validation
+    const staticLandmarks = TOP_LANDMARKS
+      .map(convertTopLandmarkToLandmark)
+      .filter((landmark): landmark is Landmark => landmark !== null);
+    
+    const tourLandmarks = TOUR_LANDMARKS
+      .map(convertTourLandmarkToLandmark)
+      .filter((landmark): landmark is Landmark => landmark !== null);
+    
     const combinedLandmarks = [...staticLandmarks, ...tourLandmarks];
 
     console.log(`🎯 Combined landmarks: ${staticLandmarks.length} static + ${tourLandmarks.length} tour = ${combinedLandmarks.length} total`);

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Landmark } from "@/data/landmarks"
 import { TOP_LANDMARKS } from "@/data/topLandmarks"
 import { ArrowRight } from "lucide-react"
+import { validateAndNormalizeLandmark } from "@/utils/landmarkUtils"
 
 interface SearchControlProps {
   landmarks: Landmark[]
@@ -33,27 +34,33 @@ const SearchControl: React.FC<SearchControlProps> = ({ landmarks, onSelectLandma
   }, [])
 
   const handleSelect = (landmark: Landmark) => {
-    // Remove the fromSearch flag - let the marker click handle everything
-    onSelectLandmark(landmark)
-    setOpen(false)
+    // Validate landmark before selecting
+    const validatedLandmark = validateAndNormalizeLandmark(landmark);
+    if (validatedLandmark) {
+      onSelectLandmark(validatedLandmark);
+      setOpen(false);
+    } else {
+      console.warn('Invalid landmark selected:', landmark);
+    }
   }
 
   const handleTopLandmarkSelect = (topLandmark: any) => {
     // Create a temporary landmark object for top landmarks
-    const tempLandmark: Landmark = {
+    const tempLandmark = {
       id: `top-${Date.now()}`,
       name: topLandmark.name,
       coordinates: topLandmark.coordinates,
-      location: {
-        lat: topLandmark.coordinates[1],
-        lng: topLandmark.coordinates[0]
-      },
       description: topLandmark.description
     };
     
-    // Remove the fromSearch flag - let the marker click handle everything
-    onSelectLandmark(tempLandmark)
-    setOpen(false)
+    // Validate before selecting
+    const validatedLandmark = validateAndNormalizeLandmark(tempLandmark);
+    if (validatedLandmark) {
+      onSelectLandmark(validatedLandmark);
+      setOpen(false);
+    } else {
+      console.warn('Invalid top landmark selected:', topLandmark);
+    }
   }
 
   return (
