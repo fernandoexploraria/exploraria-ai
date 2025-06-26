@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 interface LoadingState {
@@ -27,6 +27,10 @@ export const useAdaptiveStreetViewLoader = (options: AdaptiveLoaderOptions = {})
 
   const [loadingViewpoints, setLoadingViewpoints] = useState<Set<number>>(new Set());
   const { getOptimalImageQuality, shouldPreloadContent } = useNetworkStatus();
+  
+  // Use refs to track active loading processes and prevent duplicates
+  const activeLoadingRef = useRef<string | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const updateProgress = useCallback((progress: number, step?: string) => {
     console.log(`📊 Loading progress: ${Math.round(progress)}%${step ? ` - ${step}` : ''}`);
@@ -37,10 +41,29 @@ export const useAdaptiveStreetViewLoader = (options: AdaptiveLoaderOptions = {})
     }));
     options.onProgress?.(progress);
     if (step) options.onStepChange?.(step);
-  }, [options]);
+  }, [options.onProgress, options.onStepChange]);
 
-  const startLoading = useCallback((totalViewpoints: number = 1) => {
-    console.log(`🚀 Starting loading for ${totalViewpoints} viewpoint(s)`);
+  const startLoading = useCallback((totalViewpoints: number = 1, loadingId?: string) => {
+    const currentLoadingId = loadingId || `loading-${Date.now()}`;
+    
+    // Prevent duplicate loading processes
+    if (activeLoadingRef.current === currentLoadingId) {
+      console.log(`🔄 Loading already active for ${currentLoadingId}, skipping`);
+      return;
+    }
+    
+    // Clear any previous loading process
+    if (activeLoadingRef.current) {
+      console.log(`🧹 Clearing previous loading process: ${activeLoadingRef.current}`);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    }
+    
+    activeLoadingRef.current = currentLoadingId;
+    console.log(`🚀 Starting loading for ${totalViewpoints} viewpoint(s) [${currentLoadingId}]`);
+    
     setLoadingState({
       isLoading: true,
       progress: 0,
@@ -86,6 +109,16 @@ export const useAdaptiveStreetViewLoader = (options: AdaptiveLoaderOptions = {})
 
   const finishLoading = useCallback(() => {
     console.log('🏁 Loading finished');
+    
+    // Clear active loading reference
+    activeLoadingRef.current = null;
+    
+    // Clear timeout if exists
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    
     setLoadingState(prev => ({
       ...prev,
       isLoading: false,
@@ -94,7 +127,7 @@ export const useAdaptiveStreetViewLoader = (options: AdaptiveLoaderOptions = {})
     }));
     setLoadingViewpoints(new Set());
     options.onComplete?.();
-  }, [options]);
+  }, [options.onComplete]);
 
   const loadImageWithProgress = useCallback(async (
     url: string, 
@@ -149,20 +182,34 @@ export const useAdaptiveStreetViewLoader = (options: AdaptiveLoaderOptions = {})
       
       return () => clearTimeout(timer);
     }
-  }, [loadingState, loadingViewpoints.size, finishLoading]);
+  }, [loadingState.isLoading, loadingState.viewpointsLoaded, loadingState.totalViewpoints, loadingViewpoints.size, finishLoading]);
 
-  // Fallback timeout to prevent infinite loading
+  // Fallback timeout to prevent infinite loading - now using ref for cleanup
   useEffect(() => {
-    if (loadingState.isLoading) {
+    if (loadingState.isLoading && !timeoutRef.current) {
       console.log('⏰ Setting 10s timeout for loading fallback');
-      const timeoutTimer = setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
         console.log('⚠️ Loading timeout reached, forcing completion');
         finishLoading();
       }, 10000); // 10 second timeout
-      
-      return () => clearTimeout(timeoutTimer);
+    }
+    
+    if (!loadingState.isLoading && timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     }
   }, [loadingState.isLoading, finishLoading]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      activeLoadingRef.current = null;
+    };
+  }, []);
 
   return {
     loadingState,
