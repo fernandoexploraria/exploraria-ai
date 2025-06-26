@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Landmark } from '@/data/landmarks';
 import { setTourLandmarks, clearTourMarkers } from '@/data/tourLandmarks';
@@ -58,12 +59,13 @@ export const useTourPlanner = () => {
     setProgressState(prev => ({ ...prev, ...update }));
   };
 
-  const animateProgress = async (targetPercentage: number, currentStep: string, phase: string) => {
+  const animateProgress = async (targetPercentage: number, currentStep: string, phase: ProgressState['phase']) => {
     const currentPercentage = progressState.percentage;
-    const increment = (targetPercentage - currentPercentage) / 5; // Divide into 5 steps
+    const steps = 8; // More steps for smoother animation
+    const increment = (targetPercentage - currentPercentage) / steps;
     
-    for (let i = 1; i <= 5; i++) {
-      await new Promise(resolve => setTimeout(resolve, 200)); // 200ms delay between steps
+    for (let i = 1; i <= steps; i++) {
+      await new Promise(resolve => setTimeout(resolve, 300)); // Slower delay
       const newPercentage = Math.min(currentPercentage + (increment * i), targetPercentage);
       updateProgress({
         phase,
@@ -115,14 +117,15 @@ export const useTourPlanner = () => {
     try {
       console.log('Calling enhanced tour generation edge function...');
       
-      // Phase 1: Generate landmark list with slow progress
+      // Phase 1: Generate landmark list with slower, more granular progress
       updateProgress({
         phase: 'generating',
         percentage: 0,
         currentStep: 'Initializing tour generation...'
       });
 
-      await animateProgress(20, 'Getting landmark suggestions from Gemini AI...', 'generating');
+      await animateProgress(15, 'Connecting to Gemini AI...', 'generating');
+      await animateProgress(30, 'Getting landmark suggestions...', 'generating');
 
       // Call the enhanced tour generation edge function
       const { data: enhancedTourData, error: enhancedTourError } = await supabase.functions.invoke('generate-enhanced-tour', {
@@ -151,8 +154,9 @@ export const useTourPlanner = () => {
         throw new Error(errorMsg);
       }
 
-      // Phase 2: Process coordinate refinement results with slow progress
-      await animateProgress(50, 'Processing coordinate refinement results...', 'refining');
+      // Phase 2: Process coordinate refinement results with slower progress
+      await animateProgress(45, 'Processing landmarks...', 'refining');
+      await animateProgress(60, 'Refining coordinates...', 'refining');
       
       updateProgress({
         phase: 'refining',
@@ -166,8 +170,9 @@ export const useTourPlanner = () => {
         processingTime: enhancedTourData.metadata?.processingTime
       });
 
-      // Phase 3: Validate and prepare landmarks with slow progress
-      await animateProgress(75, 'Validating landmark coordinates...', 'validating');
+      // Phase 3: Validate and prepare landmarks with slower progress
+      await animateProgress(75, 'Validating coordinates...', 'validating');
+      await animateProgress(85, 'Checking quality metrics...', 'validating');
       
       updateProgress({
         phase: 'validating',
@@ -186,8 +191,9 @@ export const useTourPlanner = () => {
         ...(enhancedLandmark.confidence && { confidence: enhancedLandmark.confidence })
       }));
 
-      // Phase 4: Finalize tour with slow progress
-      await animateProgress(95, 'Finalizing tour and updating map...', 'finalizing');
+      // Phase 4: Finalize tour with slower progress
+      await animateProgress(95, 'Finalizing tour...', 'finalizing');
+      await animateProgress(98, 'Updating map markers...', 'finalizing');
 
       // Set tour landmarks in the separate array (this clears and repopulates)
       console.log('Setting enhanced tour landmarks:', newLandmarks.length);
