@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { X, ZoomIn, ZoomOut, RotateCcw, Play, Pause, Home, End, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ZoomIn, ZoomOut, RotateCcw, Play, Pause, ChevronLeft, ChevronRight } from 'lucide-react';
 import { PhotoData } from '@/hooks/useEnhancedPhotos';
 import EnhancedProgressiveImage from './EnhancedProgressiveImage';
 import PhotoThumbnailGrid from './photo-carousel/PhotoThumbnailGrid';
