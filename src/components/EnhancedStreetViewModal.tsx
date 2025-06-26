@@ -39,6 +39,12 @@ interface MultiViewpointData {
     totalViews: number;
     recommendedView: number;
     dataUsage: string;
+    fallbackInfo?: {
+      requestedHeadings: number[];
+      successfulHeadings: number[];
+      fallbacksUsed: number;
+      coveragePercent: number;
+    };
   };
 }
 
@@ -68,7 +74,8 @@ const isMultiViewpointData = (data: any): data is MultiViewpointData => {
     hasMetadata: data && 'metadata' in data,
     viewpointCount: data?.viewpoints?.length || 0,
     isMultiViewpoint: isMulti,
-    dataStructure: data ? Object.keys(data) : 'no data'
+    dataStructure: data ? Object.keys(data) : 'no data',
+    fallbackInfo: data?.metadata?.fallbackInfo
   });
   
   return isMulti;
@@ -147,6 +154,27 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
 
   const determineStrategy = useCallback((multiData: MultiViewpointData): ViewpointStrategy => {
     const viewCount = multiData.viewpoints.length;
+    const fallbackInfo = multiData.metadata.fallbackInfo;
+    
+    // Use fallback info to determine actual strategy used
+    if (fallbackInfo) {
+      const requestedCount = fallbackInfo.requestedHeadings.length;
+      const coveragePercent = fallbackInfo.coveragePercent;
+      
+      console.log('📐 Strategy determination:', {
+        viewCount,
+        requestedCount,
+        coveragePercent,
+        fallbacksUsed: fallbackInfo.fallbacksUsed
+      });
+      
+      if (requestedCount === 1) return 'single';
+      if (requestedCount === 4 && coveragePercent >= 75) return 'cardinal';
+      if (requestedCount <= 3 && coveragePercent >= 66) return 'smart';
+      return 'all';
+    }
+    
+    // Fallback to simple view count logic
     if (viewCount === 1) return 'single';
     if (viewCount === 4) return 'cardinal';
     if (viewCount <= 3) return 'smart';
@@ -448,7 +476,8 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
     viewpointCount: isMultiViewpoint ? currentStreetViewData.viewpoints.length : 1,
     currentHeading: isMultiViewpoint 
       ? currentStreetViewData.viewpoints[currentViewpoint]?.heading 
-      : currentStreetViewData.heading
+      : currentStreetViewData.heading,
+    fallbackInfo: isMultiViewpoint ? currentStreetViewData.metadata.fallbackInfo : undefined
   });
   
   const currentStreetView = isMultiViewpoint 
@@ -461,10 +490,13 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
     
   const strategy = isMultiViewpoint ? determineStrategy(currentStreetViewData) : 'single';
 
+  // Updated compass visibility logic - show for any data with 2+ viewpoints
+  const shouldShowCompass = isMultiViewpoint && allViewpoints.length >= 2;
+
   console.log('🧭 Compass Display Logic:', {
     isMultiViewpoint,
     allViewpointsLength: allViewpoints.length,
-    shouldShowCompass: isMultiViewpoint && allViewpoints.length > 1,
+    shouldShowCompass,
     strategy,
     currentViewpoint,
     viewpointHeadings: allViewpoints.map(v => v.heading)
@@ -507,15 +539,25 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
                 </span>
               </div>
               
-              {/* Multi-viewpoint indicator */}
+              {/* Multi-viewpoint indicator with fallback info */}
               {isMultiViewpoint && (
-                <MultiViewpointIndicator
-                  strategy={strategy}
-                  viewpointCount={allViewpoints.length}
-                  dataUsage={currentStreetViewData.metadata.dataUsage}
-                  variant="detailed"
-                  isLoading={loadingState.isLoading}
-                />
+                <div className="space-y-1">
+                  <MultiViewpointIndicator
+                    strategy={strategy}
+                    viewpointCount={allViewpoints.length}
+                    dataUsage={currentStreetViewData.metadata.dataUsage}
+                    variant="detailed"
+                    isLoading={loadingState.isLoading}
+                  />
+                  
+                  {/* Fallback information */}
+                  {currentStreetViewData.metadata.fallbackInfo && (
+                    <div className="text-xs text-blue-400 opacity-75">
+                      Coverage: {currentStreetViewData.metadata.fallbackInfo.coveragePercent}% 
+                      ({currentStreetViewData.metadata.fallbackInfo.fallbacksUsed} fallbacks used)
+                    </div>
+                  )}
+                </div>
               )}
               
               {isSlowConnection && (
@@ -530,7 +572,8 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
                   Debug: {isMultiViewpoint ? 'Multi' : 'Single'} • 
                   Views: {allViewpoints.length} • 
                   Current: {currentViewpoint + 1} • 
-                  Heading: {currentStreetView.heading}°
+                  Heading: {currentStreetView.heading}° •
+                  Compass: {shouldShowCompass ? 'YES' : 'NO'}
                 </div>
               )}
             </div>
@@ -592,8 +635,8 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
           />
         )}
 
-        {/* Enhanced Multi-viewpoint Compass - with forced visibility for debugging */}
-        {isMultiViewpoint && allViewpoints.length > 1 && (
+        {/* Enhanced Multi-viewpoint Compass - Updated visibility logic */}
+        {shouldShowCompass && (
           <div className="absolute top-1/2 right-4 transform -translate-y-1/2">
             <EnhancedStreetViewCompass
               viewpoints={allViewpoints}
@@ -609,12 +652,16 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
         )}
 
         {/* Debug overlay to verify compass should be visible */}
-        {process.env.NODE_ENV === 'development' && isMultiViewpoint && (
+        {process.env.NODE_ENV === 'development' && (
           <div className="absolute top-1/2 left-4 bg-black/80 text-white text-xs p-2 rounded">
             <div>Multi: {isMultiViewpoint ? 'YES' : 'NO'}</div>
             <div>Views: {allViewpoints.length}</div>
-            <div>Show: {allViewpoints.length > 1 ? 'YES' : 'NO'}</div>
+            <div>Show: {shouldShowCompass ? 'YES' : 'NO'}</div>
             <div>Current: {currentViewpoint}</div>
+            <div>Strategy: {strategy}</div>
+            {isMultiViewpoint && currentStreetViewData.metadata.fallbackInfo && (
+              <div>Fallbacks: {currentStreetViewData.metadata.fallbackInfo.fallbacksUsed}</div>
+            )}
           </div>
         )}
 

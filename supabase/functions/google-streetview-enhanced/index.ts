@@ -39,6 +39,20 @@ interface MultiViewpointResponse {
     totalViews: number;
     recommendedView: number;
     dataUsage: string;
+    strategy?: string;
+    quality?: string;
+    landmarkType?: string;
+    imageSize?: string;
+    loadingTime?: number;
+    networkOptimized?: boolean;
+    availableHeadings?: number[];
+    coverage?: string;
+    fallbackInfo?: {
+      requestedHeadings: number[];
+      successfulHeadings: number[];
+      fallbacksUsed: number;
+      coveragePercent: number;
+    };
   };
 }
 
@@ -96,59 +110,163 @@ const getSizeForQuality = (quality: string): string => {
   }
 };
 
-const fetchStreetViewForHeading = async (
+// Generate fallback headings around a target heading
+const generateFallbackHeadings = (targetHeading: number, toleranceSteps: number[] = [10, 20, 30, 45]): number[] => {
+  const fallbacks = [];
+  
+  for (const tolerance of toleranceSteps) {
+    // Try both directions around the target
+    const positive = (targetHeading + tolerance) % 360;
+    const negative = (targetHeading - tolerance + 360) % 360;
+    
+    fallbacks.push(positive, negative);
+  }
+  
+  return fallbacks;
+};
+
+// Enhanced function with fallback strategy
+const fetchStreetViewWithFallback = async (
   lat: number,
   lng: number,
-  heading: number,
+  targetHeading: number,
   landmarkName: string,
   size: string,
-  googleApiKey: string
-): Promise<StreetViewData | null> => {
+  googleApiKey: string,
+  attemptedHeadings: Set<number> = new Set()
+): Promise<{ data: StreetViewData | null; actualHeading: number; fallbackUsed: boolean }> => {
   const pitch = 0;
   const fov = 90;
 
-  // Check availability first
-  const metadataUrl = `https://maps.googleapis.com/maps/api/streetview/metadata?` +
-    `location=${lat},${lng}&` +
-    `heading=${heading}&` +
-    `key=${googleApiKey}`;
-
-  try {
-    const metadataResponse = await fetch(metadataUrl);
-    const metadata = await metadataResponse.json();
-
-    if (metadata.status !== 'OK') {
-      return null;
-    }
-
-    // Build the Street View Static API URL
-    const streetViewUrl = `https://maps.googleapis.com/maps/api/streetview?` +
+  // Try the target heading first
+  const headingsToTry = [targetHeading, ...generateFallbackHeadings(targetHeading)];
+  
+  for (const heading of headingsToTry) {
+    // Skip if we've already tried this heading
+    if (attemptedHeadings.has(heading)) continue;
+    
+    attemptedHeadings.add(heading);
+    
+    // Check availability first
+    const metadataUrl = `https://maps.googleapis.com/maps/api/streetview/metadata?` +
       `location=${lat},${lng}&` +
-      `size=${size}&` +
       `heading=${heading}&` +
-      `pitch=${pitch}&` +
-      `fov=${fov}&` +
       `key=${googleApiKey}`;
 
-    return {
-      imageUrl: streetViewUrl,
-      heading,
-      pitch,
-      fov,
-      location: {
-        lat: metadata.location?.lat || lat,
-        lng: metadata.location?.lng || lng
-      },
-      landmarkName,
-      metadata: {
-        status: metadata.status,
-        copyright: metadata.copyright
+    try {
+      const metadataResponse = await fetch(metadataUrl);
+      const metadata = await metadataResponse.json();
+
+      if (metadata.status !== 'OK') {
+        console.log(`❌ Heading ${heading}° unavailable (status: ${metadata.status})`);
+        continue;
       }
-    };
-  } catch (error) {
-    console.error(`❌ Error fetching Street View for heading ${heading}:`, error);
-    return null;
+
+      // Build the Street View Static API URL
+      const streetViewUrl = `https://maps.googleapis.com/maps/api/streetview?` +
+        `location=${lat},${lng}&` +
+        `size=${size}&` +
+        `heading=${heading}&` +
+        `pitch=${pitch}&` +
+        `fov=${fov}&` +
+        `key=${googleApiKey}`;
+
+      const streetViewData: StreetViewData = {
+        imageUrl: streetViewUrl,
+        heading,
+        pitch,
+        fov,
+        location: {
+          lat: metadata.location?.lat || lat,
+          lng: metadata.location?.lng || lng
+        },
+        landmarkName,
+        metadata: {
+          status: metadata.status,
+          copyright: metadata.copyright
+        }
+      };
+
+      const fallbackUsed = heading !== targetHeading;
+      if (fallbackUsed) {
+        console.log(`✅ Fallback successful: ${targetHeading}° → ${heading}° for ${landmarkName}`);
+      } else {
+        console.log(`✅ Direct hit: ${heading}° for ${landmarkName}`);
+      }
+
+      return { data: streetViewData, actualHeading: heading, fallbackUsed };
+    } catch (error) {
+      console.error(`❌ Error testing heading ${heading}°:`, error);
+      continue;
+    }
   }
+
+  console.log(`❌ No Street View available around ${targetHeading}° for ${landmarkName}`);
+  return { data: null, actualHeading: targetHeading, fallbackUsed: false };
+};
+
+// Ensure minimum spacing between viewpoints
+const filterByMinimumSpacing = (viewpoints: StreetViewData[], minSpacing: number = 30): StreetViewData[] => {
+  if (viewpoints.length <= 1) return viewpoints;
+  
+  const filtered = [viewpoints[0]]; // Always include the first viewpoint
+  
+  for (let i = 1; i < viewpoints.length; i++) {
+    const currentHeading = viewpoints[i].heading;
+    let hasMinSpacing = true;
+    
+    for (const existing of filtered) {
+      const angleDiff = Math.abs(currentHeading - existing.heading);
+      const minDiff = Math.min(angleDiff, 360 - angleDiff); // Handle wrap-around
+      
+      if (minDiff < minSpacing) {
+        hasMinSpacing = false;
+        break;
+      }
+    }
+    
+    if (hasMinSpacing) {
+      filtered.push(viewpoints[i]);
+    }
+  }
+  
+  console.log(`📐 Filtered viewpoints: ${viewpoints.length} → ${filtered.length} (min spacing: ${minSpacing}°)`);
+  return filtered;
+};
+
+// Try alternative strategies if initial strategy yields too few viewpoints
+const tryAlternativeHeadings = (
+  originalHeadings: number[],
+  successfulHeadings: number[],
+  strategy: string
+): number[] => {
+  if (successfulHeadings.length >= 2) return []; // We have enough viewpoints
+  
+  const alternatives = [];
+  
+  // If we only got 1 viewpoint, try intermediate directions
+  if (successfulHeadings.length === 1) {
+    const baseHeading = successfulHeadings[0];
+    
+    // Try 90° increments from the successful heading
+    for (let offset of [90, 180, 270]) {
+      const newHeading = (baseHeading + offset) % 360;
+      if (!originalHeadings.includes(newHeading)) {
+        alternatives.push(newHeading);
+      }
+    }
+    
+    // Also try 45° increments for more options
+    for (let offset of [45, 135, 225, 315]) {
+      const newHeading = (baseHeading + offset) % 360;
+      if (!originalHeadings.includes(newHeading) && !alternatives.includes(newHeading)) {
+        alternatives.push(newHeading);
+      }
+    }
+  }
+  
+  console.log(`🔄 Trying alternative headings for ${strategy} strategy:`, alternatives);
+  return alternatives.slice(0, 3); // Limit to 3 additional attempts
 };
 
 serve(async (req) => {
@@ -197,53 +315,108 @@ serve(async (req) => {
     }
 
     const finalSize = size || getSizeForQuality(quality);
-    const headings = getViewpointHeadings(viewpoints, landmarkType);
+    const requestedHeadings = getViewpointHeadings(viewpoints, landmarkType);
     
     console.log(`🗺️ Fetching Enhanced Street View for ${landmarkName} at [${lng}, ${lat}]`);
-    console.log(`📐 Strategy: ${viewpoints}, Quality: ${quality}, Headings: [${headings.join(', ')}°]`);
+    console.log(`📐 Strategy: ${viewpoints}, Quality: ${quality}, Requested: [${requestedHeadings.join(', ')}°]`);
 
-    // Fetch all viewpoints concurrently with progress tracking
-    const viewpointPromises = headings.map((heading, index) => {
-      console.log(`🔄 Loading viewpoint ${index + 1}/${headings.length} (${heading}°)`);
-      return fetchStreetViewForHeading(lat, lng, heading, landmarkName, finalSize, googleApiKey);
-    });
+    const attemptedHeadings = new Set<number>();
+    const successfulViewpoints: StreetViewData[] = [];
+    const fallbackInfo = {
+      requestedHeadings: [...requestedHeadings],
+      successfulHeadings: [] as number[],
+      fallbacksUsed: 0,
+      coveragePercent: 0
+    };
 
-    const allViewpoints = await Promise.all(viewpointPromises);
-    const validViewpoints = allViewpoints.filter(vp => vp !== null) as StreetViewData[];
+    // First pass: Try all requested headings with fallbacks
+    for (let i = 0; i < requestedHeadings.length; i++) {
+      const heading = requestedHeadings[i];
+      console.log(`🔄 Loading viewpoint ${i + 1}/${requestedHeadings.length} (${heading}°)`);
+      
+      const result = await fetchStreetViewWithFallback(
+        lat, lng, heading, landmarkName, finalSize, googleApiKey, attemptedHeadings
+      );
+      
+      if (result.data) {
+        successfulViewpoints.push(result.data);
+        fallbackInfo.successfulHeadings.push(result.actualHeading);
+        if (result.fallbackUsed) {
+          fallbackInfo.fallbacksUsed++;
+        }
+      }
+    }
 
-    if (validViewpoints.length === 0) {
+    // Second pass: Try alternative headings if we don't have enough viewpoints
+    const alternativeHeadings = tryAlternativeHeadings(
+      requestedHeadings, 
+      fallbackInfo.successfulHeadings, 
+      viewpoints
+    );
+    
+    for (const heading of alternativeHeadings) {
+      if (successfulViewpoints.length >= 4) break; // Don't need more than 4 viewpoints
+      
+      console.log(`🔄 Trying alternative heading: ${heading}°`);
+      const result = await fetchStreetViewWithFallback(
+        lat, lng, heading, landmarkName, finalSize, googleApiKey, attemptedHeadings
+      );
+      
+      if (result.data) {
+        successfulViewpoints.push(result.data);
+        fallbackInfo.successfulHeadings.push(result.actualHeading);
+        fallbackInfo.fallbacksUsed++;
+      }
+    }
+
+    // Filter viewpoints to ensure minimum spacing
+    const filteredViewpoints = filterByMinimumSpacing(successfulViewpoints);
+
+    if (filteredViewpoints.length === 0) {
       console.log(`❌ No Street View available for ${landmarkName} from any angle`);
       return new Response(JSON.stringify({
         error: 'Street View not available at this location from any angle',
         landmarkName,
-        attemptedHeadings: headings,
-        strategy: viewpoints
+        attemptedHeadings: Array.from(attemptedHeadings),
+        strategy: viewpoints,
+        fallbackInfo
       }), { 
         status: 404, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       });
     }
 
-    // Primary view is the first valid viewpoint (usually north-facing)
-    const primary = validViewpoints[0];
+    // Calculate final statistics
+    fallbackInfo.coveragePercent = Math.round((filteredViewpoints.length / requestedHeadings.length) * 100);
+    
+    // Primary view is the first viewpoint (usually closest to north-facing)
+    const primary = filteredViewpoints[0];
     
     // Enhanced metadata calculation
     const imageSize = finalSize.split('x').map(Number);
     const estimatedKbPerImage = (imageSize[0] * imageSize[1] * 0.8) / 1024; // Rough JPEG estimate
-    const totalDataKb = Math.round(estimatedKbPerImage * validViewpoints.length);
+    const totalDataKb = Math.round(estimatedKbPerImage * filteredViewpoints.length);
     
     // Calculate recommended view based on landmark type and orientation
-    const recommendedViewIndex = getRecommendedView(validViewpoints, landmarkType);
+    const recommendedViewIndex = getRecommendedView(filteredViewpoints, landmarkType);
     
-    console.log(`✅ Enhanced Street View available for ${landmarkName}: ${validViewpoints.length} viewpoints (${totalDataKb}KB total)`);
+    console.log(`✅ Enhanced Street View loaded:`, {
+      landmark: landmarkName,
+      strategy: viewpoints,
+      requested: requestedHeadings.length,
+      successful: filteredViewpoints.length,
+      fallbacks: fallbackInfo.fallbacksUsed,
+      coverage: `${fallbackInfo.coveragePercent}%`,
+      dataUsage: `${totalDataKb}KB`
+    });
 
     const response: MultiViewpointResponse = {
       primary,
-      viewpoints: validViewpoints,
+      viewpoints: filteredViewpoints,
       metadata: {
-        totalViews: validViewpoints.length,
+        totalViews: filteredViewpoints.length,
         recommendedView: recommendedViewIndex,
-        dataUsage: `${totalDataKb}KB (${validViewpoints.length} views)`,
+        dataUsage: `${totalDataKb}KB (${filteredViewpoints.length} views)`,
         ...(includeMetadata && {
           strategy: viewpoints,
           quality,
@@ -251,8 +424,9 @@ serve(async (req) => {
           imageSize: finalSize,
           loadingTime: Date.now(),
           networkOptimized: quality === 'low' || quality === 'medium',
-          availableHeadings: validViewpoints.map(vp => vp.heading),
-          coverage: `${Math.round((validViewpoints.length / headings.length) * 100)}%`
+          availableHeadings: filteredViewpoints.map(vp => vp.heading),
+          coverage: `${fallbackInfo.coveragePercent}%`,
+          fallbackInfo
         })
       }
     };
