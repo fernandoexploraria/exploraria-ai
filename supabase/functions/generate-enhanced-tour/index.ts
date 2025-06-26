@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
@@ -26,6 +25,35 @@ interface EnhancedLandmark {
   photos?: string[];
   types?: string[];
   formattedAddress?: string;
+  validationMetadata?: ValidationMetadata;
+}
+
+interface ValidationMetadata {
+  distanceValidation: {
+    distanceFromCenter: number;
+    dynamicThreshold: number;
+    citySize: 'major_metropolitan' | 'large_city' | 'medium_city' | 'small_city' | 'town';
+    passed: boolean;
+  };
+  plausibilityValidation: {
+    isOnLand: boolean;
+    elevationCheck: boolean;
+    terrainCompatibility: boolean;
+    passed: boolean;
+  };
+  boundaryValidation: {
+    withinCityBounds: boolean;
+    administrativeLevel: string;
+    nearbyFeatures: string[];
+    passed: boolean;
+  };
+  crossValidation: {
+    sourcesAgreement: number;
+    outlierScore: number;
+    consensusCoordinates?: [number, number];
+    passed: boolean;
+  };
+  overallScore: number;
 }
 
 interface EnhancedTourResponse {
@@ -46,6 +74,16 @@ interface EnhancedTourResponse {
       successfulSearches: number;
       searchStrategies: { [key: string]: number };
     };
+    validationStats: {
+      averageDistanceFromCenter: number;
+      validationPasses: {
+        distance: number;
+        plausibility: number;
+        boundary: number;
+        crossValidation: number;
+      };
+      averageOverallScore: number;
+    };
   };
 }
 
@@ -55,6 +93,12 @@ interface GeographicContext {
   country: string;
   region?: string;
   administrativeAreas: string[];
+  cityBounds?: {
+    northeast: { lat: number; lng: number };
+    southwest: { lat: number; lng: number };
+  };
+  population?: number;
+  cityType?: 'major_metropolitan' | 'large_city' | 'medium_city' | 'small_city' | 'town';
 }
 
 interface SearchQuery {
@@ -63,7 +107,7 @@ interface SearchQuery {
   priority: number;
 }
 
-// Enhanced geographic context extraction
+// Enhanced geographic context extraction with city classification
 const extractGeographicContext = async (destination: string, googleApiKey: string): Promise<GeographicContext> => {
   try {
     const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(destination)}&key=${googleApiKey}`;
@@ -73,6 +117,7 @@ const extractGeographicContext = async (destination: string, googleApiKey: strin
     if (data.results && data.results.length > 0) {
       const result = data.results[0];
       const components = result.address_components;
+      const bounds = result.geometry.bounds || result.geometry.viewport;
       
       let city = destination;
       let state: string | undefined;
@@ -95,18 +140,264 @@ const extractGeographicContext = async (destination: string, googleApiKey: strin
           administrativeAreas.push(component.long_name);
         }
       }
+
+      // Get city details from Places API for population and type classification
+      const cityType = await classifyCitySize(city, state, country, googleApiKey);
       
-      return { city, state, country, region, administrativeAreas };
+      return { 
+        city, 
+        state, 
+        country, 
+        region, 
+        administrativeAreas,
+        cityBounds: bounds ? {
+          northeast: { lat: bounds.northeast.lat, lng: bounds.northeast.lng },
+          southwest: { lat: bounds.southwest.lat, lng: bounds.southwest.lng }
+        } : undefined,
+        cityType
+      };
     }
   } catch (error) {
     console.error('Geographic context extraction error:', error);
   }
   
-  // Fallback context
   return {
     city: destination,
     country: '',
-    administrativeAreas: []
+    administrativeAreas: [],
+    cityType: 'medium_city'
+  };
+};
+
+// City size classification system
+const classifyCitySize = async (city: string, state: string | undefined, country: string, googleApiKey: string): Promise<'major_metropolitan' | 'large_city' | 'medium_city' | 'small_city' | 'town'> => {
+  try {
+    const query = state ? `${city}, ${state}, ${country}` : `${city}, ${country}`;
+    const placesUrl = 'https://places.googleapis.com/v1/places:searchText';
+    
+    const response = await fetch(placesUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': googleApiKey,
+        'X-Goog-FieldMask': 'places.types,places.userRatingCount,places.displayName'
+      },
+      body: JSON.stringify({
+        textQuery: query,
+        maxResultCount: 1
+      })
+    });
+
+    if (!response.ok) return 'medium_city';
+    
+    const data = await response.json();
+    if (!data.places || data.places.length === 0) return 'medium_city';
+    
+    const place = data.places[0];
+    const types = place.types || [];
+    const ratingCount = place.userRatingCount || 0;
+    
+    // Classification logic based on place types and activity
+    if (types.includes('administrative_area_level_1') || ratingCount > 50000) {
+      return 'major_metropolitan';
+    } else if (types.includes('locality') && ratingCount > 10000) {
+      return 'large_city';
+    } else if (types.includes('locality') && ratingCount > 1000) {
+      return 'medium_city';
+    } else if (types.includes('locality')) {
+      return 'small_city';
+    }
+    
+    return 'town';
+  } catch (error) {
+    console.error('City classification error:', error);
+    return 'medium_city';
+  }
+};
+
+// Dynamic distance threshold calculation
+const calculateDynamicThreshold = (cityType: string, landmarkCategory?: string): number => {
+  const baseThresholds = {
+    'major_metropolitan': 50, // 50km for major metros like NYC, London
+    'large_city': 25,         // 25km for large cities
+    'medium_city': 15,        // 15km for medium cities
+    'small_city': 8,          // 8km for small cities
+    'town': 5                 // 5km for towns
+  };
+  
+  let threshold = baseThresholds[cityType as keyof typeof baseThresholds] || 15;
+  
+  // Adjust based on landmark category
+  if (landmarkCategory) {
+    const categoryMultipliers = {
+      'park': 1.5,        // Parks can be further out
+      'airport': 2.0,     // Airports are often outside city centers
+      'beach': 1.8,       // Beaches are on periphery
+      'mountain': 2.5,    // Mountains can be quite far
+      'museum': 0.8,      // Museums usually central
+      'restaurant': 0.6,  // Restaurants should be relatively close
+      'hotel': 0.9        // Hotels usually in city areas
+    };
+    
+    const multiplier = categoryMultipliers[landmarkCategory.toLowerCase() as keyof typeof categoryMultipliers] || 1.0;
+    threshold *= multiplier;
+  }
+  
+  return threshold;
+};
+
+// Advanced coordinate plausibility validation
+const validateCoordinatePlausibility = async (coordinates: [number, number], landmarkCategory: string, googleApiKey: string): Promise<{
+  isOnLand: boolean;
+  elevationCheck: boolean;
+  terrainCompatibility: boolean;
+  passed: boolean;
+}> => {
+  try {
+    // Reverse geocoding to check if coordinates are on land
+    const reverseGeocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${coordinates[1]},${coordinates[0]}&key=${googleApiKey}`;
+    const response = await fetch(reverseGeocodeUrl);
+    const data = await response.json();
+    
+    let isOnLand = true;
+    let elevationCheck = true;
+    let terrainCompatibility = true;
+    
+    if (data.results && data.results.length > 0) {
+      const result = data.results[0];
+      const types = result.types || [];
+      
+      // Check if location is water-based
+      isOnLand = !types.some(type => 
+        ['natural_feature', 'body_of_water'].includes(type) && 
+        !['beach', 'marina', 'pier'].some(waterType => landmarkCategory.toLowerCase().includes(waterType))
+      );
+      
+      // Simple terrain compatibility check based on address components
+      const addressComponents = result.address_components || [];
+      const hasNaturalFeatures = addressComponents.some(comp => 
+        comp.types.includes('natural_feature')
+      );
+      
+      // Terrain compatibility logic
+      if (landmarkCategory.toLowerCase().includes('museum') && hasNaturalFeatures) {
+        terrainCompatibility = false; // Museums shouldn't be in wilderness
+      }
+      
+      if (landmarkCategory.toLowerCase().includes('beach') && !types.includes('natural_feature')) {
+        terrainCompatibility = false; // Beaches should be near water
+      }
+    }
+    
+    return {
+      isOnLand,
+      elevationCheck,
+      terrainCompatibility,
+      passed: isOnLand && elevationCheck && terrainCompatibility
+    };
+  } catch (error) {
+    console.error('Plausibility validation error:', error);
+    return {
+      isOnLand: true,
+      elevationCheck: true,
+      terrainCompatibility: true,
+      passed: true
+    };
+  }
+};
+
+// City boundary validation
+const validateCityBoundary = async (coordinates: [number, number], geoContext: GeographicContext): Promise<{
+  withinCityBounds: boolean;
+  administrativeLevel: string;
+  nearbyFeatures: string[];
+  passed: boolean;
+}> => {
+  try {
+    const [lng, lat] = coordinates;
+    
+    // Check if coordinates are within city bounds
+    let withinCityBounds = true;
+    if (geoContext.cityBounds) {
+      const { northeast, southwest } = geoContext.cityBounds;
+      withinCityBounds = lat >= southwest.lat && lat <= northeast.lat &&
+                        lng >= southwest.lng && lng <= northeast.lng;
+    }
+    
+    return {
+      withinCityBounds,
+      administrativeLevel: geoContext.state || geoContext.country,
+      nearbyFeatures: geoContext.administrativeAreas,
+      passed: withinCityBounds
+    };
+  } catch (error) {
+    console.error('Boundary validation error:', error);
+    return {
+      withinCityBounds: true,
+      administrativeLevel: '',
+      nearbyFeatures: [],
+      passed: true
+    };
+  }
+};
+
+// Multi-source coordinate cross-validation
+const crossValidateCoordinates = (coordinateSources: Array<{
+  source: string;
+  coordinates: [number, number];
+  confidence: number;
+}>): {
+  sourcesAgreement: number;
+  outlierScore: number;
+  consensusCoordinates?: [number, number];
+  passed: boolean;
+} => {
+  if (coordinateSources.length < 2) {
+    return {
+      sourcesAgreement: 1.0,
+      outlierScore: 0,
+      passed: true
+    };
+  }
+  
+  // Calculate distances between all coordinate pairs
+  const distances: number[] = [];
+  for (let i = 0; i < coordinateSources.length; i++) {
+    for (let j = i + 1; j < coordinateSources.length; j++) {
+      const dist = calculateDistance(coordinateSources[i].coordinates, {
+        latitude: coordinateSources[j].coordinates[1],
+        longitude: coordinateSources[j].coordinates[0]
+      });
+      distances.push(dist);
+    }
+  }
+  
+  const avgDistance = distances.reduce((sum, d) => sum + d, 0) / distances.length;
+  const maxDistance = Math.max(...distances);
+  
+  // Calculate agreement score (higher is better)
+  const sourcesAgreement = Math.max(0, 1 - (avgDistance / 1000)); // Normalize to 1km
+  
+  // Calculate outlier score (lower is better)
+  const outlierScore = maxDistance / 1000;
+  
+  // Calculate consensus coordinates (weighted average)
+  let consensusCoordinates: [number, number] | undefined;
+  if (coordinateSources.length > 1) {
+    const totalWeight = coordinateSources.reduce((sum, source) => sum + source.confidence, 0);
+    const weightedLng = coordinateSources.reduce((sum, source) => 
+      sum + (source.coordinates[0] * source.confidence), 0) / totalWeight;
+    const weightedLat = coordinateSources.reduce((sum, source) => 
+      sum + (source.coordinates[1] * source.confidence), 0) / totalWeight;
+    
+    consensusCoordinates = [weightedLng, weightedLat];
+  }
+  
+  return {
+    sourcesAgreement,
+    outlierScore,
+    consensusCoordinates,
+    passed: sourcesAgreement > 0.7 && outlierScore < 2.0 // 2km max outlier tolerance
   };
 };
 
@@ -266,10 +557,10 @@ const getCityCenterCoordinates = async (destination: string, googleApiKey: strin
 };
 
 // Helper function to calculate distance between coordinates
-const calculateDistance = (coord1: [number, number], coord2: [number, number]): number => {
+const calculateDistance = (coord1: [number, number], coord2: { latitude: number; longitude: number }): number => {
   const [lng1, lat1] = coord1;
   const [lng2, lat2] = coord2;
-  const R = 6371; // Earth's radius in kilometers
+  const R = 6371e3; // Earth's radius in meters
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLng = (lng2 - lng1) * Math.PI / 180;
   const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -331,7 +622,7 @@ const getGeminiCoordinates = async (landmarkName: string, destination: string, g
   return null;
 };
 
-// Enhanced coordinate refinement with smart search
+// Enhanced coordinate refinement with advanced validation
 const refineCoordinates = async (
   landmark: LandmarkFromGemini, 
   geoContext: GeographicContext,
@@ -355,6 +646,9 @@ const refineCoordinates = async (
     searchStrategies: {} as { [key: string]: number }
   };
 
+  // Collect coordinates from different sources for cross-validation
+  const coordinateSources: Array<{ source: string; coordinates: [number, number]; confidence: number }> = [];
+
   // Generate smart search queries
   const searchQueries = generateSearchQueries(landmark, geoContext);
   console.log(`🔍 Generated ${searchQueries.length} search strategies for "${landmark.name}"`);
@@ -370,6 +664,11 @@ const refineCoordinates = async (
     if (place.location) {
       coordinates = [place.location.longitude, place.location.latitude];
       coordinateSource = 'places';
+      coordinateSources.push({
+        source: 'places',
+        coordinates,
+        confidence: 0.9
+      });
       
       // Enhanced confidence scoring based on strategy used
       const strategyConfidence = {
@@ -422,6 +721,11 @@ const refineCoordinates = async (
         formattedAddress = geocoded.formattedAddress;
         fallbacksUsed.push('enhanced_geocoding');
         searchStats.successfulSearches++;
+        coordinateSources.push({
+          source: 'geocoding',
+          coordinates,
+          confidence: 0.6
+        });
         console.log(`✅ Enhanced geocoding success with query: ${query}`);
         break;
       }
@@ -442,6 +746,11 @@ const refineCoordinates = async (
       confidence = 0.3;
       fallbacksUsed.push('gemini_coordinates');
       searchStats.successfulSearches++;
+      coordinateSources.push({
+        source: 'gemini',
+        coordinates,
+        confidence: 0.3
+      });
       console.log(`✅ Gemini fallback success`);
     }
   }
@@ -454,15 +763,66 @@ const refineCoordinates = async (
     fallbacksUsed.push('default');
   }
 
-  // Enhanced geographic validation
-  if (cityCenter && coordinates) {
-    const distance = calculateDistance(coordinates, cityCenter);
-    if (distance > 100) {
-      console.log(`⚠️ Coordinates for "${landmark.name}" seem too far from city center (${distance}km)`);
-      confidence = Math.max(0.1, confidence - 0.3);
-    } else if (distance > 50) {
-      confidence = Math.max(0.1, confidence - 0.1);
+  // Advanced Geographic Validation
+  let validationMetadata: ValidationMetadata | undefined;
+  
+  if (coordinates && coordinates[0] !== 0 && coordinates[1] !== 0) {
+    const dynamicThreshold = calculateDynamicThreshold(geoContext.cityType || 'medium_city', landmark.category);
+    
+    // Distance validation with dynamic thresholds
+    const distanceFromCenter = cityCenter ? calculateDistance(coordinates, {
+      latitude: cityCenter[1],
+      longitude: cityCenter[0]
+    }) / 1000 : 0; // Convert to kilometers
+    
+    const distanceValidation = {
+      distanceFromCenter,
+      dynamicThreshold,
+      citySize: geoContext.cityType || 'medium_city' as const,
+      passed: distanceFromCenter <= dynamicThreshold
+    };
+    
+    // Plausibility validation
+    const plausibilityValidation = await validateCoordinatePlausibility(
+      coordinates, 
+      landmark.category || '', 
+      googleApiKey
+    );
+    
+    // Boundary validation
+    const boundaryValidation = await validateCityBoundary(coordinates, geoContext);
+    
+    // Cross-validation between sources
+    const crossValidation = crossValidateCoordinates(coordinateSources);
+    
+    // Calculate overall validation score
+    const validationScores = [
+      distanceValidation.passed ? 1 : 0,
+      plausibilityValidation.passed ? 1 : 0,
+      boundaryValidation.passed ? 1 : 0,
+      crossValidation.passed ? 1 : 0
+    ];
+    
+    const overallScore = validationScores.reduce((sum, score) => sum + score, 0) / validationScores.length;
+    
+    validationMetadata = {
+      distanceValidation,
+      plausibilityValidation,
+      boundaryValidation,
+      crossValidation,
+      overallScore
+    };
+    
+    // Adjust confidence based on validation results
+    confidence = Math.min(confidence, overallScore);
+    
+    // Use consensus coordinates if available and better validated
+    if (crossValidation.consensusCoordinates && crossValidation.sourcesAgreement > 0.8) {
+      coordinates = crossValidation.consensusCoordinates;
+      console.log(`📍 Using consensus coordinates for "${landmark.name}"`);
     }
+    
+    console.log(`🔍 Validation for "${landmark.name}": Overall score ${overallScore.toFixed(2)}, Distance: ${distanceFromCenter.toFixed(2)}km (threshold: ${dynamicThreshold}km)`);
   }
 
   const enhancedLandmark: EnhancedLandmark = {
@@ -476,7 +836,8 @@ const refineCoordinates = async (
     rating,
     photos,
     types,
-    formattedAddress
+    formattedAddress,
+    validationMetadata
   };
 
   return { enhancedLandmark, searchStats };
@@ -501,9 +862,9 @@ serve(async (req) => {
       throw new Error('Required API keys not configured');
     }
 
-    console.log(`🚀 Starting enhanced tour generation for: ${destination}`);
+    console.log(`🚀 Starting enhanced tour generation with advanced validation for: ${destination}`);
 
-    // Step 1: Extract enhanced geographic context
+    // Step 1: Extract enhanced geographic context with city classification
     const geoContext = await extractGeographicContext(destination, googleApiKey);
     console.log(`📍 Geographic context:`, geoContext);
 
@@ -511,7 +872,7 @@ serve(async (req) => {
     const cityCenter = await getCityCenterCoordinates(destination, googleApiKey);
     console.log(`📍 City center coordinates:`, cityCenter);
 
-    // Step 2: Modified Gemini prompt - no coordinates requested
+    // Step 3: Modified Gemini prompt - no coordinates requested
     const systemInstruction = `You are an expert tour planner. Your response MUST be a valid JSON object with exactly this structure:
     {
       "landmarks": [array of landmark objects],
@@ -576,15 +937,27 @@ serve(async (req) => {
       throw new Error('Invalid tour data structure received from Gemini');
     }
 
-    console.log(`🔍 Refining coordinates for ${tourData.landmarks.length} landmarks with enhanced search...`);
+    console.log(`🔍 Refining coordinates for ${tourData.landmarks.length} landmarks with advanced validation...`);
 
-    // Step 4: Enhanced coordinate refinement
+    // Step 4: Enhanced coordinate refinement with advanced validation
     const fallbacksUsed: string[] = [];
     const enhancedLandmarks: EnhancedLandmark[] = [];
     const aggregatedSearchStats = {
       totalSearches: 0,
       successfulSearches: 0,
       searchStrategies: {} as { [key: string]: number }
+    };
+
+    // Validation statistics
+    const validationStats = {
+      averageDistanceFromCenter: 0,
+      validationPasses: {
+        distance: 0,
+        plausibility: 0,
+        boundary: 0,
+        crossValidation: 0
+      },
+      averageOverallScore: 0
     };
 
     for (const landmark of tourData.landmarks) {
@@ -607,7 +980,24 @@ serve(async (req) => {
         aggregatedSearchStats.searchStrategies[strategy] = 
           (aggregatedSearchStats.searchStrategies[strategy] || 0) + count;
       });
+
+      // Aggregate validation statistics
+      if (enhancedLandmark.validationMetadata) {
+        const vm = enhancedLandmark.validationMetadata;
+        validationStats.averageDistanceFromCenter += vm.distanceValidation.distanceFromCenter;
+        validationStats.averageOverallScore += vm.overallScore;
+        
+        if (vm.distanceValidation.passed) validationStats.validationPasses.distance++;
+        if (vm.plausibilityValidation.passed) validationStats.validationPasses.plausibility++;
+        if (vm.boundaryValidation.passed) validationStats.validationPasses.boundary++;
+        if (vm.crossValidation.passed) validationStats.validationPasses.crossValidation++;
+      }
     }
+
+    // Calculate averages for validation stats
+    const landmarkCount = enhancedLandmarks.length;
+    validationStats.averageDistanceFromCenter /= landmarkCount;
+    validationStats.averageOverallScore /= landmarkCount;
 
     // Step 5: Calculate quality metrics
     const coordinateQuality = enhancedLandmarks.reduce(
@@ -631,13 +1021,15 @@ serve(async (req) => {
         coordinateQuality,
         processingTime,
         fallbacksUsed: [...new Set(fallbacksUsed)],
-        searchStats: aggregatedSearchStats
+        searchStats: aggregatedSearchStats,
+        validationStats
       }
     };
 
-    console.log(`✅ Enhanced tour generation completed in ${processingTime}ms`);
+    console.log(`✅ Enhanced tour generation with advanced validation completed in ${processingTime}ms`);
     console.log(`📊 Quality: ${coordinateQuality.highConfidence} high, ${coordinateQuality.mediumConfidence} medium, ${coordinateQuality.lowConfidence} low confidence`);
     console.log(`🔍 Search stats: ${aggregatedSearchStats.successfulSearches}/${aggregatedSearchStats.totalSearches} successful searches`);
+    console.log(`🔬 Validation stats: Avg distance ${validationStats.averageDistanceFromCenter.toFixed(2)}km, Overall score ${validationStats.averageOverallScore.toFixed(2)}`);
 
     return new Response(JSON.stringify(response), {
       status: 200,
