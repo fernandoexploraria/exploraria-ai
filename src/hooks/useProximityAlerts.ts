@@ -5,7 +5,16 @@ import { useAuth } from '@/components/AuthProvider';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { Landmark } from '@/data/landmarks';
 
-// Global state management for proximity settings
+// Enhanced connection status tracking
+interface ConnectionStatus {
+  status: 'connected' | 'connecting' | 'disconnected' | 'failed' | 'polling';
+  lastConnectionTime: number | null;
+  consecutiveFailures: number;
+  isPollingActive: boolean;
+  lastDataUpdate: number | null;
+}
+
+// Global state management for proximity settings with enhanced connection tracking
 const globalProximityState = {
   settings: null as ProximitySettings | null,
   subscribers: new Set<(settings: ProximitySettings | null) => void>(),
@@ -13,25 +22,179 @@ const globalProximityState = {
   isSubscribed: false,
   currentUserId: null as string | null,
   isLoading: false,
-  // Phase 1: Add retry state
+  // Phase 1: Retry state
   retryCount: 0,
   retryTimeout: null as NodeJS.Timeout | null,
-  maxRetries: 5
+  maxRetries: 5,
+  // Phase 2: Enhanced connection management
+  connectionStatus: {
+    status: 'disconnected',
+    lastConnectionTime: null,
+    consecutiveFailures: 0,
+    isPollingActive: false,
+    lastDataUpdate: null
+  } as ConnectionStatus,
+  pollingInterval: null as NodeJS.Timeout | null,
+  reconnectionAttemptTimeout: null as NodeJS.Timeout | null
 };
 
 const MINIMUM_GAP = 25; // minimum gap in meters between tiers
 const NOTIFICATION_OUTER_GAP = 50; // minimum gap between notification and outer distance
+const POLLING_INTERVAL = 30000; // 30 seconds base polling
+const ACTIVE_POLLING_INTERVAL = 10000; // 10 seconds when changes detected
+const RECONNECTION_ATTEMPT_INTERVAL = 120000; // 2 minutes
+const CIRCUIT_BREAKER_THRESHOLD = 3; // Switch to polling after 3 consecutive failures
 
 const notifySubscribers = (settings: ProximitySettings | null) => {
   console.log('📢 Notifying all subscribers with settings:', settings);
   globalProximityState.settings = settings;
+  globalProximityState.connectionStatus.lastDataUpdate = Date.now();
   globalProximityState.subscribers.forEach(callback => callback(settings));
 };
 
-// Phase 1: Add exponential backoff reconnection function
+// Phase 2: Update connection status and notify subscribers
+const updateConnectionStatus = (status: ConnectionStatus['status'], resetFailures = false) => {
+  const now = Date.now();
+  globalProximityState.connectionStatus.status = status;
+  
+  if (status === 'connected') {
+    globalProximityState.connectionStatus.lastConnectionTime = now;
+    if (resetFailures) {
+      globalProximityState.connectionStatus.consecutiveFailures = 0;
+    }
+  } else if (status === 'failed') {
+    globalProximityState.connectionStatus.consecutiveFailures++;
+  } else if (status === 'polling') {
+    globalProximityState.connectionStatus.isPollingActive = true;
+  }
+  
+  console.log(`🔗 Connection status updated to: ${status}`, globalProximityState.connectionStatus);
+};
+
+// Phase 2: Polling fallback mechanism
+const startPollingFallback = async (userId: string) => {
+  console.log('🔄 Starting polling fallback for proximity settings');
+  updateConnectionStatus('polling');
+  
+  const pollData = async () => {
+    try {
+      console.log('📊 Polling proximity settings...');
+      const { data, error } = await supabase
+        .from('proximity_settings')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('❌ Polling error:', error);
+        return;
+      }
+
+      if (data) {
+        const settings: ProximitySettings = {
+          id: data.id,
+          user_id: data.user_id,
+          is_enabled: data.is_enabled,
+          notification_distance: data.notification_distance,
+          outer_distance: data.outer_distance,
+          card_distance: data.card_distance,
+          created_at: data.created_at,
+          updated_at: data.updated_at,
+        };
+        
+        // Check if data has changed by comparing updated_at
+        const currentSettings = globalProximityState.settings;
+        const hasChanged = !currentSettings || 
+          new Date(settings.updated_at || '').getTime() !== new Date(currentSettings.updated_at || '').getTime();
+        
+        if (hasChanged) {
+          console.log('📊 Polling detected changes, notifying subscribers');
+          notifySubscribers(settings);
+          
+          // Switch to more frequent polling for a while
+          if (globalProximityState.pollingInterval) {
+            clearInterval(globalProximityState.pollingInterval);
+            globalProximityState.pollingInterval = setInterval(pollData, ACTIVE_POLLING_INTERVAL);
+            
+            // Switch back to normal polling after 2 minutes
+            setTimeout(() => {
+              if (globalProximityState.pollingInterval) {
+                clearInterval(globalProximityState.pollingInterval);
+                globalProximityState.pollingInterval = setInterval(pollData, POLLING_INTERVAL);
+              }
+            }, RECONNECTION_ATTEMPT_INTERVAL);
+          }
+        }
+      } else {
+        notifySubscribers(null);
+      }
+    } catch (error) {
+      console.error('❌ Polling failed:', error);
+    }
+  };
+
+  // Start polling
+  await pollData(); // Initial poll
+  globalProximityState.pollingInterval = setInterval(pollData, POLLING_INTERVAL);
+  
+  // Attempt to reconnect to real-time every 2 minutes
+  globalProximityState.reconnectionAttemptTimeout = setInterval(() => {
+    console.log('🔄 Attempting to reconnect to real-time from polling mode...');
+    attemptRealTimeReconnection(userId);
+  }, RECONNECTION_ATTEMPT_INTERVAL);
+};
+
+// Phase 2: Stop polling fallback
+const stopPollingFallback = () => {
+  console.log('🛑 Stopping polling fallback');
+  
+  if (globalProximityState.pollingInterval) {
+    clearInterval(globalProximityState.pollingInterval);
+    globalProximityState.pollingInterval = null;
+  }
+  
+  if (globalProximityState.reconnectionAttemptTimeout) {
+    clearInterval(globalProximityState.reconnectionAttemptTimeout);
+    globalProximityState.reconnectionAttemptTimeout = null;
+  }
+  
+  globalProximityState.connectionStatus.isPollingActive = false;
+};
+
+// Phase 2: Attempt to reconnect to real-time
+const attemptRealTimeReconnection = (userId: string) => {
+  // Clean up existing channel
+  if (globalProximityState.channel) {
+    supabase.removeChannel(globalProximityState.channel);
+    globalProximityState.channel = null;
+    globalProximityState.isSubscribed = false;
+  }
+  
+  // Reset retry count for fresh attempt
+  globalProximityState.retryCount = 0;
+  
+  // Try to create new real-time subscription
+  createProximitySettingsSubscription(userId, async () => {
+    // On successful reconnection, stop polling
+    if (globalProximityState.connectionStatus.status === 'connected') {
+      stopPollingFallback();
+    }
+  });
+};
+
+// Phase 1: Add exponential backoff reconnection function (enhanced in Phase 2)
 const reconnectWithBackoff = (userId: string, loadProximitySettingsFunc: () => Promise<void>) => {
+  // Phase 2: Check if we should switch to polling instead
+  if (globalProximityState.connectionStatus.consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD) {
+    console.log(`🚨 Circuit breaker triggered (${globalProximityState.connectionStatus.consecutiveFailures} failures), switching to polling fallback`);
+    startPollingFallback(userId);
+    return;
+  }
+
   if (globalProximityState.retryCount >= globalProximityState.maxRetries) {
     console.error(`❌ Max retries (${globalProximityState.maxRetries}) exceeded for proximity settings subscription`);
+    // Phase 2: Fall back to polling after max retries
+    startPollingFallback(userId);
     return;
   }
 
@@ -40,6 +203,7 @@ const reconnectWithBackoff = (userId: string, loadProximitySettingsFunc: () => P
   const delay = Math.min(baseDelay * Math.pow(2, globalProximityState.retryCount), 30000);
   
   console.log(`🔄 Scheduling proximity settings reconnection attempt ${globalProximityState.retryCount + 1}/${globalProximityState.maxRetries} in ${delay}ms`);
+  updateConnectionStatus('connecting');
   
   globalProximityState.retryTimeout = setTimeout(async () => {
     globalProximityState.retryCount++;
@@ -57,9 +221,10 @@ const reconnectWithBackoff = (userId: string, loadProximitySettingsFunc: () => P
   }, delay);
 };
 
-// Phase 1: Extract subscription creation logic
+// Phase 1: Extract subscription creation logic (enhanced in Phase 2)
 const createProximitySettingsSubscription = (userId: string, loadProximitySettingsFunc: () => Promise<void>) => {
   console.log('📡 Creating new proximity settings subscription for user:', userId);
+  updateConnectionStatus('connecting');
   
   const channelName = `proximity-settings-${userId}`;
   
@@ -104,17 +269,22 @@ const createProximitySettingsSubscription = (userId: string, loadProximitySettin
           clearTimeout(globalProximityState.retryTimeout);
           globalProximityState.retryTimeout = null;
         }
+        // Phase 2: Update connection status and stop any polling
+        updateConnectionStatus('connected', true);
+        stopPollingFallback();
         console.log('✅ Proximity settings subscription successful, retry count reset');
         // Load initial data after successful subscription
         loadProximitySettingsFunc();
       } else if (status === 'CHANNEL_ERROR') {
         console.error('❌ Proximity settings channel subscription error');
         globalProximityState.isSubscribed = false;
+        updateConnectionStatus('failed');
         // Phase 1: Trigger reconnection on channel error
         reconnectWithBackoff(userId, loadProximitySettingsFunc);
       } else if (status === 'TIMED_OUT') {
         console.error('⏰ Proximity settings channel subscription timed out');
         globalProximityState.isSubscribed = false;
+        updateConnectionStatus('failed');
         // Phase 1: Trigger reconnection on timeout
         reconnectWithBackoff(userId, loadProximitySettingsFunc);
       }
@@ -195,13 +365,16 @@ export const useProximityAlerts = () => {
         clearTimeout(globalProximityState.retryTimeout);
         globalProximityState.retryTimeout = null;
       }
+      // Phase 2: Stop polling and reset connection status
+      stopPollingFallback();
+      updateConnectionStatus('disconnected', true);
       globalProximityState.settings = null;
     }
 
     globalProximityState.currentUserId = user.id;
 
     // Only create subscription if none exists
-    if (!globalProximityState.channel && !globalProximityState.isSubscribed) {
+    if (!globalProximityState.channel && !globalProximityState.isSubscribed && !globalProximityState.connectionStatus.isPollingActive) {
       // Phase 1: Use new subscription creation function
       createProximitySettingsSubscription(user.id, loadProximitySettings);
     } else if (globalProximityState.isSubscribed && globalProximityState.currentUserId === user.id) {
@@ -435,6 +608,30 @@ export const useProximityAlerts = () => {
     setUserLocation(location);
   };
 
+  // Phase 2: Manual reconnection function
+  const forceReconnect = useCallback(() => {
+    if (!user?.id) return;
+    
+    console.log('🔄 Manual reconnection triggered');
+    
+    // Stop any existing polling
+    stopPollingFallback();
+    
+    // Clean up existing connection
+    if (globalProximityState.channel) {
+      supabase.removeChannel(globalProximityState.channel);
+      globalProximityState.channel = null;
+      globalProximityState.isSubscribed = false;
+    }
+    
+    // Reset connection state
+    globalProximityState.retryCount = 0;
+    updateConnectionStatus('connecting', true);
+    
+    // Attempt fresh connection
+    createProximitySettingsSubscription(user.id, loadProximitySettings);
+  }, [user?.id]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -454,6 +651,9 @@ export const useProximityAlerts = () => {
           clearTimeout(globalProximityState.retryTimeout);
           globalProximityState.retryTimeout = null;
         }
+        // Phase 2: Clean up polling and connection state
+        stopPollingFallback();
+        updateConnectionStatus('disconnected', true);
       }
     };
   }, []);
@@ -464,6 +664,9 @@ export const useProximityAlerts = () => {
     userLocation,
     isLoading,
     isSaving,
+    // Phase 2: Connection status and manual controls
+    connectionStatus: globalProximityState.connectionStatus,
+    forceReconnect,
     // Keep these for compatibility
     combinedLandmarks,
     setProximityAlerts,
