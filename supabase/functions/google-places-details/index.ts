@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
@@ -22,52 +23,89 @@ serve(async (req) => {
       throw new Error('Google API key not configured')
     }
 
-    let detailsUrl: string
+    let placeDetails: any = null
     
     if (placeId) {
-      // Use Place ID if provided
-      detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,rating,formatted_phone_number,formatted_address,opening_hours,website,photos,price_level,user_ratings_total&key=${googleApiKey}`
-    } else if (landmarkName && coordinates) {
-      // Find place by name and coordinates
-      const searchUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${coordinates[1]},${coordinates[0]}&radius=100&keyword=${encodeURIComponent(landmarkName)}&key=${googleApiKey}`
+      // Use new Places API v1 for place details
+      const detailsUrl = `https://places.googleapis.com/v1/places/${placeId}`
       
-      const searchResponse = await fetch(searchUrl)
-      const searchData = await searchResponse.json()
+      const detailsResponse = await fetch(detailsUrl, {
+        method: 'GET',
+        headers: {
+          'X-Goog-Api-Key': googleApiKey,
+          'X-Goog-FieldMask': 'displayName,rating,nationalPhoneNumber,formattedAddress,regularOpeningHours,websiteUri,photos,priceLevel,userRatingCount'
+        }
+      })
       
-      if (searchData.results && searchData.results.length > 0) {
-        const nearestPlace = searchData.results[0]
-        detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${nearestPlace.place_id}&fields=name,rating,formatted_phone_number,formatted_address,opening_hours,website,photos,price_level,user_ratings_total&key=${googleApiKey}`
+      if (detailsResponse.ok) {
+        placeDetails = await detailsResponse.json()
       } else {
-        return new Response(
-          JSON.stringify({ error: 'No place found', fallback: true }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
-        )
+        console.error('Places API details error:', await detailsResponse.text())
+      }
+    } else if (landmarkName && coordinates) {
+      // Use new Places API v1 for nearby search
+      const searchUrl = 'https://places.googleapis.com/v1/places:searchNearby'
+      
+      const searchResponse = await fetch(searchUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': googleApiKey,
+          'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.nationalPhoneNumber,places.formattedAddress,places.regularOpeningHours,places.websiteUri,places.photos,places.priceLevel,places.userRatingCount'
+        },
+        body: JSON.stringify({
+          includedTypes: ['tourist_attraction', 'point_of_interest'],
+          maxResultCount: 5,
+          locationRestriction: {
+            circle: {
+              center: {
+                latitude: coordinates[1],
+                longitude: coordinates[0]
+              },
+              radius: 100
+            }
+          }
+        })
+      })
+
+      if (searchResponse.ok) {
+        const searchData = await searchResponse.json()
+        
+        if (searchData.places && searchData.places.length > 0) {
+          // Find the best match by name similarity
+          const bestMatch = searchData.places.find((place: any) => 
+            place.displayName?.text?.toLowerCase().includes(landmarkName.toLowerCase()) ||
+            landmarkName.toLowerCase().includes(place.displayName?.text?.toLowerCase())
+          ) || searchData.places[0]
+          
+          placeDetails = bestMatch
+        }
+      } else {
+        console.error('Places API search error:', await searchResponse.text())
       }
     } else {
       throw new Error('Either placeId or both landmarkName and coordinates are required')
     }
 
-    const response = await fetch(detailsUrl)
-    const data = await response.json()
-
-    if (data.result) {
-      // Process photos if available
-      const photos = data.result.photos?.slice(0, 3).map((photo: any) => 
-        `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photo.photo_reference}&key=${googleApiKey}`
+    if (placeDetails) {
+      // Process photos if available - new API format
+      const photos = placeDetails.photos?.slice(0, 3).map((photo: any) => 
+        `https://places.googleapis.com/v1/${photo.name}/media?maxWidthPx=400&key=${googleApiKey}`
       ) || []
 
+      // Map new API response to expected format
       const enrichedData = {
-        name: data.result.name,
-        rating: data.result.rating,
-        userRatingsTotal: data.result.user_ratings_total,
-        phoneNumber: data.result.formatted_phone_number,
-        address: data.result.formatted_address,
-        website: data.result.website,
-        priceLevel: data.result.price_level,
-        openingHours: data.result.opening_hours?.weekday_text || [],
-        isOpenNow: data.result.opening_hours?.open_now,
+        name: placeDetails.displayName?.text || placeDetails.displayName,
+        rating: placeDetails.rating,
+        userRatingsTotal: placeDetails.userRatingCount,
+        phoneNumber: placeDetails.nationalPhoneNumber,
+        address: placeDetails.formattedAddress,
+        website: placeDetails.websiteUri,
+        priceLevel: placeDetails.priceLevel,
+        openingHours: placeDetails.regularOpeningHours?.weekdayDescriptions || [],
+        isOpenNow: placeDetails.regularOpeningHours?.openNow,
         photos,
-        placeId: data.result.place_id
+        placeId: placeDetails.id || placeId
       }
 
       return new Response(
