@@ -7,6 +7,7 @@ interface NetworkStatus {
   connectionType: string;
   effectiveType: string;
   downlink: number;
+  rtt: number;
 }
 
 export const useNetworkStatus = () => {
@@ -15,7 +16,8 @@ export const useNetworkStatus = () => {
     isSlowConnection: false,
     connectionType: 'unknown',
     effectiveType: 'unknown',
-    downlink: 0
+    downlink: 0,
+    rtt: 0
   });
 
   const updateNetworkStatus = useCallback(() => {
@@ -28,11 +30,13 @@ export const useNetworkStatus = () => {
     let connectionType = 'unknown';
     let effectiveType = 'unknown';
     let downlink = 0;
+    let rtt = 0;
 
     if (connection) {
       connectionType = connection.type || 'unknown';
       effectiveType = connection.effectiveType || 'unknown';
       downlink = connection.downlink || 0;
+      rtt = connection.rtt || 0;
       
       // Consider connection slow if effective type is 2g or downlink < 1 Mbps
       isSlowConnection = effectiveType === '2g' || 
@@ -45,7 +49,8 @@ export const useNetworkStatus = () => {
       isSlowConnection,
       connectionType,
       effectiveType,
-      downlink
+      downlink,
+      rtt
     });
   }, []);
 
