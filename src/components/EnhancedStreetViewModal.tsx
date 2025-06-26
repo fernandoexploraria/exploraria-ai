@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, Wifi, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -113,6 +114,49 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
     setCurrentViewpoint(0);
   }, [currentIndex]);
 
+  const determineStrategy = (multiData: MultiViewpointData): string => {
+    const viewCount = multiData.viewpoints.length;
+    if (viewCount === 1) return 'single';
+    if (viewCount === 4) return 'cardinal';
+    if (viewCount <= 3) return 'smart';
+    return 'all';
+  };
+
+  const handlePrevious = useCallback(() => {
+    setCurrentIndex(prev => prev > 0 ? prev - 1 : streetViewItems.length - 1);
+  }, [streetViewItems.length]);
+
+  const handleNext = useCallback(() => {
+    setCurrentIndex(prev => prev < streetViewItems.length - 1 ? prev + 1 : 0);
+  }, [streetViewItems.length]);
+
+  const handleThumbnailClick = useCallback((index: number) => {
+    setCurrentIndex(index);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    setIsFullscreen(prev => !prev);
+  }, []);
+
+  const handleShowOnMap = useCallback(() => {
+    const currentItem = streetViewItems[currentIndex];
+    if (currentItem?.streetViewData && onLocationSelect) {
+      let location;
+      
+      if (isMultiViewpointData(currentItem.streetViewData)) {
+        const currentStreetView = currentItem.streetViewData.viewpoints[currentViewpoint];
+        location = currentStreetView.location;
+      } else {
+        location = currentItem.streetViewData.location;
+      }
+      
+      if (location) {
+        onLocationSelect([location.lng, location.lat]);
+        onClose();
+      }
+    }
+  }, [currentIndex, currentViewpoint, streetViewItems, onLocationSelect, onClose]);
+
   // Keyboard navigation
   useEffect(() => {
     if (!isOpen) return;
@@ -212,49 +256,6 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
       loadViewpoints();
     }
   }, [currentIndex, streetViewItems, startLoading, finishLoading, updateProgress, loadImageWithProgress, getOptimalLoadingStrategy]);
-
-  const determineStrategy = (multiData: MultiViewpointData): string => {
-    const viewCount = multiData.viewpoints.length;
-    if (viewCount === 1) return 'single';
-    if (viewCount === 4) return 'cardinal';
-    if (viewCount <= 3) return 'smart';
-    return 'all';
-  };
-
-  const handlePrevious = useCallback(() => {
-    setCurrentIndex(prev => prev > 0 ? prev - 1 : streetViewItems.length - 1);
-  }, [streetViewItems.length]);
-
-  const handleNext = useCallback(() => {
-    setCurrentIndex(prev => prev < streetViewItems.length - 1 ? prev + 1 : 0);
-  }, [streetViewItems.length]);
-
-  const handleThumbnailClick = useCallback((index: number) => {
-    setCurrentIndex(index);
-  }, []);
-
-  const toggleFullscreen = useCallback(() => {
-    setIsFullscreen(prev => !prev);
-  }, []);
-
-  const handleShowOnMap = useCallback(() => {
-    const currentItem = streetViewItems[currentIndex];
-    if (currentItem?.streetViewData && onLocationSelect) {
-      let location;
-      
-      if (isMultiViewpointData(currentItem.streetViewData)) {
-        const currentStreetView = currentItem.streetViewData.viewpoints[currentViewpoint];
-        location = currentStreetView.location;
-      } else {
-        location = currentItem.streetViewData.location;
-      }
-      
-      if (location) {
-        onLocationSelect([location.lng, location.lat]);
-        onClose();
-      }
-    }
-  }, [currentIndex, currentViewpoint, streetViewItems, onLocationSelect, onClose]);
 
   if (!isOpen || streetViewItems.length === 0) return null;
 
