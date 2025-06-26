@@ -22,15 +22,41 @@ export interface TourPlan {
   };
 }
 
+export interface ProgressState {
+  phase: 'idle' | 'generating' | 'refining' | 'validating' | 'finalizing' | 'complete' | 'error';
+  percentage: number;
+  currentStep: string;
+  processedLandmarks: number;
+  totalLandmarks: number;
+  qualityMetrics?: {
+    highConfidence: number;
+    mediumConfidence: number;
+    lowConfidence: number;
+  };
+  errors: string[];
+}
+
 export const useTourPlanner = () => {
   const [tourPlan, setTourPlan] = useState<TourPlan | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progressState, setProgressState] = useState<ProgressState>({
+    phase: 'idle',
+    percentage: 0,
+    currentStep: '',
+    processedLandmarks: 0,
+    totalLandmarks: 0,
+    errors: []
+  });
   const { subscriptionData } = useSubscription();
   const { tourStats, forceRefresh } = useTourStats();
 
   // Keep backward compatibility
   const plannedLandmarks = tourPlan?.landmarks || [];
+
+  const updateProgress = (update: Partial<ProgressState>) => {
+    setProgressState(prev => ({ ...prev, ...update }));
+  };
 
   const generateTour = async (destination: string) => {
     // Check current user
@@ -59,29 +85,76 @@ export const useTourPlanner = () => {
     
     setIsLoading(true);
     setError(null);
-    setTourPlan(null); // Clear previous results
+    setTourPlan(null);
+    
+    // Initialize progress tracking
+    updateProgress({
+      phase: 'generating',
+      percentage: 0,
+      currentStep: 'Initializing tour generation...',
+      processedLandmarks: 0,
+      totalLandmarks: 0,
+      errors: []
+    });
 
     try {
       console.log('Calling enhanced tour generation edge function...');
       
-      // Call the new enhanced tour generation edge function
+      // Phase 1: Generate landmark list
+      updateProgress({
+        phase: 'generating',
+        percentage: 10,
+        currentStep: 'Getting landmark suggestions from Gemini AI...'
+      });
+
+      // Call the enhanced tour generation edge function
       const { data: enhancedTourData, error: enhancedTourError } = await supabase.functions.invoke('generate-enhanced-tour', {
         body: { destination }
       });
 
       if (enhancedTourError) {
         console.error('Enhanced tour generation error:', enhancedTourError);
+        updateProgress({
+          phase: 'error',
+          percentage: 0,
+          currentStep: 'Failed to generate tour',
+          errors: [enhancedTourError.message || "Failed to generate enhanced tour."]
+        });
         throw new Error(enhancedTourError.message || "Failed to generate enhanced tour.");
       }
 
       if (!enhancedTourData || !enhancedTourData.landmarks || !enhancedTourData.systemPrompt) {
-        throw new Error("Invalid enhanced tour data received.");
+        const errorMsg = "Invalid enhanced tour data received.";
+        updateProgress({
+          phase: 'error',
+          percentage: 0,
+          currentStep: 'Invalid data received',
+          errors: [errorMsg]
+        });
+        throw new Error(errorMsg);
       }
+
+      // Phase 2: Process coordinate refinement results
+      updateProgress({
+        phase: 'refining',
+        percentage: 60,
+        currentStep: 'Processing coordinate refinement results...',
+        totalLandmarks: enhancedTourData.landmarks.length,
+        processedLandmarks: enhancedTourData.landmarks.length
+      });
 
       console.log('Enhanced tour data received:', {
         landmarkCount: enhancedTourData.landmarks.length,
         quality: enhancedTourData.metadata?.coordinateQuality,
         processingTime: enhancedTourData.metadata?.processingTime
+      });
+
+      // Phase 3: Validate and prepare landmarks
+      updateProgress({
+        phase: 'validating',
+        percentage: 80,
+        currentStep: 'Validating landmark coordinates...',
+        qualityMetrics: enhancedTourData.metadata?.coordinateQuality
       });
 
       // Convert enhanced landmarks to backward-compatible format
@@ -95,6 +168,13 @@ export const useTourPlanner = () => {
         ...(enhancedLandmark.coordinateSource && { coordinateSource: enhancedLandmark.coordinateSource }),
         ...(enhancedLandmark.confidence && { confidence: enhancedLandmark.confidence })
       }));
+
+      // Phase 4: Finalize tour
+      updateProgress({
+        phase: 'finalizing',
+        percentage: 90,
+        currentStep: 'Finalizing tour and updating map...'
+      });
 
       // Set tour landmarks in the separate array (this clears and repopulates)
       console.log('Setting enhanced tour landmarks:', newLandmarks.length);
@@ -113,11 +193,10 @@ export const useTourPlanner = () => {
 
       setTourPlan(newTourPlan);
       
-      // ... keep existing code (increment tour count logic)
+      // Update tour count
       try {
         console.log('Calling increment_tour_count function for user:', user.id);
         
-        // Call the database function to increment tour count with correct parameter name
         const { data: incrementResult, error: incrementError } = await supabase.rpc('increment_tour_count', {
           p_user_id: user.id
         });
@@ -147,13 +226,23 @@ export const useTourPlanner = () => {
           console.log('increment_tour_count successful, new count:', incrementResult);
         }
         
-        // Force refresh tour stats after increment
         console.log('Triggering force refresh of tour stats...');
         await forceRefresh();
         
       } catch (countErr) {
         console.error('Failed to update tour count:', countErr);
+        // Don't fail the whole operation for count errors
+        updateProgress({
+          errors: [...progressState.errors, 'Failed to update tour count, but tour was generated successfully']
+        });
       }
+      
+      // Complete with success
+      updateProgress({
+        phase: 'complete',
+        percentage: 100,
+        currentStep: 'Tour generation complete!'
+      });
       
       // Enhanced success message with quality info
       const qualityInfo = enhancedTourData.metadata?.coordinateQuality;
@@ -166,8 +255,31 @@ export const useTourPlanner = () => {
     } catch (err) {
       console.error("Error generating enhanced tour:", err);
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
-      setError(errorMessage);
-      toast.error(`Failed to generate tour: ${errorMessage}`);
+      
+      // Categorize errors for better user experience
+      let userFriendlyMessage = errorMessage;
+      let retryable = true;
+      
+      if (errorMessage.includes('Gemini') || errorMessage.includes('AI')) {
+        userFriendlyMessage = "AI service temporarily unavailable. Please try again.";
+      } else if (errorMessage.includes('Places') || errorMessage.includes('Google')) {
+        userFriendlyMessage = "Location service temporarily unavailable. Please try again.";
+      } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+        userFriendlyMessage = "Network connection issue. Please check your connection and try again.";
+      } else if (errorMessage.includes('auth') || errorMessage.includes('login')) {
+        userFriendlyMessage = "Authentication issue. Please sign in again.";
+        retryable = false;
+      }
+      
+      updateProgress({
+        phase: 'error',
+        percentage: 0,
+        currentStep: 'Tour generation failed',
+        errors: [userFriendlyMessage]
+      });
+      
+      setError(userFriendlyMessage);
+      toast.error(`Failed to generate tour: ${userFriendlyMessage}${retryable ? ' You can try again.' : ''}`);
       setTourPlan(null);
     } finally {
       setIsLoading(false);
@@ -179,6 +291,7 @@ export const useTourPlanner = () => {
     plannedLandmarks, // Keep for backward compatibility
     isLoading, 
     error, 
-    generateTour 
+    generateTour,
+    progressState
   };
 };

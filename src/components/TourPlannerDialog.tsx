@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, MapPin, Sparkles } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Loader2, MapPin, Sparkles, CheckCircle, AlertCircle, Target, Zap, Shield } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
+import { ProgressState } from '@/hooks/useTourPlanner';
 
 interface TourPlannerDialogProps {
   open: boolean;
@@ -13,6 +15,7 @@ interface TourPlannerDialogProps {
   onGenerateTour: (destination: string) => Promise<void>;
   onAuthRequired: (destination: string) => void;
   isLoading: boolean;
+  progressState?: ProgressState;
 }
 
 const TourPlannerDialog: React.FC<TourPlannerDialogProps> = ({ 
@@ -20,7 +23,8 @@ const TourPlannerDialog: React.FC<TourPlannerDialogProps> = ({
   onOpenChange, 
   onGenerateTour, 
   onAuthRequired,
-  isLoading 
+  isLoading,
+  progressState 
 }) => {
   const [destination, setDestination] = useState('');
   const { user } = useAuth();
@@ -29,19 +33,58 @@ const TourPlannerDialog: React.FC<TourPlannerDialogProps> = ({
     if (!destination) return;
     
     if (!user) {
-      // Pass the destination to the auth handler
       onAuthRequired(destination);
       onOpenChange(false);
       return;
     }
 
     await onGenerateTour(destination);
-    onOpenChange(false); // Close dialog after generating
+    if (progressState?.phase === 'complete') {
+      onOpenChange(false);
+    }
+  };
+
+  const getPhaseIcon = (phase: string) => {
+    switch (phase) {
+      case 'generating':
+        return <Sparkles className="h-4 w-4 text-blue-500" />;
+      case 'refining':
+        return <Target className="h-4 w-4 text-orange-500" />;
+      case 'validating':
+        return <Shield className="h-4 w-4 text-green-500" />;
+      case 'finalizing':
+        return <Zap className="h-4 w-4 text-purple-500" />;
+      case 'complete':
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case 'error':
+        return <AlertCircle className="h-4 w-4 text-red-500" />;
+      default:
+        return <Loader2 className="h-4 w-4 animate-spin" />;
+    }
+  };
+
+  const getPhaseDescription = (phase: string) => {
+    switch (phase) {
+      case 'generating':
+        return 'AI is analyzing your destination and selecting landmarks';
+      case 'refining':
+        return 'Refining coordinates using Google Places API';
+      case 'validating':
+        return 'Validating location accuracy and quality';
+      case 'finalizing':
+        return 'Preparing your personalized tour experience';
+      case 'complete':
+        return 'Your enhanced tour is ready!';
+      case 'error':
+        return 'Something went wrong during generation';
+      default:
+        return 'Processing your request...';
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-blue-500" />
@@ -51,6 +94,7 @@ const TourPlannerDialog: React.FC<TourPlannerDialogProps> = ({
             Enter a destination, and we'll create a comprehensive tour with precisely located landmarks using our enhanced coordinate system powered by Google Places API and Gemini AI.
           </DialogDescription>
         </DialogHeader>
+        
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="destination" className="flex items-center gap-2">
@@ -63,28 +107,69 @@ const TourPlannerDialog: React.FC<TourPlannerDialogProps> = ({
               onChange={(e) => setDestination(e.target.value)}
               placeholder="Enter a city or region"
               onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+              disabled={isLoading}
             />
           </div>
-          {isLoading && (
-            <div className="text-sm text-muted-foreground bg-blue-50 p-3 rounded-lg">
+          
+          {isLoading && progressState && (
+            <div className="space-y-3 bg-blue-50 p-4 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="font-medium">Generating enhanced tour...</span>
+                {getPhaseIcon(progressState.phase)}
+                <span className="font-medium text-sm">
+                  {progressState.currentStep || getPhaseDescription(progressState.phase)}
+                </span>
               </div>
-              <div className="text-xs space-y-1 text-blue-600">
-                <div>• Getting landmark suggestions from Gemini AI</div>
-                <div>• Refining coordinates with Google Places API</div>
-                <div>• Validating locations and gathering place data</div>
-                <div>• Optimizing tour quality and accuracy</div>
+              
+              <Progress value={progressState.percentage} className="h-2" />
+              
+              <div className="text-xs text-blue-600 space-y-1">
+                {progressState.totalLandmarks > 0 && (
+                  <div>
+                    Processed {progressState.processedLandmarks} of {progressState.totalLandmarks} landmarks
+                  </div>
+                )}
+                
+                {progressState.qualityMetrics && (
+                  <div className="flex gap-4 text-xs">
+                    <span className="text-green-600">
+                      ✓ {progressState.qualityMetrics.highConfidence} high-quality
+                    </span>
+                    <span className="text-yellow-600">
+                      ~ {progressState.qualityMetrics.mediumConfidence} medium
+                    </span>
+                    <span className="text-red-600">
+                      ! {progressState.qualityMetrics.lowConfidence} low
+                    </span>
+                  </div>
+                )}
+                
+                {progressState.errors.length > 0 && (
+                  <div className="text-red-600">
+                    {progressState.errors.map((error, index) => (
+                      <div key={index} className="flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        {error}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
         </div>
+        
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
+          <Button 
+            variant="outline" 
+            onClick={() => onOpenChange(false)} 
+            disabled={isLoading}
+          >
             Cancel
           </Button>
-          <Button onClick={handleGenerate} disabled={isLoading || !destination}>
+          <Button 
+            onClick={handleGenerate} 
+            disabled={isLoading || !destination || progressState?.phase === 'error'}
+          >
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {!user ? 'Sign In to Generate Tour' : 'Generate Enhanced Tour'}
           </Button>
