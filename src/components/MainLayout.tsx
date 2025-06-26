@@ -10,6 +10,7 @@ import DebugWindow from '@/components/DebugWindow';
 import { useDebugWindow } from '@/hooks/useDebugWindow';
 import { Landmark } from '@/data/landmarks';
 import { User } from '@supabase/supabase-js';
+import { ProgressState } from '@/hooks/useTourPlanner';
 
 interface MainLayoutProps {
   mapboxToken: string;
@@ -29,6 +30,7 @@ interface MainLayoutProps {
   onGenerateTour: (destination: string) => Promise<void>;
   onTourAuthRequired: (destination: string) => void;
   isTourLoading: boolean;
+  tourProgressState?: ProgressState;
   isVoiceSearchOpen: boolean;
   onVoiceSearchOpenChange: (open: boolean) => void;
   isAuthDialogOpen: boolean;
@@ -56,6 +58,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   onGenerateTour,
   onTourAuthRequired,
   isTourLoading,
+  tourProgressState,
   isVoiceSearchOpen,
   onVoiceSearchOpenChange,
   isAuthDialogOpen,
@@ -103,6 +106,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         onGenerateTour={onGenerateTour}
         onTourAuthRequired={onTourAuthRequired}
         isTourLoading={isTourLoading}
+        tourProgressState={tourProgressState}
         isVoiceSearchOpen={isVoiceSearchOpen}
         onVoiceSearchOpenChange={onVoiceSearchOpenChange}
         isAuthDialogOpen={isAuthDialogOpen}

@@ -17,7 +17,7 @@ const Index: React.FC = () => {
   const [showSplash, setShowSplash] = useState(true);
   const [additionalLandmarks, setAdditionalLandmarks] = useState<Landmark[]>([]);
   
-  const { tourPlan, plannedLandmarks, isLoading: isTourLoading, generateTour } = useTourPlanner();
+  const { tourPlan, plannedLandmarks, isLoading: isTourLoading, generateTour, progressState } = useTourPlanner();
   const { user, signOut } = useAuth();
   const mapboxToken = useMapboxToken();
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
@@ -139,6 +139,7 @@ const Index: React.FC = () => {
         onGenerateTour={handleGenerateTour}
         onTourAuthRequired={handleTourAuthRequired}
         isTourLoading={isTourLoading}
+        tourProgressState={progressState}
         isVoiceSearchOpen={isInteractionHistoryOpen}
         onVoiceSearchOpenChange={setIsInteractionHistoryOpen}
         isAuthDialogOpen={isAuthDialogOpen}
