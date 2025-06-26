@@ -1,14 +1,15 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Download, Eye, EyeOff, Satellite, Link, ChevronLeft, ChevronRight, Camera } from 'lucide-react';
+import { Download, Eye, EyeOff, Satellite, Link, ChevronLeft, ChevronRight, Camera, Maximize2 } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { useStreetViewNavigation } from '@/hooks/useStreetViewNavigation';
 import { useEnhancedPhotos, PhotoData } from '@/hooks/useEnhancedPhotos';
+import { usePhotoNavigation } from '@/hooks/usePhotoNavigation';
 import EnhancedStreetViewModal from './EnhancedStreetViewModal';
 import EnhancedProgressiveImage from './EnhancedProgressiveImage';
 import PhotoAttribution from './photo-carousel/PhotoAttribution';
+import ImageViewerDialog from './ImageViewerDialog';
 import { Landmark } from '@/data/landmarks';
 
 interface Interaction {
@@ -19,7 +20,7 @@ interface Interaction {
   interaction_type: string;
   landmark_coordinates: any;
   full_transcript: any;
-  place_id?: string; // New field for Photos API integration
+  place_id?: string;
 }
 
 interface InteractionCardImageProps {
@@ -37,9 +38,9 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
 }) => {
   const [streetViewStatus, setStreetViewStatus] = useState<'unknown' | 'available' | 'unavailable'>('unknown');
   const [photos, setPhotos] = useState<PhotoData[]>([]);
-  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [showAttribution, setShowAttribution] = useState(false);
   const [isLoadingPhotos, setIsLoadingPhotos] = useState(false);
+  const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
   
   const { 
     isModalOpen, 
@@ -49,6 +50,20 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
   } = useStreetViewNavigation();
   
   const { fetchPhotos, getBestPhoto } = useEnhancedPhotos();
+
+  // Photo navigation for multiple photos
+  const {
+    currentIndex,
+    currentPhoto,
+    hasNext,
+    hasPrevious,
+    totalCount,
+    goToNext,
+    goToPrevious
+  } = usePhotoNavigation({
+    photos,
+    initialIndex: 0
+  });
 
   // Convert interaction coordinates to Landmark format
   const landmarkFromInteraction: Landmark | null = React.useMemo(() => {
@@ -182,13 +197,15 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
     window.open(url, '_blank');
   };
 
+  const handleImageClick = () => {
+    setIsImageViewerOpen(true);
+  };
+
   const handleImageDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
     
-    const currentPhoto = photos[currentPhotoIndex];
-    if (!currentPhoto) return;
-
-    const downloadUrl = currentPhoto.urls.large || currentPhoto.urls.medium || currentPhoto.urls.thumb;
+    const photoToDownload = currentPhoto || createFallbackPhoto(imageUrl);
+    const downloadUrl = photoToDownload.urls.large || photoToDownload.urls.medium || photoToDownload.urls.thumb;
     
     try {
       if (Capacitor.isNativePlatform()) {
@@ -207,7 +224,7 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
         
         const link = document.createElement('a');
         link.href = url;
-        link.download = `exploraria-${destination.replace(/\s+/g, '-').toLowerCase()}-${currentPhotoIndex + 1}-${Date.now()}.jpg`;
+        link.download = `exploraria-${destination.replace(/\s+/g, '-').toLowerCase()}-${currentIndex + 1}-${Date.now()}.jpg`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -222,15 +239,15 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
 
   const goToPreviousPhoto = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setCurrentPhotoIndex((prev) => (prev - 1 + photos.length) % photos.length);
+    goToPrevious();
   };
 
   const goToNextPhoto = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setCurrentPhotoIndex((prev) => (prev + 1) % photos.length);
+    goToNext();
   };
 
-  const currentPhoto = photos[currentPhotoIndex];
+  const displayPhoto = currentPhoto || createFallbackPhoto(imageUrl);
   const hasMultiplePhotos = photos.length > 1;
 
   if (isLoadingPhotos) {
@@ -255,12 +272,12 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
 
   return (
     <>
-      <div className="mb-2 flex-shrink-0 relative group">
+      <div className="mb-2 flex-shrink-0 relative group cursor-pointer" onClick={handleImageClick}>
         {/* Main Photo Display */}
         <div className="relative">
           <EnhancedProgressiveImage
-            photo={currentPhoto}
-            alt={`${destination} - Photo ${currentPhotoIndex + 1}`}
+            photo={displayPhoto}
+            alt={`${destination} - Photo ${currentIndex + 1}`}
             className="w-full h-20 rounded"
             showAttribution={false}
           />
@@ -272,6 +289,7 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
                 variant="ghost"
                 size="sm"
                 onClick={goToPreviousPhoto}
+                disabled={!hasPrevious}
                 className="absolute left-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0 bg-black/50 hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity"
               >
                 <ChevronLeft className="w-3 h-3 text-white" />
@@ -281,17 +299,22 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
                 variant="ghost"
                 size="sm"
                 onClick={goToNextPhoto}
+                disabled={!hasNext}
                 className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0 bg-black/50 hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity"
               >
                 <ChevronRight className="w-3 h-3 text-white" />
               </Button>
             </>
           )}
+
+          {/* Fullscreen indicator */}
+          <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+            <Maximize2 className="w-6 h-6 text-white drop-shadow-lg" />
+          </div>
         </div>
         
         {/* Status Badges */}
         <div className="absolute top-1 left-1 flex gap-1">
-          {/* Street View Status Badge */}
           {streetViewStatus === 'available' && (
             <Badge variant="secondary" className="text-xs bg-blue-500/80 text-white border-0">
               Street View
@@ -304,17 +327,15 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
             </Badge>
           )}
           
-          {/* Multiple Photos Badge */}
           {hasMultiplePhotos && (
             <Badge variant="secondary" className="text-xs bg-green-500/80 text-white border-0">
-              {currentPhotoIndex + 1}/{photos.length}
+              {currentIndex + 1}/{totalCount}
             </Badge>
           )}
         </div>
         
         {/* Action Buttons */}
         <div className="absolute top-1 right-1 flex gap-1">
-          {/* Street View Button */}
           {landmarkFromInteraction && streetViewStatus === 'available' && (
             <Button
               variant="ghost"
@@ -327,7 +348,6 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
             </Button>
           )}
           
-          {/* Disabled Street View Button */}
           {landmarkFromInteraction && streetViewStatus === 'unavailable' && (
             <>
               <Button
@@ -364,7 +384,6 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
             </>
           )}
           
-          {/* Loading Street View Button */}
           {landmarkFromInteraction && streetViewStatus === 'unknown' && (
             <Button
               variant="ghost"
@@ -377,7 +396,6 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
             </Button>
           )}
           
-          {/* Download Button */}
           <Button
             variant="ghost"
             size="sm"
@@ -390,15 +408,24 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
         </div>
 
         {/* Photo Attribution Overlay */}
-        {currentPhoto.attributions && currentPhoto.attributions.length > 0 && (
+        {displayPhoto.attributions && displayPhoto.attributions.length > 0 && (
           <PhotoAttribution
-            photo={currentPhoto}
+            photo={displayPhoto}
             isVisible={showAttribution}
             onToggle={() => setShowAttribution(!showAttribution)}
             className="rounded-b"
           />
         )}
       </div>
+
+      {/* Enhanced Image Viewer Dialog */}
+      <ImageViewerDialog
+        open={isImageViewerOpen}
+        onOpenChange={setIsImageViewerOpen}
+        photos={photos}
+        imageName={destination}
+        initialIndex={currentIndex}
+      />
 
       {/* Enhanced Street View Modal */}
       <EnhancedStreetViewModal

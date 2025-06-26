@@ -2,17 +2,23 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Download, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Download, X, ZoomIn, ZoomOut, Maximize2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { PhotoData } from '@/hooks/useEnhancedPhotos';
+import { usePhotoNavigation } from '@/hooks/usePhotoNavigation';
+import { usePhotoKeyboard } from '@/hooks/usePhotoKeyboard';
 import EnhancedProgressiveImage from './EnhancedProgressiveImage';
 import PhotoAttribution from './photo-carousel/PhotoAttribution';
+import PhotoThumbnailGrid from './photo-carousel/PhotoThumbnailGrid';
+import FullscreenPhotoViewer from './FullscreenPhotoViewer';
 
 interface ImageViewerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   imageUrl?: string;
   photo?: PhotoData;
+  photos?: PhotoData[]; // New: support for multiple photos
   imageName: string;
+  initialIndex?: number; // New: starting photo index
 }
 
 const ImageViewerDialog: React.FC<ImageViewerDialogProps> = ({
@@ -20,26 +26,50 @@ const ImageViewerDialog: React.FC<ImageViewerDialogProps> = ({
   onOpenChange,
   imageUrl,
   photo,
+  photos,
   imageName,
+  initialIndex = 0,
 }) => {
   const [zoomLevel, setZoomLevel] = useState(1);
   const [showAttribution, setShowAttribution] = useState(false);
 
+  // Create photos array from props
+  const photosList = photos || (photo ? [photo] : []);
+  const hasMultiplePhotos = photosList.length > 1;
+
+  const {
+    currentIndex,
+    isFullscreen,
+    currentPhoto,
+    hasNext,
+    hasPrevious,
+    totalCount,
+    goToNext,
+    goToPrevious,
+    goToIndex,
+    openFullscreen,
+    closeFullscreen
+  } = usePhotoNavigation({
+    photos: photosList,
+    initialIndex
+  });
+
   const handleDownload = async () => {
     try {
-      let downloadUrl = imageUrl;
+      let downloadUrl: string;
       
-      // If PhotoData is available, use the highest quality URL
-      if (photo) {
-        downloadUrl = photo.urls.large || photo.urls.medium || photo.urls.thumb;
+      if (currentPhoto) {
+        downloadUrl = currentPhoto.urls.large || currentPhoto.urls.medium || currentPhoto.urls.thumb;
+      } else if (imageUrl) {
+        downloadUrl = imageUrl;
+      } else {
+        return;
       }
-      
-      if (!downloadUrl) return;
 
       // Create a temporary link element for download
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.download = `${imageName.replace(/[^a-zA-Z0-9]/g, '_')}.jpg`;
+      link.download = `${imageName.replace(/[^a-zA-Z0-9]/g, '_')}-${hasMultiplePhotos ? currentIndex + 1 : ''}.jpg`;
       link.target = '_blank';
       
       // For mobile devices, open in new tab so users can long-press and save
@@ -54,7 +84,9 @@ const ImageViewerDialog: React.FC<ImageViewerDialogProps> = ({
     } catch (error) {
       console.error('Error downloading image:', error);
       // Fallback: open image in new tab
-      const fallbackUrl = photo ? (photo.urls.large || photo.urls.medium || photo.urls.thumb) : imageUrl;
+      const fallbackUrl = currentPhoto ? 
+        (currentPhoto.urls.large || currentPhoto.urls.medium || currentPhoto.urls.thumb) : 
+        imageUrl;
       if (fallbackUrl) {
         window.open(fallbackUrl, '_blank');
       }
@@ -73,89 +105,174 @@ const ImageViewerDialog: React.FC<ImageViewerDialogProps> = ({
     setZoomLevel(1);
   };
 
+  const handleClose = () => {
+    onOpenChange(false);
+    setZoomLevel(1);
+  };
+
+  // Keyboard navigation
+  usePhotoKeyboard({
+    isActive: open && !isFullscreen,
+    onNext: goToNext,
+    onPrevious: goToPrevious,
+    onClose: handleClose,
+    onZoomIn: handleZoomIn,
+    onZoomOut: handleZoomOut,
+    onResetZoom: resetZoom,
+    onFullscreen: openFullscreen
+  });
+
+  // Reset zoom when photo changes
+  React.useEffect(() => {
+    setZoomLevel(1);
+  }, [currentIndex]);
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] p-0">
-        <DialogHeader className="p-6 pb-0">
-          <DialogTitle className="flex items-center justify-between">
-            <span>{imageName}</span>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleZoomOut}
-                disabled={zoomLevel <= 0.5}
-                className="flex items-center gap-2"
-              >
-                <ZoomOut className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={resetZoom}
-                className="text-xs min-w-12"
-              >
-                {Math.round(zoomLevel * 100)}%
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleZoomIn}
-                disabled={zoomLevel >= 4}
-                className="flex items-center gap-2"
-              >
-                <ZoomIn className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleDownload}
-                className="flex items-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                Download
-              </Button>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+          <DialogHeader className="p-6 pb-0">
+            <DialogTitle className="flex items-center justify-between">
+              <span>
+                {imageName}
+                {hasMultiplePhotos && ` (${currentIndex + 1} of ${totalCount})`}
+              </span>
+              <div className="flex gap-2">
+                {hasMultiplePhotos && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={goToPrevious}
+                      disabled={!hasPrevious}
+                      className="flex items-center gap-2"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={goToNext}
+                      disabled={!hasNext}
+                      className="flex items-center gap-2"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleZoomOut}
+                  disabled={zoomLevel <= 0.5}
+                  className="flex items-center gap-2"
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={resetZoom}
+                  className="text-xs min-w-12"
+                >
+                  {Math.round(zoomLevel * 100)}%
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleZoomIn}
+                  disabled={zoomLevel >= 4}
+                  className="flex items-center gap-2"
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={openFullscreen}
+                  className="flex items-center gap-2"
+                >
+                  <Maximize2 className="w-4 h-4" />
+                  Fullscreen
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownload}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Download
+                </Button>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="p-6 pt-2 relative">
+            <div 
+              className="overflow-hidden rounded-lg"
+              style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'center', transition: 'transform 0.2s ease' }}
+            >
+              {currentPhoto ? (
+                <EnhancedProgressiveImage
+                  photo={currentPhoto}
+                  alt={`${imageName} - Photo ${currentIndex + 1}`}
+                  className="w-full h-auto max-h-[70vh] object-contain"
+                  showAttribution={false}
+                />
+              ) : imageUrl ? (
+                <img 
+                  src={imageUrl} 
+                  alt={imageName}
+                  className="w-full h-auto max-h-[70vh] object-contain rounded-lg"
+                />
+              ) : (
+                <div className="w-full h-64 bg-gray-100 flex items-center justify-center rounded-lg">
+                  <span className="text-gray-500">No image available</span>
+                </div>
+              )}
             </div>
-          </DialogTitle>
-        </DialogHeader>
-        
-        <div className="p-6 pt-2 relative">
-          <div 
-            className="overflow-hidden rounded-lg"
-            style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'center', transition: 'transform 0.2s ease' }}
-          >
-            {photo ? (
-              <EnhancedProgressiveImage
-                photo={photo}
-                alt={imageName}
-                className="w-full h-auto max-h-[70vh] object-contain"
-                showAttribution={false}
+
+            {/* Attribution overlay */}
+            {currentPhoto && currentPhoto.attributions && currentPhoto.attributions.length > 0 && (
+              <PhotoAttribution
+                photo={currentPhoto}
+                isVisible={showAttribution}
+                onToggle={() => setShowAttribution(!showAttribution)}
+                className="rounded-b-lg"
               />
-            ) : imageUrl ? (
-              <img 
-                src={imageUrl} 
-                alt={imageName}
-                className="w-full h-auto max-h-[70vh] object-contain rounded-lg"
-              />
-            ) : (
-              <div className="w-full h-64 bg-gray-100 flex items-center justify-center rounded-lg">
-                <span className="text-gray-500">No image available</span>
+            )}
+
+            {/* Thumbnail grid for multiple photos */}
+            {hasMultiplePhotos && (
+              <div className="mt-4">
+                <PhotoThumbnailGrid
+                  photos={photosList}
+                  currentIndex={currentIndex}
+                  onThumbnailClick={goToIndex}
+                />
               </div>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
 
-          {/* Attribution overlay for PhotoData */}
-          {photo && photo.attributions && photo.attributions.length > 0 && (
-            <PhotoAttribution
-              photo={photo}
-              isVisible={showAttribution}
-              onToggle={() => setShowAttribution(!showAttribution)}
-              className="rounded-b-lg"
-            />
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+      {/* Fullscreen viewer */}
+      <FullscreenPhotoViewer
+        photos={photosList.length > 0 ? photosList : (imageUrl ? [{
+          id: 0,
+          photoReference: 'dialog',
+          urls: { thumb: imageUrl, medium: imageUrl, large: imageUrl },
+          attributions: [],
+          width: 800,
+          height: 600
+        }] : [])}
+        currentIndex={currentIndex}
+        isOpen={isFullscreen}
+        onClose={closeFullscreen}
+        onIndexChange={goToIndex}
+      />
+    </>
   );
 };
 
