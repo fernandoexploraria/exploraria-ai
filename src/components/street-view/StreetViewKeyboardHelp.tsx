@@ -13,14 +13,16 @@ interface KeyboardShortcut {
 interface StreetViewKeyboardHelpProps {
   isMultiViewpoint?: boolean;
   className?: string;
+  isVisible?: boolean;
+  onToggle?: () => void;
 }
 
 const StreetViewKeyboardHelp: React.FC<StreetViewKeyboardHelpProps> = ({
   isMultiViewpoint = false,
-  className = ""
+  className = "",
+  isVisible = false,
+  onToggle
 }) => {
-  const [isVisible, setIsVisible] = useState(false);
-
   const shortcuts: KeyboardShortcut[] = [
     // Navigation
     { keys: ['←', '→'], description: 'Navigate between landmarks', category: 'navigation' },
@@ -64,7 +66,7 @@ const StreetViewKeyboardHelp: React.FC<StreetViewKeyboardHelpProps> = ({
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => setIsVisible(true)}
+        onClick={onToggle}
         className={cn(
           "h-8 w-8 p-0 text-white/70 hover:text-white hover:bg-white/20",
           className
@@ -78,16 +80,16 @@ const StreetViewKeyboardHelp: React.FC<StreetViewKeyboardHelpProps> = ({
 
   return (
     <div className={cn(
-      "fixed inset-0 z-[9999] flex items-center justify-center p-4",
+      "absolute top-0 left-0 right-0 bottom-0 z-[60] flex items-center justify-center p-4",
       className
     )}>
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={() => setIsVisible(false)}
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={onToggle}
       />
       
-      {/* Modal Panel */}
+      {/* Help Panel */}
       <div className="relative w-full max-w-md max-h-[80vh] bg-gray-900/95 backdrop-blur-md rounded-xl border border-gray-700 shadow-2xl overflow-hidden animate-scale-in">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
@@ -98,7 +100,7 @@ const StreetViewKeyboardHelp: React.FC<StreetViewKeyboardHelpProps> = ({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setIsVisible(false)}
+            onClick={onToggle}
             className="h-6 w-6 p-0 text-white/70 hover:text-white hover:bg-white/20"
           >
             <X className="h-3 w-3" />

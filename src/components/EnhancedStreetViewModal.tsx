@@ -478,6 +478,7 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
                 onFullscreen={toggleFullscreen}
                 onShowOnMap={onLocationSelect ? handleShowOnMap : undefined}
                 onToggleInfo={() => setShowMetadata(!showMetadata)}
+                onToggleKeyboardHelp={() => setShowKeyboardHelp(!showKeyboardHelp)}
                 hasPrevious={currentIndex > 0}
                 hasNext={currentIndex < streetViewItems.length - 1}
                 currentIndex={currentIndex}
@@ -516,6 +517,15 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
             </div>
           )}
         </div>
+
+        {/* Keyboard Help Panel */}
+        {showKeyboardHelp && (
+          <StreetViewKeyboardHelp
+            isMultiViewpoint={isMultiViewpoint}
+            isVisible={showKeyboardHelp}
+            onToggle={() => setShowKeyboardHelp(!showKeyboardHelp)}
+          />
+        )}
 
         {/* Enhanced Multi-viewpoint Compass */}
         {isMultiViewpoint && allViewpoints.length > 1 && (

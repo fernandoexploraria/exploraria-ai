@@ -1,8 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw, Maximize2, Navigation, Info } from 'lucide-react';
-import StreetViewKeyboardHelp from './street-view/StreetViewKeyboardHelp';
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw, Maximize2, Navigation, Info, Keyboard } from 'lucide-react';
 
 interface StreetViewNavigationControlsProps {
   onPrevious?: () => void;
@@ -13,6 +12,7 @@ interface StreetViewNavigationControlsProps {
   onFullscreen?: () => void;
   onShowOnMap?: () => void;
   onToggleInfo?: () => void;
+  onToggleKeyboardHelp?: () => void;
   hasPrevious?: boolean;
   hasNext?: boolean;
   currentIndex?: number;
@@ -31,6 +31,7 @@ const StreetViewNavigationControls: React.FC<StreetViewNavigationControlsProps> 
   onFullscreen,
   onShowOnMap,
   onToggleInfo,
+  onToggleKeyboardHelp,
   hasPrevious = false,
   hasNext = false,
   currentIndex = 0,
@@ -150,10 +151,17 @@ const StreetViewNavigationControls: React.FC<StreetViewNavigationControlsProps> 
         )}
 
         {/* Keyboard Help */}
-        <StreetViewKeyboardHelp 
-          isMultiViewpoint={isMultiViewpoint}
-          className="h-8 w-8 p-0"
-        />
+        {onToggleKeyboardHelp && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onToggleKeyboardHelp}
+            className="h-8 w-8 p-0 text-white/70 hover:text-white hover:bg-white/20"
+            title="Keyboard shortcuts (Press ? for help)"
+          >
+            <Keyboard className="h-4 w-4" />
+          </Button>
+        )}
       </div>
     </div>
   );
