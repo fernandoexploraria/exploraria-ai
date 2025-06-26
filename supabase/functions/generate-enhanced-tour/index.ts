@@ -1537,6 +1537,108 @@ class FeedbackAnalyzer {
   }
 }
 
+// TourLogger class for managing tour generation logs
+class TourLogger {
+  private logs: Array<{
+    timestamp: string;
+    phase: string;
+    log_level: string;
+    message: string;
+    execution_time_ms?: number;
+    api_endpoint?: string;
+    api_response_code?: number;
+    api_response_size?: number;
+    memory_usage_mb?: number;
+    error_details?: any;
+    metadata?: any;
+  }> = [];
+
+  private phaseStartTimes: Map<string, number> = new Map();
+
+  startPhase(phase: string) {
+    this.phaseStartTimes.set(phase, Date.now());
+  }
+
+  endPhase(phase: string, message: string, metadata?: any) {
+    const startTime = this.phaseStartTimes.get(phase);
+    const executionTime = startTime ? Date.now() - startTime : undefined;
+    
+    this.addLog({
+      phase,
+      log_level: 'info',
+      message,
+      execution_time_ms: executionTime,
+      metadata
+    });
+  }
+
+  addLog(entry: {
+    phase: string;
+    log_level: string;
+    message: string;
+    execution_time_ms?: number;
+    api_endpoint?: string;
+    api_response_code?: number;
+    api_response_size?: number;
+    memory_usage_mb?: number;
+    error_details?: any;
+    metadata?: any;
+  }) {
+    this.logs.push({
+      timestamp: new Date().toISOString(),
+      ...entry
+    });
+  }
+
+  addApiLog(phase: string, endpoint: string, responseCode: number, responseTime: number, metadata?: any) {
+    this.addLog({
+      phase,
+      log_level: 'info',
+      message: `API call to ${endpoint}`,
+      execution_time_ms: responseTime,
+      api_endpoint: endpoint,
+      api_response_code: responseCode,
+      metadata
+    });
+  }
+
+  addErrorLog(phase: string, error: any, message: string) {
+    this.addLog({
+      phase,
+      log_level: 'error',
+      message,
+      error_details: error instanceof Error ? { message: error.message, stack: error.stack } : error
+    });
+  }
+
+  async storeLogs(supabase: any, tourId: string) {
+    if (this.logs.length === 0) return;
+
+    try {
+      const logsToInsert = this.logs.map(log => ({
+        tour_id: tourId,
+        ...log
+      }));
+
+      const { error } = await supabase
+        .from('tour_generation_logs')
+        .insert(logsToInsert);
+
+      if (error) {
+        console.error('Error storing tour generation logs:', error);
+      } else {
+        console.log(`Successfully stored ${this.logs.length} log entries for tour ${tourId}`);
+      }
+    } catch (error) {
+      console.error('Exception storing tour generation logs:', error);
+    }
+  }
+
+  getLogs() {
+    return [...this.logs];
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { 
@@ -1545,9 +1647,21 @@ serve(async (req) => {
     });
   }
 
+  // Initialize tour logger
+  const tourLogger = new TourLogger();
+
   try {
     const { destination } = await req.json();
     const startTime = Date.now();
+    
+    // Log initialization phase
+    tourLogger.startPhase('initialization');
+    tourLogger.addLog({
+      phase: 'initialization',
+      log_level: 'info',
+      message: `Starting enhanced tour generation for destination: ${destination}`,
+      metadata: { destination }
+    });
     
     const googleApiKey = Deno.env.get('GOOGLE_API_KEY');
     const googleAiApiKey = Deno.env.get('GOOGLE_AI_API_KEY');
@@ -1555,6 +1669,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
     if (!googleApiKey || !googleAiApiKey || !supabaseUrl || !supabaseServiceKey) {
+      tourLogger.addErrorLog('initialization', null, 'Required API keys not configured');
       throw new Error('Required API keys not configured');
     }
 
@@ -1569,22 +1684,40 @@ serve(async (req) => {
       try {
         const { data: { user } } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
         userId = user?.id || null;
+        tourLogger.addLog({
+          phase: 'initialization',
+          log_level: 'info',
+          message: 'User authentication successful',
+          metadata: { userId: userId ? 'authenticated' : 'anonymous' }
+        });
       } catch (error) {
+        tourLogger.addErrorLog('initialization', error, 'Error extracting user ID');
         console.error('Error extracting user ID:', error);
       }
     }
 
+    tourLogger.endPhase('initialization', 'Initialization completed successfully');
+
     console.log(`🚀 Starting enhanced tour generation with advanced validation and quality assessment for: ${destination}`);
 
     // Step 1: Extract enhanced geographic context with city classification
+    tourLogger.startPhase('geocoding');
     const geoContext = await extractGeographicContext(destination, googleApiKey);
     console.log(`📍 Geographic context:`, geoContext);
+    tourLogger.endPhase('geocoding', 'Geographic context extraction completed', { geoContext });
 
     // Step 2: Get city center coordinates
     const cityCenter = await getCityCenterCoordinates(destination, googleApiKey);
     console.log(`📍 City center coordinates:`, cityCenter);
+    tourLogger.addLog({
+      phase: 'geocoding',
+      log_level: 'info',
+      message: 'City center coordinates obtained',
+      metadata: { cityCenter }
+    });
 
     // Step 3: Modified Gemini prompt - no coordinates requested
+    tourLogger.startPhase('gemini_generation');
     const systemInstruction = `You are an expert tour planner. Your response MUST be a valid JSON object with exactly this structure:
     {
       "landmarks": [array of landmark objects],
@@ -1618,6 +1751,7 @@ serve(async (req) => {
 
     console.log('🤖 Calling Gemini for landmark names and descriptions...');
     
+    const geminiStartTime = Date.now();
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${googleAiApiKey}`,
       {
@@ -1630,7 +1764,15 @@ serve(async (req) => {
       }
     );
 
+    const geminiResponseTime = Date.now() - geminiStartTime;
+    tourLogger.addApiLog('gemini_generation', 'generativelanguage.googleapis.com', geminiResponse.status, geminiResponseTime, {
+      model: 'gemini-1.5-flash',
+      temperature: 0.7,
+      maxOutputTokens: 2048
+    });
+
     if (!geminiResponse.ok) {
+      tourLogger.addErrorLog('gemini_generation', null, 'Failed to get response from Gemini API');
       throw new Error('Failed to get response from Gemini API');
     }
 
@@ -1638,6 +1780,7 @@ serve(async (req) => {
     const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
     
     if (!responseText) {
+      tourLogger.addErrorLog('gemini_generation', null, 'Invalid response from Gemini API');
       throw new Error('Invalid response from Gemini API');
     }
 
@@ -1646,11 +1789,19 @@ serve(async (req) => {
     const tourData = JSON.parse(cleanedJson);
 
     if (!tourData.landmarks || !tourData.systemPrompt) {
+      tourLogger.addErrorLog('gemini_generation', null, 'Invalid tour data structure received from Gemini');
       throw new Error('Invalid tour data structure received from Gemini');
     }
 
+    tourLogger.endPhase('gemini_generation', `Gemini generation completed - ${tourData.landmarks.length} landmarks generated`, {
+      landmarkCount: tourData.landmarks.length,
+      systemPromptLength: tourData.systemPrompt.length
+    });
+
     console.log(`🔍 Refining coordinates for ${tourData.landmarks.length} landmarks with enhanced logging and quality assessment...`);
 
+    // Step 4: Coordinate refinement phase
+    tourLogger.startPhase('coordinate_refinement');
     const fallbacksUsed: string[] = [];
     const enhancedLandmarks: EnhancedLandmark[] = [];
     const aggregatedSearchStats = {
@@ -1681,6 +1832,13 @@ serve(async (req) => {
 
     for (const landmark of tourData.landmarks) {
       console.log(`\n🏛️ Processing: ${landmark.name}`);
+      tourLogger.addLog({
+        phase: 'coordinate_refinement',
+        log_level: 'info',
+        message: `Processing landmark: ${landmark.name}`,
+        metadata: { landmarkName: landmark.name, category: landmark.category }
+      });
+
       const { enhancedLandmark, searchStats } = await refineCoordinates(
         landmark, 
         geoContext,
@@ -1732,6 +1890,19 @@ serve(async (req) => {
       }
     }
 
+    tourLogger.endPhase('coordinate_refinement', `Coordinate refinement completed for ${enhancedLandmarks.length} landmarks`, {
+      totalLandmarks: enhancedLandmarks.length,
+      aggregatedSearchStats,
+      validationStats: {
+        ...validationStats,
+        averageDistanceFromCenter: validationStats.averageDistanceFromCenter / enhancedLandmarks.length,
+        averageOverallScore: validationStats.averageOverallScore / enhancedLandmarks.length
+      }
+    });
+
+    // Step 5: Validation and quality assessment phase
+    tourLogger.startPhase('validation');
+
     // Calculate averages and generate feedback
     const landmarkCount = enhancedLandmarks.length;
     validationStats.averageDistanceFromCenter /= landmarkCount;
@@ -1765,8 +1936,21 @@ serve(async (req) => {
     allApiAttempts.forEach(attempt => apiLogger.logs.push(attempt));
     const apiPerformance = apiLogger.getPerformanceMetrics();
 
+    tourLogger.endPhase('validation', 'Validation and quality assessment completed', {
+      coordinateQuality,
+      apiPerformance,
+      feedbackMetrics: {
+        totalStrategies: Object.keys(feedbackMetrics.searchStrategyEffectiveness).length,
+        totalSources: Object.keys(feedbackMetrics.apiSourceReliability).length,
+        improvementSuggestions: feedbackMetrics.improvementSuggestions.length
+      }
+    });
+
     const processingTime = Date.now() - startTime;
     const generationEndTime = new Date();
+
+    // Step 6: Completion phase
+    tourLogger.startPhase('completion');
 
     const response: EnhancedTourResponse = {
       landmarks: enhancedLandmarks,
@@ -1788,14 +1972,16 @@ serve(async (req) => {
       }
     };
 
-    // Store tour data in database (non-blocking)
+    // Store tour data in database (blocking for tour_id)
+    let tourId: string | undefined;
+    
     if (userId) {
       const storeTourData = async () => {
         try {
           const geminiApiCalls = allApiAttempts.filter(a => a.apiSource === 'gemini').length;
           const placesApiCalls = allApiAttempts.filter(a => a.apiSource === 'places').length;
           
-          const { error } = await supabase
+          const { data, error } = await supabase
             .from('generated_tours')
             .insert({
               user_id: userId,
@@ -1814,19 +2000,51 @@ serve(async (req) => {
                 aggregatedSearchStats.successfulSearches / aggregatedSearchStats.totalSearches : 0,
               error_count: allApiAttempts.filter(a => !a.success).length,
               fallbacks_used: [...new Set(fallbacksUsed)]
-            });
+            })
+            .select('id')
+            .single();
 
           if (error) {
+            tourLogger.addErrorLog('completion', error, 'Error storing tour data');
             console.error('Error storing tour data:', error);
           } else {
-            console.log('✅ Tour data stored successfully');
+            tourId = data?.id;
+            tourLogger.addLog({
+              phase: 'completion',
+              log_level: 'info',
+              message: 'Tour data stored successfully',
+              metadata: { tourId }
+            });
+            console.log('✅ Tour data stored successfully with ID:', tourId);
           }
         } catch (error) {
+          tourLogger.addErrorLog('completion', error, 'Exception in storeTourData');
           console.error('Error in storeTourData:', error);
         }
       };
 
-      EdgeRuntime.waitUntil(storeTourData());
+      await storeTourData();
+    }
+
+    tourLogger.endPhase('completion', 'Tour generation completed successfully', {
+      totalProcessingTime: processingTime,
+      tourId,
+      finalStats: {
+        totalLandmarks: enhancedLandmarks.length,
+        highConfidenceCount: coordinateQuality.highConfidence,
+        mediumConfidenceCount: coordinateQuality.mediumConfidence,
+        lowConfidenceCount: coordinateQuality.lowConfidence,
+        successRate: aggregatedSearchStats.totalSearches > 0 ? 
+          aggregatedSearchStats.successfulSearches / aggregatedSearchStats.totalSearches : 0
+      }
+    });
+
+    // Store logs in background (non-blocking)
+    if (tourId) {
+      const storeLogData = async () => {
+        await tourLogger.storeLogs(supabase, tourId);
+      };
+      EdgeRuntime.waitUntil(storeLogData());
     }
 
     console.log(`✅ Enhanced tour generation with comprehensive quality assessment completed in ${processingTime}ms`);
@@ -1841,6 +2059,7 @@ serve(async (req) => {
     });
 
   } catch (error) {
+    tourLogger.addErrorLog('error', error, 'Critical error in generate-enhanced-tour');
     console.error('❌ Error in generate-enhanced-tour:', error);
     return new Response(JSON.stringify({ 
       error: 'Failed to generate enhanced tour',
