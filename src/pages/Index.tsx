@@ -63,11 +63,11 @@ const Index: React.FC = () => {
     const waitForCompletion = () => {
       // Check if the progress is truly complete
       if (progressState?.phase === 'complete') {
-        // Give users 3 seconds to see the completion state and quality metrics
+        // Give users 5 seconds to see the completion state and quality metrics
         setTimeout(() => {
           setIsTourPlannerOpen(false);
           setIsNewTourAssistantOpen(true);
-        }, 3000);
+        }, 5000);
       } else {
         // If not complete yet, check again in 500ms
         setTimeout(waitForCompletion, 500);
