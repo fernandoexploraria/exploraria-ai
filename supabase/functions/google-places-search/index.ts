@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
@@ -26,39 +27,66 @@ serve(async (req) => {
       throw new Error('Search query is required')
     }
 
-    let searchUrl: string
+    // Use new Places API v1 searchText endpoint
+    const searchUrl = 'https://places.googleapis.com/v1/places:searchText'
     
+    // Build request body for new API
+    const requestBody: any = {
+      textQuery: query,
+      maxResultCount: 20
+    }
+
+    // Add location bias if coordinates are provided
     if (coordinates && coordinates.length === 2) {
-      // Location-based search
-      searchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&location=${coordinates[1]},${coordinates[0]}&radius=${radius}&key=${googleApiKey}`
-    } else {
-      // General text search
-      searchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${googleApiKey}`
+      requestBody.locationBias = {
+        circle: {
+          center: {
+            latitude: coordinates[1],  // latitude
+            longitude: coordinates[0]  // longitude
+          },
+          radius: radius
+        }
+      }
     }
     
     console.log('Searching places:', { query, coordinates, radius })
     
-    const response = await fetch(searchUrl)
+    const response = await fetch(searchUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': googleApiKey,
+        'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.types,places.regularOpeningHours,places.photos,places.location'
+      },
+      body: JSON.stringify(requestBody)
+    })
+
+    if (!response.ok) {
+      console.error('Places API search error:', await response.text())
+      throw new Error(`Places API request failed: ${response.status}`)
+    }
+
     const data = await response.json()
 
-    if (data.results) {
-      const searchResults = data.results.slice(0, 20).map((place: any) => ({
-        placeId: place.place_id,
-        name: place.name,
-        formattedAddress: place.formatted_address,
+    if (data.places) {
+      // Map new API response to legacy format for backward compatibility
+      const searchResults = data.places.slice(0, 20).map((place: any) => ({
+        placeId: place.id,
+        name: place.displayName?.text || place.displayName,
+        formattedAddress: place.formattedAddress,
         rating: place.rating,
-        userRatingsTotal: place.user_ratings_total,
-        priceLevel: place.price_level,
+        userRatingsTotal: place.userRatingCount,
+        priceLevel: place.priceLevel,
         types: place.types,
-        openNow: place.opening_hours?.open_now,
-        photoReference: place.photos?.[0]?.photo_reference,
+        openNow: place.regularOpeningHours?.openNow,
+        photoReference: place.photos?.[0]?.name,
         photoUrl: place.photos?.[0] 
-          ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=200&photo_reference=${place.photos[0].photo_reference}&key=${googleApiKey}`
+          ? `https://places.googleapis.com/v1/${place.photos[0].name}/media?maxWidthPx=200&key=${googleApiKey}`
           : null,
         geometry: {
           location: {
-            lat: place.geometry.location.lat,
-            lng: place.geometry.location.lng
+            lat: place.location?.latitude || 0,
+            lng: place.location?.longitude || 0
           }
         }
       }))
@@ -66,8 +94,8 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           results: searchResults, 
-          total: data.results.length,
-          nextPageToken: data.next_page_token,
+          total: data.places.length,
+          nextPageToken: data.nextPageToken, // New API pagination format
           success: true 
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
