@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1550,9 +1551,27 @@ serve(async (req) => {
     
     const googleApiKey = Deno.env.get('GOOGLE_API_KEY');
     const googleAiApiKey = Deno.env.get('GOOGLE_AI_API_KEY');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
-    if (!googleApiKey || !googleAiApiKey) {
+    if (!googleApiKey || !googleAiApiKey || !supabaseUrl || !supabaseServiceKey) {
       throw new Error('Required API keys not configured');
+    }
+
+    // Initialize Supabase client
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Extract user ID from authorization header
+    const authHeader = req.headers.get('authorization');
+    let userId: string | null = null;
+    
+    if (authHeader) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
+        userId = user?.id || null;
+      } catch (error) {
+        console.error('Error extracting user ID:', error);
+      }
     }
 
     console.log(`🚀 Starting enhanced tour generation with advanced validation and quality assessment for: ${destination}`);
@@ -1747,6 +1766,7 @@ serve(async (req) => {
     const apiPerformance = apiLogger.getPerformanceMetrics();
 
     const processingTime = Date.now() - startTime;
+    const generationEndTime = new Date();
 
     const response: EnhancedTourResponse = {
       landmarks: enhancedLandmarks,
@@ -1767,6 +1787,47 @@ serve(async (req) => {
         apiPerformance
       }
     };
+
+    // Store tour data in database (non-blocking)
+    if (userId) {
+      const storeTourData = async () => {
+        try {
+          const geminiApiCalls = allApiAttempts.filter(a => a.apiSource === 'gemini').length;
+          const placesApiCalls = allApiAttempts.filter(a => a.apiSource === 'places').length;
+          
+          const { error } = await supabase
+            .from('generated_tours')
+            .insert({
+              user_id: userId,
+              destination,
+              system_prompt: tourData.systemPrompt,
+              total_landmarks: enhancedLandmarks.length,
+              generation_start_time: new Date(startTime).toISOString(),
+              generation_end_time: generationEndTime.toISOString(),
+              total_processing_time_ms: processingTime,
+              coordinate_quality_high: coordinateQuality.highConfidence,
+              coordinate_quality_medium: coordinateQuality.mediumConfidence,
+              coordinate_quality_low: coordinateQuality.lowConfidence,
+              gemini_api_calls: geminiApiCalls + 1, // +1 for the initial tour generation call
+              places_api_calls: placesApiCalls,
+              success_rate: aggregatedSearchStats.totalSearches > 0 ? 
+                aggregatedSearchStats.successfulSearches / aggregatedSearchStats.totalSearches : 0,
+              error_count: allApiAttempts.filter(a => !a.success).length,
+              fallbacks_used: [...new Set(fallbacksUsed)]
+            });
+
+          if (error) {
+            console.error('Error storing tour data:', error);
+          } else {
+            console.log('✅ Tour data stored successfully');
+          }
+        } catch (error) {
+          console.error('Error in storeTourData:', error);
+        }
+      };
+
+      EdgeRuntime.waitUntil(storeTourData());
+    }
 
     console.log(`✅ Enhanced tour generation with comprehensive quality assessment completed in ${processingTime}ms`);
     console.log(`📊 Quality: ${coordinateQuality.highConfidence} high, ${coordinateQuality.mediumConfidence} medium, ${coordinateQuality.lowConfidence} low confidence`);
