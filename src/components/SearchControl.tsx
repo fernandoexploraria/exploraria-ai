@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import {
   CommandDialog,
@@ -43,6 +44,10 @@ const SearchControl: React.FC<SearchControlProps> = ({ landmarks, onSelectLandma
       id: `top-${Date.now()}`,
       name: topLandmark.name,
       coordinates: topLandmark.coordinates,
+      location: {
+        lat: topLandmark.coordinates[1],
+        lng: topLandmark.coordinates[0]
+      },
       description: topLandmark.description
     };
     
