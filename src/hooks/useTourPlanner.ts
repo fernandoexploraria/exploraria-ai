@@ -23,7 +23,7 @@ export interface TourPlan {
 }
 
 export interface ProgressState {
-  phase: 'idle' | 'generating' | 'refining' | 'validating' | 'finalizing' | 'complete' | 'error';
+  phase: 'idle' | 'generating' | 'refining' | 'validating' | 'finalizing' | 'complete' | 'ready' | 'error';
   percentage: number;
   currentStep: string;
   processedLandmarks: number;
@@ -237,7 +237,7 @@ export const useTourPlanner = () => {
         });
       }
       
-      // Complete with success
+      // Complete with success - show completion for 3 seconds
       updateProgress({
         phase: 'complete',
         percentage: 100,
@@ -251,6 +251,15 @@ export const useTourPlanner = () => {
         : '';
       
       toast.success(`Generated an enhanced tour for ${destination}!${qualityMessage} Tour landmarks added with green markers.`);
+      
+      // After 3 seconds, set phase to 'ready' to signal progress should hide
+      setTimeout(() => {
+        updateProgress({
+          phase: 'ready',
+          percentage: 100,
+          currentStep: 'Ready to explore!'
+        });
+      }, 3000);
       
     } catch (err) {
       console.error("Error generating enhanced tour:", err);

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback } from 'react';
 import SplashScreen from '@/components/SplashScreen';
 import MainLayout from '@/components/MainLayout';
@@ -59,23 +60,19 @@ const Index: React.FC = () => {
   const handleGenerateTour = async (destination: string) => {
     await generateTour(destination);
     
-    // Wait for progress to complete and give users time to see the final state
-    const waitForCompletion = () => {
-      // Check if the progress is truly complete
-      if (progressState?.phase === 'complete') {
-        // Give users 5 seconds to see the completion state and quality metrics
-        setTimeout(() => {
-          setIsTourPlannerOpen(false);
-          setIsNewTourAssistantOpen(true);
-        }, 5000);
+    // Watch for the 'ready' phase to close tour planner and open assistant
+    const waitForReady = () => {
+      if (progressState?.phase === 'ready') {
+        setIsTourPlannerOpen(false);
+        setIsNewTourAssistantOpen(true);
       } else {
-        // If not complete yet, check again in 500ms
-        setTimeout(waitForCompletion, 500);
+        // If not ready yet, check again in 100ms
+        setTimeout(waitForReady, 100);
       }
     };
     
-    // Start checking for completion
-    setTimeout(waitForCompletion, 1000);
+    // Start checking for ready state
+    setTimeout(waitForReady, 100);
   };
 
   const handleAuthDialogClose = (open: boolean) => {

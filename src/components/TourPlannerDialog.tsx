@@ -39,9 +39,6 @@ const TourPlannerDialog: React.FC<TourPlannerDialogProps> = ({
     }
 
     await onGenerateTour(destination);
-    if (progressState?.phase === 'complete') {
-      onOpenChange(false);
-    }
   };
 
   const getPhaseIcon = (phase: string) => {
@@ -82,6 +79,9 @@ const TourPlannerDialog: React.FC<TourPlannerDialogProps> = ({
     }
   };
 
+  // Show progress UI only when loading or in complete phase (not ready phase)
+  const shouldShowProgress = isLoading && progressState && progressState.phase !== 'ready';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -111,7 +111,7 @@ const TourPlannerDialog: React.FC<TourPlannerDialogProps> = ({
             />
           </div>
           
-          {isLoading && progressState && (
+          {shouldShowProgress && (
             <div className="space-y-3 bg-blue-50 p-4 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 {getPhaseIcon(progressState.phase)}
