@@ -7,6 +7,7 @@ import EnhancedStreetViewCompass from './street-view/EnhancedStreetViewCompass';
 import StreetViewMetadataPanel from './street-view/StreetViewMetadataPanel';
 import StreetViewLoadingOverlay from './street-view/StreetViewLoadingOverlay';
 import MultiViewpointIndicator from './street-view/MultiViewpointIndicator';
+import StreetViewKeyboardHelp from './street-view/StreetViewKeyboardHelp';
 import OfflineIndicator from './OfflineIndicator';
 import EnhancedProgressiveImage from './EnhancedProgressiveImage';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
