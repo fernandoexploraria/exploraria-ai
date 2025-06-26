@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import ReactDOM from 'react-dom/client';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { Volume2, VolumeX, Eye } from 'lucide-react';
+import { Volume2, VolumeX, Eye, MapPin } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { TOUR_LANDMARKS, setMapMarkersRef } from '@/data/tourLandmarks';
@@ -14,6 +15,7 @@ import { useEnhancedStreetView } from '@/hooks/useEnhancedStreetView';
 import EnhancedStreetViewModal from './EnhancedStreetViewModal';
 import { useEnhancedPhotos, PhotoData } from '@/hooks/useEnhancedPhotos';
 import EnhancedProgressiveImage from './EnhancedProgressiveImage';
+import { PhotoCarousel } from './photo-carousel';
 
 interface MapProps {
   mapboxToken: string;
@@ -571,7 +573,10 @@ const Map: React.FC<MapProps> = ({
     return `https://picsum.photos/seed/${seed}/400/300`;
   };
 
-  // Function to show landmark popup
+  // Create a new ref for storing React roots for popup cleanup
+  const popupRoots = useRef<{ [key: string]: ReactDOM.Root }>({});
+
+  // Updated function to show landmark popup with PhotoCarousel
   const showLandmarkPopup = async (landmark: Landmark) => {
     if (!map.current) return;
     
@@ -580,76 +585,53 @@ const Map: React.FC<MapProps> = ({
     // Stop any playing audio when showing new popup
     stopCurrentAudio();
     
-    // Remove existing photo popup for this landmark
+    // Clean up existing popup and React root for this landmark
     if (photoPopups.current[landmark.id]) {
+      if (popupRoots.current[landmark.id]) {
+        popupRoots.current[landmark.id].unmount();
+        delete popupRoots.current[landmark.id];
+      }
       photoPopups.current[landmark.id].remove();
     }
     
     // Close all other popups first
-    Object.values(photoPopups.current).forEach(popup => {
+    Object.entries(photoPopups.current).forEach(([id, popup]) => {
+      if (popupRoots.current[id]) {
+        popupRoots.current[id].unmount();
+        delete popupRoots.current[id];
+      }
       popup.remove();
     });
     photoPopups.current = {};
-    
-    // Check if Street View data is cached for this landmark - using multiple methods for debugging
-    console.log('🔍 Checking Street View availability for:', landmark.name, 'ID:', landmark.id);
-    
+
+    // Check Street View availability
     const streetViewDataFromUseStreetView = getCachedData(landmark.id);
-    console.log('📋 Street View data from useStreetView:', streetViewDataFromUseStreetView);
-    
-    // Also try to get data from enhanced hook
     let streetViewDataFromEnhanced = null;
     try {
       streetViewDataFromEnhanced = await getStreetViewWithOfflineSupport(landmark);
-      console.log('🔍 Street View data from enhanced hook:', streetViewDataFromEnhanced);
     } catch (error) {
       console.log('❌ Error getting Street View from enhanced hook:', error);
     }
     
-    // Use either source of Street View data
     const hasStreetView = streetViewDataFromUseStreetView !== null || streetViewDataFromEnhanced !== null;
-    console.log('👁️ Has Street View available:', hasStreetView);
-    
-    // Create new photo popup with loading state
+
+    // Create popup container
+    const popupContainer = document.createElement('div');
+    popupContainer.style.width = '450px';
+    popupContainer.style.maxWidth = '90vw';
+
+    // Create new photo popup 
     const photoPopup = new mapboxgl.Popup({
-      closeButton: true,
+      closeButton: false,
       closeOnClick: false,
       offset: 25,
-      maxWidth: '450px',
+      maxWidth: 'none',
       className: 'custom-popup'
     });
 
-    // Initial popup with loading state
     photoPopup
       .setLngLat(landmark.coordinates)
-      .setHTML(`
-        <div style="text-align: center; padding: 10px; position: relative;">
-          <button class="custom-close-btn" onclick="
-            if (window.handlePopupClose) window.handlePopupClose('${landmark.id}');
-            this.closest('.mapboxgl-popup').remove();
-          " style="
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            font-weight: bold;
-            z-index: 1000;
-            transition: background-color 0.2s;
-          " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
-          <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
-          <div style="margin-bottom: 10px; color: #666;">Loading enhanced photos...</div>
-        </div>
-      `)
+      .setDOMContent(popupContainer)
       .addTo(map.current!);
 
     photoPopups.current[landmark.id] = photoPopup;
@@ -657,314 +639,156 @@ const Map: React.FC<MapProps> = ({
     // Handle popup close event - stop audio when popup closes
     photoPopup.on('close', () => {
       stopCurrentAudio();
+      if (popupRoots.current[landmark.id]) {
+        popupRoots.current[landmark.id].unmount();
+        delete popupRoots.current[landmark.id];
+      }
       delete photoPopups.current[landmark.id];
     });
 
-    // Add global handler for popup close if it doesn't exist
-    if (!(window as any).handlePopupClose) {
-      (window as any).handlePopupClose = (landmarkId: string) => {
-        stopCurrentAudio();
-        if (photoPopups.current[landmarkId]) {
-          delete photoPopups.current[landmarkId];
-        }
-      };
-    }
-
-    // Fetch and display enhanced photos
+    // Fetch and display photos with PhotoCarousel
     try {
       const photos = await fetchLandmarkPhotos(landmark);
-      const isPlaying = playingAudio[landmark.id] || false;
-      
-      // Store the interaction with the first photo URL if available
       const firstPhotoUrl = photos.length > 0 ? photos[0].urls.medium : undefined;
+      
+      // Store the interaction
       await storeMapMarkerInteraction(landmark, firstPhotoUrl);
-      
-      console.log('🎨 Creating enhanced popup. Photos available:', photos.length, 'Has Street View:', hasStreetView);
-      
-      // Create buttons HTML - Street View button only if data is available
-      const streetViewButton = hasStreetView ? `
-        <button 
-          class="streetview-btn-${landmark.id}" 
-          onclick="window.handleStreetViewOpen('${landmark.id}')"
-          style="
-            background: rgba(59, 130, 246, 0.95);
-            color: white;
-            border: 3px solid rgba(255, 255, 255, 0.9);
-            border-radius: 50%;
-            width: 56px;
-            height: 56px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-          "
-          onmouseover="this.style.backgroundColor='rgba(37, 99, 235, 1)'; this.style.borderColor='white'; this.style.transform='scale(1.15)'; this.style.boxShadow='0 6px 20px rgba(0, 0, 0, 0.5)'"
-          onmouseout="this.style.backgroundColor='rgba(59, 130, 246, 0.95)'; this.style.borderColor='rgba(255, 255, 255, 0.9)'; this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.4)'"
-          title="View Street View"
-        >
-          👁️
-        </button>
-      ` : '';
-      
-      if (photos.length > 0) {
-        // Display first photo with enhanced quality and attribution
-        const firstPhoto = photos[0];
-        const attributionText = firstPhoto.attributions.length > 0 
-          ? firstPhoto.attributions[0].displayName 
-          : 'Google';
 
-        photoPopup.setHTML(`
-          <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
-            <button class="custom-close-btn" onclick="
-              if (window.handlePopupClose) window.handlePopupClose('${landmark.id}');
-              this.closest('.mapboxgl-popup').remove();
-            " style="
-              position: absolute;
-              top: 5px;
-              right: 5px;
-              background: rgba(0, 0, 0, 0.7);
-              color: white;
-              border: none;
-              border-radius: 50%;
-              width: 24px;
-              height: 24px;
-              cursor: pointer;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              font-size: 14px;
-              font-weight: bold;
-              z-index: 1000;
-              transition: background-color 0.2s;
-            " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
-            <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
-            <div style="position: relative; margin-bottom: 10px;">
-              <img src="${firstPhoto.urls.medium}" alt="${landmark.name}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px;" />
-              <div style="position: absolute; bottom: 2px; left: 2px; background: rgba(0, 0, 0, 0.7); color: white; text-xs px-1 py-0.5 rounded; font-size: 10px;">
-                📸 ${attributionText}
-              </div>
-              ${photos.length > 1 ? `
-                <div style="position: absolute; top: 5px; left: 5px; background: rgba(0, 0, 0, 0.7); color: white; text-xs px-2 py-1 rounded;">
-                  1/${photos.length}
-                </div>
-              ` : ''}
-              <div style="position: absolute; bottom: 10px; right: 10px; display: flex; gap: 8px;">
-                ${streetViewButton}
-                <button 
-                  class="listen-btn-${landmark.id}" 
-                  onclick="window.handleLandmarkListen('${landmark.id}')"
-                  style="
-                    background: rgba(0, 0, 0, 0.9);
-                    color: white;
-                    border: 3px solid rgba(255, 255, 255, 0.9);
-                    border-radius: 50%;
-                    width: 56px;
-                    height: 56px;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 24px;
-                    transition: all 0.3s ease;
-                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-                    ${isPlaying ? 'opacity: 0.7;' : ''}
-                  "
-                  onmouseover="this.style.backgroundColor='rgba(59, 130, 246, 0.95)'; this.style.borderColor='white'; this.style.transform='scale(1.15)'; this.style.boxShadow='0 6px 20px rgba(0, 0, 0, 0.5)'"
-                  onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'; this.style.borderColor='rgba(255, 255, 255, 0.9)'; this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.4)'"
-                  ${isPlaying ? 'disabled' : ''}
-                  title="Listen to description"
-                >
-                  🔊
-                </button>
-              </div>
+      // Create React root and render PhotoCarousel
+      const root = ReactDOM.createRoot(popupContainer);
+      popupRoots.current[landmark.id] = root;
+
+      // Component to render inside the popup
+      const PopupContent = () => {
+        return (
+          <div className="relative">
+            {/* Custom close button */}
+            <button
+              onClick={() => {
+                photoPopup.remove();
+              }}
+              className="absolute top-2 right-2 z-50 bg-black/70 hover:bg-black/90 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold transition-colors"
+              style={{ fontSize: '14px' }}
+            >
+              ×
+            </button>
+
+            {/* Header with landmark name */}
+            <div className="absolute top-0 left-0 right-0 z-40 bg-gradient-to-b from-black/70 to-transparent p-4">
+              <h3 className="text-white font-bold text-lg pr-8">{landmark.name}</h3>
             </div>
-          </div>
-        `);
-      } else {
-        // No photos case with fallback
-        const fallbackUrl = await fetchLandmarkImage(landmark);
-        
-        photoPopup.setHTML(`
-          <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
-            <button class="custom-close-btn" onclick="
-              if (window.handlePopupClose) window.handlePopupClose('${landmark.id}');
-              this.closest('.mapboxgl-popup').remove();
-            " style="
-              position: absolute;
-              top: 5px;
-              right: 5px;
-              background: rgba(0, 0, 0, 0.7);
-              color: white;
-              border: none;
-              border-radius: 50%;
-              width: 24px;
-              height: 24px;
-              cursor: pointer;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              font-size: 14px;
-              font-weight: bold;
-              z-index: 1000;
-              transition: background-color 0.2s;
-            " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
-            <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
-            <div style="position: relative; margin-bottom: 10px;">
-              <img src="${fallbackUrl}" alt="${landmark.name}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px;" />
-              <div style="position: absolute; bottom: 10px; right: 10px; display: flex; gap: 8px;">
-                ${streetViewButton}
-                <button 
-                  class="listen-btn-${landmark.id}" 
-                  onclick="window.handleLandmarkListen('${landmark.id}')"
-                  style="
-                    background: rgba(0, 0, 0, 0.9);
-                    color: white;
-                    border: 3px solid rgba(255, 255, 255, 0.9);
-                    border-radius: 50%;
-                    width: 56px;
-                    height: 56px;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 24px;
-                    transition: all 0.3s ease;
-                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-                  "
-                  onmouseover="this.style.backgroundColor='rgba(59, 130, 246, 0.95)'; this.style.borderColor='white'; this.style.transform='scale(1.15)'; this.style.boxShadow='0 6px 20px rgba(0, 0, 0, 0.5)'"
-                  onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'; this.style.borderColor='rgba(255, 255, 255, 0.9)'; this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.4)'"
-                  title="Listen to description"
+
+            {/* Action buttons overlay */}
+            <div className="absolute bottom-16 right-4 z-40 flex gap-2">
+              {hasStreetView && (
+                <button
+                  onClick={async () => {
+                    try {
+                      await openStreetViewModal([landmark], landmark);
+                    } catch (error) {
+                      console.error('❌ Error opening Street View:', error);
+                    }
+                  }}
+                  className="bg-blue-500/95 hover:bg-blue-600 text-white border-2 border-white/90 rounded-full w-12 h-12 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg"
+                  title="View Street View"
                 >
-                  🔊
+                  <Eye className="w-5 h-5" />
                 </button>
-              </div>
-            </div>
-          </div>
-        `);
-      }
-
-      // Add global handler for listen button if it doesn't exist
-      if (!(window as any).handleLandmarkListen) {
-        (window as any).handleLandmarkListen = (landmarkId: string) => {
-          const targetLandmark = allLandmarksWithTop.find(l => l.id === landmarkId);
-          if (targetLandmark) {
-            handleTextToSpeech(targetLandmark);
-          }
-        };
-      }
-
-      // Add global handler for Street View button if it doesn't exist
-      if (!(window as any).handleStreetViewOpen) {
-        (window as any).handleStreetViewOpen = async (landmarkId: string) => {
-          const targetLandmark = allLandmarksWithTop.find(l => l.id === landmarkId);
-          if (targetLandmark) {
-            console.log(`🔍 Opening Street View modal for ${targetLandmark.name} from marker popup`);
-            try {
-              await openStreetViewModal([targetLandmark], targetLandmark);
-              console.log('✅ openStreetViewModal call completed');
-            } catch (error) {
-              console.error('❌ Error calling openStreetViewModal:', error);
-            }
-          } else {
-            console.error('❌ Landmark not found for ID:', landmarkId);
-          }
-        };
-      }
-
-    } catch (error) {
-      console.error('Failed to load enhanced photos for', landmark.name, error);
-      
-      // Store the interaction even without enhanced photos
-      await storeMapMarkerInteraction(landmark);
-      
-      // Create buttons HTML for no-image case - Street View button only if data is available
-      const streetViewButtonNoImage = hasStreetView ? `
-        <button 
-          class="streetview-btn-${landmark.id}" 
-          onclick="window.handleStreetViewOpen('${landmark.id}')"
-          style="
-            background: rgba(59, 130, 246, 0.95);
-            color: white;
-            border: 3px solid rgba(255, 255, 255, 0.9);
-            border-radius: 50%;
-            width: 56px;
-            height: 56px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-          "
-          onmouseover="this.style.backgroundColor='rgba(37, 99, 235, 1)'; this.style.borderColor='white'; this.style.transform='scale(1.15)'; this.style.boxShadow='0 6px 20px rgba(0, 0, 0, 0.5)'"
-          onmouseout="this.style.backgroundColor='rgba(59, 130, 246, 0.95)'; this.style.borderColor='rgba(255, 255, 255, 0.9)'; this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.4)'"
-          title="View Street View"
-        >
-          👁️
-        </button>
-      ` : '';
-      
-      photoPopup.setHTML(`
-        <div style="text-align: center; padding: 10px; max-width: 400px; position: relative;">
-          <button class="custom-close-btn" onclick="
-            if (window.handlePopupClose) window.handlePopupClose('${landmark.id}');
-            this.closest('.mapboxgl-popup').remove();
-          " style="
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            font-weight: bold;
-            z-index: 1000;
-            transition: background-color 0.2s;
-          " onmouseover="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'" onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.7)'">×</button>
-          <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; padding-right: 30px; color: #1a1a1a;">${landmark.name}</h3>
-          <div style="width: 100%; height: 150px; background-color: #f0f0f0; border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; color: #888; position: relative;">
-            No image available
-            <div style="position: absolute; bottom: 10px; right: 10px; display: flex; gap: 8px;">
-              ${streetViewButtonNoImage}
-              <button 
-                class="listen-btn-${landmark.id}" 
-                onclick="window.handleLandmarkListen('${landmark.id}')"
-                style="
-                  background: rgba(0, 0, 0, 0.9);
-                  color: white;
-                  border: 3px solid rgba(255, 255, 255, 0.9);
-                  border-radius: 50%;
-                  width: 56px;
-                  height: 56px;
-                  cursor: pointer;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  font-size: 24px;
-                  transition: all 0.3s ease;
-                  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-                "
-                onmouseover="this.style.backgroundColor='rgba(59, 130, 246, 0.95)'; this.style.borderColor='white'; this.style.transform='scale(1.15)'; this.style.boxShadow='0 6px 20px rgba(0, 0, 0, 0.5)'"
-                onmouseout="this.style.backgroundColor='rgba(0, 0, 0, 0.9)'; this.style.borderColor='rgba(255, 255, 255, 0.9)'; this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.4)'"
+              )}
+              
+              <button
+                onClick={() => handleTextToSpeech(landmark)}
+                disabled={playingAudio[landmark.id] || false}
+                className="bg-black/90 hover:bg-blue-500/95 text-white border-2 border-white/90 rounded-full w-12 h-12 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg disabled:opacity-70"
                 title="Listen to description"
               >
-                🔊
+                <Volume2 className="w-5 h-5" />
               </button>
             </div>
+
+            {/* PhotoCarousel */}
+            {photos.length > 0 ? (
+              <PhotoCarousel
+                photos={photos}
+                initialIndex={0}
+                showThumbnails={photos.length > 1}
+                allowZoom={true}
+                className="w-full"
+              />
+            ) : (
+              <div className="w-full aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+                <div className="text-center">
+                  <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                  <p className="text-gray-500">No photos available</p>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      `);
+        );
+      };
+
+      root.render(<PopupContent />);
+
+    } catch (error) {
+      console.error('Failed to load photos for', landmark.name, error);
+      
+      // Store the interaction even without photos
+      await storeMapMarkerInteraction(landmark);
+      
+      // Render fallback content
+      const root = ReactDOM.createRoot(popupContainer);
+      popupRoots.current[landmark.id] = root;
+
+      const FallbackContent = () => {
+        return (
+          <div className="relative">
+            <button
+              onClick={() => photoPopup.remove()}
+              className="absolute top-2 right-2 z-50 bg-black/70 hover:bg-black/90 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold transition-colors"
+            >
+              ×
+            </button>
+
+            <div className="p-4">
+              <h3 className="text-lg font-bold mb-3 pr-8">{landmark.name}</h3>
+              <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center mb-3 relative">
+                <div className="text-center">
+                  <MapPin className="w-8 h-8 text-gray-400 mx-auto mb-1" />
+                  <p className="text-gray-500 text-sm">No image available</p>
+                </div>
+                
+                <div className="absolute bottom-2 right-2 flex gap-2">
+                  {hasStreetView && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          await openStreetViewModal([landmark], landmark);
+                        } catch (error) {
+                          console.error('❌ Error opening Street View:', error);
+                        }
+                      }}
+                      className="bg-blue-500/95 hover:bg-blue-600 text-white border-2 border-white/90 rounded-full w-10 h-10 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg"
+                      title="View Street View"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                  )}
+                  
+                  <button
+                    onClick={() => handleTextToSpeech(landmark)}
+                    className="bg-black/90 hover:bg-blue-500/95 text-white border-2 border-white/90 rounded-full w-10 h-10 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg"
+                    title="Listen to description"
+                  >
+                    <Volume2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      root.render(<FallbackContent />);
     }
   };
 
@@ -980,6 +804,10 @@ const Map: React.FC<MapProps> = ({
         markers.current[markerId].remove();
         delete markers.current[markerId];
         if (photoPopups.current[markerId]) {
+          if (popupRoots.current[markerId]) {
+            popupRoots.current[markerId].unmount();
+            delete popupRoots.current[markerId];
+          }
           photoPopups.current[markerId].remove();
           delete photoPopups.current[markerId];
         }
