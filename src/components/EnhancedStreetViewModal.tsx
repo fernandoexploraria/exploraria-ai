@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, Wifi, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -217,14 +218,24 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
     return () => document.removeEventListener('keydown', handleKeyPress);
   }, [isOpen, currentIndex, currentViewpoint, streetViewItems.length, onClose, handlePrevious, handleNext, toggleFullscreen]);
 
-  // Enhanced loading effect for multi-viewpoint data
+  // Enhanced loading effect for both single and multi-viewpoint data
   useEffect(() => {
     const currentItem = streetViewItems[currentIndex];
     const currentStreetViewData = currentItem?.streetViewData;
     
-    if (currentStreetViewData && isMultiViewpointData(currentStreetViewData)) {
+    if (!currentStreetViewData) {
+      console.log('🚫 No Street View data available for loading');
+      return;
+    }
+
+    console.log('🔄 Loading Street View data for current item');
+    
+    if (isMultiViewpointData(currentStreetViewData)) {
+      // Multi-viewpoint loading
       const strategy = determineStrategy(currentStreetViewData);
       const viewpoints = currentStreetViewData.viewpoints;
+      
+      console.log(`📐 Multi-viewpoint loading: ${viewpoints.length} viewpoints with ${strategy} strategy`);
       
       startLoading(viewpoints.length);
       
@@ -254,6 +265,35 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
       };
       
       loadViewpoints();
+    } else {
+      // Single viewpoint loading
+      console.log('📐 Single viewpoint loading');
+      
+      startLoading(1);
+      
+      // Simulate loading for single viewpoint
+      const loadSingleViewpoint = async () => {
+        try {
+          updateProgress(50, 'Loading Street View...');
+          
+          // Simulate image loading
+          await loadImageWithProgress(
+            currentStreetViewData.imageUrl,
+            0,
+            () => updateProgress(100, 'Finalizing...')
+          );
+          
+          // Complete loading after a brief delay
+          setTimeout(() => {
+            finishLoading();
+          }, 300);
+        } catch (error) {
+          console.error('Error loading single viewpoint:', error);
+          finishLoading();
+        }
+      };
+      
+      loadSingleViewpoint();
     }
   }, [currentIndex, streetViewItems, startLoading, finishLoading, updateProgress, loadImageWithProgress, getOptimalLoadingStrategy]);
 
@@ -429,3 +469,4 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
 };
 
 export default EnhancedStreetViewModal;
+

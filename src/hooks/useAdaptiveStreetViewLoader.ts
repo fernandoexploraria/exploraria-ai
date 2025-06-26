@@ -29,6 +29,7 @@ export const useAdaptiveStreetViewLoader = (options: AdaptiveLoaderOptions = {})
   const { getOptimalImageQuality, shouldPreloadContent } = useNetworkStatus();
 
   const updateProgress = useCallback((progress: number, step?: string) => {
+    console.log(`📊 Loading progress: ${Math.round(progress)}%${step ? ` - ${step}` : ''}`);
     setLoadingState(prev => ({
       ...prev,
       progress: Math.min(100, Math.max(0, progress)),
@@ -39,6 +40,7 @@ export const useAdaptiveStreetViewLoader = (options: AdaptiveLoaderOptions = {})
   }, [options]);
 
   const startLoading = useCallback((totalViewpoints: number = 1) => {
+    console.log(`🚀 Starting loading for ${totalViewpoints} viewpoint(s)`);
     setLoadingState({
       isLoading: true,
       progress: 0,
@@ -50,6 +52,7 @@ export const useAdaptiveStreetViewLoader = (options: AdaptiveLoaderOptions = {})
   }, []);
 
   const setViewpointLoading = useCallback((index: number, isLoading: boolean) => {
+    console.log(`🔄 Viewpoint ${index} loading state: ${isLoading ? 'loading' : 'complete'}`);
     setLoadingViewpoints(prev => {
       const newSet = new Set(prev);
       if (isLoading) {
@@ -62,10 +65,13 @@ export const useAdaptiveStreetViewLoader = (options: AdaptiveLoaderOptions = {})
   }, []);
 
   const completeViewpoint = useCallback((index: number) => {
+    console.log(`✅ Viewpoint ${index} completed`);
     setViewpointLoading(index, false);
     setLoadingState(prev => {
       const newViewpointsLoaded = prev.viewpointsLoaded! + 1;
       const newProgress = (newViewpointsLoaded / prev.totalViewpoints!) * 100;
+      
+      console.log(`📈 Progress updated: ${newViewpointsLoaded}/${prev.totalViewpoints} viewpoints (${Math.round(newProgress)}%)`);
       
       return {
         ...prev,
@@ -79,6 +85,7 @@ export const useAdaptiveStreetViewLoader = (options: AdaptiveLoaderOptions = {})
   }, [setViewpointLoading]);
 
   const finishLoading = useCallback(() => {
+    console.log('🏁 Loading finished');
     setLoadingState(prev => ({
       ...prev,
       isLoading: false,
@@ -95,17 +102,20 @@ export const useAdaptiveStreetViewLoader = (options: AdaptiveLoaderOptions = {})
     onLoadStart?: () => void
   ): Promise<void> => {
     return new Promise((resolve, reject) => {
+      console.log(`🖼️ Loading image for viewpoint ${index}: ${url.substring(0, 50)}...`);
       onLoadStart?.();
       setViewpointLoading(index, true);
       
       const img = new Image();
       
       img.onload = () => {
+        console.log(`✅ Image loaded for viewpoint ${index}`);
         completeViewpoint(index);
         resolve();
       };
       
       img.onerror = () => {
+        console.error(`❌ Failed to load image for viewpoint ${index}`);
         setViewpointLoading(index, false);
         reject(new Error(`Failed to load image at index ${index}`));
       };
@@ -127,11 +137,12 @@ export const useAdaptiveStreetViewLoader = (options: AdaptiveLoaderOptions = {})
     };
   }, [getOptimalImageQuality, shouldPreloadContent]);
 
-  // Auto-finish loading when all viewpoints are loaded
+  // Auto-finish loading when all viewpoints are loaded with timeout protection
   useEffect(() => {
     if (loadingState.isLoading && 
         loadingState.viewpointsLoaded === loadingState.totalViewpoints &&
         loadingViewpoints.size === 0) {
+      console.log('🎯 All viewpoints loaded, finishing in 500ms');
       const timer = setTimeout(() => {
         finishLoading();
       }, 500); // Small delay for visual feedback
@@ -139,6 +150,19 @@ export const useAdaptiveStreetViewLoader = (options: AdaptiveLoaderOptions = {})
       return () => clearTimeout(timer);
     }
   }, [loadingState, loadingViewpoints.size, finishLoading]);
+
+  // Fallback timeout to prevent infinite loading
+  useEffect(() => {
+    if (loadingState.isLoading) {
+      console.log('⏰ Setting 10s timeout for loading fallback');
+      const timeoutTimer = setTimeout(() => {
+        console.log('⚠️ Loading timeout reached, forcing completion');
+        finishLoading();
+      }, 10000); // 10 second timeout
+      
+      return () => clearTimeout(timeoutTimer);
+    }
+  }, [loadingState.isLoading, finishLoading]);
 
   return {
     loadingState,
