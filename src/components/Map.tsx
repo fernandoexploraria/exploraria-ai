@@ -1,9 +1,9 @@
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { usePlaces } from '@/hooks/usePlaces';
-import { useSearchParams } from 'next/navigation';
-import { useRouter } from 'next/router';
+import { useEnhancedPhotos } from '@/hooks/useEnhancedPhotos';
+import { usePhotoCarouselState } from '@/hooks/usePhotoCarouselState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +11,7 @@ import { Slider } from '@/components/ui/slider';
 import {
   Select,
   SelectContent,
-  SelectItem,
+  SelectItem,  
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
@@ -29,10 +29,23 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from "@/components/ui/skeleton"
 import { PhotoCarousel } from './photo-carousel';
 import { PhotoData } from '@/hooks/useEnhancedPhotos';
+import { Landmark } from '@/data/landmarks';
 
-mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
+interface MapProps {
+  mapboxToken: string;
+  landmarks: Landmark[];
+  onSelectLandmark: (landmark: Landmark) => void;
+  selectedLandmark: Landmark | null;
+  plannedLandmarks: Landmark[];
+}
 
-const Map: React.FC = () => {
+const Map: React.FC<MapProps> = ({ 
+  mapboxToken, 
+  landmarks, 
+  onSelectLandmark, 
+  selectedLandmark, 
+  plannedLandmarks 
+}) => {
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [lng, setLng] = useState(-73.9857);
@@ -43,41 +56,29 @@ const Map: React.FC = () => {
   const [type, setType] = useState('');
   const [minRating, setMinRating] = useState(0);
   const [maxResults, setMaxResults] = useState(10);
-  const [selectedLandmark, setSelectedLandmark] = useState<any>(null);
-  const [popupPhotos, setPopupPhotos] = useState<PhotoData[]>([]);
-  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
-  const [showPhotoCarousel, setShowPhotoCarousel] = useState(false);
+  const [places, setPlaces] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const searchParams = useSearchParams();
-  const router = useRouter();
-
+  const carouselState = usePhotoCarouselState();
   const { 
-    places, 
-    loading, 
-    error, 
-    fetchPlaces,
-    getOptimalImageQuality
-  } = usePlaces();
+    fetchPhotos,
+    getOptimalPhotoUrl,
+    loading: photosLoading,
+    error: photosError
+  } = useEnhancedPhotos();
 
+  // Set the mapbox token
   useEffect(() => {
-    if (searchParams) {
-      const initialLat = searchParams.get('lat');
-      const initialLng = searchParams.get('lng');
-      const initialKeyword = searchParams.get('keyword') || '';
-      const initialType = searchParams.get('type') || '';
-
-      if (initialLat && initialLng) {
-        setLat(parseFloat(initialLat));
-        setLng(parseFloat(initialLng));
-      }
-      setKeyword(initialKeyword);
-      setType(initialType);
+    if (mapboxToken) {
+      mapboxgl.accessToken = mapboxToken;
     }
-  }, [searchParams]);
+  }, [mapboxToken]);
 
   useEffect(() => {
     if (mapRef.current) return; // prevent initialize map twice
     if (!mapContainerRef.current) return; // container is not rendered
+    if (!mapboxToken) return; // wait for token
 
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
@@ -89,9 +90,10 @@ const Map: React.FC = () => {
     mapRef.current = map;
 
     map.on('move', () => {
-      setLng(map.getCenter().lng.toFixed(4));
-      setLat(map.getCenter().lat.toFixed(4));
-      setZoom(map.getZoom().toFixed(2));
+      const center = map.getCenter();
+      setLng(parseFloat(center.lng.toFixed(4)));
+      setLat(parseFloat(center.lat.toFixed(4)));
+      setZoom(parseFloat(map.getZoom().toFixed(2)));
     });
 
     map.on('load', () => {
@@ -103,7 +105,7 @@ const Map: React.FC = () => {
     return () => {
       map.remove();
     };
-  }, []);
+  }, [mapboxToken]);
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -115,8 +117,9 @@ const Map: React.FC = () => {
     const existingPopups = document.querySelectorAll('.mapboxgl-popup');
     existingPopups.forEach(popup => popup.remove());
 
-    if (places && places.length > 0) {
-      places.forEach(landmark => {
+    // Add landmarks from props
+    if (landmarks && landmarks.length > 0) {
+      landmarks.forEach(landmark => {
         // Create a custom marker.
         const markerElement = document.createElement('div');
         markerElement.className = 'landmark-marker';
@@ -128,7 +131,7 @@ const Map: React.FC = () => {
 
         // Add marker to map
         new mapboxgl.Marker(markerElement)
-          .setLngLat([landmark.geometry.location.lng, landmark.geometry.location.lat])
+          .setLngLat([landmark.lng, landmark.lat])
           .addTo(mapRef.current!);
 
         // Add click event listener to marker
@@ -137,7 +140,31 @@ const Map: React.FC = () => {
         });
       });
     }
-  }, [places]);
+
+    // Add places markers
+    if (places && places.length > 0) {
+      places.forEach(place => {
+        // Create a custom marker.
+        const markerElement = document.createElement('div');
+        markerElement.className = 'place-marker';
+        markerElement.style.backgroundImage = 'url(/images/map-pin.svg)';
+        markerElement.style.backgroundSize = 'cover';
+        markerElement.style.width = '25px';
+        markerElement.style.height = '25px';
+        markerElement.style.cursor = 'pointer';
+
+        // Add marker to map
+        new mapboxgl.Marker(markerElement)
+          .setLngLat([place.geometry.location.lng, place.geometry.location.lat])
+          .addTo(mapRef.current!);
+
+        // Add click event listener to marker
+        markerElement.addEventListener('click', () => {
+          handlePlaceClick(place);
+        });
+      });
+    }
+  }, [landmarks, places]);
 
   const handleSearch = useCallback(async () => {
     if (!mapRef.current) return;
@@ -146,30 +173,26 @@ const Map: React.FC = () => {
     const newLat = center.lat;
     const newLng = center.lng;
 
-    // Update URL
-    router.push(`/?lat=${newLat}&lng=${newLng}&keyword=${keyword}&type=${type}`, undefined, { shallow: true });
+    setLoading(true);
+    setError(null);
 
-    // Fetch places
-    await fetchPlaces({
-      lat: newLat,
-      lng: newLng,
-      radius,
-      keyword,
-      type,
-      minRating,
-      maxResults
-    });
-  }, [radius, keyword, type, minRating, maxResults, fetchPlaces, router]);
+    try {
+      // This is a placeholder - you would implement actual places search here
+      console.log('Searching for places near:', { lat: newLat, lng: newLng, radius, keyword, type });
+      setPlaces([]);
+    } catch (err) {
+      setError('Failed to search places');
+      console.error('Search error:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [radius, keyword, type, minRating, maxResults]);
 
   const displayPhotosInPopup = useCallback((photos: PhotoData[], landmark: any) => {
     if (!photos || photos.length === 0) {
       console.log('No photos available for landmark:', landmark.name);
       return;
     }
-
-    setPopupPhotos(photos);
-    setCurrentPhotoIndex(0);
-    setShowPhotoCarousel(true);
 
     // Create popup content with React component
     const popupContent = document.createElement('div');
@@ -229,9 +252,7 @@ const Map: React.FC = () => {
 
     // Handle popup close
     popup.on('close', () => {
-      setShowPhotoCarousel(false);
-      setPopupPhotos([]);
-      setCurrentPhotoIndex(0);
+      carouselState.hideCarousel();
     });
 
     // Render React component into the carousel div
@@ -251,10 +272,10 @@ const Map: React.FC = () => {
       }
     });
 
-  }, []);
+  }, [carouselState]);
 
-  const handleLandmarkClick = useCallback(async (landmark: any) => {
-    if (!landmark.place_id) {
+  const handleLandmarkClick = useCallback(async (landmark: Landmark) => {
+    if (!landmark.id) {
       console.warn('No place_id available for landmark:', landmark.name);
       return;
     }
@@ -263,9 +284,9 @@ const Map: React.FC = () => {
       console.log(`🖼️ Fetching photos for landmark: ${landmark.name}`);
       
       const photosResponse = await fetchPhotos(
-        landmark.place_id,
+        landmark.id,
         800,
-        getOptimalImageQuality()
+        'medium'
       );
 
       if (photosResponse?.photos && photosResponse.photos.length > 0) {
@@ -307,7 +328,63 @@ const Map: React.FC = () => {
         `)
         .addTo(mapRef.current!);
     }
-  }, [fetchPhotos, getOptimalImageQuality, displayPhotosInPopup]);
+  }, [fetchPhotos, displayPhotosInPopup]);
+
+  const handlePlaceClick = useCallback(async (place: any) => {
+    if (!place.place_id) {
+      console.warn('No place_id available for place:', place.name);
+      return;
+    }
+
+    try {
+      console.log(`🖼️ Fetching photos for place: ${place.name}`);
+      
+      const photosResponse = await fetchPhotos(
+        place.place_id,
+        800,
+        'medium'
+      );
+
+      if (photosResponse?.photos && photosResponse.photos.length > 0) {
+        console.log(`✅ Found ${photosResponse.photos.length} photos for ${place.name}`);
+        displayPhotosInPopup(photosResponse.photos, place);
+      } else {
+        console.log(`ℹ️ No photos found for ${place.name}`);
+        
+        // Create simple popup without photos
+        const popup = new mapboxgl.Popup({
+          closeButton: true,
+          closeOnClick: false,
+          maxWidth: '300px'
+        })
+          .setLngLat([place.geometry.location.lng, place.geometry.location.lat])
+          .setHTML(`
+            <div style="padding: 16px; text-align: center;">
+              <h3 style="margin: 0 0 8px 0; font-weight: 600;">${place.name}</h3>
+              <p style="margin: 0; color: #666; font-size: 14px;">No photos available</p>
+            </div>
+          `)
+          .addTo(mapRef.current!);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching photos:', error);
+      
+      // Show error popup
+      const popup = new mapboxgl.Popup({
+        closeButton: true,
+        closeOnClick: false,
+        maxWidth: '300px'
+      })
+        .setLngLat([place.geometry.location.lng, place.geometry.location.lat])
+        .setHTML(`
+          <div style="padding: 16px; text-align: center;">
+            <h3 style="margin: 0 0 8px 0; font-weight: 600;">${place.name}</h3>
+            <p style="margin: 0; color: #e74c3c; font-size: 14px;">Error loading photos</p>
+          </div>
+        `)
+        .addTo(mapRef.current!);
+    }
+  }, [fetchPhotos, displayPhotosInPopup]);
 
   return (
     <div className="flex h-screen">
@@ -320,7 +397,7 @@ const Map: React.FC = () => {
       <div className="w-1/4 p-4 bg-gray-100 border-l">
         <Card>
           <CardHeader>
-            <CardTitle>Search Landmarks</CardTitle>
+            <CardTitle>Search Places</CardTitle>
             <CardDescription>Find interesting places near you.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
@@ -337,7 +414,7 @@ const Map: React.FC = () => {
               <Label htmlFor="type">Type</Label>
               <Select onValueChange={setType}>
                 <SelectTrigger id="type">
-                  <SelectValue placeholder="Select a type" defaultValue={type} />
+                  <SelectValue placeholder="Select a type" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Any</SelectItem>
@@ -365,9 +442,9 @@ const Map: React.FC = () => {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="minRating">Minimum Rating</Label>
-              <Select onValueChange={setMinRating}>
+              <Select onValueChange={(value) => setMinRating(parseFloat(value))}>
                 <SelectTrigger id="minRating">
-                  <SelectValue placeholder="Any" defaultValue={minRating.toString()} />
+                  <SelectValue placeholder="Any" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="0">Any</SelectItem>
@@ -382,7 +459,7 @@ const Map: React.FC = () => {
               <Input
                 id="maxResults"
                 type="number"
-                defaultValue={maxResults}
+                value={maxResults}
                 onChange={(e) => setMaxResults(parseInt(e.target.value))}
               />
             </div>
@@ -408,37 +485,25 @@ const Map: React.FC = () => {
 
         {/* Landmark List */}
         <div className="mt-6">
-          <h2 className="text-lg font-semibold mb-2">Nearby Landmarks</h2>
+          <h2 className="text-lg font-semibold mb-2">Landmarks</h2>
           <ScrollArea className="h-[300px] w-full rounded-md border">
             <div className="p-4">
-              {loading ? (
-                <div className="space-y-3">
-                  <Skeleton className="h-4 w-[80%]" />
-                  <Skeleton className="h-4 w-[60%]" />
-                  <Skeleton className="h-4 w-[40%]" />
-                </div>
-              ) : places && places.length > 0 ? (
+              {landmarks && landmarks.length > 0 ? (
                 <ul className="list-none p-0">
-                  {places.map((landmark) => (
-                    <li key={landmark.place_id} className="py-2 border-b last:border-b-0">
+                  {landmarks.map((landmark) => (
+                    <li key={landmark.id} className="py-2 border-b last:border-b-0">
                       <button
                         onClick={() => handleLandmarkClick(landmark)}
                         className="flex items-center space-x-3 w-full text-left"
                       >
                         <MapPin className="h-4 w-4 text-gray-500" />
                         <span>{landmark.name}</span>
-                        {landmark.rating && (
-                          <span className="ml-auto flex items-center">
-                            <Star className="h-4 w-4 text-yellow-500 mr-1" />
-                            {landmark.rating}
-                          </span>
-                        )}
                       </button>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p>No landmarks found. Adjust your search criteria.</p>
+                <p>No landmarks available.</p>
               )}
             </div>
           </ScrollArea>
