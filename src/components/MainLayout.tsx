@@ -1,3 +1,4 @@
+
 import React from 'react';
 import Map from '@/components/Map';
 import TopControls from '@/components/TopControls';
@@ -68,8 +69,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 }) => {
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
 
-  const handleLocationSelect = (coordinates: [number, number]) => {
-    console.log('Location selected:', coordinates);
+  const handleLocationSelect = () => {
+    console.log('Location select called but no action taken');
   };
 
   return (
@@ -92,9 +93,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       />
 
       <Map 
-        onLocationSelect={handleLocationSelect}
-        showTourLandmarks={true}
-        showTopLandmarks={true}
+        mapboxToken={mapboxToken}
+        landmarks={allLandmarks}
+        onSelectLandmark={onSelectLandmark}
+        selectedLandmark={selectedLandmark}
+        plannedLandmarks={[...plannedLandmarks]}
       />
 
       <DialogManager

@@ -51,42 +51,11 @@ export const clearTourMarkers = () => {
   console.log('Tour landmarks array cleared');
 };
 
-// Function to clear and set new tour landmarks with coordinate validation
+// Function to clear and set new tour landmarks
 export const setTourLandmarks = (landmarks: TourLandmark[]) => {
   // Clear existing landmarks and markers first
   clearTourMarkers();
-  
-  // Validate and filter landmarks with proper coordinates
-  const validLandmarks = landmarks.filter(landmark => {
-    const [lng, lat] = landmark.coordinates;
-    const isValid = typeof lng === 'number' && typeof lat === 'number' && 
-                   lng !== 0 && lat !== 0 && 
-                   lng >= -180 && lng <= 180 && 
-                   lat >= -90 && lat <= 90;
-    
-    if (!isValid) {
-      console.warn('🚫 Filtering out landmark with invalid coordinates:', {
-        name: landmark.name,
-        coordinates: landmark.coordinates,
-        types: [typeof lng, typeof lat]
-      });
-    } else {
-      console.log('✅ Valid landmark coordinates:', landmark.name, landmark.coordinates);
-    }
-    
-    return isValid;
-  });
-  
-  // Add valid landmarks
-  TOUR_LANDMARKS.push(...validLandmarks);
-  console.log('New tour landmarks set:', {
-    total: landmarks.length,
-    valid: validLandmarks.length,
-    filtered: landmarks.length - validLandmarks.length
-  });
-  
-  // Trigger a map update if we have valid landmarks
-  if (validLandmarks.length > 0) {
-    console.log('🗺️ Triggering map update for valid tour landmarks');
-  }
+  // Add new landmarks
+  TOUR_LANDMARKS.push(...landmarks);
+  console.log('New tour landmarks set:', landmarks.length);
 };
