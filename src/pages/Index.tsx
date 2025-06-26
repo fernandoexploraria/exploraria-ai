@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback } from 'react';
 import SplashScreen from '@/components/SplashScreen';
 import MainLayout from '@/components/MainLayout';
@@ -10,6 +11,7 @@ import { usePendingDestination } from '@/hooks/usePendingDestination';
 import { useDialogStates } from '@/hooks/useDialogStates';
 import { useProximityNotifications } from '@/hooks/useProximityNotifications';
 import { useDebugWindow } from '@/hooks/useDebugWindow';
+import { useConnectionMonitor } from '@/hooks/useConnectionMonitor';
 
 const Index: React.FC = () => {
   const [showSplash, setShowSplash] = useState(true);
@@ -43,6 +45,9 @@ const Index: React.FC = () => {
 
   // Initialize proximity notifications
   useProximityNotifications();
+  
+  // Initialize connection monitoring
+  useConnectionMonitor();
   
   const allLandmarks = useMemo(() => {
     return [...staticLandmarks, ...plannedLandmarks, ...additionalLandmarks];

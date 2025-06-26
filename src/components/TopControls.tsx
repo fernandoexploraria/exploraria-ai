@@ -7,8 +7,10 @@ import SearchControl from '@/components/SearchControl';
 import FreeTourCounter from '@/components/FreeTourCounter';
 import ImageAnalysis from '@/components/ImageAnalysis';
 import DebugWindow from '@/components/DebugWindow';
+import ConnectionStatus from '@/components/ConnectionStatus';
 import { Landmark } from '@/data/landmarks';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useConnectionMonitor } from '@/hooks/useConnectionMonitor';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -38,6 +40,9 @@ const TopControls: React.FC<TopControlsProps> = ({
   const [isDebugDrawerOpen, setIsDebugDrawerOpen] = useState(false);
   const [isTestingCors, setIsTestingCors] = useState(false);
   const { toast } = useToast();
+  
+  // Initialize connection monitoring
+  const { connectionHealth } = useConnectionMonitor();
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
@@ -92,6 +97,11 @@ const TopControls: React.FC<TopControlsProps> = ({
         
         {/* Search Control */}
         <SearchControl landmarks={allLandmarks} onSelectLandmark={onSelectLandmark} />
+        
+        {/* Connection Status - Show compact version when collapsed or if there are issues */}
+        {(isCollapsed || !connectionHealth.isHealthy) && (
+          <ConnectionStatus compact className="w-full" />
+        )}
         
         {/* Collapse Toggle Button */}
         <Button
@@ -150,6 +160,9 @@ const TopControls: React.FC<TopControlsProps> = ({
 
             {/* Image Analysis Button */}
             <ImageAnalysis plannedLandmarks={plannedLandmarks} />
+            
+            {/* Connection Status - Full version when expanded */}
+            <ConnectionStatus showDetails className="w-full" />
             
             {/* Test CORS Button */}
             <Button
