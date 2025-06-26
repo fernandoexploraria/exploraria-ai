@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
@@ -173,7 +174,8 @@ serve(async (req) => {
       viewpoints = 'single',
       quality = 'medium',
       landmarkType = 'building',
-      size
+      size,
+      includeMetadata = true
     }: EnhancedStreetViewRequest = await req.json();
     
     if (!coordinates || coordinates.length !== 2) {
@@ -200,10 +202,11 @@ serve(async (req) => {
     console.log(`🗺️ Fetching Enhanced Street View for ${landmarkName} at [${lng}, ${lat}]`);
     console.log(`📐 Strategy: ${viewpoints}, Quality: ${quality}, Headings: [${headings.join(', ')}°]`);
 
-    // Fetch all viewpoints concurrently
-    const viewpointPromises = headings.map(heading => 
-      fetchStreetViewForHeading(lat, lng, heading, landmarkName, finalSize, googleApiKey)
-    );
+    // Fetch all viewpoints concurrently with progress tracking
+    const viewpointPromises = headings.map((heading, index) => {
+      console.log(`🔄 Loading viewpoint ${index + 1}/${headings.length} (${heading}°)`);
+      return fetchStreetViewForHeading(lat, lng, heading, landmarkName, finalSize, googleApiKey);
+    });
 
     const allViewpoints = await Promise.all(viewpointPromises);
     const validViewpoints = allViewpoints.filter(vp => vp !== null) as StreetViewData[];
@@ -212,7 +215,9 @@ serve(async (req) => {
       console.log(`❌ No Street View available for ${landmarkName} from any angle`);
       return new Response(JSON.stringify({
         error: 'Street View not available at this location from any angle',
-        landmarkName
+        landmarkName,
+        attemptedHeadings: headings,
+        strategy: viewpoints
       }), { 
         status: 404, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -222,10 +227,13 @@ serve(async (req) => {
     // Primary view is the first valid viewpoint (usually north-facing)
     const primary = validViewpoints[0];
     
-    // Calculate data usage estimate
+    // Enhanced metadata calculation
     const imageSize = finalSize.split('x').map(Number);
     const estimatedKbPerImage = (imageSize[0] * imageSize[1] * 0.8) / 1024; // Rough JPEG estimate
     const totalDataKb = Math.round(estimatedKbPerImage * validViewpoints.length);
+    
+    // Calculate recommended view based on landmark type and orientation
+    const recommendedViewIndex = getRecommendedView(validViewpoints, landmarkType);
     
     console.log(`✅ Enhanced Street View available for ${landmarkName}: ${validViewpoints.length} viewpoints (${totalDataKb}KB total)`);
 
@@ -234,8 +242,18 @@ serve(async (req) => {
       viewpoints: validViewpoints,
       metadata: {
         totalViews: validViewpoints.length,
-        recommendedView: 0, // Index of the primary view
-        dataUsage: `${totalDataKb}KB (${validViewpoints.length} views)`
+        recommendedView: recommendedViewIndex,
+        dataUsage: `${totalDataKb}KB (${validViewpoints.length} views)`,
+        ...(includeMetadata && {
+          strategy: viewpoints,
+          quality,
+          landmarkType,
+          imageSize: finalSize,
+          loadingTime: Date.now(),
+          networkOptimized: quality === 'low' || quality === 'medium',
+          availableHeadings: validViewpoints.map(vp => vp.heading),
+          coverage: `${Math.round((validViewpoints.length / headings.length) * 100)}%`
+        })
       }
     };
 
@@ -248,10 +266,31 @@ serve(async (req) => {
     console.error('❌ Error in google-streetview-enhanced function:', error);
     return new Response(JSON.stringify({ 
       error: 'Internal server error',
-      details: error.message 
+      details: error.message,
+      timestamp: new Date().toISOString()
     }), { 
       status: 500, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
   }
 });
+
+// Helper function to determine recommended view
+const getRecommendedView = (viewpoints: StreetViewData[], landmarkType: string): number => {
+  if (viewpoints.length === 1) return 0;
+  
+  // For monuments and statues, prefer front-facing views (0° or 180°)
+  if (landmarkType === 'monument' || landmarkType === 'statue') {
+    const frontView = viewpoints.findIndex(vp => vp.heading === 0 || vp.heading === 180);
+    if (frontView !== -1) return frontView;
+  }
+  
+  // For buildings, prefer street-facing views (0° typically)
+  if (landmarkType === 'building') {
+    const streetView = viewpoints.findIndex(vp => vp.heading === 0);
+    if (streetView !== -1) return streetView;
+  }
+  
+  // Default to first viewpoint
+  return 0;
+};

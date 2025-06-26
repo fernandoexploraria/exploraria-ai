@@ -1,15 +1,15 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Wifi, WifiOff, RotateCw } from 'lucide-react';
+import { X, Wifi, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import StreetViewNavigationControls from './StreetViewNavigationControls';
 import StreetViewThumbnailGrid from './StreetViewThumbnailGrid';
-import StreetViewCompass from './StreetViewCompass';
-import SkeletonLoader from './ui/skeleton-loader';
+import EnhancedStreetViewCompass from './street-view/EnhancedStreetViewCompass';
+import StreetViewMetadataPanel from './street-view/StreetViewMetadataPanel';
+import StreetViewLoadingOverlay from './street-view/StreetViewLoadingOverlay';
 import OfflineIndicator from './OfflineIndicator';
 import EnhancedProgressiveImage from './EnhancedProgressiveImage';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useAdaptiveStreetViewLoader } from '@/hooks/useAdaptiveStreetViewLoader';
 import { PhotoData } from '@/hooks/useEnhancedPhotos';
 
 interface StreetViewData {
@@ -84,7 +84,23 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [currentViewpoint, setCurrentViewpoint] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showMetadata, setShowMetadata] = useState(false);
   const { isOnline, isSlowConnection } = useNetworkStatus();
+
+  const {
+    loadingState,
+    loadingViewpoints,
+    startLoading,
+    finishLoading,
+    updateProgress,
+    setViewpointLoading,
+    loadImageWithProgress,
+    getOptimalLoadingStrategy
+  } = useAdaptiveStreetViewLoader({
+    onComplete: () => {
+      console.log('✅ Street View loading completed');
+    }
+  });
 
   // Reset indices when modal opens or items change
   useEffect(() => {
@@ -145,12 +161,65 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
           e.preventDefault();
           toggleFullscreen();
           break;
+        case 'i':
+        case 'I':
+          e.preventDefault();
+          setShowMetadata(prev => !prev);
+          break;
       }
     };
 
     document.addEventListener('keydown', handleKeyPress);
     return () => document.removeEventListener('keydown', handleKeyPress);
-  }, [isOpen, currentIndex, currentViewpoint, streetViewItems.length]);
+  }, [isOpen, currentIndex, currentViewpoint, streetViewItems.length, onClose, handlePrevious, handleNext, toggleFullscreen]);
+
+  // Enhanced loading effect for multi-viewpoint data
+  useEffect(() => {
+    const currentItem = streetViewItems[currentIndex];
+    const currentStreetViewData = currentItem?.streetViewData;
+    
+    if (currentStreetViewData && isMultiViewpointData(currentStreetViewData)) {
+      const strategy = determineStrategy(currentStreetViewData);
+      const viewpoints = currentStreetViewData.viewpoints;
+      
+      startLoading(viewpoints.length);
+      
+      // Simulate progressive loading
+      const loadViewpoints = async () => {
+        const { concurrentLoads } = getOptimalLoadingStrategy();
+        
+        for (let i = 0; i < viewpoints.length; i += concurrentLoads) {
+          const batch = viewpoints.slice(i, i + concurrentLoads);
+          const loadPromises = batch.map((viewpoint, batchIndex) => {
+            const actualIndex = i + batchIndex;
+            return loadImageWithProgress(
+              viewpoint.imageUrl, 
+              actualIndex,
+              () => updateProgress((actualIndex / viewpoints.length) * 100, `Loading viewpoint ${actualIndex + 1}...`)
+            );
+          });
+          
+          try {
+            await Promise.all(loadPromises);
+          } catch (error) {
+            console.error('Error loading viewpoint batch:', error);
+          }
+        }
+        
+        finishLoading();
+      };
+      
+      loadViewpoints();
+    }
+  }, [currentIndex, streetViewItems, startLoading, finishLoading, updateProgress, loadImageWithProgress, getOptimalLoadingStrategy]);
+
+  const determineStrategy = (multiData: MultiViewpointData): string => {
+    const viewCount = multiData.viewpoints.length;
+    if (viewCount === 1) return 'single';
+    if (viewCount === 4) return 'cardinal';
+    if (viewCount <= 3) return 'smart';
+    return 'all';
+  };
 
   const handlePrevious = useCallback(() => {
     setCurrentIndex(prev => prev > 0 ? prev - 1 : streetViewItems.length - 1);
@@ -222,9 +291,7 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
     ? currentStreetViewData.viewpoints 
     : [currentStreetViewData];
     
-  const dataUsage = isMultiViewpoint 
-    ? currentStreetViewData.metadata.dataUsage 
-    : 'Single view';
+  const strategy = isMultiViewpoint ? determineStrategy(currentStreetViewData) : 'single';
 
   const availableItems = streetViewItems.filter(item => item.streetViewData);
 
@@ -243,6 +310,12 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
     <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/90 ${isFullscreen ? 'p-0' : 'p-4'}`}>
       <div className={`relative w-full h-full bg-black rounded-lg overflow-hidden ${isFullscreen ? 'max-w-none max-h-none' : 'max-w-7xl max-h-[95vh]'}`}>
         
+        {/* Loading Overlay */}
+        <StreetViewLoadingOverlay 
+          loadingState={loadingState}
+          strategy={strategy}
+        />
+        
         {/* Header */}
         <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 to-transparent p-4">
           <div className="flex items-center justify-between text-white">
@@ -250,26 +323,20 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
               <div className="flex items-center gap-2 mb-1">
                 <h2 className="text-xl font-bold">{currentStreetView.landmarkName}</h2>
                 <OfflineIndicator />
-                {isMultiViewpoint && (
-                  <div className="flex items-center gap-1">
-                    <RotateCw className="w-4 h-4" />
-                    <span className="text-sm">{allViewpoints.length} views</span>
-                  </div>
-                )}
               </div>
               <div className="flex items-center gap-4 text-sm opacity-90">
                 <span>
                   Street View • {currentStreetView.location.lat.toFixed(6)}, {currentStreetView.location.lng.toFixed(6)}
                 </span>
                 {isMultiViewpoint && (
-                  <span className="text-blue-400">
-                    {dataUsage}
+                  <span className="text-blue-400 capitalize">
+                    {strategy} Strategy • {allViewpoints.length} views
                   </span>
                 )}
               </div>
               {isSlowConnection && (
                 <p className="text-xs text-yellow-400 mt-1">
-                  Slow connection detected - images may take longer to load
+                  Loading optimized for slow connection
                 </p>
               )}
             </div>
@@ -317,16 +384,27 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
           )}
         </div>
 
-        {/* Multi-viewpoint Compass */}
+        {/* Enhanced Multi-viewpoint Compass */}
         {isMultiViewpoint && allViewpoints.length > 1 && (
           <div className="absolute top-1/2 right-4 transform -translate-y-1/2">
-            <StreetViewCompass
+            <EnhancedStreetViewCompass
               viewpoints={allViewpoints}
               currentViewpoint={currentViewpoint}
               onViewpointChange={setCurrentViewpoint}
+              strategy={strategy}
+              loadingViewpoints={loadingViewpoints}
             />
           </div>
         )}
+
+        {/* Metadata Panel */}
+        <StreetViewMetadataPanel
+          streetViewData={currentStreetViewData}
+          currentViewpoint={currentViewpoint}
+          isVisible={showMetadata}
+          onToggle={() => setShowMetadata(!showMetadata)}
+          loadingState={loadingState}
+        />
 
         {/* Thumbnail Navigation */}
         {availableItems.length > 1 && (
@@ -340,18 +418,9 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
           </div>
         )}
 
-        {/* Footer with metadata */}
-        {currentStreetView.metadata.copyright && (
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-            <p className="text-white text-xs opacity-75">
-              {currentStreetView.metadata.copyright}
-            </p>
-          </div>
-        )}
-
-        {/* Keyboard shortcuts hint */}
+        {/* Enhanced Keyboard shortcuts hint */}
         <div className="absolute bottom-4 right-4 text-white text-xs opacity-50">
-          ← → Navigate • {isMultiViewpoint ? '↑ ↓ / Shift+← → Change View • ' : ''}F Fullscreen • ESC Close
+          ← → Navigate • {isMultiViewpoint ? '↑ ↓ / Shift+← → Change View • ' : ''}F Fullscreen • I Info • ESC Close
         </div>
       </div>
     </div>
