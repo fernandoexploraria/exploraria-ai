@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useOfflineCache } from '@/hooks/useOfflineCache';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { Landmark } from '@/data/landmarks';
+import { CacheTestUtils, performanceBenchmark } from '@/utils/streetViewTestUtils';
 
 interface StreetViewData {
   imageUrl: string;
@@ -42,52 +43,62 @@ interface MultiStreetViewCache {
     timestamp: number;
     strategy: string;
     isAvailable: boolean;
+    size?: number;
   };
 }
 
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 const NEGATIVE_CACHE_DURATION = 60 * 60 * 1000; // 1 hour
 
-// Determine viewpoint strategy based on distance and network conditions
+// Enhanced strategy selection with detailed logging
 const getViewpointStrategy = (distance?: number, networkQuality?: string): ViewpointStrategy => {
-  const isSlowNetwork = networkQuality === 'slow' || networkQuality === '2g';
+  const isSlowNetwork = networkQuality === 'slow' || networkQuality === '2g' || networkQuality === 'slow-2g';
+  
+  let strategy: ViewpointStrategy['strategy'];
+  let quality: ViewpointStrategy['quality'];
+  let reasoning: string;
   
   if (!distance) {
-    return { strategy: 'single', quality: 'medium' };
-  }
-  
-  if (distance < 100) {
-    // Very close - get all viewpoints with high quality unless network is slow
-    return { 
-      strategy: 'all', 
-      quality: isSlowNetwork ? 'medium' : 'high' 
-    };
+    strategy = 'single';
+    quality = 'medium';
+    reasoning = 'No distance provided, defaulting to single view';
+  } else if (distance < 100) {
+    strategy = 'all';
+    quality = isSlowNetwork ? 'medium' : 'high';
+    reasoning = `Very close (${Math.round(distance)}m), all viewpoints needed for comprehensive view`;
   } else if (distance < 500) {
-    // Close - get smart viewpoints with good quality
-    return { 
-      strategy: 'smart', 
-      quality: isSlowNetwork ? 'low' : 'medium' 
-    };
+    strategy = 'smart';
+    quality = isSlowNetwork ? 'low' : 'medium';
+    reasoning = `Close distance (${Math.round(distance)}m), smart selection optimal`;
   } else if (distance < 1000) {
-    // Moderate distance - cardinal directions
-    return { 
-      strategy: 'cardinal', 
-      quality: isSlowNetwork ? 'low' : 'medium' 
-    };
+    strategy = 'cardinal';
+    quality = isSlowNetwork ? 'low' : 'medium';
+    reasoning = `Moderate distance (${Math.round(distance)}m), cardinal directions sufficient`;
   } else {
-    // Far - single view only
-    return { 
-      strategy: 'single', 
-      quality: 'medium' 
-    };
+    strategy = 'single';
+    quality = 'medium';
+    reasoning = `Far distance (${Math.round(distance)}m), single view adequate`;
   }
+
+  // Enhanced debug logging
+  console.log(`📐 Strategy Selection:`, {
+    distance: distance ? `${Math.round(distance)}m` : 'unknown',
+    networkQuality,
+    isSlowNetwork,
+    selectedStrategy: strategy,
+    selectedQuality: quality,
+    reasoning
+  });
+
+  return { strategy, quality };
 };
 
 export const useEnhancedStreetViewMulti = () => {
   const [isLoading, setIsLoading] = useState<{[key: string]: boolean}>({});
   const [error, setError] = useState<string | null>(null);
   const cacheRef = useRef<MultiStreetViewCache>({});
-  const { isOnline, connectionType } = useNetworkStatus();
+  const { isOnline, connectionType, effectiveType, downlink } = useNetworkStatus();
+  const cacheTestUtils = CacheTestUtils.getInstance();
   
   const offlineCache = useOfflineCache<MultiViewpointResponse>({
     storeName: 'enhanced-streetview',
@@ -95,51 +106,104 @@ export const useEnhancedStreetViewMulti = () => {
     maxItems: 100
   });
 
-  // Check if data is cached and still valid
+  // Enhanced cache operations with metrics
   const getCachedData = useCallback((landmarkId: string, strategy: string): MultiViewpointResponse | null => {
     const cached = cacheRef.current[landmarkId];
-    if (!cached || cached.strategy !== strategy) return null;
+    if (!cached || cached.strategy !== strategy) {
+      cacheTestUtils.recordMiss();
+      console.log(`💾 Cache miss for ${landmarkId} with strategy ${strategy}`);
+      return null;
+    }
 
     const cacheAge = Date.now() - cached.timestamp;
     const maxAge = cached.isAvailable ? CACHE_DURATION : NEGATIVE_CACHE_DURATION;
     
     if (cacheAge > maxAge) {
       delete cacheRef.current[landmarkId];
+      cacheTestUtils.recordDelete(cached.size || 0);
+      cacheTestUtils.recordMiss();
+      console.log(`💾 Cache expired for ${landmarkId}, age: ${Math.round(cacheAge / 1000)}s`);
       return null;
     }
 
+    cacheTestUtils.recordHit();
+    console.log(`💾 Cache hit for ${landmarkId}, age: ${Math.round(cacheAge / 1000)}s`);
     return cached.data;
-  }, []);
+  }, [cacheTestUtils]);
 
-  // Check if Street View is known to be unavailable
+  const setCachedData = useCallback((
+    landmarkId: string, 
+    data: MultiViewpointResponse | null, 
+    strategy: string, 
+    isAvailable: boolean
+  ) => {
+    const estimatedSize = data ? JSON.stringify(data).length : 0;
+    
+    cacheRef.current[landmarkId] = {
+      data,
+      timestamp: Date.now(),
+      strategy,
+      isAvailable,
+      size: estimatedSize
+    };
+    
+    cacheTestUtils.recordSet(estimatedSize);
+    console.log(`💾 Cached data for ${landmarkId}:`, {
+      strategy,
+      isAvailable,
+      size: `${(estimatedSize / 1024).toFixed(2)} KB`,
+      viewpoints: data?.viewpoints.length || 0
+    });
+  }, [cacheTestUtils]);
+
   const isKnownUnavailable = useCallback((landmarkId: string): boolean => {
     const cached = cacheRef.current[landmarkId];
     if (!cached) return false;
 
     const cacheAge = Date.now() - cached.timestamp;
-    return !cached.isAvailable && cacheAge <= NEGATIVE_CACHE_DURATION;
+    const isUnavailable = !cached.isAvailable && cacheAge <= NEGATIVE_CACHE_DURATION;
+    
+    if (isUnavailable) {
+      console.log(`🚫 Known unavailable: ${landmarkId}, cached ${Math.round(cacheAge / 1000)}s ago`);
+    }
+    
+    return isUnavailable;
   }, []);
 
-  // Fetch multi-viewpoint Street View data
+  // Enhanced fetch with performance monitoring
   const fetchEnhancedStreetView = useCallback(async (
     landmark: Landmark,
     distance?: number,
     customStrategy?: ViewpointStrategy
   ): Promise<MultiViewpointResponse | null> => {
     const landmarkId = landmark.id;
-    const strategy = customStrategy || getViewpointStrategy(distance, connectionType);
+    const strategy = customStrategy || getViewpointStrategy(distance, effectiveType);
     const strategyKey = `${strategy.strategy}-${strategy.quality}`;
+    
+    // Performance and network logging
+    console.log(`🌍 Fetching enhanced Street View:`, {
+      landmark: landmark.name,
+      distance: distance ? `${Math.round(distance)}m` : 'unknown',
+      strategy: strategy.strategy,
+      quality: strategy.quality,
+      network: {
+        isOnline,
+        connectionType,
+        effectiveType,
+        downlink: `${downlink} Mbps`
+      }
+    });
     
     // Check cache first
     const cached = getCachedData(landmarkId, strategyKey);
     if (cached !== null) {
-      console.log(`📋 Using cached multi-viewpoint data for ${landmark.name} (${strategy.strategy})`);
+      console.log(`📋 Using cached data for ${landmark.name}`);
       return cached;
     }
 
-    // Check if we know it's unavailable
+    // Check if known unavailable
     if (isKnownUnavailable(landmarkId)) {
-      console.log(`🚫 Enhanced Street View known to be unavailable for ${landmark.name}`);
+      console.log(`🚫 Skipping known unavailable landmark: ${landmark.name}`);
       return null;
     }
 
@@ -147,164 +211,184 @@ export const useEnhancedStreetViewMulti = () => {
     setError(null);
 
     try {
-      console.log(`🌍 Fetching enhanced Street View for ${landmark.name} (${strategy.strategy}, ${strategy.quality})`);
-      
-      const { data, error } = await supabase.functions.invoke('google-streetview-enhanced', {
-        body: {
-          coordinates: landmark.coordinates,
-          landmarkName: landmark.name,
-          viewpoints: strategy.strategy,
-          quality: strategy.quality,
-          landmarkType: landmark.description?.includes('building') ? 'building' : 
-                       landmark.description?.includes('monument') ? 'monument' :
-                       landmark.description?.includes('bridge') ? 'bridge' :
-                       landmark.description?.includes('park') ? 'natural' : 'building'
-        }
+      const result = await performanceBenchmark.measure(
+        `Enhanced Street View API - ${landmark.name}`,
+        async () => {
+          const { data, error } = await supabase.functions.invoke('google-streetview-enhanced', {
+            body: {
+              coordinates: landmark.coordinates,
+              landmarkName: landmark.name,
+              viewpoints: strategy.strategy,
+              quality: strategy.quality,
+              landmarkType: landmark.description?.includes('building') ? 'building' : 
+                           landmark.description?.includes('monument') ? 'monument' :
+                           landmark.description?.includes('bridge') ? 'bridge' :
+                           landmark.description?.includes('park') ? 'natural' : 'building'
+            }
+          });
+
+          if (error) throw new Error(error.message);
+          return data;
+        },
+        { landmark: landmark.name, strategy: strategy.strategy, quality: strategy.quality }
+      );
+
+      if (!result) {
+        console.log(`📭 No enhanced Street View data for ${landmark.name}`);
+        setCachedData(landmarkId, null, strategyKey, false);
+        return null;
+      }
+
+      // Success logging with detailed metrics
+      console.log(`✅ Enhanced Street View loaded:`, {
+        landmark: landmark.name,
+        viewpoints: result.viewpoints.length,
+        dataUsage: result.metadata.dataUsage,
+        recommendedView: result.metadata.recommendedView,
+        strategy: strategy.strategy,
+        quality: strategy.quality
       });
-
-      if (error) {
-        console.error(`❌ Error fetching enhanced Street View for ${landmark.name}:`, error);
-        
-        // Cache negative result
-        cacheRef.current[landmarkId] = {
-          data: null,
-          timestamp: Date.now(),
-          strategy: strategyKey,
-          isAvailable: false
-        };
-        
-        setError(`Failed to fetch enhanced Street View: ${error.message}`);
-        return null;
-      }
-
-      if (!data) {
-        console.log(`📭 No enhanced Street View data received for ${landmark.name}`);
-        
-        // Cache negative result
-        cacheRef.current[landmarkId] = {
-          data: null,
-          timestamp: Date.now(),
-          strategy: strategyKey,
-          isAvailable: false
-        };
-        
-        return null;
-      }
-
-      // Cache successful result
-      cacheRef.current[landmarkId] = {
-        data,
-        timestamp: Date.now(),
-        strategy: strategyKey,
-        isAvailable: true
-      };
-
-      console.log(`✅ Enhanced Street View data cached for ${landmark.name} (${data.viewpoints.length} viewpoints, ${data.metadata.dataUsage})`);
+      
+      setCachedData(landmarkId, result, strategyKey, true);
       
       // Cache for offline use if online
       if (isOnline && offlineCache.isReady) {
         try {
-          await offlineCache.setItem(`${landmarkId}-${strategyKey}`, data);
+          await offlineCache.setItem(`${landmarkId}-${strategyKey}`, result);
+          console.log(`💾 Offline cached: ${landmark.name}`);
         } catch (error) {
-          console.warn(`⚠️ Failed to cache enhanced Street View offline for ${landmark.name}:`, error);
+          console.warn(`⚠️ Failed to cache offline for ${landmark.name}:`, error);
         }
       }
       
-      return data;
+      return result;
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      console.error(`❌ Exception fetching enhanced Street View for ${landmark.name}:`, err);
+      console.error(`❌ Enhanced Street View error for ${landmark.name}:`, {
+        error: errorMessage,
+        strategy: strategy.strategy,
+        network: { isOnline, effectiveType, downlink }
+      });
       
       // Try offline cache as fallback
       if (!isOnline && offlineCache.isReady) {
         try {
           const offlineData = await offlineCache.getItem(`${landmarkId}-${strategyKey}`);
           if (offlineData) {
-            console.log(`💾 Using offline cache for enhanced Street View: ${landmark.name}`);
+            console.log(`💾 Using offline fallback: ${landmark.name}`);
             return offlineData;
           }
         } catch (offlineError) {
-          console.error(`❌ Offline cache fallback failed for ${landmark.name}:`, offlineError);
+          console.error(`❌ Offline fallback failed for ${landmark.name}:`, offlineError);
         }
       }
       
-      // Cache negative result for network errors too
-      cacheRef.current[landmarkId] = {
-        data: null,
-        timestamp: Date.now(),
-        strategy: strategyKey,
-        isAvailable: false
-      };
-      
+      setCachedData(landmarkId, null, strategyKey, false);
       setError(errorMessage);
       return null;
     } finally {
       setIsLoading(prev => ({ ...prev, [landmarkId]: false }));
     }
-  }, [getCachedData, isKnownUnavailable, connectionType, isOnline, offlineCache]);
+  }, [getCachedData, setCachedData, isKnownUnavailable, effectiveType, isOnline, offlineCache, connectionType, downlink]);
 
-  // Get the best viewpoint based on context
+  // Enhanced preloading with performance monitoring
+  const preloadForProximity = useCallback(async (
+    landmarks: Landmark[],
+    userLocation: { latitude: number; longitude: number }
+  ): Promise<void> => {
+    if (!isOnline) {
+      console.log('🔄 Skipping preload: offline');
+      return;
+    }
+
+    console.log(`🔄 Starting proximity preload:`, {
+      landmarks: landmarks.length,
+      userLocation,
+      network: { effectiveType, downlink }
+    });
+    
+    const preloadPromises = landmarks.map(async (landmark) => {
+      try {
+        const distance = Math.sqrt(
+          Math.pow((landmark.coordinates[1] - userLocation.latitude) * 111000, 2) +
+          Math.pow((landmark.coordinates[0] - userLocation.longitude) * 111000, 2)
+        );
+
+        const strategy = getViewpointStrategy(distance, effectiveType);
+        const strategyKey = `${strategy.strategy}-${strategy.quality}`;
+        const existing = getCachedData(landmark.id, strategyKey);
+        
+        if (existing) {
+          console.log(`⚡ Preload skip (cached): ${landmark.name}`);
+          return;
+        }
+
+        await fetchEnhancedStreetView(landmark, distance);
+        console.log(`⚡ Preloaded: ${landmark.name} (${Math.round(distance)}m)`);
+      } catch (error) {
+        console.warn(`⚠️ Preload failed: ${landmark.name}`, error);
+      }
+    });
+
+    await Promise.allSettled(preloadPromises);
+    console.log(`✅ Proximity preload completed for ${landmarks.length} landmarks`);
+  }, [fetchEnhancedStreetView, getCachedData, effectiveType, isOnline, downlink]);
+
   const getBestViewpoint = useCallback((
     multiData: MultiViewpointResponse, 
     preferredHeading?: number
   ): StreetViewData => {
     if (!preferredHeading) {
+      console.log(`📍 Using primary viewpoint (no preferred heading)`);
       return multiData.primary;
     }
 
-    // Find the viewpoint closest to the preferred heading
     const closestViewpoint = multiData.viewpoints.reduce((closest, current) => {
       const currentDiff = Math.abs(current.heading - preferredHeading);
       const closestDiff = Math.abs(closest.heading - preferredHeading);
       return currentDiff < closestDiff ? current : closest;
     });
 
+    console.log(`📍 Best viewpoint selected:`, {
+      preferredHeading,
+      selectedHeading: closestViewpoint.heading,
+      difference: Math.abs(closestViewpoint.heading - preferredHeading)
+    });
+
     return closestViewpoint;
   }, []);
 
-  // Preload enhanced Street View for proximity
-  const preloadForProximity = useCallback(async (
-    landmarks: Landmark[],
-    userLocation: { latitude: number; longitude: number }
-  ): Promise<void> => {
-    if (!isOnline) return;
-
-    console.log(`🔄 Pre-loading enhanced Street View for ${landmarks.length} landmarks`);
-    
-    for (const landmark of landmarks) {
-      try {
-        // Calculate distance for strategy selection
-        const distance = Math.sqrt(
-          Math.pow((landmark.coordinates[1] - userLocation.latitude) * 111000, 2) +
-          Math.pow((landmark.coordinates[0] - userLocation.longitude) * 111000, 2)
-        );
-
-        // Check if already cached
-        const strategy = getViewpointStrategy(distance, connectionType);
-        const strategyKey = `${strategy.strategy}-${strategy.quality}`;
-        const existing = getCachedData(landmark.id, strategyKey);
-        if (existing) continue;
-
-        // Fetch and cache
-        await fetchEnhancedStreetView(landmark, distance);
-        console.log(`✅ Pre-loaded enhanced Street View: ${landmark.name} (${Math.round(distance)}m away)`);
-      } catch (error) {
-        console.warn(`⚠️ Failed to pre-load enhanced Street View for ${landmark.name}:`, error);
-      }
-    }
-  }, [fetchEnhancedStreetView, getCachedData, connectionType, isOnline]);
-
-  // Clear cache
   const clearCache = useCallback((landmarkId?: string) => {
     if (landmarkId) {
+      const cached = cacheRef.current[landmarkId];
+      if (cached) {
+        cacheTestUtils.recordDelete(cached.size || 0);
+      }
       delete cacheRef.current[landmarkId];
-      console.log(`🗑️ Cleared enhanced Street View cache for landmark ${landmarkId}`);
+      console.log(`🗑️ Cleared cache for ${landmarkId}`);
     } else {
+      const totalSize = Object.values(cacheRef.current).reduce((sum, cached) => sum + (cached.size || 0), 0);
       cacheRef.current = {};
-      console.log('🗑️ Cleared all enhanced Street View cache');
+      cacheTestUtils.reset();
+      console.log(`🗑️ Cleared all cache (${(totalSize / 1024).toFixed(2)} KB)`);
     }
-  }, []);
+  }, [cacheTestUtils]);
+
+  const getCacheStats = useCallback(() => {
+    const cacheEntries = Object.entries(cacheRef.current);
+    const totalSize = cacheEntries.reduce((sum, [, cached]) => sum + (cached.size || 0), 0);
+    const availableCount = cacheEntries.filter(([, cached]) => cached.isAvailable).length;
+    const unavailableCount = cacheEntries.length - availableCount;
+
+    return {
+      totalEntries: cacheEntries.length,
+      availableEntries: availableCount,
+      unavailableEntries: unavailableCount,
+      totalSizeKB: (totalSize / 1024).toFixed(2),
+      ...cacheTestUtils.getMetrics()
+    };
+  }, [cacheTestUtils]);
 
   return {
     fetchEnhancedStreetView,
@@ -313,6 +397,7 @@ export const useEnhancedStreetViewMulti = () => {
     getCachedData,
     isKnownUnavailable,
     clearCache,
+    getCacheStats,
     isLoading,
     error,
     getViewpointStrategy,

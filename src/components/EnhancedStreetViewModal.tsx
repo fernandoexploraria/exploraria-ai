@@ -8,11 +8,13 @@ import StreetViewMetadataPanel from './street-view/StreetViewMetadataPanel';
 import StreetViewLoadingOverlay from './street-view/StreetViewLoadingOverlay';
 import MultiViewpointIndicator from './street-view/MultiViewpointIndicator';
 import StreetViewKeyboardHelp from './street-view/StreetViewKeyboardHelp';
+import StreetViewDebugPanel from './street-view/StreetViewDebugPanel';
 import OfflineIndicator from './OfflineIndicator';
 import EnhancedProgressiveImage from './EnhancedProgressiveImage';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useAdaptiveStreetViewLoader } from '@/hooks/useAdaptiveStreetViewLoader';
 import { PhotoData } from '@/hooks/useEnhancedPhotos';
+import { performanceBenchmark } from '@/utils/streetViewTestUtils';
 
 interface StreetViewData {
   imageUrl: string;
@@ -260,9 +262,11 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
 
     document.addEventListener('keydown', handleKeyPress);
     return () => document.removeEventListener('keydown', handleKeyPress);
-  }, [isOpen, currentIndex, currentViewpoint, streetViewItems.length, onClose, handlePrevious, handleNext, toggleFullscreen, showKeyboardHelp]);
+  }, [isOpen, currentIndex, currentViewpoint, streetViewItems.length, onClose, handlePrevious, handleNext, toggleFullscreen, showKeyboardHelp, onLocationSelect, handleShowOnMap]);
 
-  // Enhanced loading effect with loop prevention
+  const [showDebugPanel, setShowDebugPanel] = useState(process.env.NODE_ENV === 'development');
+
+  // Enhanced loading effect with performance monitoring
   useEffect(() => {
     if (!isOpen || !mountedRef.current) return;
     
@@ -274,10 +278,8 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
       return;
     }
 
-    // Create a unique loading ID to prevent duplicate loads
     const loadingId = `load-${currentIndex}-${Date.now()}`;
     
-    // Skip if already loading this specific item
     if (currentLoadingRef.current === loadingId) {
       console.log(`🔄 Already loading item ${currentIndex}, skipping`);
       return;
@@ -287,7 +289,6 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
     console.log(`🔄 Loading Street View data for item ${currentIndex} [${loadingId}]`);
     
     if (isMultiViewpointData(currentStreetViewData)) {
-      // Multi-viewpoint loading
       const strategy = determineStrategy(currentStreetViewData);
       const viewpoints = currentStreetViewData.viewpoints;
       
@@ -295,33 +296,46 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
       
       startLoading(viewpoints.length, loadingId);
       
-      // Load viewpoints with delay to show loading state
       const loadViewpoints = async () => {
         if (!mountedRef.current) return;
         
         const { concurrentLoads } = getOptimalLoadingStrategy();
         
-        for (let i = 0; i < viewpoints.length; i += concurrentLoads) {
-          if (!mountedRef.current) break;
-          
-          const batch = viewpoints.slice(i, i + concurrentLoads);
-          const loadPromises = batch.map((viewpoint, batchIndex) => {
-            const actualIndex = i + batchIndex;
-            return loadImageWithProgress(
-              viewpoint.imageUrl, 
-              actualIndex,
-              () => updateProgress((actualIndex / viewpoints.length) * 100, `Loading viewpoint ${actualIndex + 1}...`)
-            );
-          });
-          
-          try {
-            await Promise.all(loadPromises);
-          } catch (error) {
-            console.error('Error loading viewpoint batch:', error);
+        // Performance monitoring for batch loading
+        await performanceBenchmark.measure(
+          `Multi-viewpoint loading - ${viewpoints.length} viewpoints`,
+          async () => {
+            for (let i = 0; i < viewpoints.length; i += concurrentLoads) {
+              if (!mountedRef.current) break;
+              
+              const batch = viewpoints.slice(i, i + concurrentLoads);
+              const loadPromises = batch.map((viewpoint, batchIndex) => {
+                const actualIndex = i + batchIndex;
+                return performanceBenchmark.measure(
+                  `Viewpoint ${actualIndex + 1}/${viewpoints.length}`,
+                  () => loadImageWithProgress(
+                    viewpoint.imageUrl, 
+                    actualIndex,
+                    () => updateProgress((actualIndex / viewpoints.length) * 100, `Loading viewpoint ${actualIndex + 1}...`)
+                  ),
+                  { heading: viewpoint.heading, url: viewpoint.imageUrl }
+                );
+              });
+              
+              try {
+                await Promise.all(loadPromises);
+              } catch (error) {
+                console.error('Error loading viewpoint batch:', error);
+              }
+            }
+          },
+          { 
+            strategy, 
+            landmarkName: currentItem.landmark.name,
+            totalViewpoints: viewpoints.length 
           }
-        }
+        );
         
-        // Small delay before finishing to show completion
         setTimeout(() => {
           if (mountedRef.current) {
             finishLoading();
@@ -331,28 +345,32 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
       
       loadViewpoints();
     } else {
-      // Single viewpoint loading - simplified and faster
       console.log('📐 Single viewpoint loading');
       
       startLoading(1, loadingId);
       
-      // For single viewpoints, load quickly with minimal delay
       const loadSingleViewpoint = async () => {
         if (!mountedRef.current) return;
         
         try {
           updateProgress(25, 'Loading Street View...');
           
-          await new Promise(resolve => setTimeout(resolve, 200)); // Small delay to show loading
+          await new Promise(resolve => setTimeout(resolve, 200));
           updateProgress(75, 'Processing image...');
           
-          await loadImageWithProgress(
-            currentStreetViewData.imageUrl,
-            0,
-            () => updateProgress(90, 'Finalizing...')
+          await performanceBenchmark.measure(
+            `Single viewpoint loading`,
+            () => loadImageWithProgress(
+              currentStreetViewData.imageUrl,
+              0,
+              () => updateProgress(90, 'Finalizing...')
+            ),
+            { 
+              landmarkName: currentItem.landmark.name,
+              url: currentStreetViewData.imageUrl 
+            }
           );
           
-          // Complete loading
           setTimeout(() => {
             if (mountedRef.current) {
               finishLoading();
@@ -368,7 +386,7 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
       
       loadSingleViewpoint();
     }
-  }, [currentIndex, isOpen]); // Simplified dependencies to prevent loops
+  }, [currentIndex, isOpen, streetViewItems, determineStrategy, startLoading, loadImageWithProgress, updateProgress, getOptimalLoadingStrategy, finishLoading]);
 
   // Component unmount cleanup
   useEffect(() => {
@@ -566,6 +584,12 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
             />
           </div>
         )}
+
+        {/* Debug Panel */}
+        <StreetViewDebugPanel
+          isVisible={showDebugPanel}
+          onToggle={() => setShowDebugPanel(!showDebugPanel)}
+        />
 
         {/* Enhanced Keyboard shortcuts hint */}
         <div className="absolute bottom-4 right-4 text-white text-xs opacity-50">
