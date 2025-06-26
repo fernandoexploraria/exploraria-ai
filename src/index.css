@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -94,42 +95,4 @@
   height: 100vh;
   overflow: hidden;
   background-color: hsl(var(--background));
-}
-
-/* Photo Carousel Popup Styles */
-.photo-popup .mapboxgl-popup-content {
-  padding: 0 !important;
-  border-radius: 8px !important;
-  overflow: hidden !important;
-  background: #000 !important;
-}
-
-.photo-popup .mapboxgl-popup-close-button {
-  background: rgba(0, 0, 0, 0.7) !important;
-  color: white !important;
-  border-radius: 50% !important;
-  width: 24px !important;
-  height: 24px !important;
-  font-size: 14px !important;
-  line-height: 22px !important;
-  right: 8px !important;
-  top: 8px !important;
-  z-index: 20 !important;
-}
-
-.photo-popup .mapboxgl-popup-close-button:hover {
-  background: rgba(0, 0, 0, 0.9) !important;
-}
-
-.photo-carousel-popup {
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-}
-
-/* Ensure photo carousel components work well in popup */
-.photo-popup .photo-carousel-container .absolute {
-  position: absolute !important;
-}
-
-.photo-popup .photo-carousel-container .relative {
-  position: relative !important;
 }
