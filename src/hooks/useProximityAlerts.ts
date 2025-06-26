@@ -12,7 +12,11 @@ const globalProximityState = {
   channel: null as any,
   isSubscribed: false,
   currentUserId: null as string | null,
-  isLoading: false
+  isLoading: false,
+  // Phase 1: Add retry state
+  retryCount: 0,
+  retryTimeout: null as NodeJS.Timeout | null,
+  maxRetries: 5
 };
 
 const MINIMUM_GAP = 25; // minimum gap in meters between tiers
@@ -22,6 +26,101 @@ const notifySubscribers = (settings: ProximitySettings | null) => {
   console.log('📢 Notifying all subscribers with settings:', settings);
   globalProximityState.settings = settings;
   globalProximityState.subscribers.forEach(callback => callback(settings));
+};
+
+// Phase 1: Add exponential backoff reconnection function
+const reconnectWithBackoff = (userId: string, loadProximitySettingsFunc: () => Promise<void>) => {
+  if (globalProximityState.retryCount >= globalProximityState.maxRetries) {
+    console.error(`❌ Max retries (${globalProximityState.maxRetries}) exceeded for proximity settings subscription`);
+    return;
+  }
+
+  // Calculate exponential backoff delay: 1s, 2s, 4s, 8s, 16s, then cap at 30s
+  const baseDelay = 1000; // 1 second
+  const delay = Math.min(baseDelay * Math.pow(2, globalProximityState.retryCount), 30000);
+  
+  console.log(`🔄 Scheduling proximity settings reconnection attempt ${globalProximityState.retryCount + 1}/${globalProximityState.maxRetries} in ${delay}ms`);
+  
+  globalProximityState.retryTimeout = setTimeout(async () => {
+    globalProximityState.retryCount++;
+    
+    // Clean up existing failed channel
+    if (globalProximityState.channel) {
+      console.log('🧹 Cleaning up failed proximity settings channel before retry');
+      supabase.removeChannel(globalProximityState.channel);
+      globalProximityState.channel = null;
+      globalProximityState.isSubscribed = false;
+    }
+    
+    // Create new subscription
+    createProximitySettingsSubscription(userId, loadProximitySettingsFunc);
+  }, delay);
+};
+
+// Phase 1: Extract subscription creation logic
+const createProximitySettingsSubscription = (userId: string, loadProximitySettingsFunc: () => Promise<void>) => {
+  console.log('📡 Creating new proximity settings subscription for user:', userId);
+  
+  const channelName = `proximity-settings-${userId}`;
+  
+  const channel = supabase
+    .channel(channelName)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'proximity_settings',
+        filter: `user_id=eq.${userId}`
+      },
+      (payload) => {
+        console.log('🔄 Real-time proximity settings update received:', payload);
+        if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+          const settings: ProximitySettings = {
+            id: payload.new.id,
+            user_id: payload.new.user_id,
+            is_enabled: payload.new.is_enabled,
+            notification_distance: payload.new.notification_distance,
+            outer_distance: payload.new.outer_distance,
+            card_distance: payload.new.card_distance,
+            created_at: payload.new.created_at,
+            updated_at: payload.new.updated_at,
+          };
+          console.log('🔄 Parsed settings from real-time update:', settings);
+          notifySubscribers(settings);
+        } else if (payload.eventType === 'DELETE') {
+          console.log('🗑️ Settings deleted via real-time update');
+          notifySubscribers(null);
+        }
+      }
+    )
+    .subscribe((status) => {
+      console.log('📡 Proximity settings subscription status:', status);
+      if (status === 'SUBSCRIBED') {
+        globalProximityState.isSubscribed = true;
+        // Phase 1: Reset retry count on successful connection
+        globalProximityState.retryCount = 0;
+        if (globalProximityState.retryTimeout) {
+          clearTimeout(globalProximityState.retryTimeout);
+          globalProximityState.retryTimeout = null;
+        }
+        console.log('✅ Proximity settings subscription successful, retry count reset');
+        // Load initial data after successful subscription
+        loadProximitySettingsFunc();
+      } else if (status === 'CHANNEL_ERROR') {
+        console.error('❌ Proximity settings channel subscription error');
+        globalProximityState.isSubscribed = false;
+        // Phase 1: Trigger reconnection on channel error
+        reconnectWithBackoff(userId, loadProximitySettingsFunc);
+      } else if (status === 'TIMED_OUT') {
+        console.error('⏰ Proximity settings channel subscription timed out');
+        globalProximityState.isSubscribed = false;
+        // Phase 1: Trigger reconnection on timeout
+        reconnectWithBackoff(userId, loadProximitySettingsFunc);
+      }
+    });
+
+  globalProximityState.channel = channel;
 };
 
 // Convert TopLandmark to Landmark format
@@ -90,6 +189,12 @@ export const useProximityAlerts = () => {
         globalProximityState.channel = null;
         globalProximityState.isSubscribed = false;
       }
+      // Phase 1: Reset retry state on user change
+      globalProximityState.retryCount = 0;
+      if (globalProximityState.retryTimeout) {
+        clearTimeout(globalProximityState.retryTimeout);
+        globalProximityState.retryTimeout = null;
+      }
       globalProximityState.settings = null;
     }
 
@@ -97,57 +202,8 @@ export const useProximityAlerts = () => {
 
     // Only create subscription if none exists
     if (!globalProximityState.channel && !globalProximityState.isSubscribed) {
-      console.log('📡 Creating new proximity settings subscription for user:', user.id);
-      
-      const channelName = `proximity-settings-${user.id}`;
-      
-      const channel = supabase
-        .channel(channelName)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'proximity_settings',
-            filter: `user_id=eq.${user.id}`
-          },
-          (payload) => {
-            console.log('🔄 Real-time proximity settings update received:', payload);
-            if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
-              const settings: ProximitySettings = {
-                id: payload.new.id,
-                user_id: payload.new.user_id,
-                is_enabled: payload.new.is_enabled,
-                notification_distance: payload.new.notification_distance,
-                outer_distance: payload.new.outer_distance,
-                card_distance: payload.new.card_distance,
-                created_at: payload.new.created_at,
-                updated_at: payload.new.updated_at,
-              };
-              console.log('🔄 Parsed settings from real-time update:', settings);
-              notifySubscribers(settings);
-            } else if (payload.eventType === 'DELETE') {
-              console.log('🗑️ Settings deleted via real-time update');
-              notifySubscribers(null);
-            }
-          }
-        )
-        .subscribe((status) => {
-          console.log('📡 Proximity settings subscription status:', status);
-          if (status === 'SUBSCRIBED') {
-            globalProximityState.isSubscribed = true;
-            // Load initial data after successful subscription
-            loadProximitySettings();
-          } else if (status === 'CHANNEL_ERROR') {
-            console.error('❌ Proximity settings channel subscription error');
-            globalProximityState.isSubscribed = false;
-          } else if (status === 'TIMED_OUT') {
-            console.error('⏰ Proximity settings channel subscription timed out');
-            globalProximityState.isSubscribed = false;
-          }
-        });
-
-      globalProximityState.channel = channel;
+      // Phase 1: Use new subscription creation function
+      createProximitySettingsSubscription(user.id, loadProximitySettings);
     } else if (globalProximityState.isSubscribed && globalProximityState.currentUserId === user.id) {
       // If subscription already exists for this user, just load data
       console.log('📡 Subscription already exists for current user, loading data');
@@ -392,6 +448,12 @@ export const useProximityAlerts = () => {
         globalProximityState.isSubscribed = false;
         globalProximityState.currentUserId = null;
         globalProximityState.settings = null;
+        // Phase 1: Clean up retry state
+        globalProximityState.retryCount = 0;
+        if (globalProximityState.retryTimeout) {
+          clearTimeout(globalProximityState.retryTimeout);
+          globalProximityState.retryTimeout = null;
+        }
       }
     };
   }, []);
