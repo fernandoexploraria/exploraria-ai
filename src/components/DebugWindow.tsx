@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { X, MapPin, Eye, Timer, Target, Route, Bell, Camera, TestTube, Loader2, Database, Wifi, WifiOff } from 'lucide-react';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -448,7 +449,7 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                 <div>• Toast notifications trigger when landmarks enter notification zone</div>
                 <div>• Notification zone is subset of prep zone</div>
                 <div>• Click landmark cards to open Street View modal</div>
-                <div>• Strategy auto-adjusts: Single (>1km) → Cardinal (500m-1km) → Smart (100m-500m) → All (<100m)</div>
+                <div>• Strategy auto-adjusts: Single (&gt;1km) → Cardinal (500m-1km) → Smart (100m-500m) → All (&lt;100m)</div>
               </div>
             </div>
 
