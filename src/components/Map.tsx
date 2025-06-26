@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useCallback, useMemo } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -24,30 +25,38 @@ const Map: React.FC<MapProps> = ({
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<{ [key: string]: mapboxgl.Marker }>({});
   const photoPopupsRef = useRef<{ [key: string]: mapboxgl.Popup }>({});
-  const { mapboxToken } = useMapboxToken();
-  const { startLocationTracking, isLocationTracking } = useLocationTracking();
-  const { proximityEnabled } = useProximityAlerts();
-  const { showLandmarks } = useLandmarkSourceToggle();
+  const mapboxToken = useMapboxToken();
+  const locationTracking = useLocationTracking();
+  const proximityAlerts = useProximityAlerts();
+  const landmarkToggle = useLandmarkSourceToggle();
 
-  // Stable reference to prevent infinite loops - only recreate when landmarks actually change
+  // Create stable tour landmarks array to prevent infinite loops
   const stableTourLandmarks = useMemo(() => {
     console.log('🗺️ Tour landmarks memo recalculating:', TOUR_LANDMARKS.length);
-    return TOUR_LANDMARKS.filter(landmark => {
-      const [lng, lat] = landmark.coordinates;
-      const isValid = lng !== 0 || lat !== 0;
-      if (!isValid) {
-        console.warn('🚫 Filtering out invalid coordinates for:', landmark.name, landmark.coordinates);
-      }
-      return isValid;
-    }).map(landmark => ({
-      id: `tour-landmark-${landmark.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
-      name: landmark.name,
-      coordinates: landmark.coordinates,
-      description: landmark.description,
-      type: 'tour' as const
-    }));
-  }, [TOUR_LANDMARKS.length, TOUR_LANDMARKS.map(l => `${l.name}-${l.coordinates[0]}-${l.coordinates[1]}`).join(',')]);
+    
+    if (TOUR_LANDMARKS.length === 0) {
+      return [];
+    }
+    
+    return TOUR_LANDMARKS
+      .filter(landmark => {
+        const [lng, lat] = landmark.coordinates;
+        const isValid = lng !== 0 || lat !== 0;
+        if (!isValid) {
+          console.warn('🚫 Filtering out invalid coordinates for:', landmark.name, landmark.coordinates);
+        }
+        return isValid;
+      })
+      .map(landmark => ({
+        id: `tour-landmark-${landmark.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+        name: landmark.name,
+        coordinates: landmark.coordinates,
+        description: landmark.description,
+        type: 'tour' as const
+      }));
+  }, [TOUR_LANDMARKS.length]);
 
+  // Create stable top landmarks array
   const stableTopLandmarks = useMemo(() => {
     return TOP_LANDMARKS.map(landmark => ({
       id: `top-${landmark.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
@@ -62,11 +71,11 @@ const Map: React.FC<MapProps> = ({
   const allLandmarksWithTop = useMemo(() => {
     const landmarks = [];
     
-    if (showTourLandmarks && showLandmarks.tour) {
+    if (showTourLandmarks) {
       landmarks.push(...stableTourLandmarks);
     }
     
-    if (showTopLandmarks && showLandmarks.top) {
+    if (showTopLandmarks) {
       landmarks.push(...stableTopLandmarks);
     }
     
@@ -77,7 +86,7 @@ const Map: React.FC<MapProps> = ({
     });
     
     return landmarks;
-  }, [showTourLandmarks, showTopLandmarks, showLandmarks.tour, showLandmarks.top, stableTourLandmarks, stableTopLandmarks]);
+  }, [showTourLandmarks, showTopLandmarks, stableTourLandmarks, stableTopLandmarks]);
 
   // Set up marker references for other components
   useEffect(() => {
@@ -236,14 +245,6 @@ const Map: React.FC<MapProps> = ({
       console.warn('🚫 No valid landmarks to fly to');
     }
   }, [stableTourLandmarks.length > 0 ? stableTourLandmarks[0]?.name : '']); // Only trigger when first landmark changes
-
-  // Start location tracking if proximity is enabled
-  useEffect(() => {
-    if (proximityEnabled && !isLocationTracking) {
-      console.log('🗺️ [Map] Starting location tracking for proximity alerts');
-      startLocationTracking();
-    }
-  }, [proximityEnabled, isLocationTracking, startLocationTracking]);
 
   return (
     <div className="relative w-full h-screen">
