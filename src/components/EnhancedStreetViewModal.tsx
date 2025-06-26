@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { X, Wifi, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import StreetViewNavigationControls from './StreetViewNavigationControls';
@@ -94,9 +95,10 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const { isOnline, isSlowConnection } = useNetworkStatus();
 
-  // Use ref to track loading state and prevent duplicate loads
-  const currentLoadingRef = useRef<string | null>(null);
+  // Refs for loading state management
   const mountedRef = useRef(true);
+  const loadingSessionRef = useRef<string | null>(null);
+  const loadedItemsRef = useRef<Set<string>>(new Set());
 
   const {
     loadingState,
@@ -113,10 +115,17 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
     }
   });
 
+  // Create stable loading identifier based on current state
+  const currentLoadingId = useMemo(() => {
+    return `item-${currentIndex}-view-${currentViewpoint}`;
+  }, [currentIndex, currentViewpoint]);
+
   // Reset indices when modal opens or items change
   useEffect(() => {
     setCurrentIndex(initialIndex);
     setCurrentViewpoint(0);
+    // Clear loaded items cache when items change
+    loadedItemsRef.current.clear();
   }, [initialIndex, streetViewItems]);
 
   // Reset viewpoint when landmark changes
@@ -124,13 +133,13 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
     setCurrentViewpoint(0);
   }, [currentIndex]);
 
-  const determineStrategy = (multiData: MultiViewpointData): ViewpointStrategy => {
+  const determineStrategy = useCallback((multiData: MultiViewpointData): ViewpointStrategy => {
     const viewCount = multiData.viewpoints.length;
     if (viewCount === 1) return 'single';
     if (viewCount === 4) return 'cardinal';
     if (viewCount <= 3) return 'smart';
     return 'all';
-  };
+  }, []);
 
   const handlePrevious = useCallback(() => {
     setCurrentIndex(prev => prev > 0 ? prev - 1 : streetViewItems.length - 1);
@@ -266,7 +275,7 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
 
   const [showDebugPanel, setShowDebugPanel] = useState(process.env.NODE_ENV === 'development');
 
-  // Enhanced loading effect with performance monitoring
+  // Stabilized loading effect with proper guards
   useEffect(() => {
     if (!isOpen || !mountedRef.current) return;
     
@@ -278,122 +287,116 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
       return;
     }
 
-    const loadingId = `load-${currentIndex}-${Date.now()}`;
+    // Create stable session ID and check if already loaded/loading
+    const sessionId = currentLoadingId;
     
-    if (currentLoadingRef.current === loadingId) {
-      console.log(`🔄 Already loading item ${currentIndex}, skipping`);
+    // Check if this item is already loaded
+    if (loadedItemsRef.current.has(sessionId)) {
+      console.log(`✅ Item ${sessionId} already loaded, skipping`);
       return;
     }
     
-    currentLoadingRef.current = loadingId;
-    console.log(`🔄 Loading Street View data for item ${currentIndex} [${loadingId}]`);
+    // Check if already loading this session
+    if (loadingSessionRef.current === sessionId) {
+      console.log(`🔄 Already loading session ${sessionId}, skipping`);
+      return;
+    }
+
+    // Start new loading session
+    loadingSessionRef.current = sessionId;
+    console.log(`🚀 Starting loading session: ${sessionId}`);
     
-    if (isMultiViewpointData(currentStreetViewData)) {
-      const strategy = determineStrategy(currentStreetViewData);
-      const viewpoints = currentStreetViewData.viewpoints;
-      
-      console.log(`📐 Multi-viewpoint loading: ${viewpoints.length} viewpoints with ${strategy} strategy`);
-      
-      startLoading(viewpoints.length, loadingId);
-      
-      const loadViewpoints = async () => {
-        if (!mountedRef.current) return;
-        
-        const { concurrentLoads } = getOptimalLoadingStrategy();
-        
-        // Performance monitoring for batch loading
-        await performanceBenchmark.measure(
-          `Multi-viewpoint loading - ${viewpoints.length} viewpoints`,
-          async () => {
-            for (let i = 0; i < viewpoints.length; i += concurrentLoads) {
-              if (!mountedRef.current) break;
-              
-              const batch = viewpoints.slice(i, i + concurrentLoads);
-              const loadPromises = batch.map((viewpoint, batchIndex) => {
-                const actualIndex = i + batchIndex;
-                return performanceBenchmark.measure(
-                  `Viewpoint ${actualIndex + 1}/${viewpoints.length}`,
-                  () => loadImageWithProgress(
-                    viewpoint.imageUrl, 
-                    actualIndex,
-                    () => updateProgress((actualIndex / viewpoints.length) * 100, `Loading viewpoint ${actualIndex + 1}...`)
-                  ),
-                  { heading: viewpoint.heading, url: viewpoint.imageUrl }
-                );
-              });
-              
-              try {
+    const loadStreetViewData = async () => {
+      if (!mountedRef.current || loadingSessionRef.current !== sessionId) {
+        console.log(`🛑 Loading cancelled for session: ${sessionId}`);
+        return;
+      }
+
+      try {
+        if (isMultiViewpointData(currentStreetViewData)) {
+          const strategy = determineStrategy(currentStreetViewData);
+          const viewpoints = currentStreetViewData.viewpoints;
+          
+          console.log(`📐 Loading multi-viewpoint: ${viewpoints.length} viewpoints with ${strategy} strategy`);
+          
+          startLoading(viewpoints.length, sessionId);
+          
+          const { concurrentLoads } = getOptimalLoadingStrategy();
+          
+          await performanceBenchmark.measure(
+            `Multi-viewpoint loading - ${viewpoints.length} viewpoints`,
+            async () => {
+              for (let i = 0; i < viewpoints.length; i += concurrentLoads) {
+                if (!mountedRef.current || loadingSessionRef.current !== sessionId) break;
+                
+                const batch = viewpoints.slice(i, i + concurrentLoads);
+                const loadPromises = batch.map((viewpoint, batchIndex) => {
+                  const actualIndex = i + batchIndex;
+                  return performanceBenchmark.measure(
+                    `Viewpoint ${actualIndex + 1}/${viewpoints.length}`,
+                    () => loadImageWithProgress(
+                      viewpoint.imageUrl, 
+                      actualIndex,
+                      () => updateProgress((actualIndex / viewpoints.length) * 100, `Loading viewpoint ${actualIndex + 1}...`)
+                    )
+                  );
+                });
+                
                 await Promise.all(loadPromises);
-              } catch (error) {
-                console.error('Error loading viewpoint batch:', error);
               }
             }
-          },
-          { 
-            strategy, 
-            landmarkName: currentItem.landmark.name,
-            totalViewpoints: viewpoints.length 
-          }
-        );
-        
-        setTimeout(() => {
-          if (mountedRef.current) {
-            finishLoading();
-          }
-        }, 300);
-      };
-      
-      loadViewpoints();
-    } else {
-      console.log('📐 Single viewpoint loading');
-      
-      startLoading(1, loadingId);
-      
-      const loadSingleViewpoint = async () => {
-        if (!mountedRef.current) return;
-        
-        try {
-          updateProgress(25, 'Loading Street View...');
+          );
+        } else {
+          console.log('📐 Loading single viewpoint');
           
-          await new Promise(resolve => setTimeout(resolve, 200));
+          startLoading(1, sessionId);
+          
+          updateProgress(25, 'Loading Street View...');
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
           updateProgress(75, 'Processing image...');
           
           await performanceBenchmark.measure(
-            `Single viewpoint loading`,
+            'Single viewpoint loading',
             () => loadImageWithProgress(
               currentStreetViewData.imageUrl,
               0,
               () => updateProgress(90, 'Finalizing...')
-            ),
-            { 
-              landmarkName: currentItem.landmark.name,
-              url: currentStreetViewData.imageUrl 
-            }
+            )
           );
+        }
+
+        // Mark as completed if still the active session
+        if (mountedRef.current && loadingSessionRef.current === sessionId) {
+          loadedItemsRef.current.add(sessionId);
+          console.log(`✅ Loading completed for session: ${sessionId}`);
           
           setTimeout(() => {
-            if (mountedRef.current) {
+            if (mountedRef.current && loadingSessionRef.current === sessionId) {
               finishLoading();
+              loadingSessionRef.current = null;
             }
           }, 200);
-        } catch (error) {
-          console.error('Error loading single viewpoint:', error);
-          if (mountedRef.current) {
-            finishLoading();
-          }
         }
-      };
-      
-      loadSingleViewpoint();
-    }
-  }, [currentIndex, isOpen, streetViewItems, determineStrategy, startLoading, loadImageWithProgress, updateProgress, getOptimalLoadingStrategy, finishLoading]);
+      } catch (error) {
+        console.error(`❌ Loading failed for session ${sessionId}:`, error);
+        if (mountedRef.current && loadingSessionRef.current === sessionId) {
+          finishLoading();
+          loadingSessionRef.current = null;
+        }
+      }
+    };
+
+    loadStreetViewData();
+  }, [currentLoadingId, isOpen, streetViewItems, determineStrategy, startLoading, loadImageWithProgress, updateProgress, getOptimalLoadingStrategy, finishLoading]);
 
   // Component unmount cleanup
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      currentLoadingRef.current = null;
+      loadingSessionRef.current = null;
+      loadedItemsRef.current.clear();
     };
   }, []);
 
