@@ -46,12 +46,35 @@ export const useNearbyLandmarks = ({
       return [];
     }
 
+    // Validate user location
+    if (typeof userLocation.latitude !== 'number' || typeof userLocation.longitude !== 'number') {
+      console.log('🎯 No nearby landmarks: invalid location format', userLocation);
+      return [];
+    }
+
     // Step 1: Combine TOP_LANDMARKS and TOUR_LANDMARKS into a single array
     const staticLandmarks = TOP_LANDMARKS.map(convertTopLandmarkToLandmark);
-    const tourLandmarks = TOUR_LANDMARKS.map(convertTourLandmarkToLandmark);
-    const combinedLandmarks = [...staticLandmarks, ...tourLandmarks];
+    
+    // Filter tour landmarks to only include those with valid coordinates
+    const validTourLandmarks = TOUR_LANDMARKS
+      .filter(landmark => {
+        const [lng, lat] = landmark.coordinates;
+        const isValid = typeof lng === 'number' && typeof lat === 'number' && 
+                       lng !== 0 && lat !== 0 &&
+                       lng >= -180 && lng <= 180 && 
+                       lat >= -90 && lat <= 90;
+        
+        if (!isValid) {
+          console.log('🎯 Skipping invalid tour landmark:', landmark.name, landmark.coordinates);
+        }
+        
+        return isValid;
+      })
+      .map(convertTourLandmarkToLandmark);
+    
+    const combinedLandmarks = [...staticLandmarks, ...validTourLandmarks];
 
-    console.log(`🎯 Combined landmarks: ${staticLandmarks.length} static + ${tourLandmarks.length} tour = ${combinedLandmarks.length} total`);
+    console.log(`🎯 Combined landmarks: ${staticLandmarks.length} static + ${validTourLandmarks.length} valid tour = ${combinedLandmarks.length} total`);
 
     if (combinedLandmarks.length === 0) {
       console.log('🎯 No nearby landmarks: no landmarks available');
@@ -91,9 +114,12 @@ export const useNearbyLandmarks = ({
       
       console.log(`🎯 Found ${sortedLandmarks.length} landmarks within ${notificationDistance}m: ${landmarkSummary}`);
     } else {
-      console.log(`🎯 No landmarks found within ${notificationDistance}m`);
+      console.log(`🎯 No landmarks found within ${notificationDistance}m of`, {
+        lat: userLocation.latitude,
+        lng: userLocation.longitude
+      });
     }
 
     return sortedLandmarks;
-  }, [userLocation, notificationDistance]);
+  }, [userLocation?.latitude, userLocation?.longitude, notificationDistance, TOUR_LANDMARKS.length]);
 };

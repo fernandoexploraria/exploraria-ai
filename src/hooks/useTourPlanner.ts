@@ -185,32 +185,61 @@ export const useTourPlanner = () => {
         qualityMetrics: enhancedTourData.metadata?.coordinateQuality
       });
 
-      // Preserve enhanced landmarks with all metadata
-      const enhancedLandmarks: EnhancedLandmark[] = enhancedTourData.landmarks.map((enhancedLandmark: any) => ({
-        id: enhancedLandmark.id,
-        name: enhancedLandmark.name,
-        coordinates: enhancedLandmark.coordinates,
-        description: enhancedLandmark.description,
-        placeId: enhancedLandmark.placeId,
-        coordinateSource: enhancedLandmark.coordinateSource,
-        confidence: enhancedLandmark.confidence,
-        rating: enhancedLandmark.rating,
-        photos: enhancedLandmark.photos,
-        types: enhancedLandmark.types,
-        formattedAddress: enhancedLandmark.formattedAddress
-      }));
+      // Preserve enhanced landmarks with all metadata and validate coordinates
+      const enhancedLandmarks: EnhancedLandmark[] = enhancedTourData.landmarks
+        .filter((enhancedLandmark: any) => {
+          // Validate coordinates before creating landmark
+          const coords = enhancedLandmark.coordinates;
+          const isValidCoords = Array.isArray(coords) && 
+                               coords.length === 2 && 
+                               typeof coords[0] === 'number' && 
+                               typeof coords[1] === 'number' &&
+                               coords[0] !== 0 && coords[1] !== 0 &&
+                               coords[0] >= -180 && coords[0] <= 180 &&
+                               coords[1] >= -90 && coords[1] <= 90;
+          
+          if (!isValidCoords) {
+            console.warn('🚫 Filtering out landmark with invalid coordinates:', {
+              name: enhancedLandmark.name,
+              coordinates: coords,
+              source: enhancedLandmark.coordinateSource
+            });
+          }
+          
+          return isValidCoords;
+        })
+        .map((enhancedLandmark: any) => ({
+          id: enhancedLandmark.id,
+          name: enhancedLandmark.name,
+          coordinates: enhancedLandmark.coordinates,
+          description: enhancedLandmark.description,
+          placeId: enhancedLandmark.placeId,
+          coordinateSource: enhancedLandmark.coordinateSource,
+          confidence: enhancedLandmark.confidence,
+          rating: enhancedLandmark.rating,
+          photos: enhancedLandmark.photos,
+          types: enhancedLandmark.types,
+          formattedAddress: enhancedLandmark.formattedAddress
+        }));
 
       // Phase 4: Finalize tour with slower progress
       await animateProgress(95, 'Finalizing tour...', 'finalizing');
       await animateProgress(98, 'Updating map markers...', 'finalizing');
 
-      // Set tour landmarks for map display (simplified version)
+      // Set tour landmarks for map display with proper validation
       console.log('Setting enhanced tour landmarks:', enhancedLandmarks.length);
-      setTourLandmarks(enhancedLandmarks.map(lm => ({
+      const tourLandmarksForMap = enhancedLandmarks.map(lm => ({
         name: lm.name,
-        coordinates: lm.coordinates,
+        coordinates: lm.coordinates as [number, number],
         description: lm.description
+      }));
+      
+      console.log('Tour landmarks being set:', tourLandmarksForMap.map(lm => ({
+        name: lm.name,
+        coordinates: lm.coordinates
       })));
+      
+      setTourLandmarks(tourLandmarksForMap);
 
       const newTourPlan: TourPlan = {
         landmarks: enhancedLandmarks,

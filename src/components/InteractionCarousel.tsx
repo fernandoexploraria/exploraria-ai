@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useInteractionCarouselLogic } from './InteractionCarouselLogic';
 import InteractionCarouselHeader from './InteractionCarouselHeader';
 import InteractionCarouselContent from './InteractionCarouselContent';
@@ -47,23 +47,35 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     toggleFavorite
   } = useInteractionCarouselLogic();
 
-  // Load all interactions on mount
-  useEffect(() => {
-    if (open && user) {
+  // Stabilize the load interactions function to prevent loops
+  const stableLoadAllInteractions = useCallback(() => {
+    if (user?.id) {
       console.log('Loading interactions for user:', user.id);
       loadAllInteractions();
     }
-  }, [open, user]);
+  }, [user?.id, loadAllInteractions]);
 
-  // Stop audio when carousel is closed
+  // Load all interactions on mount - use stable reference
+  useEffect(() => {
+    if (open) {
+      stableLoadAllInteractions();
+    }
+  }, [open, stableLoadAllInteractions]);
+
+  // Stop audio when carousel is closed - use stable reference
+  const handleStop = useCallback(() => {
+    console.log('Interaction carousel closed - stopping audio');
+    stop();
+  }, [stop]);
+
   useEffect(() => {
     if (!open) {
-      console.log('Interaction carousel closed - stopping audio');
-      stop();
+      handleStop();
     }
-  }, [open, stop]);
+  }, [open, handleStop]);
 
-  const handleLocationClick = (coordinates: any) => {
+  // Stabilize location click handler
+  const handleLocationClick = useCallback((coordinates: any) => {
     if (coordinates && onLocationSelect) {
       const coordsArray = coordinates.toString().replace(/[()]/g, '').split(',');
       if (coordsArray.length === 2) {
@@ -73,14 +85,15 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
         onOpenChange(false);
       }
     }
-  };
+  }, [onLocationSelect, onOpenChange]);
 
-  const handleToggleFavoritesFilter = (show: boolean) => {
+  // Stabilize favorites toggle handler
+  const handleToggleFavoritesFilter = useCallback((show: boolean) => {
     setShowFavoritesOnly(show);
-  };
+  }, []);
 
-  // Filter interactions based on favorites toggle
-  const getFilteredInteractions = () => {
+  // Memoize filtered interactions to prevent unnecessary recalculations
+  const currentInteractions = useMemo(() => {
     if (showingSearchResults) {
       return searchResults;
     }
@@ -90,9 +103,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
     }
     
     return interactions;
-  };
-
-  const currentInteractions = getFilteredInteractions();
+  }, [showingSearchResults, searchResults, showFavoritesOnly, interactions]);
 
   return (
     <Drawer 
