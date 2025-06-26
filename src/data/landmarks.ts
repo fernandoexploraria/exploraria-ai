@@ -6,6 +6,16 @@ export interface Landmark {
   description: string;
 }
 
+export interface EnhancedLandmark extends Landmark {
+  placeId?: string;           // Google Place ID for additional data
+  coordinateSource: 'places' | 'geocoding' | 'gemini';  // Track data source
+  confidence: number;         // Coordinate accuracy confidence (0-1)
+  rating?: number;           // Google rating
+  photos?: string[];         // Photo URLs from Places API
+  types?: string[];          // Place types from Google
+  formattedAddress?: string; // Official Google address
+}
+
 export const landmarks: Landmark[] = [
   {
     id: "eiffel-tower",

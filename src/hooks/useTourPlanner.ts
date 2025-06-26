@@ -1,6 +1,5 @@
-
 import { useState } from 'react';
-import { Landmark } from '@/data/landmarks';
+import { Landmark, EnhancedLandmark } from '@/data/landmarks';
 import { setTourLandmarks, clearTourMarkers } from '@/data/tourLandmarks';
 import { toast } from "sonner";
 import { supabase } from '@/integrations/supabase/client';
@@ -8,7 +7,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { useTourStats } from '@/hooks/useTourStats';
 
 export interface TourPlan {
-  landmarks: Landmark[];
+  landmarks: EnhancedLandmark[];
   systemPrompt: string;
   destination: string;
   metadata?: {
@@ -52,8 +51,13 @@ export const useTourPlanner = () => {
   const { subscriptionData } = useSubscription();
   const { tourStats, forceRefresh } = useTourStats();
 
-  // Keep backward compatibility
-  const plannedLandmarks = tourPlan?.landmarks || [];
+  // Keep backward compatibility - convert enhanced landmarks to basic landmarks for components that need it
+  const plannedLandmarks: Landmark[] = tourPlan?.landmarks?.map(landmark => ({
+    id: landmark.id,
+    name: landmark.name,
+    coordinates: landmark.coordinates,
+    description: landmark.description
+  })) || [];
 
   const updateProgress = (update: Partial<ProgressState>) => {
     setProgressState(prev => ({ ...prev, ...update }));
@@ -181,32 +185,35 @@ export const useTourPlanner = () => {
         qualityMetrics: enhancedTourData.metadata?.coordinateQuality
       });
 
-      // Convert enhanced landmarks to backward-compatible format
-      const newLandmarks: Landmark[] = enhancedTourData.landmarks.map((enhancedLandmark: any) => ({
+      // Preserve enhanced landmarks with all metadata
+      const enhancedLandmarks: EnhancedLandmark[] = enhancedTourData.landmarks.map((enhancedLandmark: any) => ({
         id: enhancedLandmark.id,
         name: enhancedLandmark.name,
         coordinates: enhancedLandmark.coordinates,
         description: enhancedLandmark.description,
-        // Store enhanced data in description for now (could be extended later)
-        ...(enhancedLandmark.rating && { rating: enhancedLandmark.rating }),
-        ...(enhancedLandmark.coordinateSource && { coordinateSource: enhancedLandmark.coordinateSource }),
-        ...(enhancedLandmark.confidence && { confidence: enhancedLandmark.confidence })
+        placeId: enhancedLandmark.placeId,
+        coordinateSource: enhancedLandmark.coordinateSource,
+        confidence: enhancedLandmark.confidence,
+        rating: enhancedLandmark.rating,
+        photos: enhancedLandmark.photos,
+        types: enhancedLandmark.types,
+        formattedAddress: enhancedLandmark.formattedAddress
       }));
 
       // Phase 4: Finalize tour with slower progress
       await animateProgress(95, 'Finalizing tour...', 'finalizing');
       await animateProgress(98, 'Updating map markers...', 'finalizing');
 
-      // Set tour landmarks in the separate array (this clears and repopulates)
-      console.log('Setting enhanced tour landmarks:', newLandmarks.length);
-      setTourLandmarks(enhancedTourData.landmarks.map((lm: any) => ({
+      // Set tour landmarks for map display (simplified version)
+      console.log('Setting enhanced tour landmarks:', enhancedLandmarks.length);
+      setTourLandmarks(enhancedLandmarks.map(lm => ({
         name: lm.name,
         coordinates: lm.coordinates,
         description: lm.description
       })));
 
       const newTourPlan: TourPlan = {
-        landmarks: newLandmarks,
+        landmarks: enhancedLandmarks,
         systemPrompt: enhancedTourData.systemPrompt,
         destination: destination,
         metadata: enhancedTourData.metadata

@@ -1,9 +1,8 @@
-
 import React, { useState, useMemo, useCallback } from 'react';
 import SplashScreen from '@/components/SplashScreen';
 import MainLayout from '@/components/MainLayout';
 import DebugWindow from '@/components/DebugWindow';
-import { landmarks as staticLandmarks, Landmark } from '@/data/landmarks';
+import { landmarks as staticLandmarks, Landmark, EnhancedLandmark } from '@/data/landmarks';
 import { useTourPlanner } from '@/hooks/useTourPlanner';
 import { useAuth } from '@/components/AuthProvider';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
@@ -49,9 +48,16 @@ const Index: React.FC = () => {
   // Initialize connection monitoring
   useConnectionMonitor();
   
-  const allLandmarks = useMemo(() => {
-    return [...staticLandmarks, ...plannedLandmarks, ...additionalLandmarks];
-  }, [plannedLandmarks, additionalLandmarks]);
+  // Combine static landmarks with enhanced tour landmarks
+  const allLandmarks: (Landmark | EnhancedLandmark)[] = useMemo(() => {
+    const tourLandmarks = tourPlan?.landmarks || [];
+    return [...staticLandmarks, ...tourLandmarks, ...additionalLandmarks];
+  }, [tourPlan?.landmarks, additionalLandmarks]);
+
+  // Also keep the basic plannedLandmarks for backward compatibility
+  const basicPlannedLandmarks = useMemo(() => {
+    return plannedLandmarks;
+  }, [plannedLandmarks]);
 
   const handleSelectLandmark = useCallback((landmark: Landmark) => {
     setSelectedLandmark(landmark);
@@ -133,7 +139,7 @@ const Index: React.FC = () => {
         mapboxToken={mapboxToken}
         allLandmarks={allLandmarks}
         selectedLandmark={selectedLandmark}
-        plannedLandmarks={plannedLandmarks}
+        plannedLandmarks={basicPlannedLandmarks}
         user={user}
         onSelectLandmark={handleSelectLandmark}
         onTourPlannerOpen={() => setIsTourPlannerOpen(true)}

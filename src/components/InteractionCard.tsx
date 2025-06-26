@@ -1,9 +1,12 @@
+
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import InteractionCardHeader from './InteractionCardHeader';
 import InteractionCardImage from './InteractionCardImage';
 import InteractionCardContent from './InteractionCardContent';
 import InteractionCardActions from './InteractionCardActions';
+import EnhancedLandmarkInfo from './EnhancedLandmarkInfo';
+import { EnhancedLandmark } from '@/data/landmarks';
 
 interface Interaction {
   id: string;
@@ -17,6 +20,7 @@ interface Interaction {
   landmark_image_url: string | null;
   full_transcript: any;
   similarity?: number;
+  enhanced_landmark?: EnhancedLandmark; // Add support for enhanced landmark data
 }
 
 interface InteractionCardProps {
@@ -55,7 +59,13 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
           />
         )}
 
-        <InteractionCardContent interaction={interaction} />
+        {interaction.enhanced_landmark ? (
+          <div className="flex-1 overflow-y-auto">
+            <EnhancedLandmarkInfo landmark={interaction.enhanced_landmark} />
+          </div>
+        ) : (
+          <InteractionCardContent interaction={interaction} />
+        )}
 
         <InteractionCardActions interaction={interaction} />
       </CardContent>
