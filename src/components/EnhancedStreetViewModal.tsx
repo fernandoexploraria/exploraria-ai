@@ -52,6 +52,8 @@ interface EnhancedStreetViewModalProps {
   onLocationSelect?: (coordinates: [number, number]) => void;
 }
 
+type ViewpointStrategy = 'single' | 'cardinal' | 'smart' | 'all';
+
 const isMultiViewpointData = (data: any): data is MultiViewpointData => {
   return data && 'primary' in data && 'viewpoints' in data && 'metadata' in data;
 };
@@ -119,7 +121,7 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
     setCurrentViewpoint(0);
   }, [currentIndex]);
 
-  const determineStrategy = (multiData: MultiViewpointData): string => {
+  const determineStrategy = (multiData: MultiViewpointData): ViewpointStrategy => {
     const viewCount = multiData.viewpoints.length;
     if (viewCount === 1) return 'single';
     if (viewCount === 4) return 'cardinal';
