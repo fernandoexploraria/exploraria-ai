@@ -78,7 +78,7 @@ const StreetViewKeyboardHelp: React.FC<StreetViewKeyboardHelpProps> = ({
 
   return (
     <div className={cn(
-      "fixed bottom-4 right-16 md:right-20 z-[9999] animate-slide-in-right",
+      "fixed bottom-4 left-4 md:left-8 z-[9999] animate-slide-in-left",
       className
     )}>
       <div className="w-80 max-w-[90vw] max-h-[70vh] bg-gray-900/95 backdrop-blur-md rounded-xl border border-gray-700 shadow-2xl overflow-hidden">
