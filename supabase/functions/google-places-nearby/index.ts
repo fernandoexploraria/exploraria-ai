@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
@@ -26,31 +27,78 @@ serve(async (req) => {
       throw new Error('Valid coordinates [longitude, latitude] are required')
     }
 
-    const searchUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${coordinates[1]},${coordinates[0]}&radius=${radius}&type=${type}&key=${googleApiKey}`
+    // Convert legacy pipe-separated types to array format for new API
+    const typeArray = type.split('|').map((t: string) => t.trim())
     
-    console.log('Searching nearby places:', { coordinates, radius, type })
+    // Map some common legacy types to new API types if needed
+    const mappedTypes = typeArray.map((t: string) => {
+      switch (t) {
+        case 'tourist_attraction':
+          return 'tourist_attraction'
+        case 'restaurant':
+          return 'restaurant'
+        case 'cafe':
+          return 'cafe'
+        case 'point_of_interest':
+          return 'point_of_interest'
+        default:
+          return t
+      }
+    })
+
+    // Use new Places API v1 searchNearby endpoint
+    const searchUrl = 'https://places.googleapis.com/v1/places:searchNearby'
     
-    const response = await fetch(searchUrl)
+    console.log('Searching nearby places:', { coordinates, radius, types: mappedTypes })
+    
+    const response = await fetch(searchUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': googleApiKey,
+        'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.userRatingCount,places.priceLevel,places.types,places.formattedAddress,places.regularOpeningHours,places.photos,places.location'
+      },
+      body: JSON.stringify({
+        includedTypes: mappedTypes,
+        maxResultCount: 10,
+        locationRestriction: {
+          circle: {
+            center: {
+              latitude: coordinates[1],  // latitude
+              longitude: coordinates[0]  // longitude
+            },
+            radius: radius
+          }
+        }
+      })
+    })
+
+    if (!response.ok) {
+      console.error('Places API search error:', await response.text())
+      throw new Error(`Places API request failed: ${response.status}`)
+    }
+
     const data = await response.json()
 
-    if (data.results) {
-      const nearbyPlaces = data.results.slice(0, 10).map((place: any) => ({
-        placeId: place.place_id,
-        name: place.name,
+    if (data.places) {
+      // Map new API response to legacy format for backward compatibility
+      const nearbyPlaces = data.places.slice(0, 10).map((place: any) => ({
+        placeId: place.id,
+        name: place.displayName?.text || place.displayName,
         rating: place.rating,
-        userRatingsTotal: place.user_ratings_total,
-        priceLevel: place.price_level,
+        userRatingsTotal: place.userRatingCount,
+        priceLevel: place.priceLevel,
         types: place.types,
-        vicinity: place.vicinity,
-        openNow: place.opening_hours?.open_now,
-        photoReference: place.photos?.[0]?.photo_reference,
+        vicinity: place.formattedAddress,
+        openNow: place.regularOpeningHours?.openNow,
+        photoReference: place.photos?.[0]?.name,
         photoUrl: place.photos?.[0] 
-          ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=200&photo_reference=${place.photos[0].photo_reference}&key=${googleApiKey}`
+          ? `https://places.googleapis.com/v1/${place.photos[0].name}/media?maxWidthPx=200&key=${googleApiKey}`
           : null,
         geometry: {
           location: {
-            lat: place.geometry.location.lat,
-            lng: place.geometry.location.lng
+            lat: place.location?.latitude || 0,
+            lng: place.location?.longitude || 0
           }
         }
       }))
@@ -58,8 +106,8 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           places: nearbyPlaces, 
-          total: data.results.length,
-          nextPageToken: data.next_page_token,
+          total: data.places.length,
+          nextPageToken: data.nextPageToken, // New API may have different pagination
           success: true 
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
