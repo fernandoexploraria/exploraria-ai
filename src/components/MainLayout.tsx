@@ -92,7 +92,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       <Map 
         mapboxToken={mapboxToken}
         landmarks={allLandmarks}
-        onSelectLandmark={onSelectLandmark}
+        onLandmarkSelect={onSelectLandmark}
         selectedLandmark={selectedLandmark}
         plannedLandmarks={[...plannedLandmarks]}
       />
