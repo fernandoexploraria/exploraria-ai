@@ -72,17 +72,17 @@ Respond in JSON format. Here is an example:
 If the destination is not a real place, respond with isValid: false and a reason why.
 Do not include any preamble or postamble in your response. Only respond with valid JSON.`;
 
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-const GOOGLE_MAPS_API_KEY = Deno.env.get('GOOGLE_MAPS_API_KEY');
+const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY');
+const GOOGLE_API_KEY = Deno.env.get('GOOGLE_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
 
-if (!OPENAI_API_KEY) {
-  console.warn("OPENAI_API_KEY is not set. Calls to the OpenAI API will fail.");
+if (!GOOGLE_AI_API_KEY) {
+  console.warn("GOOGLE_AI_API_KEY is not set. Calls to the Google AI API will fail.");
 }
 
-if (!GOOGLE_MAPS_API_KEY) {
-  console.warn("GOOGLE_MAPS_API_KEY is not set. Calls to the Google Maps API will fail.");
+if (!GOOGLE_API_KEY) {
+  console.warn("GOOGLE_API_KEY is not set. Calls to the Google Maps API will fail.");
 }
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
@@ -90,24 +90,28 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 }
 
 async function validateDestination(destination: string): Promise<{ isValid: boolean; reason: string }> {
-  if (!OPENAI_API_KEY) {
-    console.warn("OPENAI_API_KEY is not set. Skipping destination validation.");
-    return { isValid: true, reason: "OPENAI_API_KEY is not set. Skipping destination validation." };
+  if (!GOOGLE_AI_API_KEY) {
+    console.warn("GOOGLE_AI_API_KEY is not set. Skipping destination validation.");
+    return { isValid: true, reason: "GOOGLE_AI_API_KEY is not set. Skipping destination validation." };
   }
 
   const prompt = DESTINATION_VALIDATION_PROMPT.replace('{destination}', destination);
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GOOGLE_AI_API_KEY}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.0,
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.0,
+        }
       }),
     });
 
@@ -117,7 +121,7 @@ async function validateDestination(destination: string): Promise<{ isValid: bool
     }
 
     const data = await response.json();
-    const validationResult = JSON.parse(data.choices[0].message.content);
+    const validationResult = JSON.parse(data.candidates[0].content.parts[0].text);
     return validationResult;
   } catch (error) {
     console.error('Error validating destination:', error);
@@ -126,33 +130,37 @@ async function validateDestination(destination: string): Promise<{ isValid: bool
 }
 
 async function generateLandmarkSuggestions(destination: string): Promise<TourData> {
-  if (!OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not set.");
+  if (!GOOGLE_AI_API_KEY) {
+    throw new Error("GOOGLE_AI_API_KEY is not set.");
   }
 
   const prompt = SYSTEM_PROMPT_TEMPLATE.replace('{destination}', destination);
   console.log("System Prompt:", prompt);
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GOOGLE_AI_API_KEY}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.0,
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.0,
+        }
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`OpenAI API request failed with status ${response.status}: ${response.statusText}`);
+      throw new Error(`Google AI API request failed with status ${response.status}: ${response.statusText}`);
     }
 
     const data = await response.json();
-    const tourData = JSON.parse(data.choices[0].message.content);
+    const tourData = JSON.parse(data.candidates[0].content.parts[0].text);
     const systemPrompt = prompt;
     return { ...tourData, systemPrompt };
   } catch (error) {
@@ -162,8 +170,8 @@ async function generateLandmarkSuggestions(destination: string): Promise<TourDat
 }
 
 async function refineCoordinates(landmark: Landmark, attempt = 0, fallbacksUsed: string[] = []): Promise<EnhancedLandmark> {
-  if (!GOOGLE_MAPS_API_KEY) {
-    throw new Error("GOOGLE_MAPS_API_KEY is not set.");
+  if (!GOOGLE_API_KEY) {
+    throw new Error("GOOGLE_API_KEY is not set.");
   }
 
   const maxAttempts = 3;
@@ -182,7 +190,7 @@ async function refineCoordinates(landmark: Landmark, attempt = 0, fallbacksUsed:
   }
 
   try {
-    const url = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(query)}&inputtype=textquery&fields=place_id,photos,formatted_address,name,rating,geometry,types&key=${GOOGLE_MAPS_API_KEY}`;
+    const url = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(query)}&inputtype=textquery&fields=place_id,photos,formatted_address,name,rating,geometry,types&key=${GOOGLE_API_KEY}`;
     const response = await fetch(url);
 
     if (!response.ok) {
@@ -259,7 +267,6 @@ function calculateCoordinateQuality(landmarks: EnhancedLandmark[]): CoordinateQu
   return coordinateQuality;
 }
 
-// Add new function to store tour data
 async function storeTourData(supabase: any, tourData: any, processingMetrics: any) {
   try {
     console.log('📊 Storing tour data to database...');
