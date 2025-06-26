@@ -58,6 +58,21 @@ export const useTourPlanner = () => {
     setProgressState(prev => ({ ...prev, ...update }));
   };
 
+  const animateProgress = async (targetPercentage: number, currentStep: string, phase: string) => {
+    const currentPercentage = progressState.percentage;
+    const increment = (targetPercentage - currentPercentage) / 5; // Divide into 5 steps
+    
+    for (let i = 1; i <= 5; i++) {
+      await new Promise(resolve => setTimeout(resolve, 200)); // 200ms delay between steps
+      const newPercentage = Math.min(currentPercentage + (increment * i), targetPercentage);
+      updateProgress({
+        phase,
+        percentage: newPercentage,
+        currentStep
+      });
+    }
+  };
+
   const generateTour = async (destination: string) => {
     // Check current user
     const { data: { user } } = await supabase.auth.getUser();
@@ -100,12 +115,14 @@ export const useTourPlanner = () => {
     try {
       console.log('Calling enhanced tour generation edge function...');
       
-      // Phase 1: Generate landmark list
+      // Phase 1: Generate landmark list with slow progress
       updateProgress({
         phase: 'generating',
-        percentage: 10,
-        currentStep: 'Getting landmark suggestions from Gemini AI...'
+        percentage: 0,
+        currentStep: 'Initializing tour generation...'
       });
+
+      await animateProgress(20, 'Getting landmark suggestions from Gemini AI...', 'generating');
 
       // Call the enhanced tour generation edge function
       const { data: enhancedTourData, error: enhancedTourError } = await supabase.functions.invoke('generate-enhanced-tour', {
@@ -134,11 +151,11 @@ export const useTourPlanner = () => {
         throw new Error(errorMsg);
       }
 
-      // Phase 2: Process coordinate refinement results
+      // Phase 2: Process coordinate refinement results with slow progress
+      await animateProgress(50, 'Processing coordinate refinement results...', 'refining');
+      
       updateProgress({
         phase: 'refining',
-        percentage: 60,
-        currentStep: 'Processing coordinate refinement results...',
         totalLandmarks: enhancedTourData.landmarks.length,
         processedLandmarks: enhancedTourData.landmarks.length
       });
@@ -149,11 +166,11 @@ export const useTourPlanner = () => {
         processingTime: enhancedTourData.metadata?.processingTime
       });
 
-      // Phase 3: Validate and prepare landmarks
+      // Phase 3: Validate and prepare landmarks with slow progress
+      await animateProgress(75, 'Validating landmark coordinates...', 'validating');
+      
       updateProgress({
         phase: 'validating',
-        percentage: 80,
-        currentStep: 'Validating landmark coordinates...',
         qualityMetrics: enhancedTourData.metadata?.coordinateQuality
       });
 
@@ -169,12 +186,8 @@ export const useTourPlanner = () => {
         ...(enhancedLandmark.confidence && { confidence: enhancedLandmark.confidence })
       }));
 
-      // Phase 4: Finalize tour
-      updateProgress({
-        phase: 'finalizing',
-        percentage: 90,
-        currentStep: 'Finalizing tour and updating map...'
-      });
+      // Phase 4: Finalize tour with slow progress
+      await animateProgress(95, 'Finalizing tour and updating map...', 'finalizing');
 
       // Set tour landmarks in the separate array (this clears and repopulates)
       console.log('Setting enhanced tour landmarks:', newLandmarks.length);
@@ -237,12 +250,8 @@ export const useTourPlanner = () => {
         });
       }
       
-      // Complete with success - show completion for 3 seconds
-      updateProgress({
-        phase: 'complete',
-        percentage: 100,
-        currentStep: 'Tour generation complete!'
-      });
+      // Complete with success - animate to 100% then show completion for 5 seconds
+      await animateProgress(100, 'Tour generation complete!', 'complete');
       
       // Enhanced success message with quality info
       const qualityInfo = enhancedTourData.metadata?.coordinateQuality;
@@ -252,14 +261,14 @@ export const useTourPlanner = () => {
       
       toast.success(`Generated an enhanced tour for ${destination}!${qualityMessage} Tour landmarks added with green markers.`);
       
-      // After 3 seconds, set phase to 'ready' to signal progress should hide
+      // After 5 seconds, set phase to 'ready' to signal progress should hide
       setTimeout(() => {
         updateProgress({
           phase: 'ready',
           percentage: 100,
           currentStep: 'Ready to explore!'
         });
-      }, 3000);
+      }, 5000);
       
     } catch (err) {
       console.error("Error generating enhanced tour:", err);
