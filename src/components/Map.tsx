@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -14,13 +15,6 @@ interface MapProps {
   showPlannedOnly?: boolean;
   onLandmarkSelect: (landmark: Landmark) => void;
   className?: string;
-}
-
-interface StreetViewOptions {
-  pov: {
-    heading: number;
-    pitch: number;
-  };
 }
 
 declare global {
@@ -47,159 +41,6 @@ const Map: React.FC<MapProps> = ({
   const { fetchPhotos, getBestPhoto, getOptimalPhotoUrl } = useEnhancedPhotos();
   const { toast } = useToast();
   const [photoCache, setPhotoCache] = useState<{ [key: string]: PhotoData | null }>({});
-
-  useEffect(() => {
-    if (map.current) return; // prevent re-initialization
-
-    map.current = new mapboxgl.Map({
-      accessToken: mapboxToken,
-      container: mapContainer.current as HTMLDivElement,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: [-122.4194, 37.7749], // San Francisco coordinates
-      zoom: 12,
-    });
-
-    // Add navigation control (the +/- zoom buttons)
-    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
-
-    // Disable map rotation using touch rotation gesture.
-    map.current.touchZoomRotate.disableRotation();
-
-    // Add geolocation control to the map.
-    map.current.addControl(
-      new mapboxgl.GeolocateControl({
-        positionOptions: {
-          enableHighAccuracy: true
-        },
-        trackUserLocation: true,
-        showUserHeading: true
-      })
-    );
-
-    // Load initial landmarks
-    addMarkers(landmarks);
-
-    // Handle landmark selection from popups
-    window.selectLandmark = (landmarkId: string) => {
-      const landmark = landmarks.find((lm) => lm.id === landmarkId);
-      if (landmark) {
-        onLandmarkSelect(landmark);
-      }
-    };
-
-    // Handle street view requests from popups
-    window.openStreetView = async (landmarkId: string) => {
-      const landmark = landmarks.find((lm) => lm.id === landmarkId);
-      if (landmark && landmark.location) {
-        try {
-          const streetViewData = await fetchStreetView(landmark.location.lat, landmark.location.lng);
-          if (streetViewData) {
-            const { lat, lng, heading, pitch } = streetViewData;
-            const streetViewUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}&heading=${heading}&pitch=${pitch}`;
-            window.open(streetViewUrl, '_blank');
-          } else {
-            toast({
-              title: "Street View Not Available",
-              description: "Could not retrieve street view for this location.",
-            });
-          }
-        } catch (error) {
-          console.error("Error fetching street view:", error);
-          toast({
-            title: "Error",
-            description: "Failed to open street view.",
-            variant: "destructive",
-          });
-        }
-      }
-    };
-
-    return () => {
-      map.current?.remove();
-      map.current = null;
-    };
-  }, [mapboxToken, landmarks, fetchStreetView, onLandmarkSelect, toast]);
-
-  const addMarkers = useCallback((landmarks: Landmark[]) => {
-    if (!map.current) return;
-
-    // Clear existing markers and popups
-    Object.keys(markersRef.current).forEach((key) => {
-      markersRef.current[key].remove();
-      delete markersRef.current[key];
-      popupsRef.current[key].remove();
-      delete popupsRef.current[key];
-    });
-
-    landmarks.forEach(async (landmark) => {
-      if (showPlannedOnly && !plannedLandmarks.find(planned => planned.id === landmark.id)) {
-        return;
-      }
-
-      const el = document.createElement('div');
-      el.className = 'marker';
-      el.style.backgroundImage = `url(/marker.svg)`;
-      el.style.width = `30px`;
-      el.style.height = `30px`;
-      el.style.backgroundSize = '100%';
-
-      const marker = new mapboxgl.Marker(el)
-        .setLngLat([landmark.location.lng, landmark.location.lat]);
-
-      // Create popup content
-      const popupContent = await createPopupContent(landmark);
-
-      const popup = new mapboxgl.Popup({
-        closeButton: false,
-        closeOnClick: false,
-        anchor: 'top',
-        maxWidth: '300px',
-      }).setHTML(popupContent);
-
-      marker.setPopup(popup);
-
-      el.addEventListener('click', () => {
-        onLandmarkSelect(landmark);
-      });
-
-      marker.on('popupopen', () => {
-        el.classList.add('active');
-      });
-
-      marker.on('popupclose', () => {
-        el.classList.remove('active');
-      });
-
-      marker.addTo(map.current);
-
-      markersRef.current[landmark.id] = marker;
-      popupsRef.current[landmark.id] = popup;
-    });
-  }, [showPlannedOnly, plannedLandmarks, onLandmarkSelect, createPopupContent]);
-
-  useEffect(() => {
-    if (!map.current) return;
-
-    map.current.on('load', () => {
-      addMarkers(landmarks);
-    });
-
-    addMarkers(landmarks);
-
-    // Fly to the selected landmark
-    if (selectedLandmark) {
-      map.current.flyTo({
-        center: [selectedLandmark.location.lng, selectedLandmark.location.lat],
-        zoom: 14,
-        essential: true
-      });
-
-      // Open the popup for the selected landmark
-      if (markersRef.current[selectedLandmark.id]) {
-        markersRef.current[selectedLandmark.id].togglePopup();
-      }
-    }
-  }, [landmarks, selectedLandmark, addMarkers]);
 
   const fetchLandmarkPhoto = useCallback(async (landmark: Landmark): Promise<PhotoData | null> => {
     if (!landmark.placeId) return null;
@@ -293,17 +134,170 @@ const Map: React.FC<MapProps> = ({
     `;
   }, [fetchLandmarkPhoto, getOptimalPhotoUrl]);
 
-  // Define window.openStreetView if it's not already defined
+  const addMarkers = useCallback((landmarks: Landmark[]) => {
+    if (!map.current) return;
+
+    // Clear existing markers and popups
+    Object.keys(markersRef.current).forEach((key) => {
+      markersRef.current[key].remove();
+      delete markersRef.current[key];
+      popupsRef.current[key].remove();
+      delete popupsRef.current[key];
+    });
+
+    landmarks.forEach(async (landmark) => {
+      if (showPlannedOnly && !plannedLandmarks.find(planned => planned.id === landmark.id)) {
+        return;
+      }
+
+      const el = document.createElement('div');
+      el.className = 'marker';
+      el.style.backgroundImage = `url(/marker.svg)`;
+      el.style.width = `30px`;
+      el.style.height = `30px`;
+      el.style.backgroundSize = '100%';
+
+      const marker = new mapboxgl.Marker(el)
+        .setLngLat([landmark.location.lng, landmark.location.lat]);
+
+      // Create popup content
+      const popupContent = await createPopupContent(landmark);
+
+      const popup = new mapboxgl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        anchor: 'top',
+        maxWidth: '300px',
+      }).setHTML(popupContent);
+
+      marker.setPopup(popup);
+
+      el.addEventListener('click', () => {
+        onLandmarkSelect(landmark);
+      });
+
+      marker.on('popupopen', () => {
+        el.classList.add('active');
+      });
+
+      marker.on('popupclose', () => {
+        el.classList.remove('active');
+      });
+
+      marker.addTo(map.current);
+
+      markersRef.current[landmark.id] = marker;
+      popupsRef.current[landmark.id] = popup;
+    });
+  }, [showPlannedOnly, plannedLandmarks, onLandmarkSelect, createPopupContent]);
+
+  useEffect(() => {
+    if (map.current) return; // prevent re-initialization
+
+    map.current = new mapboxgl.Map({
+      accessToken: mapboxToken,
+      container: mapContainer.current as HTMLDivElement,
+      style: 'mapbox://styles/mapbox/streets-v12',
+      center: [-122.4194, 37.7749], // San Francisco coordinates
+      zoom: 12,
+    });
+
+    // Add navigation control (the +/- zoom buttons)
+    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+    // Disable map rotation using touch rotation gesture.
+    map.current.touchZoomRotate.disableRotation();
+
+    // Add geolocation control to the map.
+    map.current.addControl(
+      new mapboxgl.GeolocateControl({
+        positionOptions: {
+          enableHighAccuracy: true
+        },
+        trackUserLocation: true,
+        showUserHeading: true
+      })
+    );
+
+    // Load initial landmarks
+    addMarkers(landmarks);
+
+    // Handle landmark selection from popups
+    window.selectLandmark = (landmarkId: string) => {
+      const landmark = landmarks.find((lm) => lm.id === landmarkId);
+      if (landmark) {
+        onLandmarkSelect(landmark);
+      }
+    };
+
+    // Handle street view requests from popups
+    window.openStreetView = async (landmarkId: string) => {
+      const landmark = landmarks.find((lm) => lm.id === landmarkId);
+      if (landmark) {
+        try {
+          const streetViewData = await fetchStreetView(landmark);
+          if (streetViewData) {
+            const { location } = streetViewData;
+            const streetViewUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${location.lat},${location.lng}&heading=${streetViewData.heading}&pitch=${streetViewData.pitch}`;
+            window.open(streetViewUrl, '_blank');
+          } else {
+            toast({
+              title: "Street View Not Available",
+              description: "Could not retrieve street view for this location.",
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching street view:", error);
+          toast({
+            title: "Error",
+            description: "Failed to open street view.",
+            variant: "destructive",
+          });
+        }
+      }
+    };
+
+    return () => {
+      map.current?.remove();
+      map.current = null;
+    };
+  }, [mapboxToken, landmarks, fetchStreetView, onLandmarkSelect, toast, addMarkers]);
+
+  useEffect(() => {
+    if (!map.current) return;
+
+    map.current.on('load', () => {
+      addMarkers(landmarks);
+    });
+
+    addMarkers(landmarks);
+
+    // Fly to the selected landmark
+    if (selectedLandmark) {
+      map.current.flyTo({
+        center: [selectedLandmark.location.lng, selectedLandmark.location.lat],
+        zoom: 14,
+        essential: true
+      });
+
+      // Open the popup for the selected landmark
+      if (markersRef.current[selectedLandmark.id]) {
+        markersRef.current[selectedLandmark.id].togglePopup();
+      }
+    }
+  }, [landmarks, selectedLandmark, addMarkers]);
+
+  // Define window functions
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.openStreetView = async (landmarkId: string) => {
         const landmark = landmarks.find((lm) => lm.id === landmarkId);
-        if (landmark && landmark.location) {
+        if (landmark) {
           try {
-            const streetViewData = await fetchStreetView(landmark.location.lat, landmark.location.lng);
+            const streetViewData = await fetchStreetView(landmark);
             if (streetViewData) {
-              const { lat, lng, heading, pitch } = streetViewData;
-              const streetViewUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}&heading=${heading}&pitch=${pitch}`;
+              const { location } = streetViewData;
+              const streetViewUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${location.lat},${location.lng}&heading=${streetViewData.heading}&pitch=${streetViewData.pitch}`;
               window.open(streetViewUrl, '_blank');
             } else {
               toast({
@@ -336,12 +330,6 @@ const Map: React.FC<MapProps> = ({
       delete window.selectLandmark;
     };
   }, [landmarks, fetchStreetView, onLandmarkSelect, toast]);
-
-  useEffect(() => {
-    if (map.current) {
-      addMarkers(landmarks);
-    }
-  }, [landmarks, addMarkers]);
 
   useEffect(() => {
     return () => {

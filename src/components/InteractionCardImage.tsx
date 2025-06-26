@@ -8,14 +8,22 @@ import EnhancedProgressiveImage from './EnhancedProgressiveImage';
 import { useEnhancedPhotos, PhotoData } from '@/hooks/useEnhancedPhotos';
 
 interface InteractionCardImageProps {
+  imageUrl?: string;
+  destination: string;
+  userInput: string;
+  interaction?: any;
   placeId?: string;
-  placeName: string;
+  placeName?: string;
   fallbackImageUrl?: string;
   className?: string;
   onViewMorePhotos?: () => void;
 }
 
 const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
+  imageUrl,
+  destination,
+  userInput,
+  interaction,
   placeId,
   placeName,
   fallbackImageUrl,
@@ -26,6 +34,9 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
   const [bestPhoto, setBestPhoto] = useState<PhotoData | null>(null);
   const [totalPhotos, setTotalPhotos] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(false);
+
+  const displayName = placeName || destination;
+  const displayImageUrl = imageUrl || fallbackImageUrl;
 
   useEffect(() => {
     if (!placeId) return;
@@ -50,10 +61,10 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
     fetchBestPhoto();
   }, [placeId, fetchPhotos, getBestPhoto]);
 
-  const imageUrl = bestPhoto ? getOptimalPhotoUrl(bestPhoto, 'medium') : fallbackImageUrl;
+  const finalImageUrl = bestPhoto ? getOptimalPhotoUrl(bestPhoto, 'medium') : displayImageUrl;
   const qualityScore = bestPhoto?.qualityScore || 0;
 
-  if (!imageUrl && !isLoading) {
+  if (!finalImageUrl && !isLoading) {
     return null;
   }
 
@@ -63,13 +74,21 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
         <div className="w-full h-48 bg-gray-100 animate-pulse flex items-center justify-center">
           <ImageIcon className="h-8 w-8 text-gray-400" />
         </div>
-      ) : imageUrl ? (
+      ) : finalImageUrl ? (
         <>
-          <EnhancedProgressiveImage
-            src={imageUrl}
-            alt={placeName}
-            className="w-full h-48 object-cover"
-          />
+          {bestPhoto ? (
+            <EnhancedProgressiveImage
+              photo={bestPhoto}
+              alt={displayName}
+              className="w-full h-48 object-cover"
+            />
+          ) : (
+            <img
+              src={finalImageUrl}
+              alt={displayName}
+              className="w-full h-48 object-cover"
+            />
+          )}
           
           {/* Quality and count indicators */}
           <div className="absolute top-2 right-2 flex flex-col gap-1">
