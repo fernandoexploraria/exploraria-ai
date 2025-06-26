@@ -78,15 +78,15 @@ const StreetViewKeyboardHelp: React.FC<StreetViewKeyboardHelpProps> = ({
 
   return (
     <div className={cn(
-      "fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm",
+      "fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4",
       className
     )}>
-      <div className="bg-gray-900 rounded-lg border border-gray-700 p-6 max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto">
+      <div className="bg-gray-900 rounded-lg border border-gray-700 p-8 w-full max-w-2xl sm:max-w-3xl max-h-[85vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <Keyboard className="w-5 h-5 text-blue-400" />
-            <h2 className="text-lg font-semibold text-white">Keyboard Shortcuts</h2>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <Keyboard className="w-6 h-6 text-blue-400" />
+            <h2 className="text-xl font-semibold text-white">Keyboard Shortcuts</h2>
           </div>
           <Button
             variant="ghost"
@@ -98,8 +98,8 @@ const StreetViewKeyboardHelp: React.FC<StreetViewKeyboardHelpProps> = ({
           </Button>
         </div>
 
-        {/* Shortcuts by category */}
-        <div className="space-y-6">
+        {/* Shortcuts grid layout for wider dialog */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {Object.entries(categories).map(([categoryKey, categoryName]) => {
             const categoryShortcuts = shortcuts.filter(s => s.category === categoryKey);
             if (categoryShortcuts.length === 0) return null;
@@ -107,23 +107,24 @@ const StreetViewKeyboardHelp: React.FC<StreetViewKeyboardHelpProps> = ({
             return (
               <div key={categoryKey}>
                 <h3 className={cn(
-                  "font-medium mb-3 text-sm uppercase tracking-wide",
+                  "font-semibold mb-4 text-base uppercase tracking-wide flex items-center gap-2",
                   categoryColors[categoryKey as keyof typeof categoryColors]
                 )}>
+                  <div className="w-1 h-6 bg-current rounded-full"></div>
                   {categoryName}
                 </h3>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {categoryShortcuts.map((shortcut, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <span className="text-white/90 text-sm">{shortcut.description}</span>
-                      <div className="flex items-center gap-1">
+                    <div key={index} className="flex items-center justify-between py-2">
+                      <span className="text-white/90 text-sm pr-4">{shortcut.description}</span>
+                      <div className="flex items-center gap-1 flex-shrink-0">
                         {shortcut.keys.map((key, keyIndex) => (
                           <React.Fragment key={keyIndex}>
-                            <kbd className="px-2 py-1 text-xs font-mono bg-gray-800 border border-gray-600 rounded text-white/90">
+                            <kbd className="px-3 py-1.5 text-sm font-mono bg-gray-800 border border-gray-600 rounded text-white/90 min-w-[2rem] text-center">
                               {key}
                             </kbd>
                             {keyIndex < shortcut.keys.length - 1 && (
-                              <span className="text-white/60 text-xs">+</span>
+                              <span className="text-white/60 text-sm mx-1">+</span>
                             )}
                           </React.Fragment>
                         ))}
@@ -137,10 +138,15 @@ const StreetViewKeyboardHelp: React.FC<StreetViewKeyboardHelpProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="mt-6 pt-4 border-t border-gray-700">
-          <p className="text-xs text-white/60 text-center">
-            Press <kbd className="px-1 py-0.5 text-xs bg-gray-800 border border-gray-600 rounded">?</kbd> anytime to toggle this help
-          </p>
+        <div className="mt-8 pt-6 border-t border-gray-700">
+          <div className="text-center">
+            <p className="text-sm text-white/70 mb-2">
+              Pro Tip: Most shortcuts work in combination for faster navigation
+            </p>
+            <p className="text-xs text-white/50">
+              Press <kbd className="px-2 py-1 text-xs bg-gray-800 border border-gray-600 rounded">?</kbd> anytime to toggle this help
+            </p>
+          </div>
         </div>
       </div>
     </div>
