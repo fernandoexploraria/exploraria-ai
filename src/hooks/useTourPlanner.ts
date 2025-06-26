@@ -59,22 +59,6 @@ export const useTourPlanner = () => {
     setProgressState(prev => ({ ...prev, ...update }));
   };
 
-  const animateProgress = async (targetPercentage: number, currentStep: string, phase: ProgressState['phase']) => {
-    const currentPercentage = progressState.percentage;
-    const steps = 8; // More steps for smoother animation
-    const increment = (targetPercentage - currentPercentage) / steps;
-    
-    for (let i = 1; i <= steps; i++) {
-      await new Promise(resolve => setTimeout(resolve, 300)); // Slower delay
-      const newPercentage = Math.min(currentPercentage + (increment * i), targetPercentage);
-      updateProgress({
-        phase,
-        percentage: newPercentage,
-        currentStep
-      });
-    }
-  };
-
   const generateTour = async (destination: string) => {
     // Check current user
     const { data: { user } } = await supabase.auth.getUser();
@@ -113,6 +97,24 @@ export const useTourPlanner = () => {
       totalLandmarks: 0,
       errors: []
     });
+
+    // Local variable to track current progress for continuous animation
+    let currentProgress = 0;
+
+    const animateProgress = async (targetPercentage: number, currentStep: string, phase: ProgressState['phase']) => {
+      const steps = 8; // More steps for smoother animation
+      const increment = (targetPercentage - currentProgress) / steps;
+      
+      for (let i = 1; i <= steps; i++) {
+        await new Promise(resolve => setTimeout(resolve, 300)); // Slower delay
+        currentProgress = Math.min(currentProgress + increment, targetPercentage);
+        updateProgress({
+          phase,
+          percentage: currentProgress,
+          currentStep
+        });
+      }
+    };
 
     try {
       console.log('Calling enhanced tour generation edge function...');
