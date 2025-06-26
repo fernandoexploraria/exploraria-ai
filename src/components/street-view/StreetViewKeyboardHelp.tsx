@@ -78,15 +78,22 @@ const StreetViewKeyboardHelp: React.FC<StreetViewKeyboardHelpProps> = ({
 
   return (
     <div className={cn(
-      "fixed bottom-4 left-4 md:left-8 z-[9999] animate-slide-in-left",
+      "fixed inset-0 z-[9999] flex items-center justify-center p-4",
       className
     )}>
-      <div className="w-80 max-w-[90vw] max-h-[70vh] bg-gray-900/95 backdrop-blur-md rounded-xl border border-gray-700 shadow-2xl overflow-hidden">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={() => setIsVisible(false)}
+      />
+      
+      {/* Modal Panel */}
+      <div className="relative w-full max-w-md max-h-[80vh] bg-gray-900/95 backdrop-blur-md rounded-xl border border-gray-700 shadow-2xl overflow-hidden animate-scale-in">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
           <div className="flex items-center gap-2">
             <Keyboard className="w-4 h-4 text-blue-400" />
-            <h3 className="text-sm font-semibold text-white">Shortcuts</h3>
+            <h3 className="text-sm font-semibold text-white">Keyboard Shortcuts</h3>
           </div>
           <Button
             variant="ghost"
@@ -143,7 +150,7 @@ const StreetViewKeyboardHelp: React.FC<StreetViewKeyboardHelpProps> = ({
           {/* Footer tip */}
           <div className="mt-4 pt-3 border-t border-gray-700">
             <p className="text-xs text-white/60 text-center">
-              Press <kbd className="px-1 py-0.5 text-xs bg-gray-800 border border-gray-600 rounded">?</kbd> to toggle
+              Press <kbd className="px-1 py-0.5 text-xs bg-gray-800 border border-gray-600 rounded">?</kbd> to toggle or click outside to close
             </p>
           </div>
         </div>
