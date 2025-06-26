@@ -1,10 +1,11 @@
-
 import React from 'react';
-import { X, MapPin, Eye, Timer, Target, Route, Bell, Camera, TestTube } from 'lucide-react';
+import { X, MapPin, Eye, Timer, Target, Route, Bell, Camera, TestTube, Loader2, Database, Wifi, WifiOff } from 'lucide-react';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { useNearbyLandmarks } from '@/hooks/useNearbyLandmarks';
 import { useStreetViewNavigation } from '@/hooks/useStreetViewNavigation';
+import { useEnhancedStreetViewMulti } from '@/hooks/useEnhancedStreetViewMulti';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -20,6 +21,7 @@ interface DebugWindowProps {
 const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
   const { proximitySettings, combinedLandmarks } = useProximityAlerts();
   const { locationState, userLocation } = useLocationTracking();
+  const { effectiveType } = useNetworkStatus();
   
   // Get landmarks within notification zone (for toast notifications)
   const notificationZoneLandmarks = useNearbyLandmarks({
@@ -38,8 +40,58 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
     isModalOpen,
     streetViewItems,
     openStreetViewModal,
-    closeStreetViewModal
+    closeStreetViewModal,
+    getViewpointStrategy
   } = useStreetViewNavigation();
+
+  // Enhanced Street View multi hook for strategy and cache info
+  const {
+    getCachedData,
+    isKnownUnavailable,
+    getCacheStats,
+    isLoading
+  } = useEnhancedStreetViewMulti();
+
+  // Helper function to get strategy info for a landmark
+  const getStrategyInfo = (landmark: any, distance: number) => {
+    const strategy = getViewpointStrategy(distance, effectiveType);
+    const strategyKey = `${strategy.strategy}-${strategy.quality}`;
+    const cached = getCachedData(landmark.id, strategyKey);
+    const isUnavailable = isKnownUnavailable(landmark.id);
+    const loading = isLoading[landmark.id];
+
+    // Determine viewpoint count based on strategy
+    let viewpointCount = 1;
+    switch (strategy.strategy) {
+      case 'single':
+        viewpointCount = 1;
+        break;
+      case 'cardinal':
+        viewpointCount = 4;
+        break;
+      case 'smart':
+        viewpointCount = 3;
+        break;
+      case 'all':
+        viewpointCount = 4;
+        break;
+    }
+
+    // If we have cached data, use actual viewpoint count
+    if (cached && 'viewpoints' in cached) {
+      viewpointCount = cached.viewpoints.length;
+    }
+
+    return {
+      strategy: strategy.strategy,
+      quality: strategy.quality,
+      viewpointCount,
+      cached: !!cached,
+      isUnavailable,
+      loading,
+      dataUsage: cached && 'metadata' in cached ? cached.metadata.dataUsage : null
+    };
+  };
 
   // Handle landmark card clicks to open Street View
   const handleLandmarkClick = async (clickedLandmark: any, landmarks: any[]) => {
@@ -59,6 +111,22 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
 
   const formatCoordinate = (coord: number) => {
     return coord.toFixed(6);
+  };
+
+  // Get strategy color for badges
+  const getStrategyColor = (strategy: string) => {
+    switch (strategy) {
+      case 'single':
+        return 'bg-gray-500';
+      case 'cardinal':
+        return 'bg-blue-500';
+      case 'smart':
+        return 'bg-purple-500';
+      case 'all':
+        return 'bg-green-500';
+      default:
+        return 'bg-gray-500';
+    }
   };
 
   return (
@@ -220,6 +288,8 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                 <div className="pl-5 space-y-2 max-h-40 overflow-y-auto">
                   {prepZoneLandmarks.map((nearby, index) => {
                     const isInNotificationZone = notificationZoneLandmarks.some(n => n.landmark.id === nearby.landmark.id);
+                    const strategyInfo = getStrategyInfo(nearby.landmark, nearby.distance);
+                    
                     return (
                       <div 
                         key={nearby.landmark.id} 
@@ -243,10 +313,35 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                             <Eye className="w-3 h-3 text-yellow-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                           </div>
                         </div>
+                        
+                        {/* Enhanced Multi-Viewpoint Indicators */}
+                        <div className="flex justify-between items-center">
+                          <span className="text-yellow-700 dark:text-yellow-300">Strategy:</span>
+                          <div className="flex items-center gap-1">
+                            <Badge className={`text-xs text-white ${getStrategyColor(strategyInfo.strategy)}`}>
+                              {strategyInfo.strategy.toUpperCase()}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {strategyInfo.viewpointCount}v
+                            </Badge>
+                            {strategyInfo.loading && <Loader2 className="w-3 h-3 animate-spin text-blue-500" />}
+                            {strategyInfo.cached && <Database className="w-3 h-3 text-green-500" />}
+                            {strategyInfo.isUnavailable && <WifiOff className="w-3 h-3 text-red-500" />}
+                          </div>
+                        </div>
+                        
                         <div className="flex justify-between">
                           <span className="text-yellow-700 dark:text-yellow-300">Distance:</span>
                           <span className="text-yellow-800 dark:text-yellow-200 font-medium">{formatDistance(nearby.distance)}</span>
                         </div>
+                        
+                        {strategyInfo.dataUsage && (
+                          <div className="flex justify-between">
+                            <span className="text-yellow-700 dark:text-yellow-300">Data Usage:</span>
+                            <span className="text-blue-700 dark:text-blue-300 text-xs">{strategyInfo.dataUsage}</span>
+                          </div>
+                        )}
+                        
                         <div className="flex justify-between">
                           <span className="text-yellow-700 dark:text-yellow-300">Coordinates:</span>
                           <span className="text-blue-700 dark:text-blue-300 text-xs font-mono">
@@ -270,33 +365,62 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                   Landmarks within {formatDistance(proximitySettings?.notification_distance || 100)} - Toast notifications triggered (Click to view)
                 </div>
                 <div className="pl-5 space-y-2 max-h-40 overflow-y-auto">
-                  {notificationZoneLandmarks.map((nearby, index) => (
-                    <div 
-                      key={nearby.landmark.id} 
-                      className="border border-orange-200 dark:border-orange-800 rounded p-2 space-y-1 bg-orange-100 dark:bg-orange-900/20 cursor-pointer hover:bg-orange-200 dark:hover:bg-orange-900/30 transition-colors relative group"
-                      onClick={() => handleLandmarkClick(nearby, notificationZoneLandmarks)}
-                    >
-                      <div className="flex justify-between items-start">
-                        <span className="font-semibold text-xs leading-tight text-orange-900 dark:text-orange-100">
-                          {nearby.landmark.name}
-                        </span>
-                        <div className="flex gap-1 ml-2 flex-shrink-0">
-                          <Badge variant="outline" className="text-xs border-orange-300 dark:border-orange-700 text-orange-800 dark:text-orange-200">
-                            #{index + 1}
-                          </Badge>
-                          <Eye className="w-3 h-3 text-orange-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  {notificationZoneLandmarks.map((nearby, index) => {
+                    const strategyInfo = getStrategyInfo(nearby.landmark, nearby.distance);
+                    
+                    return (
+                      <div 
+                        key={nearby.landmark.id} 
+                        className="border border-orange-200 dark:border-orange-800 rounded p-2 space-y-1 bg-orange-100 dark:bg-orange-900/20 cursor-pointer hover:bg-orange-200 dark:hover:bg-orange-900/30 transition-colors relative group"
+                        onClick={() => handleLandmarkClick(nearby, notificationZoneLandmarks)}
+                      >
+                        <div className="flex justify-between items-start">
+                          <span className="font-semibold text-xs leading-tight text-orange-900 dark:text-orange-100">
+                            {nearby.landmark.name}
+                          </span>
+                          <div className="flex gap-1 ml-2 flex-shrink-0">
+                            <Badge variant="outline" className="text-xs border-orange-300 dark:border-orange-700 text-orange-800 dark:text-orange-200">
+                              #{index + 1}
+                            </Badge>
+                            <Eye className="w-3 h-3 text-orange-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                        </div>
+                        
+                        {/* Enhanced Multi-Viewpoint Indicators */}
+                        <div className="flex justify-between items-center">
+                          <span className="text-orange-700 dark:text-orange-300">Strategy:</span>
+                          <div className="flex items-center gap-1">
+                            <Badge className={`text-xs text-white ${getStrategyColor(strategyInfo.strategy)}`}>
+                              {strategyInfo.strategy.toUpperCase()}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {strategyInfo.viewpointCount}v
+                            </Badge>
+                            {strategyInfo.loading && <Loader2 className="w-3 h-3 animate-spin text-blue-500" />}
+                            {strategyInfo.cached && <Database className="w-3 h-3 text-green-500" />}
+                            {strategyInfo.isUnavailable && <WifiOff className="w-3 h-3 text-red-500" />}
+                          </div>
+                        </div>
+                        
+                        <div className="flex justify-between">
+                          <span className="text-orange-700 dark:text-orange-300">Distance:</span>
+                          <span className="text-orange-800 dark:text-orange-200 font-medium">{formatDistance(nearby.distance)}</span>
+                        </div>
+                        
+                        {strategyInfo.dataUsage && (
+                          <div className="flex justify-between">
+                            <span className="text-orange-700 dark:text-orange-300">Data Usage:</span>
+                            <span className="text-blue-700 dark:text-blue-300 text-xs">{strategyInfo.dataUsage}</span>
+                          </div>
+                        )}
+                        
+                        <div className="text-orange-700 dark:text-orange-300 text-xs leading-tight">
+                          {nearby.landmark.description.substring(0, 60)}
+                          {nearby.landmark.description.length > 60 && '...'}
                         </div>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-orange-700 dark:text-orange-300">Distance:</span>
-                        <span className="text-orange-800 dark:text-orange-200 font-medium">{formatDistance(nearby.distance)}</span>
-                      </div>
-                      <div className="text-orange-700 dark:text-orange-300 text-xs leading-tight">
-                        {nearby.landmark.description.substring(0, 60)}
-                        {nearby.landmark.description.length > 60 && '...'}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -324,6 +448,7 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                 <div>• Toast notifications trigger when landmarks enter notification zone</div>
                 <div>• Notification zone is subset of prep zone</div>
                 <div>• Click landmark cards to open Street View modal</div>
+                <div>• Strategy auto-adjusts: Single (>1km) → Cardinal (500m-1km) → Smart (100m-500m) → All (<100m)</div>
               </div>
             </div>
 
