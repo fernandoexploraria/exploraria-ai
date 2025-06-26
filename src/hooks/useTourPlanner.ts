@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Landmark, EnhancedLandmark } from '@/data/landmarks';
 import { setTourLandmarks, clearTourMarkers } from '@/data/tourLandmarks';
@@ -266,7 +265,7 @@ export const useTourPlanner = () => {
         });
       }
       
-      // Complete with success - animate to 100% then show completion for 3 seconds
+      // Complete with success - animate to 100% then show completion for 5 seconds
       await animateProgress(100, 'Tour generation complete!', 'complete');
       
       // Enhanced success message with quality info
@@ -277,16 +276,14 @@ export const useTourPlanner = () => {
       
       toast.success(`Generated an enhanced tour for ${destination}!${qualityMessage} Tour landmarks added with green markers.`);
       
-      // After 3 seconds, set phase to 'ready' to signal completion and trigger dialog close
-      console.log('Tour complete, waiting 3 seconds before setting ready state...');
+      // After 5 seconds, set phase to 'ready' to signal progress should hide
       setTimeout(() => {
-        console.log('Setting phase to ready');
         updateProgress({
           phase: 'ready',
           percentage: 100,
           currentStep: 'Ready to explore!'
         });
-      }, 3000);
+      }, 5000);
       
     } catch (err) {
       console.error("Error generating enhanced tour:", err);

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import SplashScreen from '@/components/SplashScreen';
 import MainLayout from '@/components/MainLayout';
 import DebugWindow from '@/components/DebugWindow';
@@ -48,17 +48,6 @@ const Index: React.FC = () => {
   // Initialize connection monitoring
   useConnectionMonitor();
   
-  // Handle progress state changes - close dialog and open assistant when ready
-  useEffect(() => {
-    console.log('Progress state changed:', progressState?.phase);
-    
-    if (progressState?.phase === 'ready' && isTourPlannerOpen) {
-      console.log('Tour is ready, closing planner and opening assistant');
-      setIsTourPlannerOpen(false);
-      setIsNewTourAssistantOpen(true);
-    }
-  }, [progressState?.phase, isTourPlannerOpen, setIsTourPlannerOpen, setIsNewTourAssistantOpen]);
-  
   // Combine static landmarks with enhanced tour landmarks
   const allLandmarks: (Landmark | EnhancedLandmark)[] = useMemo(() => {
     const tourLandmarks = tourPlan?.landmarks || [];
@@ -75,8 +64,21 @@ const Index: React.FC = () => {
   }, [setSelectedLandmark]);
 
   const handleGenerateTour = async (destination: string) => {
-    console.log('Starting tour generation for:', destination);
     await generateTour(destination);
+    
+    // Watch for the 'ready' phase to close tour planner and open assistant
+    const waitForReady = () => {
+      if (progressState?.phase === 'ready') {
+        setIsTourPlannerOpen(false);
+        setIsNewTourAssistantOpen(true);
+      } else {
+        // If not ready yet, check again in 100ms
+        setTimeout(waitForReady, 100);
+      }
+    };
+    
+    // Start checking for ready state
+    setTimeout(waitForReady, 100);
   };
 
   const handleAuthDialogClose = (open: boolean) => {
