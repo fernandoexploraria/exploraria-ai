@@ -59,7 +59,20 @@ interface EnhancedStreetViewModalProps {
 type ViewpointStrategy = 'single' | 'cardinal' | 'smart' | 'all';
 
 const isMultiViewpointData = (data: any): data is MultiViewpointData => {
-  return data && 'primary' in data && 'viewpoints' in data && 'metadata' in data;
+  const isMulti = data && 'primary' in data && 'viewpoints' in data && 'metadata' in data;
+  
+  // Enhanced debugging for multi-viewpoint detection
+  console.log('🔍 Multi-viewpoint detection:', {
+    hasData: !!data,
+    hasPrimary: data && 'primary' in data,
+    hasViewpoints: data && 'viewpoints' in data,
+    hasMetadata: data && 'metadata' in data,
+    viewpointCount: data?.viewpoints?.length || 0,
+    isMultiViewpoint: isMulti,
+    dataStructure: data ? Object.keys(data) : 'no data'
+  });
+  
+  return isMulti;
 };
 
 // Convert Street View data to PhotoData format for enhanced image loading
@@ -425,8 +438,20 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
     );
   }
 
-  // Handle both single and multi-viewpoint data
+  // Enhanced multi-viewpoint detection with detailed logging
   const isMultiViewpoint = isMultiViewpointData(currentStreetViewData);
+  
+  console.log('🎯 Street View Modal State:', {
+    landmarkName: currentItem?.landmark.name,
+    isMultiViewpoint,
+    currentViewpoint,
+    streetViewDataKeys: currentStreetViewData ? Object.keys(currentStreetViewData) : 'none',
+    viewpointCount: isMultiViewpoint ? currentStreetViewData.viewpoints.length : 1,
+    currentHeading: isMultiViewpoint 
+      ? currentStreetViewData.viewpoints[currentViewpoint]?.heading 
+      : currentStreetViewData.heading
+  });
+  
   const currentStreetView = isMultiViewpoint 
     ? currentStreetViewData.viewpoints[currentViewpoint]
     : currentStreetViewData;
@@ -436,6 +461,15 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
     : [currentStreetViewData];
     
   const strategy = isMultiViewpoint ? determineStrategy(currentStreetViewData) : 'single';
+
+  console.log('🧭 Compass Display Logic:', {
+    isMultiViewpoint,
+    allViewpointsLength: allViewpoints.length,
+    shouldShowCompass: isMultiViewpoint && allViewpoints.length > 1,
+    strategy,
+    currentViewpoint,
+    viewpointHeadings: allViewpoints.map(v => v.heading)
+  });
 
   const availableItems = streetViewItems.filter(item => item.streetViewData);
 
@@ -489,6 +523,16 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
                 <p className="text-xs text-yellow-400 mt-1">
                   Loading optimized for slow connection
                 </p>
+              )}
+
+              {/* Debug information - only in development */}
+              {process.env.NODE_ENV === 'development' && (
+                <div className="text-xs text-blue-400 mt-1 opacity-75">
+                  Debug: {isMultiViewpoint ? 'Multi' : 'Single'} • 
+                  Views: {allViewpoints.length} • 
+                  Current: {currentViewpoint + 1} • 
+                  Heading: {currentStreetView.heading}°
+                </div>
               )}
             </div>
             
@@ -549,16 +593,29 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
           />
         )}
 
-        {/* Enhanced Multi-viewpoint Compass */}
+        {/* Enhanced Multi-viewpoint Compass - with forced visibility for debugging */}
         {isMultiViewpoint && allViewpoints.length > 1 && (
           <div className="absolute top-1/2 right-4 transform -translate-y-1/2">
             <EnhancedStreetViewCompass
               viewpoints={allViewpoints}
               currentViewpoint={currentViewpoint}
-              onViewpointChange={setCurrentViewpoint}
+              onViewpointChange={(index) => {
+                console.log(`🧭 Compass viewpoint change: ${currentViewpoint} → ${index}`);
+                setCurrentViewpoint(index);
+              }}
               strategy={strategy}
               loadingViewpoints={loadingViewpoints}
             />
+          </div>
+        )}
+
+        {/* Debug overlay to verify compass should be visible */}
+        {process.env.NODE_ENV === 'development' && isMultiViewpoint && (
+          <div className="absolute top-1/2 left-4 bg-black/80 text-white text-xs p-2 rounded">
+            <div>Multi: {isMultiViewpoint ? 'YES' : 'NO'}</div>
+            <div>Views: {allViewpoints.length}</div>
+            <div>Show: {allViewpoints.length > 1 ? 'YES' : 'NO'}</div>
+            <div>Current: {currentViewpoint}</div>
           </div>
         )}
 
