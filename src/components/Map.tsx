@@ -129,9 +129,9 @@ const Map: React.FC<MapProps> = ({
         markerElement.style.height = '30px';
         markerElement.style.cursor = 'pointer';
 
-        // Add marker to map
+        // Add marker to map - use coordinates array [lng, lat]
         new mapboxgl.Marker(markerElement)
-          .setLngLat([landmark.lng, landmark.lat])
+          .setLngLat([landmark.coordinates[0], landmark.coordinates[1]])
           .addTo(mapRef.current!);
 
         // Add click event listener to marker
@@ -239,14 +239,14 @@ const Map: React.FC<MapProps> = ({
     popupWrapper.appendChild(carouselDiv);
     popupContent.appendChild(popupWrapper);
 
-    // Create popup
+    // Create popup - use coordinates array [lng, lat]
     const popup = new mapboxgl.Popup({
       closeButton: true,
       closeOnClick: false,
       maxWidth: '420px',
       className: 'photo-popup'
     })
-      .setLngLat([landmark.lng, landmark.lat])
+      .setLngLat([landmark.coordinates[0], landmark.coordinates[1]])
       .setDOMContent(popupContent)
       .addTo(mapRef.current!);
 
@@ -295,13 +295,13 @@ const Map: React.FC<MapProps> = ({
       } else {
         console.log(`ℹ️ No photos found for ${landmark.name}`);
         
-        // Create simple popup without photos
+        // Create simple popup without photos - use coordinates array [lng, lat]
         const popup = new mapboxgl.Popup({
           closeButton: true,
           closeOnClick: false,
           maxWidth: '300px'
         })
-          .setLngLat([landmark.lng, landmark.lat])
+          .setLngLat([landmark.coordinates[0], landmark.coordinates[1]])
           .setHTML(`
             <div style="padding: 16px; text-align: center;">
               <h3 style="margin: 0 0 8px 0; font-weight: 600;">${landmark.name}</h3>
@@ -313,13 +313,13 @@ const Map: React.FC<MapProps> = ({
     } catch (error) {
       console.error('❌ Error fetching photos:', error);
       
-      // Show error popup
+      // Show error popup - use coordinates array [lng, lat]
       const popup = new mapboxgl.Popup({
         closeButton: true,
         closeOnClick: false,
         maxWidth: '300px'
       })
-        .setLngLat([landmark.lng, landmark.lat])
+        .setLngLat([landmark.coordinates[0], landmark.coordinates[1]])
         .setHTML(`
           <div style="padding: 16px; text-align: center;">
             <h3 style="margin: 0 0 8px 0; font-weight: 600;">${landmark.name}</h3>
