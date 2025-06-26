@@ -6,6 +6,7 @@ import StreetViewThumbnailGrid from './StreetViewThumbnailGrid';
 import EnhancedStreetViewCompass from './street-view/EnhancedStreetViewCompass';
 import StreetViewMetadataPanel from './street-view/StreetViewMetadataPanel';
 import StreetViewLoadingOverlay from './street-view/StreetViewLoadingOverlay';
+import MultiViewpointIndicator from './street-view/MultiViewpointIndicator';
 import OfflineIndicator from './OfflineIndicator';
 import EnhancedProgressiveImage from './EnhancedProgressiveImage';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -85,6 +86,7 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
   const [currentViewpoint, setCurrentViewpoint] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showMetadata, setShowMetadata] = useState(false);
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const { isOnline, isSlowConnection } = useNetworkStatus();
 
   // Use ref to track loading state and prevent duplicate loads
@@ -160,7 +162,7 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
     }
   }, [currentIndex, currentViewpoint, streetViewItems, onLocationSelect, onClose]);
 
-  // Keyboard navigation
+  // Enhanced keyboard navigation with new shortcuts
   useEffect(() => {
     if (!isOpen) return;
 
@@ -199,9 +201,21 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
             setCurrentViewpoint(prev => prev < maxViewpoints - 1 ? prev + 1 : 0);
           }
           break;
+        case ' ':
+          e.preventDefault();
+          if (e.shiftKey) {
+            handlePrevious();
+          } else {
+            handleNext();
+          }
+          break;
         case 'Escape':
           e.preventDefault();
-          onClose();
+          if (showKeyboardHelp) {
+            setShowKeyboardHelp(false);
+          } else {
+            onClose();
+          }
           break;
         case 'f':
         case 'F':
@@ -213,12 +227,37 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
           e.preventDefault();
           setShowMetadata(prev => !prev);
           break;
+        case 'm':
+        case 'M':
+          e.preventDefault();
+          if (onLocationSelect) {
+            handleShowOnMap();
+          }
+          break;
+        case 'r':
+        case 'R':
+          e.preventDefault();
+          // Reset view functionality would be implemented here
+          break;
+        case '?':
+          e.preventDefault();
+          setShowKeyboardHelp(prev => !prev);
+          break;
+        default:
+          // Handle number keys for viewpoint selection
+          if (isMultiViewpoint && /^[1-9]$/.test(e.key)) {
+            const viewpointIndex = parseInt(e.key) - 1;
+            if (viewpointIndex < maxViewpoints) {
+              setCurrentViewpoint(viewpointIndex);
+            }
+          }
+          break;
       }
     };
 
     document.addEventListener('keydown', handleKeyPress);
     return () => document.removeEventListener('keydown', handleKeyPress);
-  }, [isOpen, currentIndex, currentViewpoint, streetViewItems.length, onClose, handlePrevious, handleNext, toggleFullscreen]);
+  }, [isOpen, currentIndex, currentViewpoint, streetViewItems.length, onClose, handlePrevious, handleNext, toggleFullscreen, showKeyboardHelp]);
 
   // Enhanced loading effect with loop prevention
   useEffect(() => {
@@ -405,16 +444,23 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
                 <h2 className="text-xl font-bold">{currentStreetView.landmarkName}</h2>
                 <OfflineIndicator />
               </div>
-              <div className="flex items-center gap-4 text-sm opacity-90">
+              <div className="flex items-center gap-4 text-sm opacity-90 mb-2">
                 <span>
                   Street View • {currentStreetView.location.lat.toFixed(6)}, {currentStreetView.location.lng.toFixed(6)}
                 </span>
-                {isMultiViewpoint && (
-                  <span className="text-blue-400 capitalize">
-                    {strategy} Strategy • {allViewpoints.length} views
-                  </span>
-                )}
               </div>
+              
+              {/* Multi-viewpoint indicator */}
+              {isMultiViewpoint && (
+                <MultiViewpointIndicator
+                  strategy={strategy}
+                  viewpointCount={allViewpoints.length}
+                  dataUsage={currentStreetViewData.metadata.dataUsage}
+                  variant="detailed"
+                  isLoading={loadingState.isLoading}
+                />
+              )}
+              
               {isSlowConnection && (
                 <p className="text-xs text-yellow-400 mt-1">
                   Loading optimized for slow connection
@@ -429,10 +475,13 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
                 onNext={handleNext}
                 onFullscreen={toggleFullscreen}
                 onShowOnMap={onLocationSelect ? handleShowOnMap : undefined}
+                onToggleInfo={() => setShowMetadata(!showMetadata)}
                 hasPrevious={currentIndex > 0}
                 hasNext={currentIndex < streetViewItems.length - 1}
                 currentIndex={currentIndex}
                 totalCount={streetViewItems.length}
+                isMultiViewpoint={isMultiViewpoint}
+                isInfoVisible={showMetadata}
               />
               
               <Button
@@ -440,6 +489,7 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
                 size="icon"
                 onClick={onClose}
                 className="text-white hover:bg-white/20"
+                title="Close (Esc)"
               >
                 <X className="h-6 w-6" />
               </Button>
@@ -487,21 +537,29 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
           loadingState={loadingState}
         />
 
-        {/* Thumbnail Navigation */}
+        {/* Enhanced Thumbnail Navigation */}
         {availableItems.length > 1 && (
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
             <StreetViewThumbnailGrid
               thumbnails={thumbnailData}
               onThumbnailClick={handleThumbnailClick}
               selectedIndex={currentIndex}
+              loadingStates={Object.fromEntries(
+                Object.entries(loadingViewpoints).map(([key, value]) => [parseInt(key), value])
+              )}
               className="justify-center"
+              size="sm"
+              maxItems={8}
             />
           </div>
         )}
 
         {/* Enhanced Keyboard shortcuts hint */}
         <div className="absolute bottom-4 right-4 text-white text-xs opacity-50">
-          ← → Navigate • {isMultiViewpoint ? '↑ ↓ / Shift+← → Change View • ' : ''}F Fullscreen • I Info • ESC Close
+          {isMultiViewpoint 
+            ? '← → Navigate • ↑ ↓ / 1-9 Change View • Space Next • F Fullscreen • I Info • ? Help • ESC Close'
+            : '← → Navigate • Space Next • F Fullscreen • I Info • ? Help • ESC Close'
+          }
         </div>
       </div>
     </div>

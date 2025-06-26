@@ -1,7 +1,8 @@
 
 import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Eye, EyeOff } from 'lucide-react';
+import StreetViewThumbnail from './StreetViewThumbnail';
+import { Loader2, MapPin } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface StreetViewData {
   imageUrl: string;
@@ -19,10 +20,19 @@ interface StreetViewData {
   };
 }
 
+interface MultiViewpointData {
+  primary: StreetViewData;
+  viewpoints: StreetViewData[];
+  metadata: {
+    totalViews: number;
+    recommendedView: number;
+    dataUsage: string;
+  };
+}
+
 interface ThumbnailData {
   landmark: any;
-  streetViewData: StreetViewData | null;
-  isSelected?: boolean;
+  streetViewData: StreetViewData | MultiViewpointData | null;
 }
 
 interface StreetViewThumbnailGridProps {
@@ -30,60 +40,108 @@ interface StreetViewThumbnailGridProps {
   onThumbnailClick: (index: number) => void;
   selectedIndex?: number;
   className?: string;
+  isLoading?: boolean;
+  loadingStates?: { [key: number]: boolean };
+  size?: 'sm' | 'md' | 'lg';
+  showLabels?: boolean;
+  maxItems?: number;
 }
 
 const StreetViewThumbnailGrid: React.FC<StreetViewThumbnailGridProps> = ({
   thumbnails,
   onThumbnailClick,
-  selectedIndex = 0,
-  className = ""
+  selectedIndex,
+  className = "",
+  isLoading = false,
+  loadingStates = {},
+  size = 'md',
+  showLabels = true,
+  maxItems
 }) => {
-  if (thumbnails.length === 0) return null;
+  const displayThumbnails = maxItems ? thumbnails.slice(0, maxItems) : thumbnails;
+  const hasMore = maxItems && thumbnails.length > maxItems;
+
+  if (isLoading && displayThumbnails.length === 0) {
+    return (
+      <div className={cn("flex items-center justify-center p-8", className)}>
+        <div className="text-center text-white/70">
+          <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+          <p className="text-sm">Loading Street Views...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (displayThumbnails.length === 0) {
+    return (
+      <div className={cn("flex items-center justify-center p-8", className)}>
+        <div className="text-center text-white/70">
+          <MapPin className="w-6 h-6 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">No Street Views available</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={`flex gap-2 overflow-x-auto pb-2 ${className}`}>
-      {thumbnails.map((thumbnail, index) => (
-        <div
-          key={thumbnail.landmark.id || index}
-          className="flex-shrink-0"
-        >
-          <Button
-            variant="ghost"
-            className={`relative p-0 h-16 w-24 rounded-lg overflow-hidden border-2 transition-all ${
-              selectedIndex === index 
-                ? 'border-blue-500 ring-2 ring-blue-500/50' 
-                : 'border-gray-300 hover:border-gray-400'
-            }`}
+    <div className={cn("flex flex-wrap items-center justify-center gap-3", className)}>
+      {/* Thumbnails */}
+      {displayThumbnails.map((thumbnail, index) => (
+        <div key={`${thumbnail.landmark.id}-${index}`} className="relative">
+          <StreetViewThumbnail
+            landmark={thumbnail.landmark}
+            streetViewData={thumbnail.streetViewData}
             onClick={() => onThumbnailClick(index)}
-          >
-            {thumbnail.streetViewData ? (
-              <>
-                <img
-                  src={thumbnail.streetViewData.imageUrl}
-                  alt={`Street View of ${thumbnail.landmark.name}`}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                <div className="absolute top-1 right-1">
-                  <Eye className="h-3 w-3 text-white" />
-                </div>
-                <div className="absolute bottom-1 left-1 right-1">
-                  <span className="text-white text-xs font-medium truncate block">
-                    {thumbnail.landmark.name}
-                  </span>
-                </div>
-              </>
-            ) : (
-              <div className="w-full h-full bg-gray-200 flex flex-col items-center justify-center">
-                <EyeOff className="h-4 w-4 text-gray-400 mb-1" />
-                <span className="text-xs text-gray-500 text-center px-1 leading-tight">
-                  {thumbnail.landmark.name}
-                </span>
-              </div>
+            isSelected={selectedIndex === index}
+            size={size}
+            showLabel={showLabels}
+            className={cn(
+              "transition-all duration-200",
+              loadingStates[index] && "opacity-50"
             )}
-          </Button>
+          />
+          
+          {/* Individual loading state */}
+          {loadingStates[index] && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
         </div>
       ))}
+
+      {/* Show more indicator */}
+      {hasMore && (
+        <div className={cn(
+          "flex items-center justify-center rounded-lg bg-white/10 text-white/70 border border-white/20",
+          {
+            'w-16 h-16': size === 'sm',
+            'w-20 h-20': size === 'md',
+            'w-24 h-24': size === 'lg'
+          }
+        )}>
+          <div className="text-center">
+            <div className="text-xs font-medium">
+              +{thumbnails.length - maxItems!}
+            </div>
+            <div className="text-xs opacity-70">more</div>
+          </div>
+        </div>
+      )}
+
+      {/* Global loading indicator */}
+      {isLoading && displayThumbnails.length > 0 && (
+        <div className={cn(
+          "flex items-center justify-center rounded-lg bg-white/10 text-white/70 border border-white/20",
+          {
+            'w-16 h-16': size === 'sm',
+            'w-20 h-20': size === 'md',
+            'w-24 h-24': size === 'lg'
+          }
+        )}>
+          <Loader2 className="w-4 h-4 animate-spin" />
+        </div>
+      )}
     </div>
   );
 };
