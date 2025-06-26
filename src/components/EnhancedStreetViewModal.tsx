@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, Wifi, WifiOff, RotateCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,9 @@ import StreetViewThumbnailGrid from './StreetViewThumbnailGrid';
 import StreetViewCompass from './StreetViewCompass';
 import SkeletonLoader from './ui/skeleton-loader';
 import OfflineIndicator from './OfflineIndicator';
+import EnhancedProgressiveImage from './EnhancedProgressiveImage';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { PhotoData } from '@/hooks/useEnhancedPhotos';
 
 interface StreetViewData {
   imageUrl: string;
@@ -52,6 +55,25 @@ const isMultiViewpointData = (data: any): data is MultiViewpointData => {
   return data && 'primary' in data && 'viewpoints' in data && 'metadata' in data;
 };
 
+// Convert Street View data to PhotoData format for enhanced image loading
+const streetViewToPhotoData = (streetViewData: StreetViewData): PhotoData => ({
+  id: Date.now(),
+  photoReference: 'streetview',
+  urls: {
+    thumb: streetViewData.imageUrl,
+    medium: streetViewData.imageUrl,
+    large: streetViewData.imageUrl
+  },
+  attributions: streetViewData.metadata.copyright ? [{
+    displayName: streetViewData.metadata.copyright,
+    uri: undefined,
+    photoUri: undefined
+  }] : [],
+  width: 640,
+  height: 640,
+  qualityScore: 75
+});
+
 const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
   isOpen,
   onClose,
@@ -62,7 +84,6 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [currentViewpoint, setCurrentViewpoint] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [imageLoading, setImageLoading] = useState<{[key: string]: boolean}>({});
   const { isOnline, isSlowConnection } = useNetworkStatus();
 
   // Reset indices when modal opens or items change
@@ -90,20 +111,16 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
         case 'ArrowLeft':
           e.preventDefault();
           if (e.shiftKey && isMultiViewpoint) {
-            // Shift+Left: Previous viewpoint
             setCurrentViewpoint(prev => prev > 0 ? prev - 1 : maxViewpoints - 1);
           } else {
-            // Left: Previous landmark
             handlePrevious();
           }
           break;
         case 'ArrowRight':
           e.preventDefault();
           if (e.shiftKey && isMultiViewpoint) {
-            // Shift+Right: Next viewpoint
             setCurrentViewpoint(prev => prev < maxViewpoints - 1 ? prev + 1 : 0);
           } else {
-            // Right: Next landmark
             handleNext();
           }
           break;
@@ -170,14 +187,6 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
     }
   }, [currentIndex, currentViewpoint, streetViewItems, onLocationSelect, onClose]);
 
-  const handleImageLoad = useCallback((key: string) => {
-    setImageLoading(prev => ({ ...prev, [key]: false }));
-  }, []);
-
-  const handleImageLoadStart = useCallback((key: string) => {
-    setImageLoading(prev => ({ ...prev, [key]: true }));
-  }, []);
-
   if (!isOpen || streetViewItems.length === 0) return null;
 
   const currentItem = streetViewItems[currentIndex];
@@ -217,10 +226,10 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
     ? currentStreetViewData.metadata.dataUsage 
     : 'Single view';
 
-  const imageKey = `${currentIndex}-${currentViewpoint}`;
-  const isCurrentImageLoading = imageLoading[imageKey];
-
   const availableItems = streetViewItems.filter(item => item.streetViewData);
+
+  // Convert Street View data to PhotoData for enhanced loading
+  const currentStreetViewPhoto = streetViewToPhotoData(currentStreetView);
 
   // Convert streetViewItems to thumbnailData format for the grid
   const thumbnailData = streetViewItems.map(item => ({
@@ -290,23 +299,13 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
           </div>
         </div>
 
-        {/* Street View Image */}
+        {/* Enhanced Street View Image */}
         <div className="w-full h-full relative">
-          {isCurrentImageLoading && (
-            <div className="absolute inset-0 z-20">
-              <SkeletonLoader variant="streetview" />
-            </div>
-          )}
-          
-          <img
-            src={currentStreetView.imageUrl}
+          <EnhancedProgressiveImage
+            photo={currentStreetViewPhoto}
             alt={`Street View of ${currentStreetView.landmarkName} (${currentStreetView.heading}°)`}
-            className={`w-full h-full object-cover transition-opacity duration-300 ${
-              isCurrentImageLoading ? 'opacity-0' : 'opacity-100'
-            }`}
-            onLoadStart={() => handleImageLoadStart(imageKey)}
-            onLoad={() => handleImageLoad(imageKey)}
-            onError={() => handleImageLoad(imageKey)}
+            className="w-full h-full"
+            showAttribution={false}
           />
           
           {/* Connection indicator for image */}

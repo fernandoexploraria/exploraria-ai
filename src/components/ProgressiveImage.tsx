@@ -2,9 +2,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { PhotoData } from '@/hooks/useEnhancedPhotos';
+import EnhancedProgressiveImage from './EnhancedProgressiveImage';
 
 interface ProgressiveImageProps {
-  src: string;
+  src?: string;
+  photo?: PhotoData;
   alt: string;
   lowQualitySrc?: string;
   className?: string;
@@ -15,10 +18,12 @@ interface ProgressiveImageProps {
   sizes?: string;
   width?: number;
   height?: number;
+  showAttribution?: boolean;
 }
 
 const ProgressiveImage: React.FC<ProgressiveImageProps> = ({
   src,
+  photo,
   alt,
   lowQualitySrc,
   className = '',
@@ -28,7 +33,8 @@ const ProgressiveImage: React.FC<ProgressiveImageProps> = ({
   priority = false,
   sizes,
   width,
-  height
+  height,
+  showAttribution = false
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isInView, setIsInView] = useState(priority);
@@ -38,6 +44,29 @@ const ProgressiveImage: React.FC<ProgressiveImageProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   
   const { getOptimalImageQuality, isOnline } = useNetworkStatus();
+
+  // If PhotoData is provided, use the enhanced component
+  if (photo) {
+    return (
+      <EnhancedProgressiveImage
+        photo={photo}
+        alt={alt}
+        className={className}
+        onLoad={onLoad}
+        onError={onError}
+        showAttribution={showAttribution}
+      />
+    );
+  }
+
+  // Fallback to original implementation if no PhotoData
+  if (!src) {
+    return (
+      <div className={cn('bg-gray-100 flex items-center justify-center', className)}>
+        <div className="text-gray-500 text-sm">No image source provided</div>
+      </div>
+    );
+  }
 
   // Intersection Observer for lazy loading
   useEffect(() => {
@@ -51,7 +80,7 @@ const ProgressiveImage: React.FC<ProgressiveImageProps> = ({
         }
       },
       {
-        rootMargin: '100px' // Start loading 100px before entering viewport
+        rootMargin: '100px'
       }
     );
 

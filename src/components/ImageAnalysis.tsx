@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -8,6 +9,9 @@ import { supabase } from '@/integrations/supabase/client';
 import CameraCapture from './CameraCapture';
 import { Landmark } from '@/data/landmarks';
 import { useAuth } from '@/components/AuthProvider';
+import { useEnhancedPhotos, PhotoData } from '@/hooks/useEnhancedPhotos';
+import EnhancedProgressiveImage from './EnhancedProgressiveImage';
+import PhotoCarousel from './photo-carousel/PhotoCarousel';
 
 interface ImageAnalysisProps {
   plannedLandmarks: Landmark[];
@@ -19,6 +23,7 @@ interface AnalysisResult {
   description: string;
   is_from_tour: boolean;
   additional_info?: string;
+  place_id?: string; // Enhanced with place_id for photo fetching
 }
 
 const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
@@ -27,15 +32,34 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isResultOpen, setIsResultOpen] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [capturedImagePhoto, setCapturedImagePhoto] = useState<PhotoData | null>(null);
+  const [landmarkPhotos, setLandmarkPhotos] = useState<PhotoData[]>([]);
+  const [isLoadingPhotos, setIsLoadingPhotos] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<[number, number] | null>(null);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
   const { user } = useAuth();
+  const { fetchPhotos } = useEnhancedPhotos();
 
   // Don't render the button if there are no planned landmarks
   if (plannedLandmarks.length === 0) {
     return null;
   }
+
+  // Convert captured image to PhotoData format
+  const createPhotoFromImage = (imageUrl: string): PhotoData => ({
+    id: Date.now(),
+    photoReference: 'captured',
+    urls: {
+      thumb: imageUrl,
+      medium: imageUrl,
+      large: imageUrl
+    },
+    attributions: [],
+    width: 800,
+    height: 600,
+    qualityScore: 70
+  });
 
   // Function to get current location
   const getCurrentLocation = (): Promise<[number, number]> => {
@@ -55,16 +79,39 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
         },
         (error) => {
           console.warn('Could not get location:', error.message);
-          // Don't reject, just resolve with null to allow the feature to work without location
           reject(error);
         },
         {
           enableHighAccuracy: true,
           timeout: 10000,
-          maximumAge: 300000 // 5 minutes
+          maximumAge: 300000
         }
       );
     });
+  };
+
+  // Function to fetch enhanced photos for recognized landmark
+  const fetchLandmarkPhotos = async (placeId: string) => {
+    if (!placeId) return;
+    
+    setIsLoadingPhotos(true);
+    try {
+      console.log(`🖼️ Fetching enhanced photos for recognized landmark: ${placeId}`);
+      const photosResponse = await fetchPhotos(placeId, 800, 'medium');
+      
+      if (photosResponse && photosResponse.photos.length > 0) {
+        console.log(`✅ Found ${photosResponse.photos.length} photos for recognized landmark`);
+        setLandmarkPhotos(photosResponse.photos);
+      } else {
+        console.log('ℹ️ No additional photos found for recognized landmark');
+        setLandmarkPhotos([]);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching landmark photos:', error);
+      setLandmarkPhotos([]);
+    } finally {
+      setIsLoadingPhotos(false);
+    }
   };
 
   // Function to store image recognition interaction
@@ -82,10 +129,10 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
         assistantResponse: `${result.description}${result.additional_info ? '. ' + result.additional_info : ''}`,
         destination: 'Camera Recognition',
         interactionType: 'image_recognition',
-        landmarkImageUrl: imageUrl
+        landmarkImageUrl: imageUrl,
+        place_id: result.place_id // Include place_id for future photo fetching
       };
 
-      // Add coordinates if available
       if (coordinates) {
         interactionData.landmarkCoordinates = coordinates;
         console.log('Including coordinates:', coordinates);
@@ -121,7 +168,6 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
       return;
     }
 
-    // Stop any currently playing audio
     stopCurrentAudio();
 
     try {
@@ -130,7 +176,6 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
       
       console.log('Calling Google Cloud TTS via edge function for image analysis:', text.substring(0, 50) + '...');
       
-      // Call the same edge function used by the voice assistant and map markers
       const { data, error } = await supabase.functions.invoke('gemini-tts', {
         body: { text }
       });
@@ -170,7 +215,6 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
         const audioUrl = URL.createObjectURL(blob);
         const audio = new Audio(audioUrl);
         
-        // Store reference to current audio
         currentAudio.current = audio;
         
         audio.onended = () => {
@@ -205,10 +249,10 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
 
   const handleCapture = async (imageData: string) => {
     setCapturedImage(imageData);
+    setCapturedImagePhoto(createPhotoFromImage(imageData));
     setIsAnalyzing(true);
     
     try {
-      // Try to get current location
       let coordinates: [number, number] | undefined;
       try {
         coordinates = await getCurrentLocation();
@@ -216,7 +260,6 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
         console.log('Location captured:', coordinates);
       } catch (locationError) {
         console.warn('Could not capture location:', locationError);
-        // Continue without location - this is not a critical failure
       }
 
       const base64Data = imageData.split(',')[1];
@@ -238,7 +281,11 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
         setAnalysisResult(data);
         setIsResultOpen(true);
         
-        // Store the interaction with location if available
+        // Fetch additional photos if place_id is available
+        if (data.place_id) {
+          await fetchLandmarkPhotos(data.place_id);
+        }
+        
         await storeImageRecognitionInteraction(data, imageData, coordinates);
         
         if (data.is_from_tour) {
@@ -260,11 +307,12 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
   };
 
   const closeResult = () => {
-    // Stop any playing audio when dialog closes
     stopCurrentAudio();
     setIsResultOpen(false);
     setAnalysisResult(null);
     setCapturedImage(null);
+    setCapturedImagePhoto(null);
+    setLandmarkPhotos([]);
     setCurrentLocation(null);
   };
 
@@ -293,7 +341,7 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
       />
 
       <Dialog open={isResultOpen} onOpenChange={closeResult}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Camera className="h-5 w-5" />
@@ -307,12 +355,14 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
             </DialogTitle>
           </DialogHeader>
           
-          {capturedImage && (
+          {/* Captured Image Display */}
+          {capturedImagePhoto && (
             <div className="mb-4 relative">
-              <img 
-                src={capturedImage} 
-                alt="Captured image" 
-                className="w-full h-48 object-cover rounded-lg"
+              <EnhancedProgressiveImage
+                photo={capturedImagePhoto}
+                alt="Captured image"
+                className="w-full h-48 rounded-lg"
+                showAttribution={false}
               />
               {analysisResult && (
                 <button 
@@ -361,23 +411,50 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
             </div>
           )}
           
+          {/* Analysis Result */}
           {analysisResult && (
-            <div className="space-y-3">
-              <h3 className="font-semibold text-lg">{analysisResult.landmark_name}</h3>
-              <p className="text-sm text-muted-foreground">
-                {analysisResult.description}
-              </p>
-              
-              {analysisResult.additional_info && (
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <h3 className="font-semibold text-lg">{analysisResult.landmark_name}</h3>
                 <p className="text-sm text-muted-foreground">
-                  {analysisResult.additional_info}
+                  {analysisResult.description}
                 </p>
+                
+                {analysisResult.additional_info && (
+                  <p className="text-sm text-muted-foreground">
+                    {analysisResult.additional_info}
+                  </p>
+                )}
+                
+                {currentLocation && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <MapPin className="h-3 w-3" />
+                    <span>Photo location: {currentLocation[1].toFixed(6)}, {currentLocation[0].toFixed(6)}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Enhanced Photos from Places API */}
+              {isLoadingPhotos && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading additional photos...
+                </div>
               )}
-              
-              {currentLocation && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <MapPin className="h-3 w-3" />
-                  <span>Photo location: {currentLocation[1].toFixed(6)}, {currentLocation[0].toFixed(6)}</span>
+
+              {landmarkPhotos.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Info className="h-4 w-4" />
+                    <span className="text-sm font-medium">Additional Photos ({landmarkPhotos.length})</span>
+                  </div>
+                  <PhotoCarousel
+                    photos={landmarkPhotos}
+                    initialIndex={0}
+                    className="h-64 rounded-lg"
+                    showThumbnails={landmarkPhotos.length > 1}
+                    allowZoom={true}
+                  />
                 </div>
               )}
             </div>
