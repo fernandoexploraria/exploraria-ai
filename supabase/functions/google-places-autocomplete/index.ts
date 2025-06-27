@@ -85,7 +85,7 @@ serve(async (req) => {
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': googleApiKey,
-        'X-Goog-FieldMask': 'predictions.placePrediction.placeId,predictions.placePrediction.text,predictions.placePrediction.types,predictions.placePrediction.structuredFormatting'
+        'X-Goog-FieldMask': 'suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.types,suggestions.placePrediction.structuredFormatting'
       },
       body: JSON.stringify(requestBody)
     });
@@ -97,15 +97,15 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log('✅ Google Places API response received:', data.predictions?.length || 0, 'predictions');
+    console.log('✅ Google Places API response received:', data.suggestions?.length || 0, 'suggestions');
 
-    // Format predictions for frontend
-    const formattedPredictions = data.predictions?.map((prediction: any) => ({
-      placeId: prediction.placePrediction.placeId,
-      text: prediction.placePrediction.text.text,
-      mainText: prediction.placePrediction.structuredFormatting?.mainText?.text || prediction.placePrediction.text.text,
-      secondaryText: prediction.placePrediction.structuredFormatting?.secondaryText?.text || '',
-      types: prediction.placePrediction.types || []
+    // Format suggestions for frontend (convert to predictions format for compatibility)
+    const formattedPredictions = data.suggestions?.map((suggestion: any) => ({
+      placeId: suggestion.placePrediction.placeId,
+      text: suggestion.placePrediction.text.text,
+      mainText: suggestion.placePrediction.structuredFormatting?.mainText?.text || suggestion.placePrediction.text.text,
+      secondaryText: suggestion.placePrediction.structuredFormatting?.secondaryText?.text || '',
+      types: suggestion.placePrediction.types || []
     })) || [];
 
     return new Response(JSON.stringify({ predictions: formattedPredictions }), {
