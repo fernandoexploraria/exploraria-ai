@@ -1,400 +1,406 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
-// Reusable function to validate and parse Geocoding API responses
-function validateGeocodingResponse(data: any, context: string = "Geocoding API") {
-  console.log(`🗺️ ${context} - Raw response status:`, data?.status);
-  
-  if (!data || !data.status) {
-    throw new Error(`${context}: Invalid response - missing status field`);
-  }
-
-  if (data.status === "OK") {
-    if (!Array.isArray(data.results) || data.results.length === 0) {
-      throw new Error(`${context}: OK status but no results available`);
-    }
-    
-    const result = data.results[0];
-    
-    // Validate essential geometry and location data
-    if (!result.geometry || !result.geometry.location ||
-        typeof result.geometry.location.lat !== 'number' ||
-        typeof result.geometry.location.lng !== 'number') {
-      throw new Error(`${context}: Missing or invalid geometry.location data`);
-    }
-    
-    console.log(`✅ ${context} - Valid response with coordinates:`, 
-      result.geometry.location.lat, result.geometry.location.lng);
-    
-    return result;
-  } else if (data.status === "ZERO_RESULTS") {
-    console.log(`📍 ${context} - No results found`);
-    return null;
-  } else {
-    const errorMessage = data.error_message || `API returned status: ${data.status}`;
-    console.error(`❌ ${context} - Error:`, data.status, errorMessage);
-    
-    // Handle specific error types
-    if (data.status === "OVER_QUERY_LIMIT") {
-      throw new Error(`${context}: Quota exceeded`);
-    } else if (data.status === "REQUEST_DENIED") {
-      throw new Error(`${context}: Request denied - check API key and permissions`);
-    } else if (data.status === "INVALID_REQUEST") {
-      throw new Error(`${context}: Invalid request format`);
-    } else {
-      throw new Error(`${context}: ${errorMessage}`);
-    }
-  }
-}
-
-// Enhanced geocoding function with proper error handling
-async function geocodeLandmark(query: string, googleApiKey: string) {
+// Helper function to log tour generation events
+const logTourGeneration = async (tourId: string, phase: string, level: string, message: string, details: any = {}) => {
   try {
-    const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${googleApiKey}`;
-    console.log(`🔍 Geocoding landmark: ${query}`);
-    
-    const response = await fetch(geocodeUrl);
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    const result = validateGeocodingResponse(data, "Landmark Geocoding");
-    
-    if (!result) {
-      return null; // No results found
-    }
-    
-    return {
-      lat: result.geometry.location.lat,
-      lng: result.geometry.location.lng,
-      formatted_address: result.formatted_address || query,
-      place_id: result.place_id
+    const logData = {
+      tour_id: tourId,
+      phase: phase,
+      level: level,
+      message: message,
+      details: details,
+      created_at: new Date().toISOString()
     };
-  } catch (error) {
-    console.error(`❌ Error geocoding landmark "${query}":`, error);
-    return null;
+
+    console.log(`[${level.toUpperCase()}] ${phase}: ${message}`, details);
+
+    // Skip logging to Supabase in the local environment
+    if (Deno.env.get('SUPABASE_URL')) {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+      const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
+
+      const response = await fetch(`${supabaseUrl}/rest/v1/tour_generation_logs`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseAnonKey,
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal' // Minimize response body
+        },
+        body: JSON.stringify(logData)
+      });
+
+      if (!response.ok) {
+        console.error('Failed to log to Supabase:', response.status, response.statusText);
+        const errorBody = await response.text();
+        console.error('Supabase error details:', errorBody);
+      }
+    } else {
+      console.log('Skipping Supabase logging in local environment.');
+    }
+
+  } catch (logError) {
+    console.error('Error logging tour generation event:', logError);
   }
-}
+};
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { destination, preferences = {} } = await req.json();
+    const { destination, destinationDetails } = await req.json();
     
+    console.log('🎯 Enhanced tour generation request:', { 
+      destination, 
+      hasDestinationDetails: !!destinationDetails,
+      destinationTypes: destinationDetails?.types 
+    });
+
     if (!destination) {
-      return new Response(
-        JSON.stringify({ error: 'Destination is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      throw new Error('Destination is required');
     }
 
-    console.log(`🎯 Starting enhanced tour generation for: ${destination}`);
-    console.log(`📋 Preferences:`, preferences);
+    const startTime = Date.now();
+    const tourId = crypto.randomUUID();
+
+    // Log tour generation start
+    await logTourGeneration(tourId, 'initialization', 'info', 'Tour generation started', {
+      destination,
+      destinationDetails: destinationDetails || null
+    });
 
     const googleApiKey = Deno.env.get('GOOGLE_API_KEY');
-    const geminiApiKey = Deno.env.get('GOOGLE_AI_API_KEY');
+    const googleAiApiKey = Deno.env.get('GOOGLE_AI_API_KEY');
 
-    if (!googleApiKey || !geminiApiKey) {
-      console.error('❌ Missing required API keys');
-      return new Response(
-        JSON.stringify({ error: 'API keys not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (!googleApiKey || !googleAiApiKey) {
+      throw new Error('Google API keys not configured');
     }
 
-    // Phase 1: Get geographic context with enhanced validation
-    console.log('🗺️ Phase 1: Getting geographic context...');
-    let cityInfo = null;
-    let countryInfo = null;
-    
+    // Get the user ID from the request header
+    const authHeader = req.headers.get('Authorization');
+    const userId = authHeader ? authHeader.split(' ')[1] : null; // Extract token
+
+    if (!userId) {
+      console.warn('⚠️ User ID missing in request header');
+      await logTourGeneration(tourId, 'authentication', 'warn', 'User ID missing in request header');
+    }
+
     try {
-      const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(destination)}&key=${googleApiKey}`;
-      console.log('📍 Geocoding destination for context...');
+      // Phase 1: Enhanced AI Landmark Generation with Destination Context
+      console.log('🤖 Generating landmarks with enhanced context...');
+      await logTourGeneration(tourId, 'ai_generation', 'info', 'Starting AI landmark generation with destination context');
       
-      const response = await fetch(geocodeUrl);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+      // Build enhanced prompt with destination context
+      let contextualPrompt = `Generate a comprehensive tourist itinerary for ${destination}.`;
       
-      const data = await response.json();
-      const result = validateGeocodingResponse(data, "Geographic Context");
-      
-      if (result && result.address_components) {
-        // Safely extract city and country information
-        for (const component of result.address_components) {
-          if (component.types && Array.isArray(component.types)) {
-            if (component.types.includes("locality") && !cityInfo) {
-              cityInfo = component.long_name;
-            }
-            if (component.types.includes("country") && !countryInfo) {
-              countryInfo = component.long_name;
-            }
-          }
+      if (destinationDetails) {
+        if (destinationDetails.types && destinationDetails.types.length > 0) {
+          const typeDescriptions = {
+            'locality': 'major city or town',
+            'sublocality': 'neighborhood or district',
+            'tourist_attraction': 'popular tourist destination',
+            'museum': 'cultural institution',
+            'park': 'natural or recreational area',
+            'administrative_area_level_1': 'state or province',
+            'administrative_area_level_2': 'county or region'
+          };
+          
+          const primaryType = destinationDetails.types[0];
+          const typeDescription = typeDescriptions[primaryType] || 'location';
+          contextualPrompt += ` This destination is classified as a ${typeDescription}.`;
         }
-        console.log(`🏙️ Geographic context - City: ${cityInfo}, Country: ${countryInfo}`);
-      }
-    } catch (error) {
-      console.error('⚠️ Geographic context extraction failed:', error);
-      // Continue without geographic context - this is not critical for tour generation
-    }
-
-    // Phase 2: Generate comprehensive tour data using Gemini
-    console.log('🤖 Phase 2: Generating comprehensive tour with Gemini...');
-    
-    const tourPrompt = `Generate a comprehensive tour guide for "${destination}". 
-
-    ${cityInfo && countryInfo ? `Geographic context: ${destination} is in ${cityInfo}, ${countryInfo}.` : ''}
-    
-    User preferences: ${JSON.stringify(preferences)}
-    
-    Create a detailed tour with exactly 8-12 landmarks/attractions. For each location, provide:
-    1. A descriptive name
-    2. A brief but engaging description (2-3 sentences)
-    3. Historical or cultural significance
-    4. Best time to visit
-    5. Estimated visit duration
-    6. Why it's special or unique
-    
-    Focus on a mix of must-see famous attractions, hidden gems, and cultural experiences. Include practical information like opening hours when relevant.
-    
-    Format the response as a JSON object with this structure:
-    {
-      "tour_title": "Comprehensive Tour of [Destination]",
-      "tour_description": "A brief overview of what makes this destination special",
-      "total_duration": "X days",
-      "best_time_to_visit": "Season/months",
-      "landmarks": [
-        {
-          "name": "Landmark Name",
-          "description": "Engaging description with historical context",
-          "significance": "Why this place is important",
-          "visit_duration": "X hours",
-          "best_time": "Morning/Afternoon/Evening",
-          "category": "Historical/Cultural/Natural/Religious/Modern"
+        
+        if (destinationDetails.formattedAddress) {
+          contextualPrompt += ` The full address context is: ${destinationDetails.formattedAddress}.`;
         }
-      ]
-    }`;
+        
+        if (destinationDetails.location) {
+          contextualPrompt += ` The coordinates are approximately ${destinationDetails.location.latitude}, ${destinationDetails.location.longitude}.`;
+        }
+      }
 
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiApiKey}`,
-      {
+      contextualPrompt += `
+
+Please provide a comprehensive list of 12-15 must-visit landmarks, attractions, and points of interest. Focus on:
+
+1. **Major Tourist Attractions**: Famous landmarks, monuments, and iconic sites
+2. **Cultural Sites**: Museums, galleries, theaters, and cultural centers  
+3. **Historical Places**: Historic buildings, districts, and heritage sites
+4. **Natural Attractions**: Parks, gardens, viewpoints, and natural features
+5. **Local Experiences**: Markets, neighborhoods, and authentic local spots
+6. **Architectural Highlights**: Notable buildings and architectural wonders
+
+For each landmark, provide:
+- **Name**: Clear, specific name of the landmark
+- **Description**: 2-3 sentences describing what makes it special and worth visiting
+- **Category**: Type of attraction (e.g., "Museum", "Historic Site", "Park", "Market")
+
+Format your response as a JSON object with a "landmarks" array. Each landmark should have "name", "description", and "category" fields.
+
+Focus on diversity - include a mix of famous must-sees and hidden gems. Prioritize accuracy and ensure all landmarks actually exist in ${destination}.`;
+
+      const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${googleAiApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: tourPrompt }] }],
+          contents: [{ parts: [{ text: contextualPrompt }] }],
           generationConfig: {
             temperature: 0.7,
             topK: 40,
             topP: 0.95,
-            maxOutputTokens: 4000,
+            maxOutputTokens: 2048,
           }
         })
-      }
-    );
-
-    if (!geminiResponse.ok) {
-      throw new Error(`Gemini API error: ${geminiResponse.status}`);
-    }
-
-    const geminiData = await geminiResponse.json();
-    const tourContent = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!tourContent) {
-      throw new Error('No tour content generated');
-    }
-
-    console.log('✅ Tour content generated successfully');
-
-    // Parse the generated tour data
-    let tourData;
-    try {
-      const jsonMatch = tourContent.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('No JSON found in response');
-      }
-      tourData = JSON.parse(jsonMatch[0]);
-    } catch (parseError) {
-      console.error('❌ Failed to parse Gemini response as JSON:', parseError);
-      // Create fallback tour structure
-      tourData = {
-        tour_title: `Comprehensive Tour of ${destination}`,
-        tour_description: `An amazing journey through the highlights of ${destination}`,
-        total_duration: "2-3 days",
-        best_time_to_visit: "Year-round",
-        landmarks: []
-      };
-    }
-
-    // Phase 3: Validate coordinates for tour planning
-    console.log('📍 Phase 3: Validating destination coordinates...');
-    let destinationCoords = null;
-    
-    try {
-      const cityGeocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(destination)}&key=${googleApiKey}`;
-      console.log('🎯 Getting city center coordinates...');
-      
-      const cityResponse = await fetch(cityGeocodeUrl);
-      if (!cityResponse.ok) {
-        throw new Error(`HTTP ${cityResponse.status}: ${cityResponse.statusText}`);
-      }
-      
-      const cityData = await cityResponse.json();
-      const cityResult = validateGeocodingResponse(cityData, "City Center Calculation");
-      
-      if (cityResult) {
-        destinationCoords = [
-          cityResult.geometry.location.lng,
-          cityResult.geometry.location.lat
-        ];
-        console.log(`📍 Destination coordinates:`, destinationCoords);
-        
-        // Validate coordinates are plausible (basic sanity check)
-        const [lng, lat] = destinationCoords;
-        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-          console.error('❌ Invalid coordinate range detected');
-          destinationCoords = null;
-        } else {
-          // Optional: Reverse geocode to validate coordinates are on land
-          try {
-            const reverseGeocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${googleApiKey}`;
-            console.log('🔄 Reverse geocoding to validate coordinates...');
-            
-            const reverseResponse = await fetch(reverseGeocodeUrl);
-            if (!reverseResponse.ok) {
-              throw new Error(`HTTP ${reverseResponse.status}: ${reverseResponse.statusText}`);
-            }
-            
-            const reverseData = await reverseResponse.json();
-            const reverseResult = validateGeocodingResponse(reverseData, "Coordinate Validation");
-            
-            if (reverseResult) {
-              console.log('✅ Coordinates validated successfully');
-            } else {
-              console.log('⚠️ Coordinates could not be reverse geocoded');
-            }
-          } catch (reverseError) {
-            console.error('⚠️ Reverse geocoding failed (non-critical):', reverseError);
-            // Continue with coordinates even if reverse geocoding fails
-          }
-        }
-      }
-    } catch (error) {
-      console.error('⚠️ City center coordinate calculation failed:', error);
-      // Continue without coordinates - the tour can still be generated
-    }
-
-    // Phase 4: Enhanced geocoding for landmarks with ID generation
-    console.log('🏛️ Phase 4: Geocoding landmarks...');
-    
-    if (tourData.landmarks && Array.isArray(tourData.landmarks)) {
-      console.log(`📍 Processing ${tourData.landmarks.length} landmarks for geocoding...`);
-      
-      const geocodingPromises = tourData.landmarks.map(async (landmark, index) => {
-        // Generate unique ID for each landmark
-        const landmarkId = `tour-landmark-${index + 1}`;
-        
-        if (!landmark.name) {
-          console.warn(`⚠️ Landmark ${index} has no name, skipping geocoding`);
-          return { 
-            ...landmark, 
-            id: landmarkId,
-            coordinates: null 
-          };
-        }
-        
-        const query = `${landmark.name}, ${destination}`;
-        console.log(`🔍 Geocoding: ${query}`);
-        
-        try {
-          const geocoded = await geocodeLandmark(query, googleApiKey);
-          
-          if (geocoded) {
-            console.log(`✅ Successfully geocoded: ${landmark.name}`);
-            return {
-              ...landmark,
-              id: landmarkId,
-              coordinates: [geocoded.lng, geocoded.lat],
-              formatted_address: geocoded.formatted_address,
-              place_id: geocoded.place_id
-            };
-          } else {
-            console.log(`❌ Could not geocode: ${landmark.name}`);
-            return { 
-              ...landmark, 
-              id: landmarkId,
-              coordinates: null 
-            };
-          }
-        } catch (error) {
-          console.error(`❌ Error geocoding ${landmark.name}:`, error);
-          return { 
-            ...landmark, 
-            id: landmarkId,
-            coordinates: null 
-          };
-        }
       });
-      
-      tourData.landmarks = await Promise.all(geocodingPromises);
-      
-      const geocodedCount = tourData.landmarks.filter(l => l.coordinates).length;
-      console.log(`📊 Geocoding complete: ${geocodedCount}/${tourData.landmarks.length} landmarks geocoded`);
-    }
 
-    // Phase 5: Prepare final response with systemPrompt
-    console.log('📦 Phase 5: Preparing final tour package...');
-    
-    // Generate a comprehensive system prompt for the tour
-    const systemPrompt = `Explore ${tourData.tour_title || `the wonders of ${destination}`}: ${tourData.tour_description || `An amazing journey through the highlights of ${destination}`}. This ${tourData.total_duration || '2-3 day'} tour includes ${tourData.landmarks?.length || 0} carefully selected landmarks and attractions. Best time to visit: ${tourData.best_time_to_visit || 'Year-round'}. Each location has been chosen for its cultural significance, historical importance, and unique experiences it offers.`;
-    
-    const enhancedTour = {
-      ...tourData,
-      destination,
-      systemPrompt,
-      destination_coordinates: destinationCoords,
-      geographic_context: {
-        city: cityInfo,
-        country: countryInfo
-      },
-      generation_timestamp: new Date().toISOString(),
-      preferences_applied: preferences,
-      geocoding_success_rate: tourData.landmarks ? 
-        `${tourData.landmarks.filter(l => l.coordinates).length}/${tourData.landmarks.length}` : 
-        'N/A'
-    };
-
-    console.log('🎉 Enhanced tour generation completed successfully!');
-    console.log(`📊 Final stats: ${enhancedTour.landmarks?.length || 0} landmarks, ${enhancedTour.geocoding_success_rate} geocoded`);
-
-    return new Response(
-      JSON.stringify(enhancedTour),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      if (!geminiResponse.ok) {
+        const errorText = await geminiResponse.text();
+        console.error('❌ Gemini API error:', geminiResponse.status, errorText);
+        throw new Error(`Gemini API error: ${geminiResponse.status}`);
       }
-    );
+
+      const geminiData = await geminiResponse.json();
+      
+      if (!geminiData.candidates?.[0]?.content?.parts?.[0]?.text) {
+        throw new Error('Invalid response from Gemini AI');
+      }
+
+      let landmarksText = geminiData.candidates[0].content.parts[0].text;
+      console.log('📄 Raw Gemini response length:', landmarksText.length);
+
+      // Attempt to parse the landmarks from the Gemini response
+      let landmarks;
+      try {
+        const jsonStartIndex = landmarksText.indexOf('{');
+        if (jsonStartIndex === -1) {
+          throw new Error('No JSON object found in Gemini response');
+        }
+        landmarksText = landmarksText.substring(jsonStartIndex);
+        landmarks = JSON.parse(landmarksText).landmarks;
+        console.log('✅ Landmarks parsed successfully from Gemini response');
+      } catch (jsonError) {
+        console.error('❌ Error parsing landmarks JSON:', jsonError);
+        console.log('Raw Gemini response causing the error:', landmarksText);
+        throw new Error(`Failed to parse landmarks from Gemini response: ${jsonError}`);
+      }
+
+      if (!landmarks || !Array.isArray(landmarks)) {
+        throw new Error('Invalid landmarks format in Gemini response');
+      }
+
+      // Phase 2: Coordinate Enrichment and Validation
+      console.log('📍 Enriching landmarks with coordinates...');
+      await logTourGeneration(tourId, 'coordinate_enrichment', 'info', 'Starting coordinate enrichment for landmarks');
+
+      const enrichedLandmarks = [];
+      const fallbacksUsed = [];
+      let coordinateQuality = {
+        highConfidence: 0,
+        mediumConfidence: 0,
+        lowConfidence: 0
+      };
+
+      for (const landmark of landmarks) {
+        let placeDetails = null;
+        let coordinateSource = 'none';
+        let confidence = 'low';
+
+        try {
+          // Attempt 1: Google Places API - Reliable but rate-limited
+          const placesResponse = await fetch(`https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(landmark.name + ' ' + destination)}&inputtype=textquery&fields=place_id,formatted_address,name,geometry,types&key=${googleApiKey}`);
+
+          if (placesResponse.ok) {
+            const placesData = await placesResponse.json();
+
+            if (placesData.candidates && placesData.candidates.length > 0) {
+              placeDetails = placesData.candidates[0];
+              coordinateSource = 'google_places';
+              confidence = 'high';
+            }
+          } else {
+            console.warn('Google Places API request failed:', placesResponse.status, placesResponse.statusText);
+          }
+        } catch (placesError) {
+          console.error('Error fetching place details from Google Places API:', placesError);
+        }
+
+        // Attempt 2: Geocoding API - Less reliable, use as fallback
+        if (!placeDetails) {
+          try {
+            const geocodingResponse = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(landmark.name + ' in ' + destination)}&key=${googleApiKey}`);
+
+            if (geocodingResponse.ok) {
+              const geocodingData = await geocodingResponse.json();
+
+              if (geocodingData.results && geocodingData.results.length > 0) {
+                const result = geocodingData.results[0];
+                placeDetails = {
+                  geometry: { location: result.geometry.location },
+                  formatted_address: result.formatted_address,
+                  name: result.name || landmark.name,
+                  types: result.types || []
+                };
+                coordinateSource = 'geocoding_api';
+                confidence = 'medium';
+                fallbacksUsed.push('geocoding_api');
+              }
+            } else {
+              console.warn('Geocoding API request failed:', geocodingResponse.status, geocodingResponse.statusText);
+            }
+          } catch (geocodingError) {
+            console.error('Error fetching geocoding details:', geocodingError);
+          }
+        }
+
+        // Classify coordinate confidence
+        if (confidence === 'high') {
+          coordinateQuality.highConfidence++;
+        } else if (confidence === 'medium') {
+          coordinateQuality.mediumConfidence++;
+        } else {
+          coordinateQuality.lowConfidence++;
+        }
+
+        if (placeDetails && placeDetails.geometry && placeDetails.geometry.location) {
+          enrichedLandmarks.push({
+            id: crypto.randomUUID(),
+            name: landmark.name,
+            description: landmark.description,
+            coordinates: {
+              latitude: placeDetails.geometry.location.lat,
+              longitude: placeDetails.geometry.location.lng
+            },
+            placeId: placeDetails.place_id || null,
+            coordinateSource: coordinateSource,
+            confidence: confidence,
+            types: placeDetails.types || [],
+            formattedAddress: placeDetails.formatted_address || null
+          });
+        } else {
+          console.warn('⚠️ No coordinates found for landmark:', landmark.name);
+          await logTourGeneration(tourId, 'coordinate_enrichment', 'warn', 'No coordinates found for landmark', { landmarkName: landmark.name });
+
+          enrichedLandmarks.push({
+            id: crypto.randomUUID(),
+            name: landmark.name,
+            description: landmark.description,
+            coordinates: null,
+            placeId: null,
+            coordinateSource: 'none',
+            confidence: 'none',
+            types: [],
+            formattedAddress: null
+          });
+        }
+      }
+
+      const totalProcessingTime = Date.now() - startTime;
+      console.log(`⏱️  Total processing time: ${totalProcessingTime}ms`);
+      await logTourGeneration(tourId, 'processing_time', 'info', 'Total processing time', { processingTimeMs: totalProcessingTime });
+
+      // Store generated tour details in the database
+      if (userId) {
+        console.log('💾 Storing generated tour in database for user:', userId);
+        await logTourGeneration(tourId, 'database_storage', 'info', 'Storing generated tour in database', { userId });
+
+        const { data: tourData, error: tourError } = await supabase
+          .from('generated_tours')
+          .insert({
+            id: tourId,
+            user_id: userId,
+            destination: destination,
+            landmarks: enrichedLandmarks,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (tourError) {
+          console.error('Failed to store generated tour in database:', tourError);
+          await logTourGeneration(tourId, 'database_storage', 'error', 'Failed to store generated tour in database', { error: tourError });
+        } else {
+          console.log('✅ Generated tour stored successfully in database');
+          await logTourGeneration(tourId, 'database_storage', 'info', 'Generated tour stored successfully in database', { tourId: tourData.id });
+        }
+      } else {
+        console.warn('⚠️ User ID not available, skipping database storage');
+        await logTourGeneration(tourId, 'database_storage', 'warn', 'User ID not available, skipping database storage');
+      }
+
+      // Store destination details in the tour record
+      await supabase
+        .from('generated_tours')
+        .update({
+          destination_details: destinationDetails || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', tourId);
+
+      console.log('✅ Enhanced tour generation completed with destination context');
+      await logTourGeneration(tourId, 'completion', 'info', 'Enhanced tour generation completed successfully', {
+        totalLandmarks: enrichedLandmarks.length,
+        destinationContextUsed: !!destinationDetails,
+        coordinateQuality,
+        processingTimeMs: totalProcessingTime
+      });
+
+      return new Response(JSON.stringify({
+        landmarks: enrichedLandmarks,
+        systemPrompt: contextualPrompt,
+        metadata: {
+          totalLandmarks: enrichedLandmarks.length,
+          coordinateQuality,
+          processingTime: totalProcessingTime,
+          fallbacksUsed,
+          destinationContext: destinationDetails ? 'enhanced' : 'basic'
+        }
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+
+    } catch (error) {
+      console.error('❌ Error in enhanced tour generation:', error);
+      await logTourGeneration(tourId, 'error', 'error', 'Error in enhanced tour generation', { error: error.message });
+
+      return new Response(JSON.stringify({
+        error: error.message,
+        landmarks: [],
+        systemPrompt: '',
+        metadata: {
+          totalLandmarks: 0,
+          coordinateQuality: {
+            highConfidence: 0,
+            mediumConfidence: 0,
+            lowConfidence: 0
+          },
+          processingTime: 0,
+          fallbacksUsed: [],
+          destinationContext: 'basic'
+        }
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
   } catch (error) {
-    console.error('❌ Enhanced tour generation failed:', error);
-    
-    return new Response(
-      JSON.stringify({ 
-        error: 'Failed to generate enhanced tour',
-        details: error.message,
-        timestamp: new Date().toISOString()
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
+    console.error('❌ Unexpected error in google-places-autocomplete function:', error);
+    return new Response(JSON.stringify({ 
+      error: error.message,
+      predictions: []
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
