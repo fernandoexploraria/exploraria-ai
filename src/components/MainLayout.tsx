@@ -110,8 +110,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       <DialogManager
         isTourPlannerOpen={isTourPlannerOpen}
         onTourPlannerOpenChange={onTourPlannerOpenChange}
-        isTourPlannerV2Open={isTourPlannerV2Open}
-        onTourPlannerV2OpenChange={onTourPlannerV2OpenChange}
         onGenerateTour={onGenerateTour}
         onTourAuthRequired={onTourAuthRequired}
         isTourLoading={isTourLoading}
