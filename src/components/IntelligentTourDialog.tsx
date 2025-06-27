@@ -93,6 +93,19 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   };
 
   const handleDestinationSelect = async (destination: AutocompleteResult) => {
+    // Check authentication first
+    if (!user?.id) {
+      console.error('User not authenticated:', user);
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in to generate tours.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    console.log('Starting tour generation for user:', user.id, 'destination:', destination.description);
+    
     setSelectedDestination(destination);
     setCurrentStep(2);
     setIsLoading(true);
@@ -103,8 +116,12 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
         body: { placeId: destination.place_id }
       });
 
-      if (detailsError) throw detailsError;
+      if (detailsError) {
+        console.error('Places details error:', detailsError);
+        throw detailsError;
+      }
       
+      console.log('Destination details retrieved:', detailsData.data);
       setDestinationDetails(detailsData.data);
 
       // Search nearby landmarks with dynamic radius
@@ -113,6 +130,8 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
         detailsData.data.location?.latitude || 0
       ];
 
+      console.log('Searching for nearby landmarks at coordinates:', coordinates);
+
       const { data: nearbyData, error: nearbyError } = await supabase.functions.invoke('google-places-nearby', {
         body: { 
           coordinates,
@@ -120,8 +139,12 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
         }
       });
 
-      if (nearbyError) throw nearbyError;
+      if (nearbyError) {
+        console.error('Nearby places error:', nearbyError);
+        throw nearbyError;
+      }
 
+      console.log('Found nearby landmarks:', nearbyData.places?.length || 0);
       setNearbyLandmarks(nearbyData.places || []);
       setCurrentStep(3);
 
@@ -142,6 +165,14 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   };
 
   const generateTourInDatabase = async (destination: any, landmarks: any[], destinationInfo: AutocompleteResult) => {
+    // Double-check authentication before database operations
+    if (!user?.id) {
+      console.error('User authentication failed before database operations');
+      throw new Error('User not authenticated');
+    }
+
+    console.log('Generating tour in database for user:', user.id);
+
     try {
       // Create the "Alexis" template system prompt
       const alexisPrompt = `You are Alexis, an expert tour guide for ${destination.name}. 
@@ -164,50 +195,70 @@ ${idx + 1}. ${landmark.name}
 
 As Alexis, provide engaging, informative, and personalized tour guidance. Share interesting facts, historical context, local insights, and practical tips. Maintain an enthusiastic but professional tone, and always prioritize visitor safety and enjoyment.`;
 
-      // Insert tour record
+      console.log('Inserting tour record...');
+      
+      // Insert tour record with explicit user_id
+      const tourInsertData = {
+        user_id: user.id, // Explicitly set user_id for RLS
+        destination: destination.name,
+        destination_details: {
+          ...destination,
+          search_query: searchQuery,
+          destination_types: destinationInfo.types,
+          search_radius: landmarks[0]?.searchRadius || 10000
+        },
+        system_prompt: alexisPrompt,
+        total_landmarks: landmarks.length,
+        generation_start_time: new Date().toISOString(),
+        generation_end_time: new Date().toISOString()
+      };
+
+      console.log('Tour insert data:', tourInsertData);
+
       const { data: tourData, error: tourError } = await supabase
         .from('generated_tours')
-        .insert({
-          user_id: user?.id,
-          destination: destination.name,
-          destination_details: {
-            ...destination,
-            search_query: searchQuery,
-            destination_types: destinationInfo.types,
-            search_radius: landmarks[0]?.searchRadius || 10000
-          },
-          system_prompt: alexisPrompt,
-          total_landmarks: landmarks.length,
-          generation_start_time: new Date().toISOString(),
-          generation_end_time: new Date().toISOString()
-        })
+        .insert(tourInsertData)
         .select()
         .single();
 
-      if (tourError) throw tourError;
+      if (tourError) {
+        console.error('Tour insertion error:', tourError);
+        throw new Error(`Failed to create tour: ${tourError.message}`);
+      }
 
-      // Insert landmarks
-      const landmarkInserts = landmarks.map((landmark, index) => ({
-        tour_id: tourData.id,
-        landmark_id: landmark.placeId,
-        name: landmark.name,
-        coordinates: `(${landmark.geometry.location.lng},${landmark.geometry.location.lat})`,
-        description: landmark.editorialSummary || `${landmark.name} - ${landmark.types?.join(', ')}`,
-        rating: landmark.rating,
-        photos: landmark.photoUrl ? [landmark.photoUrl] : [],
-        formatted_address: landmark.vicinity,
-        types: landmark.types || [],
-        place_id: landmark.placeId,
-        quality_score: landmark.rating || 0,
-        confidence: 'high'
-      }));
+      console.log('Tour created successfully:', tourData.id);
 
-      if (landmarkInserts.length > 0) {
+      // Insert landmarks if any exist
+      if (landmarks.length > 0) {
+        console.log('Inserting landmarks...');
+        
+        const landmarkInserts = landmarks.map((landmark, index) => ({
+          tour_id: tourData.id, // Link to the created tour
+          landmark_id: landmark.placeId,
+          name: landmark.name,
+          coordinates: `(${landmark.geometry.location.lng},${landmark.geometry.location.lat})`,
+          description: landmark.editorialSummary || `${landmark.name} - ${landmark.types?.join(', ')}`,
+          rating: landmark.rating,
+          photos: landmark.photoUrl ? [landmark.photoUrl] : [],
+          formatted_address: landmark.vicinity,
+          types: landmark.types || [],
+          place_id: landmark.placeId,
+          quality_score: landmark.rating || 0,
+          confidence: 'high'
+        }));
+
+        console.log('Landmark insert data (first item):', landmarkInserts[0]);
+
         const { error: landmarksError } = await supabase
           .from('generated_landmarks')
           .insert(landmarkInserts);
 
-        if (landmarksError) throw landmarksError;
+        if (landmarksError) {
+          console.error('Landmarks insertion error:', landmarksError);
+          throw new Error(`Failed to create landmarks: ${landmarksError.message}`);
+        }
+
+        console.log('Landmarks inserted successfully');
       }
 
       setCurrentStep(4);
