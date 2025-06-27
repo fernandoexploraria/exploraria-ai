@@ -1,7 +1,6 @@
 
 import React from 'react';
 import TourPlannerDialog from './TourPlannerDialog';
-import TourPlannerV2Simple from './TourPlannerV2Simple';
 import InteractionCarousel from './InteractionCarousel';
 import AuthDialog from './AuthDialog';
 import { ProgressState } from '@/hooks/useTourPlanner';
@@ -43,8 +42,6 @@ const DialogManager: React.FC<DialogManagerProps> = ({
         isLoading={isTourLoading}
         progressState={tourProgressState}
       />
-
-      <TourPlannerV2Simple />
 
       <InteractionCarousel
         open={isVoiceSearchOpen}
