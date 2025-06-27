@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -8,6 +7,7 @@ import { MapPin, Clock, Star, Users, ChevronRight, Sparkles } from 'lucide-react
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { toast } from 'sonner';
+import { useEnhancedTourGenerator } from '@/hooks/useEnhancedTourGenerator';
 
 interface Destination {
   placeId: string;
@@ -36,6 +36,15 @@ interface Landmark {
   photos?: string[];
 }
 
+interface AutocompletePrediction {
+  place_id: string;
+  description: string;
+  structured_formatting?: {
+    main_text: string;
+    secondary_text: string;
+  };
+}
+
 interface EnhancedTourGeneratorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -48,9 +57,10 @@ const EnhancedTourGeneratorDialog: React.FC<EnhancedTourGeneratorDialogProps> = 
   onTourGenerated,
 }) => {
   const { user } = useAuth();
+  const { handleTourGenerated } = useEnhancedTourGenerator();
   const [currentStep, setCurrentStep] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<AutocompletePrediction[]>([]);
   const [selectedDestination, setSelectedDestination] = useState<Destination | null>(null);
   const [discoveredLandmarks, setDiscoveredLandmarks] = useState<Landmark[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -59,7 +69,7 @@ const EnhancedTourGeneratorDialog: React.FC<EnhancedTourGeneratorDialogProps> = 
   const totalSteps = 5;
   const progressPercentage = (currentStep / totalSteps) * 100;
 
-  // Step 1: Search for destinations
+  // Step 1: Search for destinations using autocomplete
   const searchDestinations = async (query: string) => {
     if (query.length < 3) {
       setSuggestions([]);
@@ -67,7 +77,7 @@ const EnhancedTourGeneratorDialog: React.FC<EnhancedTourGeneratorDialogProps> = 
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke('google-places-search', {
+      const { data, error } = await supabase.functions.invoke('google-places-autocomplete', {
         body: { input: query, types: 'establishment|geocode' }
       });
 
@@ -90,7 +100,7 @@ const EnhancedTourGeneratorDialog: React.FC<EnhancedTourGeneratorDialogProps> = 
   }, [searchQuery]);
 
   // Step 2: Get destination details and store
-  const selectDestination = async (suggestion: any) => {
+  const selectDestination = async (suggestion: AutocompletePrediction) => {
     setIsLoading(true);
     setLoadingMessage('Getting destination details...');
 
@@ -104,7 +114,7 @@ const EnhancedTourGeneratorDialog: React.FC<EnhancedTourGeneratorDialogProps> = 
 
       const destination: Destination = {
         placeId: suggestion.place_id,
-        displayName: placeData.data.name || suggestion.description,
+        displayName: placeData.data.name || suggestion.structured_formatting?.main_text || suggestion.description,
         formattedAddress: placeData.data.address || suggestion.description,
         location: {
           lat: placeData.data.geometry?.location?.lat || 0,
@@ -137,6 +147,7 @@ const EnhancedTourGeneratorDialog: React.FC<EnhancedTourGeneratorDialogProps> = 
       if (tourError) throw tourError;
 
       setSelectedDestination(destination);
+      setSuggestions([]); // Clear suggestions after selection
       setCurrentStep(3);
     } catch (error) {
       console.error('Error selecting destination:', error);
@@ -206,6 +217,9 @@ const EnhancedTourGeneratorDialog: React.FC<EnhancedTourGeneratorDialogProps> = 
 
       if (updateError) throw updateError;
 
+      // Use the enhanced tour generator hook to handle the tour data
+      handleTourGenerated(data.tourId, selectedDestination.displayName, discoveredLandmarks);
+
       setCurrentStep(5);
       
       // Call the callback to launch the tour assistant
@@ -261,7 +275,9 @@ const EnhancedTourGeneratorDialog: React.FC<EnhancedTourGeneratorDialogProps> = 
                     className="w-full p-3 text-left hover:bg-accent transition-colors border-b last:border-b-0 flex items-center justify-between"
                   >
                     <div>
-                      <div className="font-medium">{suggestion.structured_formatting?.main_text || suggestion.description}</div>
+                      <div className="font-medium">
+                        {suggestion.structured_formatting?.main_text || suggestion.description}
+                      </div>
                       <div className="text-sm text-muted-foreground">
                         {suggestion.structured_formatting?.secondary_text || ''}
                       </div>
