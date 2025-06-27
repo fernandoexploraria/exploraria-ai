@@ -37,6 +37,9 @@ interface MainLayoutProps {
   onAuthDialogOpenChange: (open: boolean) => void;
   isNewTourAssistantOpen: boolean;
   onNewTourAssistantOpenChange: (open: boolean) => void;
+  isIntelligentTourOpen: boolean;
+  onIntelligentTourOpenChange: (open: boolean) => void;
+  onTourGenerated?: (landmarks: any[]) => void;
   tourPlan: any;
 }
 
@@ -65,6 +68,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   onAuthDialogOpenChange,
   isNewTourAssistantOpen,
   onNewTourAssistantOpenChange,
+  isIntelligentTourOpen,
+  onIntelligentTourOpenChange,
+  onTourGenerated,
   tourPlan,
 }) => {
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
@@ -112,6 +118,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         isAuthDialogOpen={isAuthDialogOpen}
         onAuthDialogOpenChange={onAuthDialogOpenChange}
         onLocationSelect={handleLocationSelect}
+        isIntelligentTourOpen={isIntelligentTourOpen}
+        onIntelligentTourOpenChange={onIntelligentTourOpenChange}
+        onTourGenerated={onTourGenerated}
+        user={user}
       />
 
       <NewTourAssistant
