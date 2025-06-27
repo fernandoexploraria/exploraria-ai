@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube, MapPin } from 'lucide-react';
+import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerTrigger } from '@/components/ui/drawer';
 import SearchControl from '@/components/SearchControl';
 import FreeTourCounter from '@/components/FreeTourCounter';
@@ -138,12 +138,12 @@ const TopControls: React.FC<TopControlsProps> = ({
             <Button
               variant="outline"
               size="sm"
-              className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 border-blue-200 hover:bg-blue-50"
+              className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
               onClick={onTourPlannerV2Open}
             >
-              <MapPin className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4 text-blue-600" />
-              <span className="lg:hidden text-blue-700">Plan Tour v2</span>
-              <span className="hidden lg:inline text-blue-700">Plan a Tour v2</span>
+              <Sparkles className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+              <span className="lg:hidden">Plan Tour v2</span>
+              <span className="hidden lg:inline">Plan a Tour v2</span>
             </Button>
             
             {plannedLandmarks.length > 0 && (
