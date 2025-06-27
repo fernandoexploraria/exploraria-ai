@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { MapPin, Building, Museum, TreePine, Landmark, Loader2 } from 'lucide-react';
+import { MapPin, Building, Landmark, TreePine, Loader2 } from 'lucide-react';
 import { usePlacesAutocomplete, PlacePrediction } from '@/hooks/usePlacesAutocomplete';
 
 interface GooglePlacesAutocompleteProps {
@@ -67,7 +67,7 @@ const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> = ({
   // Get icon for place type
   const getPlaceIcon = (types: string[]) => {
     if (types.includes('museum') || types.includes('art_gallery')) {
-      return <Museum className="h-4 w-4 text-amber-600" />;
+      return <Landmark className="h-4 w-4 text-amber-600" />;
     }
     if (types.includes('park') || types.includes('botanical_garden')) {
       return <TreePine className="h-4 w-4 text-green-600" />;
