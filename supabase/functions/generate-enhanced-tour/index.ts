@@ -1,3 +1,4 @@
+
 import { serve } from 'https://deno.land/std@0.131.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -99,8 +100,13 @@ async function extractGeographicContext(city: string): Promise<GeographicContext
     });
 
     const data = await response.json();
-    const context = data.choices[0].message.content || '{}';
-    return JSON.parse(context);
+    
+    if (data.choices && data.choices[0] && data.choices[0].message) {
+      const context = data.choices[0].message.content || '{}';
+      return JSON.parse(context);
+    } else {
+      throw new Error('Invalid OpenAI response structure');
+    }
   } catch (error) {
     console.error("Error extracting geographic context:", error);
     return { city: city, country: "Unknown", cityType: "major" };
@@ -132,8 +138,13 @@ async function generateLandmarkNames(city: string, country: string, cityType: st
     });
 
     const data = await response.json();
-    const landmarkList = data.choices[0].message.content?.split('\n').map(item => item.replace(/^\d+\.\s*/, '')) || [];
-    return landmarkList;
+    
+    if (data.choices && data.choices[0] && data.choices[0].message) {
+      const landmarkList = data.choices[0].message.content?.split('\n').map(item => item.replace(/^\d+\.\s*/, '')) || [];
+      return landmarkList.filter(item => item.trim() !== '').slice(0, 8);
+    } else {
+      throw new Error('Invalid OpenAI response structure');
+    }
   } catch (error) {
     console.error("Error generating landmark names:", error);
     return [];
@@ -332,7 +343,7 @@ async function generateEnhancedLandmarkNames(city: string, country: string, city
     );
     return result;
   } catch (error) {
-    logger.log(`🔄 Gemini API failed for landmark generation, using fallback list`);
+    logger.log(`🔄 OpenAI API failed for landmark generation, using fallback list`);
     
     // Fallback to a basic landmark list based on city type
     const fallbackLandmarks = getFallbackLandmarks(city, cityType);
@@ -349,9 +360,7 @@ function getFallbackLandmarks(city: string, cityType: string): string[] {
     `${city} Museum`,
     `${city} Cathedral`,
     `${city} Town Hall`,
-    `${city} Public Garden`,
-    `${city} Market`,
-    `${city} Observatory`
+    `${city} Public Garden`
   ];
 
   return basicLandmarks.slice(0, 8); // Return 8 basic landmarks
@@ -495,7 +504,13 @@ async function generateTourDescription(landmarks: EnhancedLandmark[]): Promise<s
       }),
     });
 
-    return response.choices[0].message.content || "A fascinating tour!";
+    const data = await response.json();
+    
+    if (data.choices && data.choices[0] && data.choices[0].message) {
+      return data.choices[0].message.content || "A fascinating tour!";
+    } else {
+      return "A fascinating tour!";
+    }
   } catch (error) {
     console.error("Error generating tour description:", error);
     return "A fascinating tour!";
@@ -524,7 +539,7 @@ async function storeTourData(city: string, tourDescription: string, landmarks: E
   return data;
 }
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -534,7 +549,19 @@ Deno.serve(async (req) => {
   DegradationManager.clearExpiredCache();
   
   try {
-    const { city } = await req.json();
+    const requestBody = await req.json();
+    const city = requestBody?.city || requestBody?.destination;
+    
+    if (!city) {
+      return new Response(
+        JSON.stringify({ error: 'Missing city parameter' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+    
     const tourLogger = new TourLogger();
     
     // Log resilience system initialization
@@ -547,7 +574,7 @@ Deno.serve(async (req) => {
     tourLogger.log(`🗺️ Geographic context: ${JSON.stringify(geographicContext)}`);
 
     // Use resilience-enhanced landmark generation
-    tourLogger.log(`🤖 Calling Gemini for landmark names and descriptions with resilience...`);
+    tourLogger.log(`🤖 Calling OpenAI for landmark names and descriptions with resilience...`);
     const landmarkNames = await generateEnhancedLandmarkNames(
       geographicContext.city,
       geographicContext.country,
@@ -576,15 +603,14 @@ Deno.serve(async (req) => {
     const tourDescription = await generateTourDescription(enhancedLandmarks);
     tourLogger.log(`📜 Tour description: ${tourDescription}`);
 
-    // Store tour data in Supabase (run in the background)
-    Deno.cron("storeTourData", "0 0 * * *", async () => {
-      try {
-        await storeTourData(city, tourDescription, enhancedLandmarks, tourLogger.getLogs());
+    // Store tour data in background (no await to avoid blocking response)
+    storeTourData(city, tourDescription, enhancedLandmarks, tourLogger.getLogs())
+      .then(() => {
         tourLogger.log(`✅ Tour data stored successfully in Supabase`);
-      } catch (error) {
+      })
+      .catch((error) => {
         tourLogger.log(`❌ Failed to store tour data in Supabase: ${error}`);
-      }
-    });
+      });
 
     // Calculate statistics
     const totalLandmarks = enhancedLandmarks.length;
@@ -605,13 +631,26 @@ Deno.serve(async (req) => {
       tourLogger.log(`🔌 ${service}: ${metrics.state} (${metrics.totalCalls} calls, ${(metrics.failureRate * 100).toFixed(1)}% failure rate)`);
     });
 
-    // Generate response
+    // Generate response with system prompt for frontend compatibility
+    const systemPrompt = `You are an expert tour guide for ${city}. You have extensive knowledge about the landmarks: ${enhancedLandmarks.map(l => l.name).join(', ')}. Provide helpful, engaging information about these locations and assist visitors with directions, historical context, and travel tips.`;
+
     const responseData = {
       city,
+      systemPrompt,
       tourDescription,
       landmarks: enhancedLandmarks,
       quality: qualityPercentage.toFixed(2),
       logs: tourLogger.getLogs(),
+      metadata: {
+        totalLandmarks,
+        coordinateQuality: {
+          highConfidence: enhancedLandmarks.filter(l => l.confidence === 'high').length,
+          mediumConfidence: enhancedLandmarks.filter(l => l.confidence === 'medium').length,
+          lowConfidence: enhancedLandmarks.filter(l => l.confidence === 'low').length,
+        },
+        processingTime: Date.now(),
+        fallbacksUsed: enhancedLandmarks.map(l => l.coordinateSource).filter(s => s.includes('fallback'))
+      },
       resilience: {
         degradationLevel: finalHealth.level,
         circuitBreakerStates: CircuitBreakerRegistry.getAllMetrics()
@@ -633,6 +672,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: 'Failed to generate enhanced tour with resilience',
+        details: error.message,
         degradationLevel: DegradationManager.getCurrentPolicy().level,
         circuitBreakerStates: metrics
       }),
