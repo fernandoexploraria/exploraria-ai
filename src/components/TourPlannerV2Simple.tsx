@@ -101,8 +101,8 @@ const TourPlannerV2Simple = () => {
           <span className="hidden lg:inline">Plan Tour V2</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[900px] max-h-[95vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[900px] h-[90vh] overflow-y-auto">
+        <DialogHeader className="pb-4">
           <DialogTitle className="flex items-center gap-2 text-xl font-bold">
             <MapPin className="h-6 w-6 text-blue-600" />
             Simple Tour Planner V2
@@ -112,11 +112,11 @@ const TourPlannerV2Simple = () => {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <div className="space-y-6 py-4 px-1">
           {!isStored && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                <label className="text-sm font-medium text-gray-700 mb-3 block">
                   Choose Your Destination
                 </label>
                 <EnhancedDestinationSelector
