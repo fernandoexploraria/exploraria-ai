@@ -95,8 +95,58 @@ serve(async (req) => {
       }
     };
 
+    // Hierarchical sorting function
+    const sortPredictionsByHierarchy = (suggestions: any[]) => {
+      // Define type priority hierarchy (lower number = higher priority)
+      const typePriority: { [key: string]: number } = {
+        'locality': 1,
+        'sublocality': 2,
+        'tourist_attraction': 3,
+        'museum': 4,
+        'park': 5,
+        // Fallback priorities for other types
+        'administrative_area_level_1': 6,
+        'administrative_area_level_2': 7,
+        'political': 8
+      };
+
+      return suggestions.map((suggestion, originalIndex) => {
+        let highestPriority = 999; // Default low priority
+        let matchedType = null;
+
+        if (suggestion.placePrediction?.types) {
+          for (const type of suggestion.placePrediction.types) {
+            const priority = typePriority[type];
+            if (priority !== undefined && priority < highestPriority) {
+              highestPriority = priority;
+              matchedType = type;
+            }
+          }
+        }
+
+        return {
+          suggestion,
+          priority: highestPriority,
+          matchedType,
+          originalIndex
+        };
+      })
+      .sort((a, b) => {
+        // Primary sort: by type priority (lower number = higher priority)
+        if (a.priority !== b.priority) {
+          return a.priority - b.priority;
+        }
+        // Secondary sort: maintain original Google relevance order
+        return a.originalIndex - b.originalIndex;
+      })
+      .map(item => item.suggestion);
+    };
+
+    // Sort suggestions by hierarchy before formatting
+    const sortedSuggestions = data.suggestions ? sortPredictionsByHierarchy(data.suggestions) : [];
+
     // Format suggestions for frontend (convert to predictions format for compatibility)
-    const formattedPredictions = data.suggestions?.map((suggestion: any) => {
+    const formattedPredictions = sortedSuggestions.map((suggestion: any) => {
       const fullText = suggestion.placePrediction.text.text;
       const { mainText, secondaryText } = parseLocationText(fullText);
       
@@ -107,7 +157,9 @@ serve(async (req) => {
         secondaryText: secondaryText,
         types: suggestion.placePrediction.types || []
       };
-    }) || [];
+    });
+
+    console.log('🔄 Sorted predictions by hierarchy:', formattedPredictions.length, 'results');
 
     return new Response(JSON.stringify({ predictions: formattedPredictions }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
