@@ -85,7 +85,7 @@ serve(async (req) => {
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': googleApiKey,
-        'X-Goog-FieldMask': 'suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.types,suggestions.placePrediction.structuredFormatting'
+        'X-Goog-FieldMask': 'suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.types'
       },
       body: JSON.stringify(requestBody)
     });
@@ -99,14 +99,37 @@ serve(async (req) => {
     const data = await response.json();
     console.log('✅ Google Places API response received:', data.suggestions?.length || 0, 'suggestions');
 
+    // Helper function to parse main and secondary text from the full text
+    const parseLocationText = (fullText: string) => {
+      // Split by comma to separate main location from details
+      const parts = fullText.split(',').map(part => part.trim());
+      
+      if (parts.length >= 2) {
+        return {
+          mainText: parts[0],
+          secondaryText: parts.slice(1).join(', ')
+        };
+      } else {
+        return {
+          mainText: fullText,
+          secondaryText: ''
+        };
+      }
+    };
+
     // Format suggestions for frontend (convert to predictions format for compatibility)
-    const formattedPredictions = data.suggestions?.map((suggestion: any) => ({
-      placeId: suggestion.placePrediction.placeId,
-      text: suggestion.placePrediction.text.text,
-      mainText: suggestion.placePrediction.structuredFormatting?.mainText?.text || suggestion.placePrediction.text.text,
-      secondaryText: suggestion.placePrediction.structuredFormatting?.secondaryText?.text || '',
-      types: suggestion.placePrediction.types || []
-    })) || [];
+    const formattedPredictions = data.suggestions?.map((suggestion: any) => {
+      const fullText = suggestion.placePrediction.text.text;
+      const { mainText, secondaryText } = parseLocationText(fullText);
+      
+      return {
+        placeId: suggestion.placePrediction.placeId,
+        text: fullText,
+        mainText: mainText,
+        secondaryText: secondaryText,
+        types: suggestion.placePrediction.types || []
+      };
+    }) || [];
 
     return new Response(JSON.stringify({ predictions: formattedPredictions }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
