@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -35,33 +34,11 @@ serve(async (req) => {
       sessionToken,
       languageCode: 'en',
       includedPrimaryTypes: [
-        // Geographic/Administrative areas
-        'administrative_area_level_1',
-        'administrative_area_level_2', 
         'locality',
-        'sublocality',
-        'political',
-        // Tourist destinations and landmarks
         'tourist_attraction',
         'museum',
         'park',
-        'landmark',
-        'stadium',
-        'amusement_park',
-        'zoo',
-        'aquarium',
-        'art_gallery',
-        'historical_place',
-        'cultural_landmark',
-        'monument',
-        'performing_arts_theater',
-        'national_park',
-        'historical_landmark',
-        'visitor_center',
-        'botanical_garden',
-        'plaza',
-        'library',
-        'university'
+        'administrative_area_level_1'
       ]
     };
 
