@@ -1,23 +1,17 @@
 import { serve } from 'https://deno.land/std@0.131.0/http/server.ts';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
-import { OpenAI } from 'https://deno.land/x/openai@v1.0.0/mod.ts';
-import { load } from "https://deno.land/std@0.218.0/dotenv/mod.ts";
 
 // Load environment variables
-const env = await load();
-
-// Supabase setup
-const supabaseUrl = env["SUPABASE_URL"];
-const supabaseKey = env["SUPABASE_ANON_KEY"];
+const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// OpenAI setup
-const openaiApiKey = env["OPENAI_API_KEY"];
-const openai = new OpenAI(openaiApiKey);
+// OpenAI API setup
+const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
 
 // Google Maps API setup
-const googleMapsApiKey = env["GOOGLE_MAPS_API_KEY"];
+const googleMapsApiKey = Deno.env.get("GOOGLE_MAPS_API_KEY");
 
 // Define types
 interface LandmarkData {
@@ -74,26 +68,34 @@ class TourLogger {
 // Function to extract geographic context
 async function extractGeographicContext(city: string): Promise<GeographicContext> {
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content: `You are an expert in geography. Extract the city, country, and type of city (e.g., "capital", "major", "tourist") from the user's query. Respond in JSON format.
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: "gpt-3.5-turbo",
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert in geography. Extract the city, country, and type of city (e.g., "capital", "major", "tourist") from the user's query. Respond in JSON format.
           Example:
           Input: "Paris"
           Output: {"city": "Paris", "country": "France", "cityType": "capital"}`,
-        },
-        {
-          role: "user",
-          content: city,
-        },
-      ],
-      response_format: { type: "json_object" },
+          },
+          {
+            role: "user",
+            content: city,
+          },
+        ],
+        response_format: { type: "json_object" },
+      }),
     });
 
-    const context = JSON.parse(response.choices[0].message.content || '{}');
-    return context;
+    const data = await response.json();
+    const context = data.choices[0].message.content || '{}';
+    return JSON.parse(context);
   } catch (error) {
     console.error("Error extracting geographic context:", error);
     return { city: city, country: "Unknown", cityType: "major" };
@@ -103,21 +105,29 @@ async function extractGeographicContext(city: string): Promise<GeographicContext
 // Function to generate landmark names
 async function generateLandmarkNames(city: string, country: string, cityType: string): Promise<string[]> {
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content: `You are a world-class tour guide. Generate a list of 8 famous landmarks in ${city}, ${country}. Consider that this is a ${cityType} city.`,
-        },
-        {
-          role: "user",
-          content: `List 8 famous landmarks in ${city}.`,
-        },
-      ],
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: "gpt-3.5-turbo",
+        messages: [
+          {
+            role: "system",
+            content: `You are a world-class tour guide. Generate a list of 8 famous landmarks in ${city}, ${country}. Consider that this is a ${cityType} city.`,
+          },
+          {
+            role: "user",
+            content: `List 8 famous landmarks in ${city}.`,
+          },
+        ],
+      }),
     });
 
-    const landmarkList = response.choices[0].message.content?.split('\n').map(item => item.replace(/^\d+\.\s*/, '')) || [];
+    const data = await response.json();
+    const landmarkList = data.choices[0].message.content?.split('\n').map(item => item.replace(/^\d+\.\s*/, '')) || [];
     return landmarkList;
   } catch (error) {
     console.error("Error generating landmark names:", error);
@@ -459,18 +469,25 @@ async function generateTourDescription(landmarks: EnhancedLandmark[]): Promise<s
     const landmarkDetails = landmarks.map(landmark => `${landmark.name} (${landmark.description})`).join('; ');
     const prompt = `Generate a captivating tour description that includes the following landmarks: ${landmarkDetails}. The description should be concise, engaging, and no more than 150 words.`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content: "You are a world-class tour guide. Create an engaging and concise tour description.",
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: "gpt-3.5-turbo",
+        messages: [
+          {
+            role: "system",
+            content: "You are a world-class tour guide. Create an engaging and concise tour description.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      }),
     });
 
     return response.choices[0].message.content || "A fascinating tour!";
