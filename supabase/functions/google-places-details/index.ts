@@ -1,93 +1,129 @@
 
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { 
+      status: 200,
+      headers: corsHeaders 
+    })
   }
 
   try {
-    const { placeId, sessionToken } = await req.json();
+    const { placeId, landmarkName, coordinates } = await req.json()
+    const googleApiKey = Deno.env.get('GOOGLE_API_KEY')
     
-    console.log('🔍 Places Details request:', { placeId, sessionToken });
-
-    if (!placeId) {
-      throw new Error('Place ID is required');
-    }
-
-    const googleApiKey = Deno.env.get('GOOGLE_API_KEY');
     if (!googleApiKey) {
-      throw new Error('Google API key not configured');
+      throw new Error('Google API key not configured')
     }
 
-    console.log('📍 Making request to Google Places Details API...');
-
-    // Build request body for Google Places Details (New)
-    const requestBody = {
-      placeId,
-      sessionToken,
-      languageCode: 'en'
-    };
-
-    const response = await fetch('https://places.googleapis.com/v1/places/' + placeId, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': googleApiKey,
-        'X-Goog-FieldMask': 'id,displayName,formattedAddress,location,types,rating,photos'
+    let placeDetails: any = null
+    
+    if (placeId) {
+      // Use new Places API v1 for place details
+      const detailsUrl = `https://places.googleapis.com/v1/places/${placeId}`
+      
+      const detailsResponse = await fetch(detailsUrl, {
+        method: 'GET',
+        headers: {
+          'X-Goog-Api-Key': googleApiKey,
+          'X-Goog-FieldMask': 'displayName,rating,nationalPhoneNumber,formattedAddress,regularOpeningHours,websiteUri,photos,priceLevel,userRatingCount'
+        }
+      })
+      
+      if (detailsResponse.ok) {
+        placeDetails = await detailsResponse.json()
+      } else {
+        console.error('Places API details error:', await detailsResponse.text())
       }
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ Google Places Details API error:', response.status, errorText);
-      throw new Error(`Google Places Details API error: ${response.status} ${errorText}`);
-    }
-
-    const data = await response.json();
-    console.log('✅ Google Places Details API response received');
-
-    // Convert to legacy format for compatibility
-    const legacyFormat = {
-      result: {
-        place_id: data.id,
-        name: data.displayName?.text,
-        formatted_address: data.formattedAddress,
-        geometry: {
-          location: {
-            lat: data.location?.latitude,
-            lng: data.location?.longitude
-          }
+    } else if (landmarkName && coordinates) {
+      // Use new Places API v1 for nearby search
+      const searchUrl = 'https://places.googleapis.com/v1/places:searchNearby'
+      
+      const searchResponse = await fetch(searchUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': googleApiKey,
+          'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.nationalPhoneNumber,places.formattedAddress,places.regularOpeningHours,places.websiteUri,places.photos,places.priceLevel,places.userRatingCount'
         },
-        types: data.types || [],
-        rating: data.rating,
-        photos: data.photos?.map((photo: any) => ({
-          photo_reference: photo.name,
-          height: photo.heightPx,
-          width: photo.widthPx
-        })) || []
-      }
-    };
+        body: JSON.stringify({
+          includedTypes: ['tourist_attraction', 'point_of_interest'],
+          maxResultCount: 5,
+          locationRestriction: {
+            circle: {
+              center: {
+                latitude: coordinates[1],
+                longitude: coordinates[0]
+              },
+              radius: 100
+            }
+          }
+        })
+      })
 
-    return new Response(JSON.stringify(legacyFormat), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+      if (searchResponse.ok) {
+        const searchData = await searchResponse.json()
+        
+        if (searchData.places && searchData.places.length > 0) {
+          // Find the best match by name similarity
+          const bestMatch = searchData.places.find((place: any) => 
+            place.displayName?.text?.toLowerCase().includes(landmarkName.toLowerCase()) ||
+            landmarkName.toLowerCase().includes(place.displayName?.text?.toLowerCase())
+          ) || searchData.places[0]
+          
+          placeDetails = bestMatch
+        }
+      } else {
+        console.error('Places API search error:', await searchResponse.text())
+      }
+    } else {
+      throw new Error('Either placeId or both landmarkName and coordinates are required')
+    }
+
+    if (placeDetails) {
+      // Process photos if available - new API format
+      const photos = placeDetails.photos?.slice(0, 3).map((photo: any) => 
+        `https://places.googleapis.com/v1/${photo.name}/media?maxWidthPx=400&key=${googleApiKey}`
+      ) || []
+
+      // Map new API response to expected format
+      const enrichedData = {
+        name: placeDetails.displayName?.text || placeDetails.displayName,
+        rating: placeDetails.rating,
+        userRatingsTotal: placeDetails.userRatingCount,
+        phoneNumber: placeDetails.nationalPhoneNumber,
+        address: placeDetails.formattedAddress,
+        website: placeDetails.websiteUri,
+        priceLevel: placeDetails.priceLevel,
+        openingHours: placeDetails.regularOpeningHours?.weekdayDescriptions || [],
+        isOpenNow: placeDetails.regularOpeningHours?.openNow,
+        photos,
+        placeId: placeDetails.id || placeId
+      }
+
+      return new Response(
+        JSON.stringify({ data: enrichedData, success: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    return new Response(
+      JSON.stringify({ error: 'Place details not found', fallback: true }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+    )
 
   } catch (error) {
-    console.error('❌ Error in google-places-details function:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message,
-      result: null
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    console.error('Error fetching place details:', error)
+    return new Response(
+      JSON.stringify({ error: error.message, fallback: true }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+    )
   }
-});
+})

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Landmark, EnhancedLandmark } from '@/data/landmarks';
 import { setTourLandmarks, clearTourMarkers } from '@/data/tourLandmarks';
@@ -11,17 +10,6 @@ export interface TourPlan {
   landmarks: EnhancedLandmark[];
   systemPrompt: string;
   destination: string;
-  destinationDetails?: {
-    placeId?: string;
-    mainText?: string;
-    secondaryText?: string;
-    types?: string[];
-    formattedAddress?: string;
-    location?: {
-      latitude: number;
-      longitude: number;
-    };
-  };
   metadata?: {
     totalLandmarks: number;
     coordinateQuality: {
@@ -75,7 +63,7 @@ export const useTourPlanner = () => {
     setProgressState(prev => ({ ...prev, ...update }));
   };
 
-  const generateTour = async (destination: string, destinationDetails?: any) => {
+  const generateTour = async (destination: string) => {
     // Check current user
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -83,7 +71,7 @@ export const useTourPlanner = () => {
       return;
     }
 
-    console.log('Generating enhanced tour for user:', user.id, 'with destination details:', destinationDetails);
+    console.log('Generating enhanced tour for user:', user.id);
 
     // Clear existing tour markers first
     clearTourMarkers();
@@ -145,14 +133,9 @@ export const useTourPlanner = () => {
       await animateProgress(15, 'Connecting to Gemini AI...', 'generating');
       await animateProgress(30, 'Getting landmark suggestions...', 'generating');
 
-      // Call the enhanced tour generation edge function with destination details
-      const requestBody: any = { destination };
-      if (destinationDetails) {
-        requestBody.destinationDetails = destinationDetails;
-      }
-
+      // Call the enhanced tour generation edge function
       const { data: enhancedTourData, error: enhancedTourError } = await supabase.functions.invoke('generate-enhanced-tour', {
-        body: requestBody
+        body: { destination }
       });
 
       if (enhancedTourError) {
@@ -233,7 +216,6 @@ export const useTourPlanner = () => {
         landmarks: enhancedLandmarks,
         systemPrompt: enhancedTourData.systemPrompt,
         destination: destination,
-        destinationDetails: destinationDetails,
         metadata: enhancedTourData.metadata
       };
 
