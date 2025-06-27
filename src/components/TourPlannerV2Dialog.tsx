@@ -9,32 +9,28 @@ import { PlacePrediction } from '@/hooks/usePlacesAutocomplete';
 interface TourPlannerV2DialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onPlaceSelect?: (place: PlacePrediction) => void;
 }
 
 const TourPlannerV2Dialog: React.FC<TourPlannerV2DialogProps> = ({ 
   open, 
-  onOpenChange,
-  onPlaceSelect
+  onOpenChange
 }) => {
   const [selectedPlace, setSelectedPlace] = useState<PlacePrediction | null>(null);
 
   const handlePlaceSelect = (place: PlacePrediction) => {
     setSelectedPlace(place);
     console.log('Selected place:', place);
-    
-    // Call the parent's callback if provided
-    if (onPlaceSelect) {
-      onPlaceSelect(place);
-    }
   };
 
   const handleGenerateTour = () => {
     if (!selectedPlace) return;
     
-    console.log('Generate Tour button clicked for:', selectedPlace);
-    // TODO: This will be implemented in the next step
-    // For now, just log the action
+    console.log('Generating tour for:', selectedPlace);
+    // TODO: Implement tour generation logic
+    // This will be implemented in the next phase
+    
+    // For now, just close the dialog
+    onOpenChange(false);
   };
 
   const handleDialogClose = (open: boolean) => {
@@ -53,7 +49,7 @@ const TourPlannerV2Dialog: React.FC<TourPlannerV2DialogProps> = ({
             AI Tour Planner v2
           </DialogTitle>
           <DialogDescription>
-            Search and select your destination using Google Places. Choose any city, landmark, or attraction to get started.
+            Search for any destination using Google Places. We'll find verified landmarks and create a personalized tour for you.
           </DialogDescription>
         </DialogHeader>
         
