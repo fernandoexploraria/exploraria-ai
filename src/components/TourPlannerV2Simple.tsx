@@ -48,8 +48,15 @@ const TourPlannerV2Simple = () => {
       return;
     }
 
+    console.log('🏪 Starting tour destination storage process...');
     setIsStoring(true);
+    
     try {
+      console.log('🏪 Invoking store-tour-destination function with:', {
+        destination: selectedDestination,
+        destinationDetails: destinationDetails
+      });
+
       const { data, error } = await supabase.functions.invoke('store-tour-destination', {
         body: {
           destination: selectedDestination,
@@ -58,8 +65,8 @@ const TourPlannerV2Simple = () => {
       });
 
       if (error) {
-        console.error('Error storing tour destination:', error);
-        toast.error('Failed to store tour destination');
+        console.error('❌ Error storing tour destination:', error);
+        toast.error(`Failed to store tour destination: ${error.message}`);
         return;
       }
 
@@ -67,14 +74,15 @@ const TourPlannerV2Simple = () => {
       setIsStored(true);
       toast.success('Tour destination stored successfully!');
     } catch (err) {
-      console.error('Error storing tour destination:', err);
-      toast.error('Failed to store tour destination');
+      console.error('❌ Exception storing tour destination:', err);
+      toast.error('Failed to store tour destination. Please try again.');
     } finally {
       setIsStoring(false);
     }
   };
 
   const handleReset = () => {
+    console.log('🔄 Resetting tour planner form');
     setSelectedDestination('');
     setDestinationDetails(null);
     setIsStored(false);
@@ -83,15 +91,17 @@ const TourPlannerV2Simple = () => {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button 
-          size="lg" 
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+        <Button
+          variant="outline"
+          size="sm"
+          className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
         >
-          <Sparkles className="mr-2 h-5 w-5" />
-          Plan Tour V2 (Simple)
+          <Sparkles className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+          <span className="lg:hidden">Plan V2</span>
+          <span className="hidden lg:inline">Plan Tour V2</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl font-bold">
             <MapPin className="h-6 w-6 text-blue-600" />
@@ -167,7 +177,14 @@ const TourPlannerV2Simple = () => {
                   disabled={!destinationDetails || isStoring}
                   className="flex-1"
                 >
-                  {isStoring ? 'Storing...' : 'Generate Tour (Store Destination)'}
+                  {isStoring ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Storing...
+                    </>
+                  ) : (
+                    'Store Destination'
+                  )}
                 </Button>
                 {destinationDetails && (
                   <Button 
