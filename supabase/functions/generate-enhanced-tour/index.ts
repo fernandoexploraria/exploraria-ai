@@ -291,16 +291,23 @@ serve(async (req) => {
       // Continue without coordinates - the tour can still be generated
     }
 
-    // Phase 4: Enhanced geocoding for landmarks
+    // Phase 4: Enhanced geocoding for landmarks with ID generation
     console.log('🏛️ Phase 4: Geocoding landmarks...');
     
     if (tourData.landmarks && Array.isArray(tourData.landmarks)) {
       console.log(`📍 Processing ${tourData.landmarks.length} landmarks for geocoding...`);
       
       const geocodingPromises = tourData.landmarks.map(async (landmark, index) => {
+        // Generate unique ID for each landmark
+        const landmarkId = `tour-landmark-${index + 1}`;
+        
         if (!landmark.name) {
           console.warn(`⚠️ Landmark ${index} has no name, skipping geocoding`);
-          return { ...landmark, coordinates: null };
+          return { 
+            ...landmark, 
+            id: landmarkId,
+            coordinates: null 
+          };
         }
         
         const query = `${landmark.name}, ${destination}`;
@@ -313,17 +320,26 @@ serve(async (req) => {
             console.log(`✅ Successfully geocoded: ${landmark.name}`);
             return {
               ...landmark,
+              id: landmarkId,
               coordinates: [geocoded.lng, geocoded.lat],
               formatted_address: geocoded.formatted_address,
               place_id: geocoded.place_id
             };
           } else {
             console.log(`❌ Could not geocode: ${landmark.name}`);
-            return { ...landmark, coordinates: null };
+            return { 
+              ...landmark, 
+              id: landmarkId,
+              coordinates: null 
+            };
           }
         } catch (error) {
           console.error(`❌ Error geocoding ${landmark.name}:`, error);
-          return { ...landmark, coordinates: null };
+          return { 
+            ...landmark, 
+            id: landmarkId,
+            coordinates: null 
+          };
         }
       });
       
