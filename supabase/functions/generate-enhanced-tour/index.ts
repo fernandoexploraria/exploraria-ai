@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
@@ -100,8 +99,8 @@ serve(async (req) => {
     console.log(`🎯 Starting enhanced tour generation for: ${destination}`);
     console.log(`📋 Preferences:`, preferences);
 
-    const googleApiKey = Deno.env.get('GOOGLE_PLACES_API_KEY');
-    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    const googleApiKey = Deno.env.get('GOOGLE_API_KEY');
+    const geminiApiKey = Deno.env.get('GOOGLE_AI_API_KEY');
 
     if (!googleApiKey || !geminiApiKey) {
       console.error('❌ Missing required API keys');
