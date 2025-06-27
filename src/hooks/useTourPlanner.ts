@@ -53,7 +53,7 @@ export const useTourPlanner = () => {
 
   // Keep backward compatibility - convert enhanced landmarks to basic landmarks for components that need it
   const plannedLandmarks: Landmark[] = tourPlan?.landmarks?.map(landmark => ({
-    id: landmark.id || `tour-landmark-${Math.random().toString(36).substr(2, 9)}`, // Fallback ID generation
+    id: landmark.id,
     name: landmark.name,
     coordinates: landmark.coordinates,
     description: landmark.description
@@ -185,9 +185,9 @@ export const useTourPlanner = () => {
         qualityMetrics: enhancedTourData.metadata?.coordinateQuality
       });
 
-      // Preserve enhanced landmarks with all metadata and ensure IDs are present
-      const enhancedLandmarks: EnhancedLandmark[] = enhancedTourData.landmarks.map((enhancedLandmark: any, index: number) => ({
-        id: enhancedLandmark.id || `tour-landmark-${index + 1}`, // Ensure ID is present
+      // Preserve enhanced landmarks with all metadata
+      const enhancedLandmarks: EnhancedLandmark[] = enhancedTourData.landmarks.map((enhancedLandmark: any) => ({
+        id: enhancedLandmark.id,
         name: enhancedLandmark.name,
         coordinates: enhancedLandmark.coordinates,
         description: enhancedLandmark.description,
@@ -204,7 +204,7 @@ export const useTourPlanner = () => {
       await animateProgress(95, 'Finalizing tour...', 'finalizing');
       await animateProgress(98, 'Updating map markers...', 'finalizing');
 
-      // Set tour landmarks for map display (simplified version with guaranteed IDs)
+      // Set tour landmarks for map display (simplified version)
       console.log('Setting enhanced tour landmarks:', enhancedLandmarks.length);
       setTourLandmarks(enhancedLandmarks.map(lm => ({
         name: lm.name,

@@ -32,37 +32,6 @@ Exploraria AI is a travel discovery application built with React, TypeScript, an
 ### Optional Integrations
 - **ElevenLabs** - Advanced voice synthesis (when configured)
 
-## Required API Keys
-
-The following API keys must be configured as Supabase secrets for the application to function properly:
-
-### Core Required Keys
-
-| Secret Name | Purpose | Where to Get |
-|-------------|---------|--------------|
-| `GOOGLE_API_KEY` | Google Places API, Geocoding API, and Street View API | [Google Cloud Console](https://console.cloud.google.com/apis/credentials) |
-| `GOOGLE_AI_API_KEY` | Google Gemini AI for chat and content generation | [Google AI Studio](https://aistudio.google.com/app/apikey) |
-| `MAPBOX_TOKEN` | Interactive maps and navigation | [Mapbox Account](https://account.mapbox.com/access-tokens/) |
-| `STRIPE_SECRET_KEY` | Payment processing and subscriptions | [Stripe Dashboard](https://dashboard.stripe.com/apikeys) |
-
-### Optional Keys
-
-| Secret Name | Purpose | Where to Get |
-|-------------|---------|--------------|
-| `ELEVENLABS_API_KEY` | Advanced voice synthesis (when configured) | [ElevenLabs](https://elevenlabs.io/app/settings/api-keys) |
-
-### Setting Up API Keys
-
-1. **In Supabase Dashboard**: Navigate to Project Settings → Edge Functions → Secrets
-2. **Add each secret** using the exact names listed above (case-sensitive)
-3. **Enable required APIs** in Google Cloud Console for `GOOGLE_API_KEY`:
-   - Places API
-   - Geocoding API
-   - Street View Static API
-   - Maps JavaScript API
-
-**Important**: Use the exact secret names as documented above. These names match the `Deno.env.get()` calls in the edge functions.
-
 ## API Integration Guidelines
 
 ### Adding New APIs
@@ -168,5 +137,3 @@ Read more: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/cus
 ## For Future AI Assistants
 
 **CRITICAL**: This project uses Google Gemini AI exclusively. Do NOT suggest or implement OpenAI integrations. When adding new APIs, update this documentation first and follow the API Integration Guidelines above.
-
-The exact API secret names used in the codebase are documented in the "Required API Keys" section above. Always use these exact names when referencing or setting up API keys.

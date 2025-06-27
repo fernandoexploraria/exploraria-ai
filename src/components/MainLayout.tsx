@@ -20,7 +20,6 @@ interface MainLayoutProps {
   user: User | null;
   onSelectLandmark: (landmark: Landmark) => void;
   onTourPlannerOpen: () => void;
-  onTourPlannerV2Open: () => void;
   onVoiceSearchOpen: () => void;
   onVoiceAssistantOpen: () => void;
   onLogoClick: () => void;
@@ -28,8 +27,6 @@ interface MainLayoutProps {
   onAuthDialogOpen: () => void;
   isTourPlannerOpen: boolean;
   onTourPlannerOpenChange: (open: boolean) => void;
-  isTourPlannerV2Open: boolean;
-  onTourPlannerV2OpenChange: (open: boolean) => void;
   onGenerateTour: (destination: string) => Promise<void>;
   onTourAuthRequired: (destination: string) => void;
   isTourLoading: boolean;
@@ -51,7 +48,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   user,
   onSelectLandmark,
   onTourPlannerOpen,
-  onTourPlannerV2Open,
   onVoiceSearchOpen,
   onVoiceAssistantOpen,
   onLogoClick,
@@ -59,8 +55,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   onAuthDialogOpen,
   isTourPlannerOpen,
   onTourPlannerOpenChange,
-  isTourPlannerV2Open,
-  onTourPlannerV2OpenChange,
   onGenerateTour,
   onTourAuthRequired,
   isTourLoading,
@@ -85,7 +79,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         allLandmarks={allLandmarks}
         onSelectLandmark={onSelectLandmark}
         onTourPlannerOpen={onTourPlannerOpen}
-        onTourPlannerV2Open={onTourPlannerV2Open}
         onVoiceSearchOpen={onVoiceSearchOpen}
         onVoiceAssistantOpen={onVoiceAssistantOpen}
         onLogoClick={onLogoClick}
@@ -110,8 +103,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       <DialogManager
         isTourPlannerOpen={isTourPlannerOpen}
         onTourPlannerOpenChange={onTourPlannerOpenChange}
-        isTourPlannerV2Open={isTourPlannerV2Open}
-        onTourPlannerV2OpenChange={onTourPlannerV2OpenChange}
         onGenerateTour={onGenerateTour}
         onTourAuthRequired={onTourAuthRequired}
         isTourLoading={isTourLoading}
