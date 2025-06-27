@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, MapPin, Building2, TreePine, Camera, Globe } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -15,8 +14,20 @@ interface PlacePrediction {
   types: string[];
 }
 
+interface DestinationDetails {
+  placeId: string;
+  mainText: string;
+  secondaryText: string;
+  types: string[];
+  formattedAddress: string;
+  location?: {
+    latitude: number;
+    longitude: number;
+  };
+}
+
 interface EnhancedDestinationSelectorProps {
-  onDestinationSelect: (destination: string, destinationDetails: any) => void;
+  onDestinationSelect: (destination: string, destinationDetails: DestinationDetails) => void;
   placeholder?: string;
   className?: string;
 }
@@ -118,7 +129,7 @@ const EnhancedDestinationSelector: React.FC<EnhancedDestinationSelectorProps> = 
     setPredictions([]);
 
     // Prepare destination details for the tour generation
-    const destinationDetails = {
+    const destinationDetails: DestinationDetails = {
       placeId: prediction.placeId,
       mainText: prediction.mainText,
       secondaryText: prediction.secondaryText,
@@ -179,7 +190,6 @@ const EnhancedDestinationSelector: React.FC<EnhancedDestinationSelectorProps> = 
     }
   };
 
-  // Close suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (inputRef.current && !inputRef.current.contains(event.target as Node)) {
