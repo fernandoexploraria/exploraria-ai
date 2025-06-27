@@ -1,22 +1,99 @@
-# Welcome to your Lovable project
 
-## Project info
+# Exploraria AI - Travel Discovery App
 
 **URL**: https://lovable.dev/projects/1349ca1f-6be1-4b1d-9873-44f9d88cdaf0
 
-## How can I edit this code?
+## Architecture Overview
 
-There are several ways of editing your application.
+Exploraria AI is a travel discovery application built with React, TypeScript, and Supabase. The app uses AI-powered landmark recognition, real-time location tracking, and immersive street view experiences to help users explore and discover places around the world.
+
+## ⚠️ IMPORTANT: API Policy
+
+**NO OPENAI USAGE**: This project explicitly does NOT use OpenAI APIs. All AI functionality is powered by Google's Gemini AI. Any future development should maintain this policy.
+
+## Current API Integrations
+
+### Core AI & Language Services
+- **Google Gemini AI** - Primary AI engine for chat, landmark analysis, and content generation
+- **Google Cloud Text-to-Speech** - Audio narration for landmarks and memories
+- **Google Speech-to-Text** - Voice input processing
+
+### Location & Mapping Services
+- **Google Places API** - Location search, nearby places, and place details
+- **Google Street View API** - Street-level imagery and panoramic views
+- **Mapbox** - Interactive maps and navigation
+
+### Payment & Subscription
+- **Stripe** - Payment processing and subscription management
+
+### Backend & Database
+- **Supabase** - Authentication, database, real-time subscriptions, and edge functions
+
+### Optional Integrations
+- **ElevenLabs** - Advanced voice synthesis (when configured)
+
+## API Integration Guidelines
+
+### Adding New APIs
+
+When adding new API integrations, follow these steps:
+
+1. **Update this documentation FIRST** - Add the new API to the "Current API Integrations" section
+2. **Add environment variables** - Use descriptive names and document them
+3. **Create edge functions** - Place API calls in Supabase edge functions for security
+4. **Update types** - Add TypeScript definitions for new API responses
+5. **Add error handling** - Implement proper error boundaries and fallbacks
+
+### API Key Management
+
+All API keys are stored securely in Supabase edge function secrets. Never expose API keys in client-side code.
+
+## Project Structure
+
+### Frontend (React/TypeScript)
+- `src/components/` - React components organized by feature
+- `src/hooks/` - Custom React hooks for API integration and state management
+- `src/pages/` - Main application pages
+- `src/contexts/` - React context providers
+- `src/integrations/` - Third-party service integrations
+
+### Backend (Supabase Edge Functions)
+- `supabase/functions/` - Serverless functions for API integrations
+- `supabase/migrations/` - Database schema migrations
+
+## Key Features
+
+- **AI-Powered Landmark Recognition** - Using Google Gemini Vision API
+- **Real-time Location Tracking** - GPS-based proximity alerts
+- **Immersive Street View** - Google Street View integration
+- **Voice Interactions** - Speech-to-text and text-to-speech
+- **Tour Planning** - AI-generated personalized tours
+- **Photo Management** - Enhanced photo carousel with metadata
+- **Subscription Management** - Stripe-powered premium features
+
+## Development Guidelines
+
+### Code Organization
+- Keep components small and focused (under 50 lines when possible)
+- Use custom hooks for complex logic
+- Implement proper TypeScript typing
+- Follow React best practices
+
+### API Integration Standards
+- All external API calls must go through Supabase edge functions
+- Implement proper error handling and loading states
+- Use React Query for data fetching and caching
+- Add console logging for debugging API interactions
+
+## How to Edit This Code
+
+There are several ways of editing your application:
 
 **Use Lovable**
-
 Simply visit the [Lovable Project](https://lovable.dev/projects/1349ca1f-6be1-4b1d-9873-44f9d88cdaf0) and start prompting.
 
-Changes made via Lovable will be committed automatically to this repo.
-
 **Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+If you want to work locally using your own IDE, you can clone this repo and push changes.
 
 The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 
@@ -36,38 +113,27 @@ npm i
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
+## Technologies Used
 
 This project is built with:
+- **Frontend**: Vite, TypeScript, React, Tailwind CSS, shadcn-ui
+- **Backend**: Supabase (PostgreSQL, Edge Functions, Authentication)
+- **AI**: Google Gemini AI (NO OpenAI)
+- **Maps**: Google Maps API, Mapbox
+- **Payments**: Stripe
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Deployment
 
-## How can I deploy this project?
+Simply open [Lovable](https://lovable.dev/projects/1349ca1f-6be1-4b1d-9873-44f9d88cdaf0) and click on Share → Publish.
 
-Simply open [Lovable](https://lovable.dev/projects/1349ca1f-6be1-4b1d-9873-44f9d88cdaf0) and click on Share -> Publish.
+## Custom Domain
 
-## Can I connect a custom domain to my Lovable project?
+You can connect a custom domain by navigating to Project > Settings > Domains and clicking Connect Domain.
 
-Yes, you can!
+Read more: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+---
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## For Future AI Assistants
+
+**CRITICAL**: This project uses Google Gemini AI exclusively. Do NOT suggest or implement OpenAI integrations. When adding new APIs, update this documentation first and follow the API Integration Guidelines above.

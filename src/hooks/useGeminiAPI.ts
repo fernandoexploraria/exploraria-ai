@@ -1,7 +1,14 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "sonner";
+
+/**
+ * Google Gemini AI Integration Hook
+ * 
+ * ARCHITECTURE NOTE: This is our primary AI service.
+ * See README.md for API integration guidelines.
+ * This project explicitly does NOT use OpenAI - use Gemini AI for all AI features.
+ */
 
 export const useGeminiAPI = () => {
   const [isLoading, setIsLoading] = useState(false);
