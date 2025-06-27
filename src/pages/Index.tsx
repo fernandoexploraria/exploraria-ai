@@ -26,6 +26,8 @@ const Index: React.FC = () => {
     setSelectedLandmark,
     isTourPlannerOpen,
     setIsTourPlannerOpen,
+    isTourPlannerV2Open,
+    setIsTourPlannerV2Open,
     isInteractionHistoryOpen,
     setIsInteractionHistoryOpen,
     isAuthDialogOpen,
@@ -143,6 +145,7 @@ const Index: React.FC = () => {
         user={user}
         onSelectLandmark={handleSelectLandmark}
         onTourPlannerOpen={() => setIsTourPlannerOpen(true)}
+        onTourPlannerV2Open={() => setIsTourPlannerV2Open(true)}
         onVoiceSearchOpen={handleInteractionHistoryOpen}
         onVoiceAssistantOpen={handleNewTourAssistantOpen}
         onLogoClick={handleLogoClick}
@@ -150,6 +153,8 @@ const Index: React.FC = () => {
         onAuthDialogOpen={() => setIsAuthDialogOpen(true)}
         isTourPlannerOpen={isTourPlannerOpen}
         onTourPlannerOpenChange={setIsTourPlannerOpen}
+        isTourPlannerV2Open={isTourPlannerV2Open}
+        onTourPlannerV2OpenChange={setIsTourPlannerV2Open}
         onGenerateTour={handleGenerateTour}
         onTourAuthRequired={handleTourAuthRequired}
         isTourLoading={isTourLoading}

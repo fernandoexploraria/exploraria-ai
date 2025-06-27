@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube } from 'lucide-react';
@@ -8,7 +7,6 @@ import FreeTourCounter from '@/components/FreeTourCounter';
 import ImageAnalysis from '@/components/ImageAnalysis';
 import DebugWindow from '@/components/DebugWindow';
 import ConnectionStatus from '@/components/ConnectionStatus';
-import TourPlannerV2Simple from '@/components/TourPlannerV2Simple';
 import { Landmark } from '@/data/landmarks';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useConnectionMonitor } from '@/hooks/useConnectionMonitor';
@@ -19,6 +17,7 @@ interface TopControlsProps {
   allLandmarks: Landmark[];
   onSelectLandmark: (landmark: Landmark) => void;
   onTourPlannerOpen: () => void;
+  onTourPlannerV2Open: () => void;
   onVoiceSearchOpen: () => void;
   onVoiceAssistantOpen: () => void;
   onLogoClick: () => void;
@@ -30,6 +29,7 @@ const TopControls: React.FC<TopControlsProps> = ({
   allLandmarks,
   onSelectLandmark,
   onTourPlannerOpen,
+  onTourPlannerV2Open,
   onVoiceSearchOpen,
   onVoiceAssistantOpen,
   onLogoClick,
@@ -135,8 +135,16 @@ const TopControls: React.FC<TopControlsProps> = ({
               <span className="hidden lg:inline">Plan a Tour</span>
             </Button>
 
-            {/* Tour Planner V2 Simple - Now embedded directly */}
-            <TourPlannerV2Simple />
+            <Button
+              variant="outline"
+              size="sm"
+              className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
+              onClick={onTourPlannerV2Open}
+            >
+              <Sparkles className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+              <span className="lg:hidden">Plan Tour v2</span>
+              <span className="hidden lg:inline">Plan a Tour v2</span>
+            </Button>
             
             {plannedLandmarks.length > 0 && (
               <Button

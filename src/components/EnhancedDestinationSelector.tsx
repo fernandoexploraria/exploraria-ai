@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useAuth } from '@/components/AuthProvider';
 
 interface PlacePrediction {
   placeId: string;
@@ -16,20 +15,8 @@ interface PlacePrediction {
   types: string[];
 }
 
-interface DestinationDetails {
-  placeId: string;
-  mainText: string;
-  secondaryText: string;
-  types: string[];
-  formattedAddress: string;
-  location?: {
-    latitude: number;
-    longitude: number;
-  };
-}
-
 interface EnhancedDestinationSelectorProps {
-  onDestinationSelect: (destination: string, destinationDetails: DestinationDetails) => void;
+  onDestinationSelect: (destination: string, destinationDetails: any) => void;
   placeholder?: string;
   className?: string;
 }
@@ -44,18 +31,9 @@ const EnhancedDestinationSelector: React.FC<EnhancedDestinationSelectorProps> = 
   const [isLoading, setIsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  const [error, setError] = useState<string | null>(null);
   const sessionToken = useRef(Math.random().toString(36).substring(2, 15));
   const debounceRef = useRef<NodeJS.Timeout>();
   const inputRef = useRef<HTMLInputElement>(null);
-  const { user } = useAuth();
-
-  useEffect(() => {
-    console.log('🔐 Authentication state changed. User:', user ? 'authenticated' : 'not authenticated');
-    if (user) {
-      console.log('🔐 User ID:', user.id);
-    }
-  }, [user]);
 
   const getPlaceTypeIcon = (types: string[]) => {
     if (types.includes('tourist_attraction') || types.includes('museum')) {
@@ -85,62 +63,32 @@ const EnhancedDestinationSelector: React.FC<EnhancedDestinationSelectorProps> = 
 
   const fetchPredictions = async (input: string) => {
     if (input.length < 2) {
-      console.log('🔍 Input too short, clearing predictions');
       setPredictions([]);
-      setError(null);
       return;
     }
 
-    console.log('🔍 Starting autocomplete search for:', input);
-    console.log('🔐 Current authentication state:', user ? 'authenticated' : 'not authenticated');
     setIsLoading(true);
-    setError(null);
-    
     try {
-      const requestPayload = {
-        input: input.trim(),
-        sessionToken: sessionToken.current
-      };
-
-      console.log('🔍 Calling google-places-autocomplete with:', requestPayload);
-      console.log('🔐 User authenticated:', !!user);
-
-      const startTime = Date.now();
       const { data, error } = await supabase.functions.invoke('google-places-autocomplete', {
-        body: requestPayload
+        body: {
+          input: input.trim(),
+          sessionToken: sessionToken.current
+        }
       });
-      const endTime = Date.now();
-
-      console.log('🔍 Response received in', endTime - startTime, 'ms');
-      console.log('🔍 Response from google-places-autocomplete:', { data, error });
 
       if (error) {
-        console.error('❌ Places autocomplete error:', error);
-        console.error('❌ Error details:', JSON.stringify(error, null, 2));
-        setError(`API Error: ${error.message}`);
-        toast.error(`Failed to fetch location suggestions: ${error.message}`);
-        setPredictions([]);
+        console.error('Places autocomplete error:', error);
+        toast.error('Failed to fetch location suggestions');
         return;
       }
 
       if (data?.predictions) {
-        console.log('✅ Received predictions:', data.predictions.length, 'items');
-        console.log('✅ First prediction:', data.predictions[0]);
         setPredictions(data.predictions);
         setShowSuggestions(true);
-        setError(null);
-      } else {
-        console.warn('⚠️ No predictions in response:', data);
-        setPredictions([]);
-        setError('No suggestions found');
       }
     } catch (err) {
-      console.error('❌ Exception in fetchPredictions:', err);
-      console.error('❌ Exception details:', JSON.stringify(err, null, 2));
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      setError(`Network Error: ${errorMessage}`);
-      toast.error(`Failed to fetch location suggestions: ${errorMessage}`);
-      setPredictions([]);
+      console.error('Error fetching predictions:', err);
+      toast.error('Failed to fetch location suggestions');
     } finally {
       setIsLoading(false);
     }
@@ -148,11 +96,8 @@ const EnhancedDestinationSelector: React.FC<EnhancedDestinationSelectorProps> = 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    console.log('🔍 Input changed to:', value);
-    console.log('🔐 Current user state:', user ? 'authenticated' : 'not authenticated');
     setQuery(value);
     setSelectedIndex(-1);
-    setError(null);
 
     // Clear previous debounce
     if (debounceRef.current) {
@@ -160,24 +105,20 @@ const EnhancedDestinationSelector: React.FC<EnhancedDestinationSelectorProps> = 
     }
 
     // Debounce the API call
-    console.log('🔍 Setting up debounced API call...');
     debounceRef.current = setTimeout(() => {
-      console.log('🔍 Executing debounced API call for:', value);
-      console.log('🔐 Auth state at execution:', user ? 'authenticated' : 'not authenticated');
       fetchPredictions(value);
     }, 300);
   };
 
   const handlePredictionSelect = async (prediction: PlacePrediction) => {
-    console.log('🎯 Selected prediction:', prediction);
+    console.log('Selected prediction:', prediction);
     
     setQuery(prediction.mainText);
     setShowSuggestions(false);
     setPredictions([]);
-    setError(null);
 
     // Prepare destination details for the tour generation
-    const destinationDetails: DestinationDetails = {
+    const destinationDetails = {
       placeId: prediction.placeId,
       mainText: prediction.mainText,
       secondaryText: prediction.secondaryText,
@@ -187,7 +128,6 @@ const EnhancedDestinationSelector: React.FC<EnhancedDestinationSelectorProps> = 
 
     // Try to get more detailed place information if needed
     try {
-      console.log('🔍 Fetching detailed place information for:', prediction.placeId);
       const { data: placeDetails } = await supabase.functions.invoke('google-places-details', {
         body: {
           placeId: prediction.placeId,
@@ -196,20 +136,18 @@ const EnhancedDestinationSelector: React.FC<EnhancedDestinationSelectorProps> = 
       });
 
       if (placeDetails?.result?.geometry?.location) {
-        console.log('✅ Got place coordinates:', placeDetails.result.geometry.location);
         destinationDetails.location = {
           latitude: placeDetails.result.geometry.location.lat,
           longitude: placeDetails.result.geometry.location.lng
         };
       }
     } catch (err) {
-      console.warn('⚠️ Could not fetch additional place details:', err);
+      console.warn('Could not fetch additional place details:', err);
       // Continue without location details
     }
 
     // Generate new session token for next search
     sessionToken.current = Math.random().toString(36).substring(2, 15);
-    console.log('🔄 Generated new session token:', sessionToken.current);
 
     onDestinationSelect(prediction.mainText, destinationDetails);
   };
@@ -241,6 +179,7 @@ const EnhancedDestinationSelector: React.FC<EnhancedDestinationSelectorProps> = 
     }
   };
 
+  // Close suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (inputRef.current && !inputRef.current.contains(event.target as Node)) {
@@ -264,8 +203,6 @@ const EnhancedDestinationSelector: React.FC<EnhancedDestinationSelectorProps> = 
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           onFocus={() => {
-            console.log('🔍 Input focused, showing suggestions if available');
-            console.log('🔐 Auth state on focus:', user ? 'authenticated' : 'not authenticated');
             if (predictions.length > 0) {
               setShowSuggestions(true);
             }
@@ -280,16 +217,6 @@ const EnhancedDestinationSelector: React.FC<EnhancedDestinationSelectorProps> = 
           </div>
         )}
       </div>
-
-      {error && (
-        <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded text-red-600 text-sm">
-          <div className="font-medium">Error occurred:</div>
-          <div>{error}</div>
-          <div className="text-xs mt-1 text-red-500">
-            Authentication status: {user ? 'Authenticated' : 'Not authenticated'}
-          </div>
-        </div>
-      )}
 
       {showSuggestions && predictions.length > 0 && (
         <Card className="absolute top-full left-0 right-0 mt-1 z-50 max-h-96 overflow-y-auto shadow-lg">
@@ -325,17 +252,6 @@ const EnhancedDestinationSelector: React.FC<EnhancedDestinationSelectorProps> = 
                 </div>
               </Button>
             ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {showSuggestions && !isLoading && predictions.length === 0 && query.length >= 2 && !error && (
-        <Card className="absolute top-full left-0 right-0 mt-1 z-50 shadow-lg">
-          <CardContent className="p-3">
-            <p className="text-sm text-gray-500">No destinations found</p>
-            <p className="text-xs text-gray-400 mt-1">
-              Auth: {user ? 'Authenticated' : 'Not authenticated'}
-            </p>
           </CardContent>
         </Card>
       )}
