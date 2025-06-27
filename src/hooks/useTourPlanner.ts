@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Landmark, EnhancedLandmark } from '@/data/landmarks';
 import { setTourLandmarks, clearTourMarkers } from '@/data/tourLandmarks';
@@ -318,10 +317,6 @@ export const useTourPlanner = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const updateProgress = (update: Partial<ProgressState>) => {
-    setProgressState(prev => ({ ...prev, ...update }));
   };
 
   return { 
