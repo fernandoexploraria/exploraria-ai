@@ -333,12 +333,16 @@ serve(async (req) => {
       console.log(`📊 Geocoding complete: ${geocodedCount}/${tourData.landmarks.length} landmarks geocoded`);
     }
 
-    // Phase 5: Prepare final response
+    // Phase 5: Prepare final response with systemPrompt
     console.log('📦 Phase 5: Preparing final tour package...');
+    
+    // Generate a comprehensive system prompt for the tour
+    const systemPrompt = `Explore ${tourData.tour_title || `the wonders of ${destination}`}: ${tourData.tour_description || `An amazing journey through the highlights of ${destination}`}. This ${tourData.total_duration || '2-3 day'} tour includes ${tourData.landmarks?.length || 0} carefully selected landmarks and attractions. Best time to visit: ${tourData.best_time_to_visit || 'Year-round'}. Each location has been chosen for its cultural significance, historical importance, and unique experiences it offers.`;
     
     const enhancedTour = {
       ...tourData,
       destination,
+      systemPrompt,
       destination_coordinates: destinationCoords,
       geographic_context: {
         city: cityInfo,
