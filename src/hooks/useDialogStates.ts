@@ -7,6 +7,7 @@ export const useDialogStates = () => {
   const [isInteractionHistoryOpen, setIsInteractionHistoryOpen] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [isNewTourAssistantOpen, setIsNewTourAssistantOpen] = useState(false);
+  const [isIntelligentTourOpen, setIsIntelligentTourOpen] = useState(false);
 
   return {
     selectedLandmark,
@@ -19,5 +20,7 @@ export const useDialogStates = () => {
     setIsAuthDialogOpen,
     isNewTourAssistantOpen,
     setIsNewTourAssistantOpen,
+    isIntelligentTourOpen,
+    setIsIntelligentTourOpen,
   };
 };

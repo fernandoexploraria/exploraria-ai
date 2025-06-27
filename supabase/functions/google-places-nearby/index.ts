@@ -7,6 +7,58 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
+// 28 specific landmark types for intelligent tour generation
+const LANDMARK_TYPES = [
+  'tourist_attraction',
+  'museum',
+  'park',
+  'amusement_park',
+  'aquarium',
+  'art_gallery',
+  'zoo',
+  'church',
+  'hindu_temple',
+  'mosque',
+  'synagogue',
+  'cemetery',
+  'city_hall',
+  'courthouse',
+  'embassy',
+  'fire_station',
+  'police',
+  'post_office',
+  'school',
+  'university',
+  'library',
+  'hospital',
+  'pharmacy',
+  'bank',
+  'atm',
+  'gas_station',
+  'parking',
+  'subway_station'
+];
+
+// Dynamic radius logic based on destination type
+const getRadiusForDestinationType = (types: string[] = []) => {
+  if (types.includes('locality') || types.includes('administrative_area_level_1')) {
+    return 15000; // 15km for locations
+  }
+  if (types.includes('sublocality') || types.includes('neighborhood')) {
+    return 8000; // 8km for sublocations
+  }
+  if (types.includes('tourist_attraction')) {
+    return 5000; // 5km for tourist attractions
+  }
+  if (types.includes('park')) {
+    return 5000; // 5km for parks
+  }
+  if (types.includes('museum')) {
+    return 2000; // 2km for museums
+  }
+  return 10000; // 10km default
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { 
@@ -16,7 +68,7 @@ serve(async (req) => {
   }
 
   try {
-    const { coordinates, radius = 500, type = 'restaurant|cafe|tourist_attraction' } = await req.json()
+    const { coordinates, radius, type, destinationTypes } = await req.json()
     const googleApiKey = Deno.env.get('GOOGLE_API_KEY')
     
     if (!googleApiKey) {
@@ -27,47 +79,36 @@ serve(async (req) => {
       throw new Error('Valid coordinates [longitude, latitude] are required')
     }
 
-    // Convert legacy pipe-separated types to array format for new API
-    const typeArray = type.split('|').map((t: string) => t.trim())
+    // Use dynamic radius based on destination type if provided
+    const searchRadius = radius || getRadiusForDestinationType(destinationTypes)
     
-    // Map some common legacy types to new API types if needed
-    const mappedTypes = typeArray.map((t: string) => {
-      switch (t) {
-        case 'tourist_attraction':
-          return 'tourist_attraction'
-        case 'restaurant':
-          return 'restaurant'
-        case 'cafe':
-          return 'cafe'
-        case 'point_of_interest':
-          return 'point_of_interest'
-        default:
-          return t
-      }
+    console.log('Searching nearby landmarks:', { 
+      coordinates, 
+      radius: searchRadius, 
+      destinationTypes,
+      landmarkTypes: LANDMARK_TYPES.length 
     })
-
+    
     // Use new Places API v1 searchNearby endpoint
     const searchUrl = 'https://places.googleapis.com/v1/places:searchNearby'
-    
-    console.log('Searching nearby places:', { coordinates, radius, types: mappedTypes })
     
     const response = await fetch(searchUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': googleApiKey,
-        'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.userRatingCount,places.priceLevel,places.types,places.formattedAddress,places.regularOpeningHours,places.photos,places.location'
+        'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.userRatingCount,places.priceLevel,places.types,places.formattedAddress,places.regularOpeningHours,places.photos,places.location,places.editorialSummary,places.websiteUri'
       },
       body: JSON.stringify({
-        includedTypes: mappedTypes,
-        maxResultCount: 10,
+        includedTypes: LANDMARK_TYPES,
+        maxResultCount: 20,
         locationRestriction: {
           circle: {
             center: {
               latitude: coordinates[1],  // latitude
               longitude: coordinates[0]  // longitude
             },
-            radius: radius
+            radius: searchRadius
           }
         }
       })
@@ -82,7 +123,7 @@ serve(async (req) => {
 
     if (data.places) {
       // Map new API response to legacy format for backward compatibility
-      const nearbyPlaces = data.places.slice(0, 10).map((place: any) => ({
+      const nearbyPlaces = data.places.slice(0, 20).map((place: any) => ({
         placeId: place.id,
         name: place.displayName?.text || place.displayName,
         rating: place.rating,
@@ -93,21 +134,27 @@ serve(async (req) => {
         openNow: place.regularOpeningHours?.openNow,
         photoReference: place.photos?.[0]?.name,
         photoUrl: place.photos?.[0] 
-          ? `https://places.googleapis.com/v1/${place.photos[0].name}/media?maxWidthPx=200&key=${googleApiKey}`
+          ? `https://places.googleapis.com/v1/${place.photos[0].name}/media?maxWidthPx=400&key=${googleApiKey}`
           : null,
         geometry: {
           location: {
             lat: place.location?.latitude || 0,
             lng: place.location?.longitude || 0
           }
-        }
+        },
+        // Enhanced fields for intelligent tour generation
+        editorialSummary: place.editorialSummary?.text,
+        website: place.websiteUri,
+        searchRadius: searchRadius
       }))
+
+      console.log(`Found ${nearbyPlaces.length} landmarks within ${searchRadius}m`)
 
       return new Response(
         JSON.stringify({ 
           places: nearbyPlaces, 
           total: data.places.length,
-          nextPageToken: data.nextPageToken, // New API may have different pagination
+          searchRadius: searchRadius,
           success: true 
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -115,7 +162,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ places: [], total: 0, success: true }),
+      JSON.stringify({ places: [], total: 0, searchRadius: searchRadius, success: true }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 

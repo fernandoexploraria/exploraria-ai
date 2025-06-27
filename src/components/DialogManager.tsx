@@ -3,6 +3,7 @@ import React from 'react';
 import TourPlannerDialog from './TourPlannerDialog';
 import InteractionCarousel from './InteractionCarousel';
 import AuthDialog from './AuthDialog';
+import IntelligentTourDialog from './IntelligentTourDialog';
 import { ProgressState } from '@/hooks/useTourPlanner';
 
 interface DialogManagerProps {
@@ -17,6 +18,10 @@ interface DialogManagerProps {
   isAuthDialogOpen: boolean;
   onAuthDialogOpenChange: (open: boolean) => void;
   onLocationSelect?: (coordinates: [number, number]) => void;
+  isIntelligentTourOpen: boolean;
+  onIntelligentTourOpenChange: (open: boolean) => void;
+  onTourGenerated?: (landmarks: any[]) => void;
+  user?: any;
 }
 
 const DialogManager: React.FC<DialogManagerProps> = ({
@@ -31,6 +36,10 @@ const DialogManager: React.FC<DialogManagerProps> = ({
   isAuthDialogOpen,
   onAuthDialogOpenChange,
   onLocationSelect,
+  isIntelligentTourOpen,
+  onIntelligentTourOpenChange,
+  onTourGenerated,
+  user,
 }) => {
   return (
     <>
@@ -52,6 +61,13 @@ const DialogManager: React.FC<DialogManagerProps> = ({
       <AuthDialog
         open={isAuthDialogOpen}
         onOpenChange={onAuthDialogOpenChange}
+      />
+
+      <IntelligentTourDialog
+        open={isIntelligentTourOpen}
+        onOpenChange={onIntelligentTourOpenChange}
+        onTourGenerated={onTourGenerated || (() => {})}
+        user={user}
       />
     </>
   );

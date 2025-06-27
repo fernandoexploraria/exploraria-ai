@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube } from 'lucide-react';
@@ -13,6 +12,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useConnectionMonitor } from '@/hooks/useConnectionMonitor';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import IntelligentTourDialog from './IntelligentTourDialog';
 
 interface TopControlsProps {
   allLandmarks: Landmark[];
@@ -39,6 +39,7 @@ const TopControls: React.FC<TopControlsProps> = ({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDebugDrawerOpen, setIsDebugDrawerOpen] = useState(false);
   const [isTestingCors, setIsTestingCors] = useState(false);
+  const [isIntelligentTourOpen, setIsIntelligentTourOpen] = useState(false);
   const { toast } = useToast();
   
   // Initialize connection monitoring
@@ -83,121 +84,155 @@ const TopControls: React.FC<TopControlsProps> = ({
     }
   };
 
+  const handleTourGenerated = (landmarks: any[]) => {
+    // Handle the generated tour landmarks
+    landmarks.forEach(landmark => {
+      onSelectLandmark(landmark);
+    });
+    setIsIntelligentTourOpen(false);
+    toast({
+      title: "Tour Generated!",
+      description: `${landmarks.length} amazing places added to your map`,
+    });
+  };
+
   return (
-    <div className="absolute top-4 left-4 z-10">
-      {/* Vertical layout for all screen sizes */}
-      <div className="flex flex-col items-start gap-2 max-w-[calc(100vw-120px)]">
-        {/* Logo */}
-        <img 
-          src="/lovable-uploads/ac9cbebd-b083-4d3d-a85e-782e03045422.png" 
-          alt="Exploraria Logo" 
-          className="h-16 w-auto bg-yellow-400 rounded-lg p-1 flex-shrink-0 lg:h-20 cursor-pointer hover:bg-yellow-300 transition-colors"
-          onClick={onLogoClick}
-        />
-        
-        {/* Search Control */}
-        <SearchControl landmarks={allLandmarks} onSelectLandmark={onSelectLandmark} />
-        
-        {/* Connection Status - Show compact version when collapsed or if there are issues */}
-        {(isCollapsed || !connectionHealth.isHealthy) && (
-          <ConnectionStatus compact className="w-full" />
-        )}
-        
-        {/* Collapse Toggle Button */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
-          onClick={toggleCollapse}
-        >
-          <Menu className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
-          <span className="lg:hidden">Menu</span>
-          <span className="hidden lg:inline">Menu</span>
-          {isCollapsed ? (
-            <ChevronDown className="ml-auto h-3 w-3 lg:h-4 lg:w-4" />
-          ) : (
-            <ChevronUp className="ml-auto h-3 w-3 lg:h-4 lg:w-4" />
+    <>
+      <div className="absolute top-4 left-4 z-10">
+        {/* Vertical layout for all screen sizes */}
+        <div className="flex flex-col items-start gap-2 max-w-[calc(100vw-120px)]">
+          {/* Logo */}
+          <img 
+            src="/lovable-uploads/ac9cbebd-b083-4d3d-a85e-782e03045422.png" 
+            alt="Exploraria Logo" 
+            className="h-16 w-auto bg-yellow-400 rounded-lg p-1 flex-shrink-0 lg:h-20 cursor-pointer hover:bg-yellow-300 transition-colors"
+            onClick={onLogoClick}
+          />
+          
+          {/* Search Control */}
+          <SearchControl landmarks={allLandmarks} onSelectLandmark={onSelectLandmark} />
+          
+          {/* Connection Status - Show compact version when collapsed or if there are issues */}
+          {(isCollapsed || !connectionHealth.isHealthy) && (
+            <ConnectionStatus compact className="w-full" />
           )}
-        </Button>
-        
-        {/* Action Buttons - Collapsible */}
-        {!isCollapsed && (
-          <div className="flex flex-col gap-1 w-full animate-fade-in">
-            <Button
-              variant="outline"
-              size="sm"
-              className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
-              onClick={onTourPlannerOpen}
-            >
-              <Sparkles className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
-              <span className="lg:hidden">Plan Tour</span>
-              <span className="hidden lg:inline">Plan a Tour</span>
-            </Button>
-            
-            {plannedLandmarks.length > 0 && (
+          
+          {/* Collapse Toggle Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
+            onClick={toggleCollapse}
+          >
+            <Menu className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+            <span className="lg:hidden">Menu</span>
+            <span className="hidden lg:inline">Menu</span>
+            {isCollapsed ? (
+              <ChevronDown className="ml-auto h-3 w-3 lg:h-4 lg:w-4" />
+            ) : (
+              <ChevronUp className="ml-auto h-3 w-3 lg:h-4 lg:w-4" />
+            )}
+          </Button>
+          
+          {/* Action Buttons - Collapsible */}
+          {!isCollapsed && (
+            <div className="flex flex-col gap-1 w-full animate-fade-in">
+              {/* Smart Tour Button - New intelligent tour generator */}
               <Button
                 variant="outline"
                 size="sm"
-                className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
-                onClick={onVoiceAssistantOpen}
+                className="bg-gradient-to-r from-yellow-400/80 to-orange-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 border-yellow-300 hover:from-yellow-300/80 hover:to-orange-300/80"
+                onClick={() => setIsIntelligentTourOpen(true)}
               >
                 <Sparkles className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
-                Tour Guide
+                <span className="lg:hidden">Smart Tour</span>
+                <span className="hidden lg:inline">Smart Tour</span>
               </Button>
-            )}
-            
-            {user && (
+              
               <Button
                 variant="outline"
                 size="sm"
                 className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
-                onClick={onVoiceSearchOpen}
+                onClick={onTourPlannerOpen}
               >
-                <Search className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
-                Travel Log
+                <Sparkles className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+                <span className="lg:hidden">Plan Tour</span>
+                <span className="hidden lg:inline">Plan a Tour</span>
               </Button>
-            )}
-
-            {/* Image Analysis Button */}
-            <ImageAnalysis plannedLandmarks={plannedLandmarks} />
-            
-            {/* Connection Status - Full version when expanded */}
-            <ConnectionStatus showDetails className="w-full" />
-            
-            {/* Test CORS Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
-              onClick={handleTestCors}
-              disabled={isTestingCors}
-            >
-              <TestTube className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
-              {isTestingCors ? 'Testing...' : 'Test CORS'}
-            </Button>
-            
-            {/* Debug Button wrapped in Drawer */}
-            <Drawer open={isDebugDrawerOpen} onOpenChange={setIsDebugDrawerOpen}>
-              <DrawerTrigger asChild>
+              
+              {plannedLandmarks.length > 0 && (
                 <Button
                   variant="outline"
                   size="sm"
                   className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
+                  onClick={onVoiceAssistantOpen}
                 >
-                  <List className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
-                  Debug
+                  <Sparkles className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+                  Tour Guide
                 </Button>
-              </DrawerTrigger>
-              <DrawerContent className="max-h-[85vh]">
-                <DebugWindow isVisible={true} onClose={() => setIsDebugDrawerOpen(false)} />
-              </DrawerContent>
-            </Drawer>
-            
-            {user && <FreeTourCounter />}
-          </div>
-        )}
+              )}
+              
+              {user && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
+                  onClick={onVoiceSearchOpen}
+                >
+                  <Search className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+                  Travel Log
+                </Button>
+              )}
+
+              {/* Image Analysis Button */}
+              <ImageAnalysis plannedLandmarks={plannedLandmarks} />
+              
+              {/* Connection Status - Full version when expanded */}
+              <ConnectionStatus showDetails className="w-full" />
+              
+              {/* Test CORS Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
+                onClick={handleTestCors}
+                disabled={isTestingCors}
+              >
+                <TestTube className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+                {isTestingCors ? 'Testing...' : 'Test CORS'}
+              </Button>
+              
+              {/* Debug Button wrapped in Drawer */}
+              <Drawer open={isDebugDrawerOpen} onOpenChange={setIsDebugDrawerOpen}>
+                <DrawerTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
+                  >
+                    <List className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+                    Debug
+                  </Button>
+                </DrawerTrigger>
+                <DrawerContent className="max-h-[85vh]">
+                  <DebugWindow isVisible={true} onClose={() => setIsDebugDrawerOpen(false)} />
+                </DrawerContent>
+              </Drawer>
+              
+              {user && <FreeTourCounter />}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+
+      {/* Intelligent Tour Dialog */}
+      <IntelligentTourDialog
+        open={isIntelligentTourOpen}
+        onOpenChange={setIsIntelligentTourOpen}
+        onTourGenerated={handleTourGenerated}
+        user={user}
+      />
+    </>
   );
 };
 

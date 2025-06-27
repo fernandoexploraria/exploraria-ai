@@ -26,14 +26,14 @@ serve(async (req) => {
     let placeDetails: any = null
     
     if (placeId) {
-      // Use new Places API v1 for place details
+      // Use new Places API v1 for place details with expanded field mask
       const detailsUrl = `https://places.googleapis.com/v1/places/${placeId}`
       
       const detailsResponse = await fetch(detailsUrl, {
         method: 'GET',
         headers: {
           'X-Goog-Api-Key': googleApiKey,
-          'X-Goog-FieldMask': 'displayName,rating,nationalPhoneNumber,formattedAddress,regularOpeningHours,websiteUri,photos,priceLevel,userRatingCount'
+          'X-Goog-FieldMask': 'displayName,rating,nationalPhoneNumber,formattedAddress,regularOpeningHours,websiteUri,photos,priceLevel,userRatingCount,viewport,editorialSummary,reviews,addressComponents,types,location'
         }
       })
       
@@ -43,7 +43,7 @@ serve(async (req) => {
         console.error('Places API details error:', await detailsResponse.text())
       }
     } else if (landmarkName && coordinates) {
-      // Use new Places API v1 for nearby search
+      // Use new Places API v1 for nearby search with expanded field mask
       const searchUrl = 'https://places.googleapis.com/v1/places:searchNearby'
       
       const searchResponse = await fetch(searchUrl, {
@@ -51,7 +51,7 @@ serve(async (req) => {
         headers: {
           'Content-Type': 'application/json',
           'X-Goog-Api-Key': googleApiKey,
-          'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.nationalPhoneNumber,places.formattedAddress,places.regularOpeningHours,places.websiteUri,places.photos,places.priceLevel,places.userRatingCount'
+          'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.nationalPhoneNumber,places.formattedAddress,places.regularOpeningHours,places.websiteUri,places.photos,places.priceLevel,places.userRatingCount,places.viewport,places.editorialSummary,places.reviews,places.addressComponents,places.types,places.location'
         },
         body: JSON.stringify({
           includedTypes: ['tourist_attraction', 'point_of_interest'],
@@ -89,11 +89,11 @@ serve(async (req) => {
 
     if (placeDetails) {
       // Process photos if available - new API format
-      const photos = placeDetails.photos?.slice(0, 3).map((photo: any) => 
-        `https://places.googleapis.com/v1/${photo.name}/media?maxWidthPx=400&key=${googleApiKey}`
+      const photos = placeDetails.photos?.slice(0, 5).map((photo: any) => 
+        `https://places.googleapis.com/v1/${photo.name}/media?maxWidthPx=800&key=${googleApiKey}`
       ) || []
 
-      // Map new API response to expected format
+      // Map new API response to expected format with enhanced data
       const enrichedData = {
         name: placeDetails.displayName?.text || placeDetails.displayName,
         rating: placeDetails.rating,
@@ -105,7 +105,19 @@ serve(async (req) => {
         openingHours: placeDetails.regularOpeningHours?.weekdayDescriptions || [],
         isOpenNow: placeDetails.regularOpeningHours?.openNow,
         photos,
-        placeId: placeDetails.id || placeId
+        placeId: placeDetails.id || placeId,
+        // Enhanced fields
+        viewport: placeDetails.viewport,
+        editorialSummary: placeDetails.editorialSummary?.text,
+        reviews: placeDetails.reviews?.slice(0, 3).map((review: any) => ({
+          author: review.authorAttribution?.displayName,
+          rating: review.rating,
+          text: review.text?.text,
+          time: review.publishTime
+        })) || [],
+        addressComponents: placeDetails.addressComponents || [],
+        types: placeDetails.types || [],
+        location: placeDetails.location
       }
 
       return new Response(
