@@ -99,7 +99,6 @@ export type Database = {
           coordinate_quality_medium: number | null
           created_at: string
           destination: string
-          destination_details: Json | null
           error_count: number | null
           fallbacks_used: string[] | null
           gemini_api_calls: number | null
@@ -120,7 +119,6 @@ export type Database = {
           coordinate_quality_medium?: number | null
           created_at?: string
           destination: string
-          destination_details?: Json | null
           error_count?: number | null
           fallbacks_used?: string[] | null
           gemini_api_calls?: number | null
@@ -141,7 +139,6 @@ export type Database = {
           coordinate_quality_medium?: number | null
           created_at?: string
           destination?: string
-          destination_details?: Json | null
           error_count?: number | null
           fallbacks_used?: string[] | null
           gemini_api_calls?: number | null
