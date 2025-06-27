@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube } from 'lucide-react';
@@ -88,7 +87,10 @@ const TopControls: React.FC<TopControlsProps> = ({
   const handleEnhancedTourGenerated = (tourId: string, destination: string) => {
     console.log('Enhanced tour generated:', { tourId, destination });
     setIsEnhancedTourOpen(false);
-    toast.success(`Your personalized tour of ${destination} is ready!`);
+    toast({
+      title: "Tour Ready!",
+      description: `Your personalized tour of ${destination} is ready!`,
+    });
   };
 
   return (
