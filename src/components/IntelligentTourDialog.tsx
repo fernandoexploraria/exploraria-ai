@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -63,13 +62,13 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       const { data, error } = await supabase.functions.invoke('google-places-autocomplete', {
         body: { 
           input: query,
-          types: ['location', 'sublocation', 'tourist_attraction', 'park', 'museum']
+          types: ['locality', 'sublocality', 'tourist_attraction', 'park', 'museum']
         }
       });
 
       if (error) throw error;
 
-      // Client-side sorting: locations > sublocations > tourist_attractions > parks > museums
+      // Client-side sorting: localities > sublocalities > tourist_attractions > parks > museums
       const sortedResults = data.predictions?.sort((a: AutocompleteResult, b: AutocompleteResult) => {
         const getTypeOrder = (types: string[]) => {
           if (types.includes('locality') || types.includes('administrative_area')) return 1;
