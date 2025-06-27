@@ -1639,6 +1639,108 @@ class TourLogger {
   }
 }
 
+// Enhanced landmark storage function
+const storeLandmarksInDatabase = async (
+  supabase: any,
+  tourId: string,
+  landmarks: EnhancedLandmark[],
+  logger: TourLogger
+): Promise<void> => {
+  logger.startPhase('landmark_storage');
+  logger.addLog({
+    phase: 'landmark_storage',
+    log_level: 'info',
+    message: `Starting storage of ${landmarks.length} landmarks for tour ${tourId}`,
+    metadata: { tourId, landmarkCount: landmarks.length }
+  });
+
+  let successCount = 0;
+  let errorCount = 0;
+  const errors: string[] = [];
+
+  for (const landmark of landmarks) {
+    try {
+      // Map enhanced landmark data to database schema
+      const landmarkRecord = {
+        tour_id: tourId,
+        landmark_id: landmark.id,
+        name: landmark.name,
+        description: landmark.description,
+        coordinates: `(${landmark.coordinates[0]},${landmark.coordinates[1]})`, // Convert to PostgreSQL point format
+        place_id: landmark.placeId,
+        coordinate_source: landmark.coordinateSource,
+        confidence: landmark.confidence.toString(),
+        rating: landmark.rating,
+        photos: landmark.photos ? JSON.stringify(landmark.photos) : null,
+        types: landmark.types || [],
+        formatted_address: landmark.formattedAddress,
+        quality_score: landmark.qualityAssessment?.qualityScore,
+        api_calls_made: landmark.apiAttemptLog?.length || 0,
+        coordinate_refinement_attempts: landmark.apiAttemptLog?.filter(log => 
+          log.apiSource === 'places' || log.apiSource === 'geocoding'
+        ).length || 0,
+        search_attempts: landmark.apiAttemptLog?.filter(log => 
+          log.success
+        ).length || 1,
+        processing_time_ms: landmark.apiAttemptLog?.reduce((total, log) => 
+          total + log.responseTime, 0
+        ) || null,
+        fallback_methods_used: landmark.apiAttemptLog?.filter(log => 
+          !log.success
+        ).map(log => log.strategy) || [],
+        error_messages: landmark.apiAttemptLog?.filter(log => 
+          !log.success && log.errorMessage
+        ).map(log => log.errorMessage!) || [],
+        search_query: landmark.apiAttemptLog?.find(log => 
+          log.success
+        )?.query || landmark.name
+      };
+
+      const { error } = await supabase
+        .from('generated_landmarks')
+        .insert(landmarkRecord);
+
+      if (error) {
+        errorCount++;
+        const errorMsg = `Failed to store landmark ${landmark.name}: ${error.message}`;
+        errors.push(errorMsg);
+        logger.addErrorLog('landmark_storage', error, errorMsg);
+      } else {
+        successCount++;
+        logger.addLog({
+          phase: 'landmark_storage',
+          log_level: 'info',
+          message: `Successfully stored landmark: ${landmark.name}`,
+          metadata: { 
+            landmarkId: landmark.id,
+            landmarkName: landmark.name,
+            coordinateSource: landmark.coordinateSource,
+            confidence: landmark.confidence
+          }
+        });
+      }
+    } catch (error) {
+      errorCount++;
+      const errorMsg = `Exception storing landmark ${landmark.name}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      errors.push(errorMsg);
+      logger.addErrorLog('landmark_storage', error, errorMsg);
+    }
+  }
+
+  logger.endPhase('landmark_storage', `Landmark storage completed: ${successCount} successful, ${errorCount} failed`, {
+    successCount,
+    errorCount,
+    totalLandmarks: landmarks.length,
+    successRate: landmarks.length > 0 ? successCount / landmarks.length : 0,
+    errors: errors.slice(0, 5) // Limit error list in metadata
+  });
+
+  console.log(`🏛️ Landmark storage completed: ${successCount}/${landmarks.length} landmarks stored successfully`);
+  if (errorCount > 0) {
+    console.log(`⚠️ ${errorCount} landmarks failed to store. Check logs for details.`);
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { 
@@ -2039,10 +2141,20 @@ serve(async (req) => {
       }
     });
 
-    // Store logs in background (non-blocking)
+    // Store individual landmarks in background (non-blocking) - NEW FUNCTIONALITY
     if (tourId) {
-      const storeLogData = async () => {
+      const storeLandmarkData = async () => {
+        await storeLandmarksInDatabase(supabase, tourId, enhancedLandmarks, tourLogger);
+        // Store logs after landmark storage is complete
         await tourLogger.storeLogs(supabase, tourId);
+      };
+      EdgeRuntime.waitUntil(storeLandmarkData());
+    } else {
+      // Store logs in background even if no tour ID (for debugging)
+      const storeLogData = async () => {
+        if (tourId) {
+          await tourLogger.storeLogs(supabase, tourId);
+        }
       };
       EdgeRuntime.waitUntil(storeLogData());
     }
