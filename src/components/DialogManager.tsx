@@ -1,6 +1,7 @@
 
 import React from 'react';
 import TourPlannerDialog from './TourPlannerDialog';
+import TourPlannerV2Simple from './TourPlannerV2Simple';
 import InteractionCarousel from './InteractionCarousel';
 import AuthDialog from './AuthDialog';
 import { ProgressState } from '@/hooks/useTourPlanner';
@@ -8,8 +9,6 @@ import { ProgressState } from '@/hooks/useTourPlanner';
 interface DialogManagerProps {
   isTourPlannerOpen: boolean;
   onTourPlannerOpenChange: (open: boolean) => void;
-  isTourPlannerV2Open: boolean;
-  onTourPlannerV2OpenChange: (open: boolean) => void;
   onGenerateTour: (destination: string) => Promise<void>;
   onTourAuthRequired: (destination: string) => void;
   isTourLoading: boolean;
@@ -44,6 +43,8 @@ const DialogManager: React.FC<DialogManagerProps> = ({
         isLoading={isTourLoading}
         progressState={tourProgressState}
       />
+
+      <TourPlannerV2Simple />
 
       <InteractionCarousel
         open={isVoiceSearchOpen}
