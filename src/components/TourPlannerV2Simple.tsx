@@ -101,7 +101,7 @@ const TourPlannerV2Simple = () => {
           <span className="hidden lg:inline">Plan Tour V2</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[900px] max-h-[95vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl font-bold">
             <MapPin className="h-6 w-6 text-blue-600" />

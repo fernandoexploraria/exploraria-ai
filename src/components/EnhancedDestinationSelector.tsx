@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, MapPin, Building2, TreePine, Camera, Globe } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -42,6 +43,7 @@ const EnhancedDestinationSelector: React.FC<EnhancedDestinationSelectorProps> = 
   const [isLoading, setIsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [error, setError] = useState<string | null>(null);
   const sessionToken = useRef(Math.random().toString(36).substring(2, 15));
   const debounceRef = useRef<NodeJS.Timeout>();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -74,12 +76,22 @@ const EnhancedDestinationSelector: React.FC<EnhancedDestinationSelectorProps> = 
 
   const fetchPredictions = async (input: string) => {
     if (input.length < 2) {
+      console.log('🔍 Input too short, clearing predictions');
       setPredictions([]);
+      setError(null);
       return;
     }
 
+    console.log('🔍 Starting autocomplete search for:', input);
     setIsLoading(true);
+    setError(null);
+    
     try {
+      console.log('🔍 Calling google-places-autocomplete with:', {
+        input: input.trim(),
+        sessionToken: sessionToken.current
+      });
+
       const { data, error } = await supabase.functions.invoke('google-places-autocomplete', {
         body: {
           input: input.trim(),
@@ -87,19 +99,31 @@ const EnhancedDestinationSelector: React.FC<EnhancedDestinationSelectorProps> = 
         }
       });
 
+      console.log('🔍 Response from google-places-autocomplete:', { data, error });
+
       if (error) {
-        console.error('Places autocomplete error:', error);
+        console.error('❌ Places autocomplete error:', error);
+        setError(`API Error: ${error.message}`);
         toast.error('Failed to fetch location suggestions');
+        setPredictions([]);
         return;
       }
 
       if (data?.predictions) {
+        console.log('✅ Received predictions:', data.predictions.length, 'items');
         setPredictions(data.predictions);
         setShowSuggestions(true);
+        setError(null);
+      } else {
+        console.warn('⚠️ No predictions in response:', data);
+        setPredictions([]);
+        setError('No suggestions found');
       }
     } catch (err) {
-      console.error('Error fetching predictions:', err);
+      console.error('❌ Exception in fetchPredictions:', err);
+      setError(`Network Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
       toast.error('Failed to fetch location suggestions');
+      setPredictions([]);
     } finally {
       setIsLoading(false);
     }
@@ -107,8 +131,10 @@ const EnhancedDestinationSelector: React.FC<EnhancedDestinationSelectorProps> = 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
+    console.log('🔍 Input changed to:', value);
     setQuery(value);
     setSelectedIndex(-1);
+    setError(null);
 
     // Clear previous debounce
     if (debounceRef.current) {
@@ -116,17 +142,20 @@ const EnhancedDestinationSelector: React.FC<EnhancedDestinationSelectorProps> = 
     }
 
     // Debounce the API call
+    console.log('🔍 Setting up debounced API call...');
     debounceRef.current = setTimeout(() => {
+      console.log('🔍 Executing debounced API call for:', value);
       fetchPredictions(value);
     }, 300);
   };
 
   const handlePredictionSelect = async (prediction: PlacePrediction) => {
-    console.log('Selected prediction:', prediction);
+    console.log('🎯 Selected prediction:', prediction);
     
     setQuery(prediction.mainText);
     setShowSuggestions(false);
     setPredictions([]);
+    setError(null);
 
     // Prepare destination details for the tour generation
     const destinationDetails: DestinationDetails = {
@@ -139,6 +168,7 @@ const EnhancedDestinationSelector: React.FC<EnhancedDestinationSelectorProps> = 
 
     // Try to get more detailed place information if needed
     try {
+      console.log('🔍 Fetching detailed place information for:', prediction.placeId);
       const { data: placeDetails } = await supabase.functions.invoke('google-places-details', {
         body: {
           placeId: prediction.placeId,
@@ -147,18 +177,20 @@ const EnhancedDestinationSelector: React.FC<EnhancedDestinationSelectorProps> = 
       });
 
       if (placeDetails?.result?.geometry?.location) {
+        console.log('✅ Got place coordinates:', placeDetails.result.geometry.location);
         destinationDetails.location = {
           latitude: placeDetails.result.geometry.location.lat,
           longitude: placeDetails.result.geometry.location.lng
         };
       }
     } catch (err) {
-      console.warn('Could not fetch additional place details:', err);
+      console.warn('⚠️ Could not fetch additional place details:', err);
       // Continue without location details
     }
 
     // Generate new session token for next search
     sessionToken.current = Math.random().toString(36).substring(2, 15);
+    console.log('🔄 Generated new session token:', sessionToken.current);
 
     onDestinationSelect(prediction.mainText, destinationDetails);
   };
@@ -213,6 +245,7 @@ const EnhancedDestinationSelector: React.FC<EnhancedDestinationSelectorProps> = 
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           onFocus={() => {
+            console.log('🔍 Input focused, showing suggestions if available');
             if (predictions.length > 0) {
               setShowSuggestions(true);
             }
@@ -227,6 +260,12 @@ const EnhancedDestinationSelector: React.FC<EnhancedDestinationSelectorProps> = 
           </div>
         )}
       </div>
+
+      {error && (
+        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-600 text-sm">
+          {error}
+        </div>
+      )}
 
       {showSuggestions && predictions.length > 0 && (
         <Card className="absolute top-full left-0 right-0 mt-1 z-50 max-h-96 overflow-y-auto shadow-lg">
@@ -262,6 +301,14 @@ const EnhancedDestinationSelector: React.FC<EnhancedDestinationSelectorProps> = 
                 </div>
               </Button>
             ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {showSuggestions && !isLoading && predictions.length === 0 && query.length >= 2 && !error && (
+        <Card className="absolute top-full left-0 right-0 mt-1 z-50 shadow-lg">
+          <CardContent className="p-3">
+            <p className="text-sm text-gray-500">No destinations found</p>
           </CardContent>
         </Card>
       )}
