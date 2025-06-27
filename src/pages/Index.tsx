@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback } from 'react';
 import SplashScreen from '@/components/SplashScreen';
 import MainLayout from '@/components/MainLayout';
@@ -32,6 +33,8 @@ const Index: React.FC = () => {
     setIsAuthDialogOpen,
     isNewTourAssistantOpen,
     setIsNewTourAssistantOpen,
+    isIntelligentTourOpen,
+    setIsIntelligentTourOpen,
   } = useDialogStates();
   
   // Updated to include callback for opening NewTourAssistant
@@ -124,6 +127,13 @@ const Index: React.FC = () => {
     setIsAuthDialogOpen(true);
   };
 
+  const handleTourGenerated = (landmarks: any[]) => {
+    // Add generated landmarks to additional landmarks
+    setAdditionalLandmarks(prev => [...prev, ...landmarks]);
+    // Close the intelligent tour dialog
+    setIsIntelligentTourOpen(false);
+  };
+
   if (showSplash) {
     return <SplashScreen onDismiss={handleSplashDismiss} />;
   }
@@ -160,6 +170,9 @@ const Index: React.FC = () => {
         onAuthDialogOpenChange={handleAuthDialogClose}
         isNewTourAssistantOpen={isNewTourAssistantOpen}
         onNewTourAssistantOpenChange={setIsNewTourAssistantOpen}
+        isIntelligentTourOpen={isIntelligentTourOpen}
+        onIntelligentTourOpenChange={setIsIntelligentTourOpen}
+        onTourGenerated={handleTourGenerated}
         tourPlan={tourPlan}
       />
       <DebugWindow 
