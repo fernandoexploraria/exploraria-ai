@@ -13,9 +13,6 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// OpenAI API setup
-const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
-
 // Google Maps API setup
 const googleMapsApiKey = Deno.env.get("GOOGLE_MAPS_API_KEY");
 
@@ -71,41 +68,45 @@ class TourLogger {
   }
 }
 
-// Function to extract geographic context
-async function extractGeographicContext(city: string): Promise<GeographicContext> {
+// Function to call Gemini via the existing gemini-chat edge function
+async function callGemini(prompt: string, systemInstruction?: string): Promise<string> {
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: `You are an expert in geography. Extract the city, country, and type of city (e.g., "capital", "major", "tourist") from the user's query. Respond in JSON format.
-          Example:
-          Input: "Paris"
-          Output: {"city": "Paris", "country": "France", "cityType": "capital"}`,
-          },
-          {
-            role: "user",
-            content: city,
-          },
-        ],
-        response_format: { type: "json_object" },
-      }),
+    const { data, error } = await supabase.functions.invoke('gemini-chat', {
+      body: {
+        prompt,
+        systemInstruction
+      }
     });
 
-    const data = await response.json();
+    if (error) {
+      console.error('Gemini API error:', error);
+      throw new Error(`Gemini API error: ${error.message}`);
+    }
+
+    return data.response;
+  } catch (err) {
+    console.error('Error calling Gemini API:', err);
+    throw new Error(`Failed to call Gemini API: ${err.message}`);
+  }
+}
+
+// Function to extract geographic context using Gemini
+async function extractGeographicContext(city: string): Promise<GeographicContext> {
+  try {
+    const systemInstruction = `You are an expert in geography. Extract the city, country, and type of city (e.g., "capital", "major", "tourist") from the user's query. Respond in JSON format.
+Example:
+Input: "Paris"
+Output: {"city": "Paris", "country": "France", "cityType": "capital"}`;
+
+    const response = await callGemini(city, systemInstruction);
     
-    if (data.choices && data.choices[0] && data.choices[0].message) {
-      const context = data.choices[0].message.content || '{}';
-      return JSON.parse(context);
-    } else {
-      throw new Error('Invalid OpenAI response structure');
+    // Try to parse the JSON response
+    try {
+      return JSON.parse(response);
+    } catch (parseError) {
+      console.warn('Failed to parse Gemini JSON response, extracting manually:', response);
+      // Fallback: try to extract basic info
+      return { city: city, country: "Unknown", cityType: "major" };
     }
   } catch (error) {
     console.error("Error extracting geographic context:", error);
@@ -113,38 +114,20 @@ async function extractGeographicContext(city: string): Promise<GeographicContext
   }
 }
 
-// Function to generate landmark names
+// Function to generate landmark names using Gemini
 async function generateLandmarkNames(city: string, country: string, cityType: string): Promise<string[]> {
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: `You are a world-class tour guide. Generate a list of 8 famous landmarks in ${city}, ${country}. Consider that this is a ${cityType} city.`,
-          },
-          {
-            role: "user",
-            content: `List 8 famous landmarks in ${city}.`,
-          },
-        ],
-      }),
-    });
+    const systemInstruction = `You are a world-class tour guide. Generate a list of 8 famous landmarks in ${city}, ${country}. Consider that this is a ${cityType} city. Return only the landmark names, one per line, without numbering.`;
 
-    const data = await response.json();
+    const prompt = `List 8 famous landmarks in ${city}.`;
+    const response = await callGemini(prompt, systemInstruction);
     
-    if (data.choices && data.choices[0] && data.choices[0].message) {
-      const landmarkList = data.choices[0].message.content?.split('\n').map(item => item.replace(/^\d+\.\s*/, '')) || [];
-      return landmarkList.filter(item => item.trim() !== '').slice(0, 8);
-    } else {
-      throw new Error('Invalid OpenAI response structure');
-    }
+    const landmarkList = response.split('\n')
+      .map(item => item.replace(/^\d+\.\s*/, '').trim())
+      .filter(item => item !== '')
+      .slice(0, 8);
+    
+    return landmarkList.length > 0 ? landmarkList : [];
   } catch (error) {
     console.error("Error generating landmark names:", error);
     return [];
@@ -343,7 +326,7 @@ async function generateEnhancedLandmarkNames(city: string, country: string, city
     );
     return result;
   } catch (error) {
-    logger.log(`🔄 OpenAI API failed for landmark generation, using fallback list`);
+    logger.log(`🔄 Gemini API failed for landmark generation, using fallback list`);
     
     // Fallback to a basic landmark list based on city type
     const fallbackLandmarks = getFallbackLandmarks(city, cityType);
@@ -477,40 +460,15 @@ async function refineCoordinatesWithQualityAssessment(
   return enhancedLandmarks;
 }
 
-// Function to generate a tour description
+// Function to generate a tour description using Gemini
 async function generateTourDescription(landmarks: EnhancedLandmark[]): Promise<string> {
   try {
     const landmarkDetails = landmarks.map(landmark => `${landmark.name} (${landmark.description})`).join('; ');
+    const systemInstruction = "You are a world-class tour guide. Create an engaging and concise tour description.";
     const prompt = `Generate a captivating tour description that includes the following landmarks: ${landmarkDetails}. The description should be concise, engaging, and no more than 150 words.`;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: "You are a world-class tour guide. Create an engaging and concise tour description.",
-          },
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-      }),
-    });
-
-    const data = await response.json();
-    
-    if (data.choices && data.choices[0] && data.choices[0].message) {
-      return data.choices[0].message.content || "A fascinating tour!";
-    } else {
-      return "A fascinating tour!";
-    }
+    const response = await callGemini(prompt, systemInstruction);
+    return response || "A fascinating tour!";
   } catch (error) {
     console.error("Error generating tour description:", error);
     return "A fascinating tour!";
@@ -568,13 +526,13 @@ serve(async (req) => {
     tourLogger.log(`🚀 Starting enhanced tour generation with comprehensive resilience for: ${city}`);
     tourLogger.log(`🛡️ Resilience systems initialized - Circuit breakers: Ready, Degradation manager: Level ${DegradationManager.getCurrentPolicy().level}`);
 
-    // Extract geographic context
+    // Extract geographic context using Gemini
     tourLogger.log(`🌍 Extracting geographic context for: ${city}`);
     const geographicContext = await extractGeographicContext(city);
     tourLogger.log(`🗺️ Geographic context: ${JSON.stringify(geographicContext)}`);
 
-    // Use resilience-enhanced landmark generation
-    tourLogger.log(`🤖 Calling OpenAI for landmark names and descriptions with resilience...`);
+    // Use resilience-enhanced landmark generation with Gemini
+    tourLogger.log(`🤖 Calling Gemini for landmark names and descriptions with resilience...`);
     const landmarkNames = await generateEnhancedLandmarkNames(
       geographicContext.city,
       geographicContext.country,
@@ -598,7 +556,7 @@ serve(async (req) => {
       tourLogger
     );
 
-    // Generate tour description
+    // Generate tour description using Gemini
     tourLogger.log(`✍️ Generating tour description...`);
     const tourDescription = await generateTourDescription(enhancedLandmarks);
     tourLogger.log(`📜 Tour description: ${tourDescription}`);
