@@ -1,13 +1,14 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import { Sparkles, MapPin, Search, Clock, Star } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Sparkles, Search, Clock, Star } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/AuthProvider';
+import { getPlaceTypeIcon, getPlaceTypeLabel } from '@/utils/placeTypeIcons';
 
 interface IntelligentTourDialogProps {
   open: boolean;
@@ -379,6 +380,45 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
 
   const progress = (currentStep / STEPS.length) * 100;
 
+  const renderAutocompleteResult = (result: AutocompleteResult) => {
+    const { icon: IconComponent, color } = getPlaceTypeIcon(result.types);
+    const typeLabel = getPlaceTypeLabel(result.types);
+    
+    return (
+      <Button
+        key={result.place_id}
+        variant="ghost"
+        className="w-full justify-start h-auto p-3 text-left hover:bg-muted/50"
+        onClick={() => handleDestinationSelect(result)}
+      >
+        <div className="flex items-start gap-3 w-full">
+          <IconComponent className={`h-5 w-5 mt-0.5 flex-shrink-0 ${color}`} />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="font-medium text-sm truncate">
+                {result.structured_formatting?.main_text || result.description}
+              </div>
+              <Badge variant="outline" className="text-xs h-5 flex-shrink-0">
+                {typeLabel}
+              </Badge>
+            </div>
+            {result.structured_formatting?.secondary_text && (
+              <div className="text-xs text-muted-foreground truncate">
+                {result.structured_formatting.secondary_text}
+              </div>
+            )}
+            {result.types && result.types.length > 0 && (
+              <div className="text-xs text-muted-foreground mt-1">
+                {result.types.slice(0, 3).join(', ')}
+                {result.types.length > 3 && '...'}
+              </div>
+            )}
+          </div>
+        </div>
+      </Button>
+    );
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto" aria-describedby="intelligent-tour-description">
@@ -429,25 +469,11 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
             </div>
 
             {autocompleteResults.length > 0 && (
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {autocompleteResults.map((result) => (
-                  <Button
-                    key={result.place_id}
-                    variant="ghost"
-                    className="w-full justify-start h-auto p-3 text-left"
-                    onClick={() => handleDestinationSelect(result)}
-                  >
-                    <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
-                    <div>
-                      <div className="font-medium">
-                        {result.structured_formatting?.main_text || result.description}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {result.structured_formatting?.secondary_text || result.types?.join(', ')}
-                      </div>
-                    </div>
-                  </Button>
-                ))}
+              <div className="space-y-1 max-h-60 overflow-y-auto">
+                <div className="text-xs text-muted-foreground mb-2 px-1">
+                  Results sorted by relevance: Cities → Areas → Attractions → Parks → Museums
+                </div>
+                {autocompleteResults.map(renderAutocompleteResult)}
               </div>
             )}
           </div>
@@ -480,7 +506,10 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
             {destinationDetails && (
               <div className="bg-muted/50 rounded-lg p-4">
                 <div className="flex items-start gap-3">
-                  <MapPin className="h-5 w-5 text-primary mt-1" />
+                  {(() => {
+                    const { icon: IconComponent, color } = getPlaceTypeIcon(destinationDetails.types || []);
+                    return <IconComponent className={`h-5 w-5 mt-1 ${color}`} />;
+                  })()}
                   <div>
                     <h4 className="font-semibold">{destinationDetails.name}</h4>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
