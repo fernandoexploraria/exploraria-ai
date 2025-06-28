@@ -38,7 +38,7 @@ serve(async (req) => {
 
     console.log('Autocomplete search for:', input, 'with types:', types, 'sessionToken:', sessionToken?.substring(0, 8) + '...')
 
-    // Use Google Places API v1 autocomplete endpoint with correct structure
+    // Use Google Places API v1 autocomplete endpoint
     const autocompleteUrl = 'https://places.googleapis.com/v1/places:autocomplete'
     
     // Build request body according to Google's recommendations
@@ -63,8 +63,8 @@ serve(async (req) => {
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': googleApiKey,
-        // Corrected field mask - use proper field names for autocomplete API
-        'X-Goog-FieldMask': 'suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.types,suggestions.placePrediction.structuredFormatting'
+        // Correct field mask based on Gemini's guidance - use predictions.placePrediction
+        'X-Goog-FieldMask': 'predictions.placePrediction.placeId,predictions.placePrediction.displayName.text,predictions.placePrediction.types,predictions.placePrediction.formattedAddress,predictions.placePrediction.structuredFormat.mainText.text,predictions.placePrediction.structuredFormat.secondaryText.text'
       },
       body: JSON.stringify(requestBody)
     })
@@ -76,17 +76,17 @@ serve(async (req) => {
     }
 
     const data = await response.json()
-    console.log('Autocomplete response received:', data.suggestions?.length || 0, 'suggestions')
+    console.log('Autocomplete response received:', data.predictions?.length || 0, 'predictions')
     console.log('Raw API response structure:', JSON.stringify(data, null, 2))
 
-    // Map new API response to format expected by the component - use suggestions instead of predictions
-    const predictions = data.suggestions?.map((suggestion: any) => {
-      const placePrediction = suggestion.placePrediction
+    // Map API response to format expected by the component - use predictions as per Gemini
+    const predictions = data.predictions?.map((prediction: any) => {
+      const placePrediction = prediction.placePrediction
       
-      // Use text field as primary description, with structured formatting as fallback
-      const mainText = placePrediction.structuredFormatting?.mainText || placePrediction.text || ''
-      const secondaryText = placePrediction.structuredFormatting?.secondaryText || ''
-      const description = placePrediction.text || `${mainText} ${secondaryText}`.trim()
+      // Use displayName.text as primary, with structured format as fallback
+      const mainText = placePrediction.structuredFormat?.mainText?.text || placePrediction.displayName?.text || ''
+      const secondaryText = placePrediction.structuredFormat?.secondaryText?.text || placePrediction.formattedAddress || ''
+      const description = placePrediction.displayName?.text || placePrediction.formattedAddress || `${mainText} ${secondaryText}`.trim()
       
       return {
         place_id: placePrediction.placeId,
