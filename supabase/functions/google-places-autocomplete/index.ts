@@ -38,16 +38,15 @@ serve(async (req) => {
 
     console.log('🔍 Autocomplete search for:', input, 'with types:', types, 'sessionToken:', sessionToken?.substring(0, 8) + '...')
 
-    // Use Google Places API v1 autocomplete endpoint - minimal approach first
     const autocompleteUrl = 'https://places.googleapis.com/v1/places:autocomplete'
     
-    // Build minimal request body to test basic functionality
+    // Build the request body
     const requestBody: any = {
       input: input,
       languageCode: 'en'
     }
 
-    // Only add types if we have a simple array (avoid complex includedPrimaryTypes for now)
+    // Add types if provided
     if (Array.isArray(types) && types.length > 0) {
       requestBody.includedPrimaryTypes = types
     }
@@ -57,21 +56,27 @@ serve(async (req) => {
       requestBody.sessionToken = sessionToken
     }
 
+    // Add location bias if provided
+    if (locationBias) {
+      requestBody.locationBias = locationBias
+    }
+
     console.log('🔍 Request body:', JSON.stringify(requestBody, null, 2))
+
+    // Use the correct field mask for Google Places API (New)
+    const fieldMask = 'predictions.placePrediction.placeId,predictions.placePrediction.displayName,predictions.placePrediction.types,predictions.placePrediction.formattedAddress,predictions.placePrediction.structuredFormat,predictions.placePrediction.distanceMeters'
 
     const response = await fetch(autocompleteUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': googleApiKey,
-        // Start with minimal field mask - just get everything for now to see structure
-        'X-Goog-FieldMask': '*'
+        'X-Goog-FieldMask': fieldMask
       },
       body: JSON.stringify(requestBody)
     })
 
     console.log('🔍 Response status:', response.status)
-    console.log('🔍 Response headers:', Object.fromEntries(response.headers.entries()))
 
     if (!response.ok) {
       const errorText = await response.text()
@@ -80,67 +85,45 @@ serve(async (req) => {
     }
 
     const data = await response.json()
-    console.log('🔍 Raw API response structure:', JSON.stringify(data, null, 2))
-    console.log('🔍 Autocomplete response received:', data.suggestions?.length || data.predictions?.length || 0, 'results')
+    console.log('🔍 Raw API response:', JSON.stringify(data, null, 2))
 
-    // Handle both possible response structures
-    let suggestions = data.suggestions || data.predictions || []
+    // Process the response
+    const suggestions = data.suggestions || []
     
     // Map API response to format expected by the component
     const predictions = suggestions.map((item: any) => {
-      // Handle both suggestion.placePrediction and direct prediction structures
-      const prediction = item.placePrediction || item
+      const prediction = item.placePrediction
+      
+      if (!prediction) {
+        console.warn('🔍 No placePrediction found in suggestion:', item)
+        return null
+      }
       
       console.log('🔍 Processing prediction:', JSON.stringify(prediction, null, 2))
       
-      // Extract fields safely with multiple fallbacks
-      const placeId = prediction.placeId || prediction.place_id
-      let mainText = ''
-      let secondaryText = ''
-      let description = ''
+      // Extract fields using the correct structure
+      const placeId = prediction.placeId
+      const displayName = prediction.displayName?.text || ''
+      const formattedAddress = prediction.formattedAddress || ''
+      const types = prediction.types || []
       
-      // Try different field structures
-      if (prediction.displayName?.text) {
-        description = prediction.displayName.text
-        mainText = prediction.displayName.text
-      } else if (prediction.text?.text) {
-        description = prediction.text.text
-        mainText = prediction.text.text
-      } else if (prediction.description) {
-        description = prediction.description
-        mainText = prediction.description
-      }
-      
-      // Try to get structured format
-      if (prediction.structuredFormat) {
-        mainText = prediction.structuredFormat.mainText?.text || mainText
-        secondaryText = prediction.structuredFormat.secondaryText?.text || ''
-      } else if (prediction.structuredFormatting) {
-        mainText = prediction.structuredFormatting.main_text || mainText
-        secondaryText = prediction.structuredFormatting.secondary_text || ''
-      }
-      
-      // Get formatted address
-      const formattedAddress = prediction.formattedAddress || prediction.formatted_address || secondaryText
-      
-      // Use description if we don't have mainText
-      if (!description && mainText) {
-        description = secondaryText ? `${mainText}, ${secondaryText}` : mainText
-      }
+      // Handle structured format
+      const mainText = prediction.structuredFormat?.mainText?.text || displayName
+      const secondaryText = prediction.structuredFormat?.secondaryText?.text || formattedAddress
       
       const result = {
         place_id: placeId,
-        description: description || 'Unknown place',
-        types: prediction.types || [],
+        description: mainText && secondaryText ? `${mainText}, ${secondaryText}` : (mainText || displayName || 'Unknown place'),
+        types: types,
         structured_formatting: {
-          main_text: mainText || 'Unknown place',
+          main_text: mainText || displayName || 'Unknown place',
           secondary_text: secondaryText || formattedAddress || ''
         }
       }
       
       console.log('🔍 Mapped result:', JSON.stringify(result, null, 2))
       return result
-    })
+    }).filter(Boolean) // Remove any null results
 
     console.log('🔍 Final mapped predictions:', predictions.length, 'results')
 
