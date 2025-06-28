@@ -22,6 +22,7 @@ interface DialogManagerProps {
   onIntelligentTourOpenChange: (open: boolean) => void;
   onTourGenerated?: (landmarks: any[]) => void;
   onAuthRequired: () => void;
+  onDestinationSelected?: (coordinates: [number, number]) => void;
 }
 
 const DialogManager: React.FC<DialogManagerProps> = ({
@@ -40,6 +41,7 @@ const DialogManager: React.FC<DialogManagerProps> = ({
   onIntelligentTourOpenChange,
   onTourGenerated,
   onAuthRequired,
+  onDestinationSelected,
 }) => {
   return (
     <>
@@ -68,6 +70,7 @@ const DialogManager: React.FC<DialogManagerProps> = ({
         onOpenChange={onIntelligentTourOpenChange}
         onTourGenerated={onTourGenerated || (() => {})}
         onAuthRequired={onAuthRequired}
+        onDestinationSelected={onDestinationSelected}
       />
     </>
   );

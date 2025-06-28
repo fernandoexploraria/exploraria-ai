@@ -20,6 +20,7 @@ interface IndexProps {
 const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
   const [showSplash, setShowSplash] = useState(true);
   const [additionalLandmarks, setAdditionalLandmarks] = useState<Landmark[]>([]);
+  const [destinationCoordinates, setDestinationCoordinates] = useState<[number, number] | undefined>();
   
   const { tourPlan, plannedLandmarks, isLoading: isTourLoading, generateTour, progressState } = useTourPlanner();
   const { user, signOut } = useAuth();
@@ -160,6 +161,12 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
     setIsAuthDialogOpen(true);
   };
 
+  // PHASE 1: Handle destination selection
+  const handleDestinationSelected = useCallback((coordinates: [number, number]) => {
+    console.log('🎯 Index received destination coordinates:', coordinates);
+    setDestinationCoordinates(coordinates);
+  }, []);
+
   if (showSplash) {
     return <SplashScreen onDismiss={handleSplashDismiss} />;
   }
@@ -200,6 +207,8 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
         onIntelligentTourOpenChange={setIsIntelligentTourOpen}
         onTourGenerated={handleTourGenerated}
         tourPlan={tourPlan}
+        destinationCoordinates={destinationCoordinates}
+        onDestinationSelected={handleDestinationSelected}
       />
       <DebugWindow 
         isVisible={isDebugVisible}
