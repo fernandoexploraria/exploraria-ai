@@ -118,18 +118,21 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       }
 
       console.log('🔍 Autocomplete success:', data.predictions?.length || 0, 'results');
+      
+      // Enhanced logging for icon debugging
+      data.predictions?.forEach((prediction: AutocompleteResult, index: number) => {
+        console.log(`🔍 Result ${index + 1}: "${prediction.description}"`);
+        console.log(`🔍 Result ${index + 1}: Types:`, prediction.types);
+        
+        // Test our icon function here
+        const iconResult = getPlaceTypeIcon(prediction.types, prediction.description);
+        console.log(`🔍 Result ${index + 1}: Icon will be:`, iconResult.icon.name, 'Color:', iconResult.color);
+      });
 
-      // Client-side sorting: localities > sublocalities > tourist_attractions > parks > museums
+      // Client-side sorting: localities > sublocalities > parks > tourist_attractions > museums
       const sortedResults = data.predictions?.sort((a: AutocompleteResult, b: AutocompleteResult) => {
-        const getTypeOrder = (types: string[]) => {
-          if (types.includes('locality') || types.includes('administrative_area')) return 1;
-          if (types.includes('sublocality') || types.includes('neighborhood')) return 2;
-          if (types.includes('tourist_attraction')) return 3;
-          if (types.includes('park')) return 4;
-          if (types.includes('museum')) return 5;
-          return 6;
-        };
-        return getTypeOrder(a.types) - getTypeOrder(b.types);
+        const getIconResult = (result: AutocompleteResult) => getPlaceTypeIcon(result.types, result.description);
+        return getIconResult(a).priority - getIconResult(b).priority;
       }) || [];
 
       setAutocompleteResults(sortedResults);
@@ -381,8 +384,8 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
   const progress = (currentStep / STEPS.length) * 100;
 
   const renderAutocompleteResult = (result: AutocompleteResult) => {
-    const { icon: IconComponent, color } = getPlaceTypeIcon(result.types);
-    const typeLabel = getPlaceTypeLabel(result.types);
+    const { icon: IconComponent, color } = getPlaceTypeIcon(result.types, result.description);
+    const typeLabel = getPlaceTypeLabel(result.types, result.description);
     
     return (
       <Button
@@ -471,7 +474,7 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
             {autocompleteResults.length > 0 && (
               <div className="space-y-1 max-h-60 overflow-y-auto">
                 <div className="text-xs text-muted-foreground mb-2 px-1">
-                  Results sorted by relevance: Cities → Areas → Attractions → Parks → Museums
+                  Results sorted by type priority: Cities → Areas → Parks → Attractions → Museums
                 </div>
                 {autocompleteResults.map(renderAutocompleteResult)}
               </div>
@@ -507,7 +510,7 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
               <div className="bg-muted/50 rounded-lg p-4">
                 <div className="flex items-start gap-3">
                   {(() => {
-                    const { icon: IconComponent, color } = getPlaceTypeIcon(destinationDetails.types || []);
+                    const { icon: IconComponent, color } = getPlaceTypeIcon(destinationDetails.types || [], destinationDetails.name);
                     return <IconComponent className={`h-5 w-5 mt-1 ${color}`} />;
                   })()}
                   <div>

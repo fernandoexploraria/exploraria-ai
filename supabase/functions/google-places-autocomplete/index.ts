@@ -118,9 +118,9 @@ serve(async (req) => {
 
     console.log('🚀 DEBUG: Final request body:', JSON.stringify(googleRequestBody, null, 2))
 
-    // Use CORRECT field mask for the NEW Google Places API
-    const fieldMask = 'suggestions.placePrediction.placeId,suggestions.placePrediction.text'
-    console.log('🚀 DEBUG: Using corrected field mask:', fieldMask)
+    // Use CORRECT field mask for the NEW Google Places API with types included
+    const fieldMask = 'suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.types'
+    console.log('🚀 DEBUG: Using enhanced field mask with types:', fieldMask)
 
     console.log('🚀 DEBUG: Making Google API request...')
     
@@ -179,7 +179,7 @@ serve(async (req) => {
       )
     }
 
-    // Process suggestions with the NEW API structure
+    // Process suggestions with the NEW API structure and enhanced logging
     const suggestions = googleApiData.suggestions || []
     console.log('🚀 DEBUG: Starting to process suggestions...')
     
@@ -201,17 +201,30 @@ serve(async (req) => {
                            placePrediction.text || 
                            'Unknown place'
         
+        // CRITICAL: Extract types from the API response
+        const types = placePrediction.types || []
+        
+        // Enhanced logging for type debugging
+        console.log(`🔍 ICON DEBUG ${i + 1}: "${displayText}"`)
+        console.log(`🔍 ICON DEBUG ${i + 1}: Types returned by Google:`, types)
+        
+        // Check if this looks like a park by name
+        const nameIndicatesPark = /park|parque|jardín|garden|verde/i.test(displayText)
+        if (nameIndicatesPark) {
+          console.log(`🌳 PARK DETECTED by name: "${displayText}" - Types:`, types)
+        }
+        
         const processedPrediction = {
           place_id: placeId,
           description: displayText,
-          types: placePrediction.types || [],
+          types: types, // Now we're getting real types from Google!
           structured_formatting: {
             main_text: displayText,
             secondary_text: ''
           }
         }
         
-        console.log(`🚀 DEBUG: Processed suggestion ${i + 1}:`, processedPrediction.place_id)
+        console.log(`✅ DEBUG: Processed suggestion ${i + 1}:`, processedPrediction.place_id)
         processedPredictions.push(processedPrediction)
         
       } catch (predictionError) {
@@ -225,10 +238,10 @@ serve(async (req) => {
     const finalResponse = {
       predictions: processedPredictions,
       status: 'OK',
-      debug: `Processed ${processedPredictions.length} suggestions successfully`
+      debug: `Processed ${processedPredictions.length} suggestions successfully with enhanced type debugging`
     }
     
-    console.log('🚀 DEBUG: Returning final response')
+    console.log('🚀 DEBUG: Returning final response with type information')
 
     return new Response(
       JSON.stringify(finalResponse),
