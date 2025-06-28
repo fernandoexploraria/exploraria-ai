@@ -39,22 +39,22 @@ const LANDMARK_TYPES = [
   'subway_station'
 ];
 
-// Dynamic radius logic based on destination type
+// Dynamic radius logic based on destination type - Updated with Gemini's AI recommendations
 const getRadiusForDestinationType = (types: string[] = []) => {
   if (types.includes('locality') || types.includes('administrative_area_level_1')) {
-    return 10000; // 10km for localities
+    return 20000; // 20km for localities (comprehensive city coverage)
   }
   if (types.includes('sublocality') || types.includes('neighborhood')) {
-    return 5000; // 5km for sublocalities
+    return 3000; // 3km for sublocalities (focused neighborhood search)
   }
   if (types.includes('tourist_attraction')) {
-    return 3000; // 3km for tourist attractions
+    return 2000; // 2km for tourist attractions (tighter focus)
   }
   if (types.includes('park')) {
-    return 3000; // 3km for parks
+    return 2000; // 2km for parks (park-specific nearby search)
   }
   if (types.includes('museum')) {
-    return 2000; // 2km for museums
+    return 500; // 500m for museums (hyper-local walking distance)
   }
   return 10000; // 10km default
 };
@@ -103,7 +103,7 @@ serve(async (req) => {
     const searchRadius = radius || getRadiusForDestinationType(destinationTypes)
     const maxResults = getMaxResultsForDestinationType(destinationTypes)
     
-    console.log('Searching nearby landmarks:', { 
+    console.log('Searching nearby landmarks with Gemini-optimized radii:', { 
       coordinates, 
       radius: searchRadius, 
       maxResults,
