@@ -48,7 +48,6 @@ const TopControls: React.FC<TopControlsProps> = ({
   const [isTestingCors, setIsTestingCors] = useState(false);
   const [isIntelligentTourOpen, setIsIntelligentTourOpen] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
-  const [pendingSmartTour, setPendingSmartTour] = useState(false);
   const { toast } = useToast();
   
   // Initialize connection monitoring
@@ -98,7 +97,6 @@ const TopControls: React.FC<TopControlsProps> = ({
     
     if (!authUser) {
       console.log('🚨 User not authenticated, opening auth dialog first');
-      setPendingSmartTour(true);
       setIsAuthDialogOpen(true);
     } else {
       console.log('✅ User authenticated, opening smart tour dialog');
@@ -106,18 +104,9 @@ const TopControls: React.FC<TopControlsProps> = ({
     }
   };
 
-  const handleAuthDialogClose = (open: boolean) => {
-    setIsAuthDialogOpen(open);
-    
-    // If auth dialog is closing and user is now authenticated, open smart tour
-    if (!open && authUser && pendingSmartTour) {
-      console.log('✅ Auth successful, opening smart tour dialog');
-      setPendingSmartTour(false);
-      setIsIntelligentTourOpen(true);
-    } else if (!open) {
-      // Reset pending state if auth dialog is closed without login
-      setPendingSmartTour(false);
-    }
+  const handleAuthSuccess = () => {
+    console.log('✅ Auth successful, opening smart tour dialog');
+    setIsIntelligentTourOpen(true);
   };
 
   const handleTourGenerated = (landmarks: any[]) => {
@@ -274,10 +263,11 @@ const TopControls: React.FC<TopControlsProps> = ({
         onAuthRequired={handleAuthRequired}
       />
 
-      {/* AuthDialog with custom close handler */}
+      {/* AuthDialog with success callback */}
       <AuthDialog
         open={isAuthDialogOpen}
-        onOpenChange={handleAuthDialogClose}
+        onOpenChange={setIsAuthDialogOpen}
+        onAuthSuccess={handleAuthSuccess}
       />
     </>
   );

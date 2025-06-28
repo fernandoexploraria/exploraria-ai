@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -10,9 +11,10 @@ import { supabase } from '@/integrations/supabase/client';
 interface AuthDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onAuthSuccess?: () => void;
 }
 
-const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange }) => {
+const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange, onAuthSuccess }) => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -50,6 +52,10 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange }) => {
             title: "Success",
             description: "Signed in successfully!",
           });
+          // Call success callback before closing
+          if (onAuthSuccess) {
+            onAuthSuccess();
+          }
           onOpenChange(false);
           setEmail('');
           setPassword('');
@@ -83,6 +89,10 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange }) => {
           description: error.message,
           variant: "destructive"
         });
+      } else {
+        // For OAuth, the success will be handled by the auth state change listener
+        // We'll close the dialog and let the auth state change trigger the callback
+        onOpenChange(false);
       }
     } catch (error) {
       toast({
