@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -144,7 +143,7 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
           {getStatusIcon(proximityConnectionStatus.status)}
           <span className="text-xs">Proximity</span>
         </Badge>
-        {(tourConnectionStatus.status !== 'connected' || proximityConnectionStatus.status !== 'connected') && (
+        {(tourConnectionStatus.status === 'failed' || proximityConnectionStatus.status === 'failed') && (
           <Button
             size="sm"
             variant="outline"
@@ -160,8 +159,10 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
 
   if (!showDetails) {
     // Show only if there are connection issues
-    const hasIssues = tourConnectionStatus.status !== 'connected' || 
-                     proximityConnectionStatus.status !== 'connected';
+    const hasIssues = tourConnectionStatus.status === 'failed' || 
+                     proximityConnectionStatus.status === 'failed' ||
+                     tourConnectionStatus.status === 'polling' ||
+                     proximityConnectionStatus.status === 'polling';
     
     if (!hasIssues) return null;
   }
@@ -186,7 +187,7 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
               <Badge variant={getStatusVariant(tourConnectionStatus.status) as any}>
                 {getStatusText(tourConnectionStatus.status)}
               </Badge>
-              {tourConnectionStatus.status !== 'connected' && (
+              {tourConnectionStatus.status === 'failed' && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -209,7 +210,7 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
               <Badge variant={getStatusVariant(proximityConnectionStatus.status) as any}>
                 {getStatusText(proximityConnectionStatus.status)}
               </Badge>
-              {proximityConnectionStatus.status !== 'connected' && (
+              {proximityConnectionStatus.status === 'failed' && (
                 <Button
                   size="sm"
                   variant="outline"

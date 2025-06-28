@@ -15,7 +15,6 @@ interface IntelligentTourDialogProps {
   onOpenChange: (open: boolean) => void;
   onTourGenerated: (landmarks: any[]) => void;
   onAuthRequired: () => void;
-  onDestinationSelected?: (coordinates: [number, number]) => void;
 }
 
 interface AutocompleteResult {
@@ -45,8 +44,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   open,
   onOpenChange,
   onTourGenerated,
-  onAuthRequired,
-  onDestinationSelected
+  onAuthRequired
 }) => {
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
@@ -172,16 +170,12 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       console.log('Destination details retrieved:', detailsData.data);
       setDestinationDetails(detailsData.data);
 
-      // EMIT DESTINATION COORDINATES AS SOON AS AVAILABLE
-      const coordinates: [number, number] = [
+      // Search nearby landmarks with dynamic radius
+      const coordinates = [
         detailsData.data.location?.longitude || 0,
         detailsData.data.location?.latitude || 0
       ];
-      
-      console.log('Emitting destination coordinates to map:', coordinates);
-      onDestinationSelected?.(coordinates);
 
-      // Search nearby landmarks with dynamic radius
       console.log('Searching for nearby landmarks at coordinates:', coordinates);
 
       const { data: nearbyData, error: nearbyError } = await supabase.functions.invoke('google-places-nearby', {

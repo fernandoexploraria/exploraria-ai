@@ -41,8 +41,6 @@ interface MainLayoutProps {
   onIntelligentTourOpenChange: (open: boolean) => void;
   onTourGenerated?: (landmarks: any[]) => void;
   tourPlan: any;
-  destinationCoordinates?: [number, number] | null;
-  onDestinationSelected?: (coordinates: [number, number]) => void;
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({
@@ -74,8 +72,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   onIntelligentTourOpenChange,
   onTourGenerated,
   tourPlan,
-  destinationCoordinates,
-  onDestinationSelected,
 }) => {
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
 
@@ -120,7 +116,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         onSelectLandmark={onSelectLandmark}
         selectedLandmark={selectedLandmark}
         plannedLandmarks={[...plannedLandmarks]}
-        destinationCoordinates={destinationCoordinates}
       />
 
       <DialogManager
@@ -139,7 +134,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         onIntelligentTourOpenChange={onIntelligentTourOpenChange}
         onTourGenerated={onTourGenerated}
         onAuthRequired={handleAuthRequired}
-        onDestinationSelected={onDestinationSelected}
       />
 
       <NewTourAssistant
