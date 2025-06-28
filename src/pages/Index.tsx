@@ -20,6 +20,7 @@ interface IndexProps {
 const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
   const [showSplash, setShowSplash] = useState(true);
   const [additionalLandmarks, setAdditionalLandmarks] = useState<Landmark[]>([]);
+  const [destinationCoordinates, setDestinationCoordinates] = useState<[number, number] | null>(null);
   
   const { tourPlan, plannedLandmarks, isLoading: isTourLoading, generateTour, progressState } = useTourPlanner();
   const { user, signOut } = useAuth();
@@ -148,6 +149,8 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
     setAdditionalLandmarks(prev => [...prev, ...landmarks]);
     // Close the intelligent tour dialog
     setIsIntelligentTourOpen(false);
+    // Clear destination coordinates since tour is complete
+    setDestinationCoordinates(null);
   };
 
   // Handler for Intelligent Tour - authentication is handled within the dialog now
@@ -158,6 +161,12 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
   // Handler for auth required from IntelligentTourDialog
   const handleIntelligentTourAuthRequired = () => {
     setIsAuthDialogOpen(true);
+  };
+
+  // Handler for destination selection - fly to location immediately
+  const handleDestinationSelected = (coordinates: [number, number]) => {
+    console.log('🎯 Destination selected, setting coordinates for map fly-to:', coordinates);
+    setDestinationCoordinates(coordinates);
   };
 
   if (showSplash) {
@@ -200,6 +209,8 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
         onIntelligentTourOpenChange={setIsIntelligentTourOpen}
         onTourGenerated={handleTourGenerated}
         tourPlan={tourPlan}
+        destinationCoordinates={destinationCoordinates}
+        onDestinationSelected={handleDestinationSelected}
       />
       <DebugWindow 
         isVisible={isDebugVisible}
