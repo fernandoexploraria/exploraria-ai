@@ -1,9 +1,9 @@
+
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
-import { LANDMARKS } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { TOUR_LANDMARKS, setMapMarkersRef } from '@/data/tourLandmarks';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -27,7 +27,7 @@ const Map: React.FC<MapProps> = ({ destinationCoordinates, destinationName }) =>
   const [lastTourLandmarksLength, setLastTourLandmarksLength] = useState(0);
   const [hasFlownToDestination, setHasFlownToDestination] = useState(false);
   
-  const { mapboxToken, isLoading: tokenLoading } = useMapboxToken();
+  const mapboxToken = useMapboxToken();
   const { 
     currentLocation, 
     startTracking, 
@@ -36,16 +36,16 @@ const Map: React.FC<MapProps> = ({ destinationCoordinates, destinationName }) =>
     isTracking,
     distanceToLandmark 
   } = useLocationTracking();
-  const { triggerProximityAlert } = useProximityAlerts(currentLocation);
-  const { nearbyLandmarks, fetchNearbyLandmarks } = useNearbyLandmarks(currentLocation);
+  const { triggerProximityAlert } = useProximityAlerts();
+  const { nearbyLandmarks, fetchNearbyLandmarks } = useNearbyLandmarks();
   const { enhancedPhotos, fetchEnhancedPhoto } = useEnhancedPhotos();
-  const { showDebugWindow, toggleDebugWindow } = useDebugWindow();
+  const { isVisible: showDebugWindow, toggle: toggleDebugWindow } = useDebugWindow();
   const { isOnline } = useNetworkStatus();
-  const { isSlowConnection } = useConnectionMonitor();
+  const { connectionHealth } = useConnectionMonitor();
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || !mapboxToken || tokenLoading) return;
+    if (!mapContainer.current || !mapboxToken) return;
 
     mapboxgl.accessToken = mapboxToken;
     
@@ -100,7 +100,7 @@ const Map: React.FC<MapProps> = ({ destinationCoordinates, destinationName }) =>
     return () => {
       map.current?.remove();
     };
-  }, [mapboxToken, tokenLoading, destinationCoordinates]);
+  }, [mapboxToken, destinationCoordinates]);
 
   // Fly to destination when coordinates are provided
   useEffect(() => {
@@ -233,29 +233,6 @@ const Map: React.FC<MapProps> = ({ destinationCoordinates, destinationName }) =>
     setLastTourLandmarksLength(currentLength);
   }, [TOUR_LANDMARKS.length, lastTourLandmarksLength]);
 
-  // Regular landmarks effect
-  useEffect(() => {
-    if (!map.current) return;
-
-    LANDMARKS.forEach(landmark => {
-      const el = document.createElement('div');
-      el.className = 'marker';
-      el.style.backgroundImage = `url(https://placekitten.com/g/40/40/)`;
-      el.style.width = `40px`;
-      el.style.height = `40px`;
-      el.style.borderRadius = '50%';
-      el.style.backgroundSize = '100%';
-
-      new mapboxgl.Marker(el)
-        .setLngLat(landmark.coordinates)
-        .setPopup(
-          new mapboxgl.Popup({ offset: 25 }) // add popups
-            .setHTML(`<h3>${landmark.name}</h3><p>${landmark.description}</p>`)
-        )
-        .addTo(map.current);
-    });
-  }, []);
-
   // Top landmarks effect
   useEffect(() => {
     if (!map.current) return;
@@ -264,7 +241,7 @@ const Map: React.FC<MapProps> = ({ destinationCoordinates, destinationName }) =>
       new mapboxgl.Marker({ color: 'red' })
         .setLngLat(landmark.coordinates)
         .setPopup(
-          new mapboxgl.Popup({ offset: 25 }) // add popups
+          new mapboxgl.Popup({ offset: 25 })
             .setHTML(`<h3>${landmark.name}</h3><p>${landmark.description}</p>`)
         )
         .addTo(map.current);
@@ -279,11 +256,7 @@ const Map: React.FC<MapProps> = ({ destinationCoordinates, destinationName }) =>
       // console.log('📍 Current location:', currentLocation.longitude, currentLocation.latitude);
     } else if (locationError) {
       console.error('🚨 Location error:', locationError);
-      toast({
-        title: "Location Error",
-        description: locationError,
-        variant: "destructive"
-      });
+      toast.error("Location Error: " + locationError);
     }
   }, [currentLocation, locationError, isTracking]);
 
@@ -291,7 +264,7 @@ const Map: React.FC<MapProps> = ({ destinationCoordinates, destinationName }) =>
   useEffect(() => {
     if (!currentLocation) return;
 
-    LANDMARKS.forEach(landmark => {
+    TOP_LANDMARKS.forEach(landmark => {
       const distance = distanceToLandmark(
         currentLocation.latitude,
         currentLocation.longitude,
@@ -323,7 +296,7 @@ const Map: React.FC<MapProps> = ({ destinationCoordinates, destinationName }) =>
     }
   }, [nearbyLandmarks, enhancedPhotos, fetchEnhancedPhoto]);
 
-  if (tokenLoading) {
+  if (!mapboxToken) {
     return (
       <div className="flex items-center justify-center h-full bg-gray-100 rounded-lg">
         <div className="text-center">
@@ -345,7 +318,7 @@ const Map: React.FC<MapProps> = ({ destinationCoordinates, destinationName }) =>
           </button>
           <div className="mt-2 text-sm">
             <p>Is Online: {isOnline ? 'Yes' : 'No'}</p>
-            <p>Is Slow Connection: {isSlowConnection ? 'Yes' : 'No'}</p>
+            <p>Connection: {connectionHealth.quality}</p>
             {currentLocation && (
               <>
                 <p>Latitude: {currentLocation.latitude}</p>
@@ -370,7 +343,7 @@ const Map: React.FC<MapProps> = ({ destinationCoordinates, destinationName }) =>
           Offline Mode
         </div>
       )}
-      {isSlowConnection && (
+      {connectionHealth.quality === 'poor' && (
         <div className="absolute bottom-2 right-2 bg-yellow-500 text-gray-800 rounded px-3 py-1 text-sm z-50">
           Slow Connection
         </div>

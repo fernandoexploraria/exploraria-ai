@@ -1,6 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
 import Map from '@/components/Map';
-import MainLayout from '@/components/MainLayout';
 import { useTourPlanner } from '@/hooks/useTourPlanner';
 import IntelligentTourDialog from '@/components/IntelligentTourDialog';
 import TourPlannerDialog from '@/components/TourPlannerDialog';
@@ -50,51 +50,49 @@ const Index = ({ onRegisterPostAuthActions }: { onRegisterPostAuthActions: (acti
   };
 
   return (
-    <MainLayout>
-      <div className="h-screen flex flex-col">
-        <div className="flex-1 relative">
-          <Map 
-            destinationCoordinates={destinationCoordinates}
-            destinationName={destinationName}
-          />
-          
-          <div className="absolute top-4 left-4 z-10">
-            <Button onClick={() => setShowIntelligentTourDialog(true)}>
-              ✨ Generate Smart Tour
-            </Button>
-          </div>
-          
-          <div className="absolute top-4 right-4 z-10">
-            {user ? (
-              <Button onClick={() => navigate('/chat')}>
-                Go to Chat <ArrowRight className="ml-2" />
-              </Button>
-            ) : (
-              <Button onClick={() => handleAuthRequired(destinationName || 'your destination')}>
-                Go to Chat <ArrowRight className="ml-2" />
-              </Button>
-            )}
-          </div>
-          
-          <IntelligentTourDialog
-            open={showIntelligentTourDialog}
-            onOpenChange={setShowIntelligentTourDialog}
-            onTourGenerated={handleTourGenerated}
-            onAuthRequired={() => handleAuthRequired(destinationName || 'your destination')}
-            onDestinationSelected={handleDestinationSelected}
-          />
-          
-          <TourPlannerDialog
-            open={showTourPlannerDialog}
-            onOpenChange={setShowTourPlannerDialog}
-            onGenerateTour={generateTour}
-            onAuthRequired={handleAuthRequired}
-            isLoading={isLoading}
-            progressState={progressState}
-          />
+    <div className="h-screen flex flex-col">
+      <div className="flex-1 relative">
+        <Map 
+          destinationCoordinates={destinationCoordinates}
+          destinationName={destinationName}
+        />
+        
+        <div className="absolute top-4 left-4 z-10">
+          <Button onClick={() => setShowIntelligentTourDialog(true)}>
+            ✨ Generate Smart Tour
+          </Button>
         </div>
+        
+        <div className="absolute top-4 right-4 z-10">
+          {user ? (
+            <Button onClick={() => navigate('/chat')}>
+              Go to Chat <ArrowRight className="ml-2" />
+            </Button>
+          ) : (
+            <Button onClick={() => handleAuthRequired(destinationName || 'your destination')}>
+              Go to Chat <ArrowRight className="ml-2" />
+            </Button>
+          )}
+        </div>
+        
+        <IntelligentTourDialog
+          open={showIntelligentTourDialog}
+          onOpenChange={setShowIntelligentTourDialog}
+          onTourGenerated={handleTourGenerated}
+          onAuthRequired={() => handleAuthRequired(destinationName || 'your destination')}
+          onDestinationSelected={handleDestinationSelected}
+        />
+        
+        <TourPlannerDialog
+          open={showTourPlannerDialog}
+          onOpenChange={setShowTourPlannerDialog}
+          onGenerateTour={generateTour}
+          onAuthRequired={handleAuthRequired}
+          isLoading={isLoading}
+          progressState={progressState}
+        />
       </div>
-    </MainLayout>
+    </div>
   );
 };
 
