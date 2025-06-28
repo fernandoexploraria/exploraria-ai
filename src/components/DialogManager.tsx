@@ -1,3 +1,4 @@
+
 import React from 'react';
 import TourPlannerDialog from './TourPlannerDialog';
 import InteractionCarousel from './InteractionCarousel';
@@ -20,7 +21,7 @@ interface DialogManagerProps {
   isIntelligentTourOpen: boolean;
   onIntelligentTourOpenChange: (open: boolean) => void;
   onTourGenerated?: (landmarks: any[]) => void;
-  user?: any;
+  onAuthRequired: () => void;
 }
 
 const DialogManager: React.FC<DialogManagerProps> = ({
@@ -38,7 +39,7 @@ const DialogManager: React.FC<DialogManagerProps> = ({
   isIntelligentTourOpen,
   onIntelligentTourOpenChange,
   onTourGenerated,
-  user,
+  onAuthRequired,
 }) => {
   return (
     <>
@@ -66,6 +67,7 @@ const DialogManager: React.FC<DialogManagerProps> = ({
         open={isIntelligentTourOpen}
         onOpenChange={onIntelligentTourOpenChange}
         onTourGenerated={onTourGenerated || (() => {})}
+        onAuthRequired={onAuthRequired}
       />
     </>
   );

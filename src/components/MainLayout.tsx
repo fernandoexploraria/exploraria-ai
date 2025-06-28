@@ -78,13 +78,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     console.log('Location select called but no action taken');
   };
 
-  // Only allow access to Intelligent Tour if user is authenticated
+  // Simplified - let the dialog handle authentication internally
   const handleIntelligentTourOpen = () => {
-    if (user) {
-      onIntelligentTourOpenChange(true);
-    } else {
-      onAuthDialogOpen();
-    }
+    onIntelligentTourOpenChange(true);
   };
 
   return (
@@ -130,7 +126,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         isIntelligentTourOpen={isIntelligentTourOpen}
         onIntelligentTourOpenChange={onIntelligentTourOpenChange}
         onTourGenerated={onTourGenerated}
-        user={user}
+        onAuthRequired={onAuthDialogOpen}
       />
 
       <NewTourAssistant

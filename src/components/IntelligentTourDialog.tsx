@@ -3,9 +3,8 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-import { Sparkles, MapPin, Search, Clock, Star, Lock } from 'lucide-react';
+import { Sparkles, MapPin, Search, Clock, Star } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/AuthProvider';
@@ -14,6 +13,7 @@ interface IntelligentTourDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onTourGenerated: (landmarks: any[]) => void;
+  onAuthRequired: () => void;
 }
 
 interface AutocompleteResult {
@@ -42,9 +42,10 @@ const STEPS: Step[] = [
 const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   open,
   onOpenChange,
-  onTourGenerated
+  onTourGenerated,
+  onAuthRequired
 }) => {
-  const { user, signIn, signUp } = useAuth();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [autocompleteResults, setAutocompleteResults] = useState<AutocompleteResult[]>([]);
@@ -54,12 +55,6 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [sessionToken, setSessionToken] = useState<string>('');
   const [autocompleteError, setAutocompleteError] = useState<string>('');
-  
-  // Authentication state
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [authLoading, setAuthLoading] = useState(false);
   
   const { toast } = useToast();
 
@@ -71,79 +66,6 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       console.log('Generated new autocomplete session token:', newSessionToken);
     }
   }, [open, sessionToken]);
-
-  const handleAuthSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthLoading(true);
-
-    try {
-      const { error } = isSignUp 
-        ? await signUp(email, password)
-        : await signIn(email, password);
-
-      if (error) {
-        toast({
-          title: "Authentication Error",
-          description: error.message,
-          variant: "destructive"
-        });
-      } else {
-        if (isSignUp) {
-          toast({
-            title: "Check your email",
-            description: "We've sent you a confirmation email. Please check your inbox and click the link to activate your account.",
-          });
-          setEmail('');
-          setPassword('');
-        } else {
-          toast({
-            title: "Success",
-            description: "Signed in successfully!",
-          });
-          setEmail('');
-          setPassword('');
-          // User will be automatically detected by useAuth hook
-        }
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred.",
-        variant: "destructive"
-      });
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    setAuthLoading(true);
-    
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin
-        }
-      });
-
-      if (error) {
-        toast({
-          title: "Google Sign In Error",
-          description: error.message,
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to sign in with Google.",
-        variant: "destructive"
-      });
-    } finally {
-      setAuthLoading(false);
-    }
-  };
 
   const handleSearchDestination = async (query: string) => {
     if (query.length < 3) {
@@ -223,6 +145,13 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   };
 
   const handleDestinationSelect = async (destination: AutocompleteResult) => {
+    // Check if user is authenticated before proceeding
+    if (!user) {
+      onAuthRequired();
+      onOpenChange(false);
+      return;
+    }
+
     console.log('Starting tour generation for user:', user?.id, 'destination:', destination.description);
     
     setSelectedDestination(destination);
@@ -438,9 +367,6 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
     setDestinationDetails(null);
     setNearbyLandmarks([]);
     setIsLoading(false);
-    setEmail('');
-    setPassword('');
-    setIsSignUp(false);
     setAutocompleteError('');
     // Generate new session token for next autocomplete session
     setSessionToken(crypto.randomUUID());
@@ -466,225 +392,134 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
           </DialogDescription>
         </DialogHeader>
 
-        {/* Show authentication UI if user is not authenticated */}
-        {!user ? (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 p-4 bg-blue-50 rounded-lg">
-              <Lock className="h-5 w-5 text-blue-600" />
-              <div>
-                <h3 className="font-semibold text-blue-900">Authentication Required</h3>
-                <p className="text-sm text-blue-700">Sign in to generate personalized tours and save your travel plans.</p>
+        {/* Progress Bar */}
+        <div className="space-y-2">
+          <Progress value={progress} className="w-full" />
+          <div className="flex justify-between text-sm text-muted-foreground">
+            {STEPS.map((step) => (
+              <div key={step.id} className={`text-center ${currentStep >= step.id ? 'text-primary' : ''}`}>
+                <div className="font-medium">{step.title}</div>
               </div>
-            </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={handleGoogleSignIn}
-              disabled={authLoading}
-            >
-              <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                />
-              </svg>
-              {authLoading ? 'Signing in...' : 'Continue with Google'}
-            </Button>
-            
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  Or continue with email
-                </span>
-              </div>
-            </div>
-
-            <form onSubmit={handleAuthSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-              
-              <Button type="submit" className="w-full" disabled={authLoading}>
-                {authLoading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign In')}
-              </Button>
-              
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full"
-                onClick={() => setIsSignUp(!isSignUp)}
-              >
-                {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
-              </Button>
-            </form>
+            ))}
           </div>
-        ) : (
-          <>
-            {/* Progress Bar - only show when authenticated */}
-            <div className="space-y-2">
-              <Progress value={progress} className="w-full" />
-              <div className="flex justify-between text-sm text-muted-foreground">
-                {STEPS.map((step) => (
-                  <div key={step.id} className={`text-center ${currentStep >= step.id ? 'text-primary' : ''}`}>
-                    <div className="font-medium">{step.title}</div>
-                  </div>
-                ))}
+        </div>
+
+        {/* Step 1: Choose Destination */}
+        {currentStep === 1 && (
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Where do you want to explore?</h3>
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search for cities, attractions, parks, museums..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    handleSearchDestination(e.target.value);
+                  }}
+                  className="pl-10"
+                />
               </div>
+              {autocompleteError && (
+                <p className="text-sm text-muted-foreground mt-1 text-amber-600">
+                  {autocompleteError}
+                </p>
+              )}
             </div>
 
-            {/* Step 1: Choose Destination */}
-            {currentStep === 1 && (
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Where do you want to explore?</h3>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search for cities, attractions, parks, museums..."
-                      value={searchQuery}
-                      onChange={(e) => {
-                        setSearchQuery(e.target.value);
-                        handleSearchDestination(e.target.value);
-                      }}
-                      className="pl-10"
-                    />
-                  </div>
-                  {autocompleteError && (
-                    <p className="text-sm text-muted-foreground mt-1 text-amber-600">
-                      {autocompleteError}
-                    </p>
-                  )}
-                </div>
-
-                {autocompleteResults.length > 0 && (
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {autocompleteResults.map((result) => (
-                      <Button
-                        key={result.place_id}
-                        variant="ghost"
-                        className="w-full justify-start h-auto p-3 text-left"
-                        onClick={() => handleDestinationSelect(result)}
-                      >
-                        <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
-                        <div>
-                          <div className="font-medium">
-                            {result.structured_formatting?.main_text || result.description}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {result.structured_formatting?.secondary_text || result.types?.join(', ')}
-                          </div>
-                        </div>
-                      </Button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Step 2: Discovering Landmarks */}
-            {currentStep === 2 && (
-              <div className="space-y-4 text-center">
-                <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
-                <div>
-                  <h3 className="text-lg font-semibold">Discovering Amazing Places</h3>
-                  <p className="text-muted-foreground">
-                    Searching for attractions near {selectedDestination?.structured_formatting?.main_text || selectedDestination?.description}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: Generating Tour */}
-            {currentStep === 3 && (
-              <div className="space-y-4">
-                <div className="text-center">
-                  <div className="animate-pulse h-8 w-8 bg-primary rounded-full mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold">Creating Your Personal Tour</h3>
-                  <p className="text-muted-foreground">
-                    Found {nearbyLandmarks.length} amazing places! Generating your tour...
-                  </p>
-                </div>
-                
-                {destinationDetails && (
-                  <div className="bg-muted/50 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <MapPin className="h-5 w-5 text-primary mt-1" />
-                      <div>
-                        <h4 className="font-semibold">{destinationDetails.name}</h4>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          {destinationDetails.rating && (
-                            <div className="flex items-center gap-1">
-                              <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                              {destinationDetails.rating}
-                            </div>
-                          )}
-                          <span>{destinationDetails.address}</span>
-                        </div>
+            {autocompleteResults.length > 0 && (
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {autocompleteResults.map((result) => (
+                  <Button
+                    key={result.place_id}
+                    variant="ghost"
+                    className="w-full justify-start h-auto p-3 text-left"
+                    onClick={() => handleDestinationSelect(result)}
+                  >
+                    <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
+                    <div>
+                      <div className="font-medium">
+                        {result.structured_formatting?.main_text || result.description}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {result.structured_formatting?.secondary_text || result.types?.join(', ')}
                       </div>
                     </div>
-                  </div>
-                )}
+                  </Button>
+                ))}
               </div>
             )}
+          </div>
+        )}
 
-            {/* Step 4: Ready */}
-            {currentStep === 4 && (
-              <div className="space-y-4 text-center">
-                <div className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                  <Sparkles className="h-8 w-8 text-green-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-green-600">Tour Ready!</h3>
-                  <p className="text-muted-foreground">
-                    Your personalized tour of {destinationDetails?.name} is ready with {nearbyLandmarks.length} amazing places to explore.
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Button onClick={handleClose} className="w-full">
-                    Start Exploring
-                  </Button>
-                  <Button variant="outline" onClick={resetDialog} className="w-full">
-                    Create Another Tour
-                  </Button>
+        {/* Step 2: Discovering Landmarks */}
+        {currentStep === 2 && (
+          <div className="space-y-4 text-center">
+            <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
+            <div>
+              <h3 className="text-lg font-semibold">Discovering Amazing Places</h3>
+              <p className="text-muted-foreground">
+                Searching for attractions near {selectedDestination?.structured_formatting?.main_text || selectedDestination?.description}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Generating Tour */}
+        {currentStep === 3 && (
+          <div className="space-y-4">
+            <div className="text-center">
+              <div className="animate-pulse h-8 w-8 bg-primary rounded-full mx-auto mb-4" />
+              <h3 className="text-lg font-semibold">Creating Your Personal Tour</h3>
+              <p className="text-muted-foreground">
+                Found {nearbyLandmarks.length} amazing places! Generating your tour...
+              </p>
+            </div>
+            
+            {destinationDetails && (
+              <div className="bg-muted/50 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <MapPin className="h-5 w-5 text-primary mt-1" />
+                  <div>
+                    <h4 className="font-semibold">{destinationDetails.name}</h4>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      {destinationDetails.rating && (
+                        <div className="flex items-center gap-1">
+                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                          {destinationDetails.rating}
+                        </div>
+                      )}
+                      <span>{destinationDetails.address}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
-          </>
+          </div>
+        )}
+
+        {/* Step 4: Ready */}
+        {currentStep === 4 && (
+          <div className="space-y-4 text-center">
+            <div className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+              <Sparkles className="h-8 w-8 text-green-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-green-600">Tour Ready!</h3>
+              <p className="text-muted-foreground">
+                Your personalized tour of {destinationDetails?.name} is ready with {nearbyLandmarks.length} amazing places to explore.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Button onClick={handleClose} className="w-full">
+                Start Exploring
+              </Button>
+              <Button variant="outline" onClick={resetDialog} className="w-full">
+                Create Another Tour
+              </Button>
+            </div>
+          </div>
         )}
       </DialogContent>
     </Dialog>
