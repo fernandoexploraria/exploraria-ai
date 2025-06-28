@@ -106,22 +106,35 @@ const Map: React.FC<MapProps> = ({ destinationCoordinates, destinationName }) =>
       showUserHeading: true
     }), 'top-left');
 
+    // Move all terrain and style-dependent operations inside style.load
     map.current.on('style.load', () => {
-      map.current!.setFog({
-        range: [0.8, 8],
-        color: '#d8e2ef',
-        'horizon-blend': 0.3,
-        'star-intensity': 0.6
-      });
-    });
+      console.log('🗺️ Map style loaded, setting up terrain and effects...');
+      
+      try {
+        // First add the DEM source
+        map.current!.addSource('mapbox-dem', {
+          'type': 'raster-dem',
+          'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+          'tileSize': 512,
+          'maxzoom': 14
+        });
 
-    // Atmosphere styling
-    map.current.setTerrain({ source: 'mapbox-dem', exaggeration: 1.5 });
-    map.current.addSource('mapbox-dem', {
-      'type': 'raster-dem',
-      'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
-      'tileSize': 512,
-      'maxzoom': 14
+        // Then set terrain using that source
+        map.current!.setTerrain({ source: 'mapbox-dem', exaggeration: 1.5 });
+
+        // Finally add fog effects
+        map.current!.setFog({
+          range: [0.8, 8],
+          color: '#d8e2ef',
+          'horizon-blend': 0.3,
+          'star-intensity': 0.6
+        });
+
+        console.log('🗺️ Terrain and fog effects applied successfully');
+      } catch (error) {
+        console.warn('🗺️ Failed to setup 3D terrain:', error);
+        // Map will still work without terrain
+      }
     });
 
     // Set markers ref for tour landmarks
