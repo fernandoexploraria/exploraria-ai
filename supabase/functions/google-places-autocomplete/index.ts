@@ -8,8 +8,11 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  console.log('🚀 DEBUG: Function started - basic entry point reached')
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('🚀 DEBUG: CORS preflight request handled')
     return new Response('ok', { 
       status: 200,
       headers: corsHeaders 
@@ -17,25 +20,21 @@ serve(async (req) => {
   }
 
   try {
-    console.log('🚀 Edge Function started - processing autocomplete request')
+    console.log('🚀 DEBUG: Main try block entered')
+    console.log('🚀 DEBUG: Request method:', req.method)
+    console.log('🚀 DEBUG: Request URL:', req.url)
     
-    const requestBody = await req.json()
-    console.log('📥 Incoming request body:', JSON.stringify(requestBody, null, 2))
-    
-    const { 
-      input, 
-      types = ['locality', 'sublocality', 'tourist_attraction', 'park', 'museum'],
-      sessionToken,
-      locationBias 
-    } = requestBody
-    
+    // Step 1: Check if we can access environment variables
     const googleApiKey = Deno.env.get('GOOGLE_API_KEY')
+    console.log('🚀 DEBUG: Google API Key exists:', googleApiKey ? 'YES' : 'NO')
+    console.log('🚀 DEBUG: Google API Key length:', googleApiKey ? googleApiKey.length : 0)
     
     if (!googleApiKey) {
-      console.error('❌ Google API key not configured')
+      console.log('❌ DEBUG: Google API key not found in environment')
       return new Response(
         JSON.stringify({ 
           error: 'Google API key not configured',
+          debug: 'GOOGLE_API_KEY environment variable is missing',
           predictions: [],
           status: 'ERROR'
         }),
@@ -46,49 +45,85 @@ serve(async (req) => {
       )
     }
 
-    // Return empty predictions for short input
-    if (!input || input.length < 3) {
-      console.log('⚠️ Input too short, returning empty predictions')
+    // Step 2: Try to parse request body
+    console.log('🚀 DEBUG: Attempting to parse request body...')
+    let requestBody
+    try {
+      requestBody = await req.json()
+      console.log('🚀 DEBUG: Request body parsed successfully')
+      console.log('🚀 DEBUG: Request body keys:', Object.keys(requestBody || {}))
+    } catch (parseError) {
+      console.error('❌ DEBUG: Failed to parse request body:', parseError.message)
       return new Response(
-        JSON.stringify({ predictions: [], status: 'OK' }),
+        JSON.stringify({ 
+          error: 'Invalid JSON in request body',
+          debug: parseError.message,
+          predictions: [],
+          status: 'ERROR'
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+          status: 400 
+        }
+      )
+    }
+
+    const { input, types, sessionToken, locationBias } = requestBody || {}
+    
+    console.log('🚀 DEBUG: Input:', input)
+    console.log('🚀 DEBUG: Input length:', input ? input.length : 0)
+    console.log('🚀 DEBUG: Session token exists:', sessionToken ? 'YES' : 'NO')
+    console.log('🚀 DEBUG: Location bias exists:', locationBias ? 'YES' : 'NO')
+
+    // Return empty predictions for short input (no API call needed)
+    if (!input || input.length < 3) {
+      console.log('🚀 DEBUG: Input too short, returning empty predictions')
+      return new Response(
+        JSON.stringify({ 
+          predictions: [], 
+          status: 'OK',
+          debug: 'Input too short - no API call made'
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log('🔍 Processing autocomplete request:')
-    console.log('  - Input:', input)
-    console.log('  - Types:', types)
-    console.log('  - Session Token:', sessionToken ? `${sessionToken.substring(0, 8)}...` : 'none')
-    console.log('  - Location Bias:', locationBias ? 'provided' : 'none')
-
-    const autocompleteUrl = 'https://places.googleapis.com/v1/places:autocomplete'
+    // Step 3: Test Google API call with minimal parameters
+    console.log('🚀 DEBUG: Preparing Google API call...')
     
-    // Build request body for Google Places API (New)
-    const googleRequestBody: any = {
+    const autocompleteUrl = 'https://places.googleapis.com/v1/places:autocomplete'
+    console.log('🚀 DEBUG: API URL:', autocompleteUrl)
+
+    // Build minimal request body for Google Places API
+    const googleRequestBody = {
       input: input,
       languageCode: 'en'
     }
 
-    // Map frontend 'types' parameter to Google's 'includedPrimaryTypes'
+    // Only add optional parameters if they exist
     if (Array.isArray(types) && types.length > 0) {
       googleRequestBody.includedPrimaryTypes = types
+      console.log('🚀 DEBUG: Added types:', types)
     }
 
     if (sessionToken) {
       googleRequestBody.sessionToken = sessionToken
+      console.log('🚀 DEBUG: Added session token')
     }
 
     if (locationBias) {
       googleRequestBody.locationBias = locationBias
+      console.log('🚀 DEBUG: Added location bias')
     }
 
-    console.log('📤 Request to Google Places API:', JSON.stringify(googleRequestBody, null, 2))
+    console.log('🚀 DEBUG: Final request body:', JSON.stringify(googleRequestBody, null, 2))
 
-    // Use correct field mask for Google Places API (New)
-    const fieldMask = 'predictions.placePrediction.placeId,predictions.placePrediction.displayName,predictions.placePrediction.types,predictions.placePrediction.formattedAddress,predictions.placePrediction.structuredFormat'
+    // Use simplified field mask for debugging
+    const fieldMask = 'predictions.placePrediction.placeId,predictions.placePrediction.displayName'
+    console.log('🚀 DEBUG: Using field mask:', fieldMask)
 
-    console.log('🎯 Using field mask:', fieldMask)
-
+    console.log('🚀 DEBUG: Making Google API request...')
+    
     const googleResponse = await fetch(autocompleteUrl, {
       method: 'POST',
       headers: {
@@ -99,18 +134,17 @@ serve(async (req) => {
       body: JSON.stringify(googleRequestBody)
     })
 
-    console.log('📡 Google API Response status:', googleResponse.status)
-    console.log('📡 Google API Response headers:', Object.fromEntries(googleResponse.headers.entries()))
+    console.log('🚀 DEBUG: Google API response status:', googleResponse.status)
+    console.log('🚀 DEBUG: Google API response ok:', googleResponse.ok)
 
     if (!googleResponse.ok) {
       const errorText = await googleResponse.text()
-      console.error('❌ Google Places API error:')
-      console.error('  - Status:', googleResponse.status)
-      console.error('  - Response:', errorText)
+      console.error('❌ DEBUG: Google Places API error:', errorText)
       
       return new Response(
         JSON.stringify({ 
-          error: `Google Places API error: ${googleResponse.status} - ${errorText}`,
+          error: `Google Places API error: ${googleResponse.status}`,
+          debug: errorText,
           predictions: [],
           status: 'ERROR'
         }),
@@ -121,18 +155,20 @@ serve(async (req) => {
       )
     }
 
-    console.log('🎉 Google API call successful, parsing response...')
+    console.log('🚀 DEBUG: Google API call successful, parsing response...')
     
     let googleApiData
     try {
       googleApiData = await googleResponse.json()
-      console.log('✅ Google API Raw Response parsed successfully')
-      console.log('📊 Raw response structure:', JSON.stringify(googleApiData, null, 2))
+      console.log('🚀 DEBUG: Google API response parsed successfully')
+      console.log('🚀 DEBUG: Response has predictions:', googleApiData.predictions ? 'YES' : 'NO')
+      console.log('🚀 DEBUG: Predictions count:', googleApiData.predictions ? googleApiData.predictions.length : 0)
     } catch (parseError) {
-      console.error('❌ Failed to parse Google API response as JSON:', parseError.message)
+      console.error('❌ DEBUG: Failed to parse Google API response:', parseError.message)
       return new Response(
         JSON.stringify({ 
           error: 'Failed to parse Google API response',
+          debug: parseError.message,
           predictions: [],
           status: 'ERROR'
         }),
@@ -143,76 +179,56 @@ serve(async (req) => {
       )
     }
 
-    // Safely process the response
+    // Process predictions with minimal processing for debugging
     const predictions = googleApiData.predictions || []
-    console.log('📊 Number of predictions received:', predictions.length)
-
-    if (predictions.length === 0) {
-      console.log('📭 No predictions returned from Google API')
-      return new Response(
-        JSON.stringify({ predictions: [], status: 'OK' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    console.log('🔄 Starting to process predictions...')
+    console.log('🚀 DEBUG: Starting to process predictions...')
     
-    // Process predictions with extensive error handling
     const processedPredictions = []
     
     for (let i = 0; i < predictions.length; i++) {
       try {
         const prediction = predictions[i]
-        console.log(`🔄 Processing prediction ${i + 1}:`, JSON.stringify(prediction, null, 2))
-        
         const placePrediction = prediction?.placePrediction
         
         if (!placePrediction) {
-          console.warn(`⚠️ No placePrediction found in prediction ${i}:`, prediction)
+          console.log(`⚠️ DEBUG: No placePrediction in prediction ${i}`)
           continue
         }
         
-        // Safely extract fields with extensive fallbacks
+        // Minimal processing - just extract basic fields
         const placeId = placePrediction.placeId || `fallback-${Date.now()}-${i}`
-        const displayName = placePrediction.displayName?.text || placePrediction.displayName || ''
-        const formattedAddress = placePrediction.formattedAddress || ''
-        const types = Array.isArray(placePrediction.types) ? placePrediction.types : []
-        
-        // Handle structured format very defensively
-        const structuredFormat = placePrediction.structuredFormat || {}
-        const mainText = structuredFormat.mainText?.text || structuredFormat.mainText || displayName || 'Unknown place'
-        const secondaryText = structuredFormat.secondaryText?.text || structuredFormat.secondaryText || formattedAddress || ''
+        const displayName = placePrediction.displayName?.text || 
+                           placePrediction.displayName || 
+                           'Unknown place'
         
         const processedPrediction = {
           place_id: placeId,
-          description: mainText && secondaryText ? `${mainText}, ${secondaryText}` : mainText,
-          types: types,
+          description: displayName,
+          types: placePrediction.types || [],
           structured_formatting: {
-            main_text: mainText,
-            secondary_text: secondaryText
+            main_text: displayName,
+            secondary_text: ''
           }
         }
         
-        console.log(`✅ Successfully processed prediction ${i + 1}:`, JSON.stringify(processedPrediction, null, 2))
+        console.log(`🚀 DEBUG: Processed prediction ${i + 1}:`, processedPrediction.place_id)
         processedPredictions.push(processedPrediction)
         
       } catch (predictionError) {
-        console.error(`❌ Error processing prediction ${i + 1}:`, predictionError.message)
-        console.error('❌ Error stack:', predictionError.stack)
-        console.error('❌ Raw prediction data:', JSON.stringify(predictions[i], null, 2))
-        // Continue processing other predictions instead of failing entirely
+        console.error(`❌ DEBUG: Error processing prediction ${i + 1}:`, predictionError.message)
         continue
       }
     }
 
-    console.log(`🎉 Successfully processed ${processedPredictions.length} predictions out of ${predictions.length} total`)
+    console.log(`🚀 DEBUG: Successfully processed ${processedPredictions.length} predictions`)
     
     const finalResponse = {
       predictions: processedPredictions,
-      status: 'OK'
+      status: 'OK',
+      debug: `Processed ${processedPredictions.length} predictions successfully`
     }
     
-    console.log('📤 Final response to frontend:', JSON.stringify(finalResponse, null, 2))
+    console.log('🚀 DEBUG: Returning final response')
 
     return new Response(
       JSON.stringify(finalResponse),
@@ -220,14 +236,14 @@ serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('💥 Unhandled error in autocomplete function:', error.message)
-    console.error('💥 Error stack:', error.stack)
-    console.error('💥 Error name:', error.name)
-    console.error('💥 Error constructor:', error.constructor.name)
+    console.error('💥 DEBUG: Unhandled error in function:', error.message)
+    console.error('💥 DEBUG: Error stack:', error.stack)
+    console.error('💥 DEBUG: Error name:', error.name)
     
     return new Response(
       JSON.stringify({ 
         error: `Internal server error: ${error.message}`, 
+        debug: error.stack,
         predictions: [],
         status: 'ERROR'
       }),
