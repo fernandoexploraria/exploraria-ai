@@ -17,6 +17,7 @@ import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { formatDistanceToNow } from 'date-fns';
 import IntelligentTourDialog from './IntelligentTourDialog';
 import AuthDialog from './AuthDialog';
+import { useAuth } from '@/components/AuthProvider';
 
 interface ConnectionStatusProps {
   className?: string;
@@ -29,8 +30,10 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
   showDetails = false,
   compact = false
 }) => {
+  const { user } = useAuth();
   const [isIntelligentTourOpen, setIsIntelligentTourOpen] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
+  const [pendingSmartTour, setPendingSmartTour] = useState(false);
   
   const { 
     connectionStatus: tourConnectionStatus, 
@@ -101,14 +104,41 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
     proximityForceReconnect();
   };
 
+  const handleSmartTourClick = () => {
+    console.log('🎯 Smart Tour clicked, user:', user?.id);
+    
+    if (!user) {
+      console.log('🚨 User not authenticated, opening auth dialog first');
+      setPendingSmartTour(true);
+      setIsAuthDialogOpen(true);
+    } else {
+      console.log('✅ User authenticated, opening smart tour dialog');
+      setIsIntelligentTourOpen(true);
+    }
+  };
+
+  const handleAuthDialogClose = (open: boolean) => {
+    setIsAuthDialogOpen(open);
+    
+    // If auth dialog is closing and user is now authenticated, open smart tour
+    if (!open && user && pendingSmartTour) {
+      console.log('✅ Auth successful, opening smart tour dialog');
+      setPendingSmartTour(false);
+      setIsIntelligentTourOpen(true);
+    } else if (!open) {
+      // Reset pending state if auth dialog is closed without login
+      setPendingSmartTour(false);
+    }
+  };
+
   const handleTourGenerated = (landmarks: any[]) => {
     console.log('🗺️ Tour generated with landmarks:', landmarks);
     setIsIntelligentTourOpen(false);
   };
 
   const handleAuthRequired = () => {
-    console.log('🔐 Auth required for tour generation - opening auth dialog');
-    setIsAuthDialogOpen(true);
+    // This shouldn't be called anymore since we handle auth upfront
+    console.log('🔐 Auth required callback - should not happen in new flow');
   };
 
   if (compact) {
@@ -224,11 +254,11 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
             </div>
           )}
 
-          {/* Test IntelligentTour Button */}
+          {/* Test IntelligentTour Button - Updated to handle auth */}
           <Button
             size="sm"
             variant="outline"
-            onClick={() => setIsIntelligentTourOpen(true)}
+            onClick={handleSmartTourClick}
             className="w-full"
           >
             <Sparkles className="h-4 w-4 mr-2" />
@@ -248,7 +278,7 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
         </CardContent>
       </Card>
 
-      {/* IntelligentTourDialog - embedded within this component's context */}
+      {/* IntelligentTourDialog */}
       <IntelligentTourDialog
         open={isIntelligentTourOpen}
         onOpenChange={setIsIntelligentTourOpen}
@@ -256,10 +286,10 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
         onAuthRequired={handleAuthRequired}
       />
 
-      {/* AuthDialog - embedded within this component's context */}
+      {/* AuthDialog with custom close handler */}
       <AuthDialog
         open={isAuthDialogOpen}
-        onOpenChange={setIsAuthDialogOpen}
+        onOpenChange={handleAuthDialogClose}
       />
     </>
   );

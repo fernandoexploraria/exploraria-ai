@@ -149,18 +149,9 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   };
 
   const handleDestinationSelect = async (destination: AutocompleteResult) => {
-    // Check if user is authenticated before proceeding
-    if (!user) {
-      console.log('🚨 AUTH: User not authenticated, need to trigger auth');
-      console.log('🚨 AUTH: Will keep dialog open and trigger auth from parent');
-      
-      // Don't close this dialog - let the parent handle auth
-      onAuthRequired();
-      return;
-    }
-
     console.log('Starting tour generation for user:', user?.id, 'destination:', destination.description);
     
+    // Since we handle auth upfront, we can proceed directly
     setSelectedDestination(destination);
     setCurrentStep(2);
     setIsLoading(true);

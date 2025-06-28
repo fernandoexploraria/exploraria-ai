@@ -13,6 +13,7 @@ import { useConnectionMonitor } from '@/hooks/useConnectionMonitor';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import IntelligentTourDialog from './IntelligentTourDialog';
+import AuthDialog from './AuthDialog';
 import { useAuth } from '@/components/AuthProvider';
 
 interface TopControlsProps {
@@ -40,11 +41,14 @@ const TopControls: React.FC<TopControlsProps> = ({
   onIntelligentTourOpen,
   onAuthDialogOpen,
 }) => {
+  const { user: authUser } = useAuth();
   const isMobile = useIsMobile();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDebugDrawerOpen, setIsDebugDrawerOpen] = useState(false);
   const [isTestingCors, setIsTestingCors] = useState(false);
   const [isIntelligentTourOpen, setIsIntelligentTourOpen] = useState(false);
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
+  const [pendingSmartTour, setPendingSmartTour] = useState(false);
   const { toast } = useToast();
   
   // Initialize connection monitoring
@@ -89,6 +93,33 @@ const TopControls: React.FC<TopControlsProps> = ({
     }
   };
 
+  const handleSmartTourClick = () => {
+    console.log('🎯 Smart Tour clicked from TopControls, user:', authUser?.id);
+    
+    if (!authUser) {
+      console.log('🚨 User not authenticated, opening auth dialog first');
+      setPendingSmartTour(true);
+      setIsAuthDialogOpen(true);
+    } else {
+      console.log('✅ User authenticated, opening smart tour dialog');
+      setIsIntelligentTourOpen(true);
+    }
+  };
+
+  const handleAuthDialogClose = (open: boolean) => {
+    setIsAuthDialogOpen(open);
+    
+    // If auth dialog is closing and user is now authenticated, open smart tour
+    if (!open && authUser && pendingSmartTour) {
+      console.log('✅ Auth successful, opening smart tour dialog');
+      setPendingSmartTour(false);
+      setIsIntelligentTourOpen(true);
+    } else if (!open) {
+      // Reset pending state if auth dialog is closed without login
+      setPendingSmartTour(false);
+    }
+  };
+
   const handleTourGenerated = (landmarks: any[]) => {
     // Handle the generated tour landmarks
     landmarks.forEach(landmark => {
@@ -102,10 +133,8 @@ const TopControls: React.FC<TopControlsProps> = ({
   };
 
   const handleAuthRequired = () => {
-    if (onAuthDialogOpen) {
-      onAuthDialogOpen();
-    }
-    setIsIntelligentTourOpen(false);
+    // This shouldn't be called anymore since we handle auth upfront
+    console.log('🔐 Auth required callback - should not happen in new flow');
   };
 
   return (
@@ -149,12 +178,12 @@ const TopControls: React.FC<TopControlsProps> = ({
           {/* Action Buttons - Collapsible */}
           {!isCollapsed && (
             <div className="flex flex-col gap-1 w-full animate-fade-in">
-              {/* Smart Tour Button - New intelligent tour generator */}
+              {/* Smart Tour Button - Updated to handle auth */}
               <Button
                 variant="outline"
                 size="sm"
                 className="bg-gradient-to-r from-yellow-400/80 to-orange-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 border-yellow-300 hover:from-yellow-300/80 hover:to-orange-300/80"
-                onClick={() => setIsIntelligentTourOpen(true)}
+                onClick={handleSmartTourClick}
               >
                 <Sparkles className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
                 <span className="lg:hidden">Smart Tour</span>
@@ -237,12 +266,18 @@ const TopControls: React.FC<TopControlsProps> = ({
         </div>
       </div>
 
-      {/* Intelligent Tour Dialog - Add onAuthRequired prop */}
+      {/* Intelligent Tour Dialog */}
       <IntelligentTourDialog
         open={isIntelligentTourOpen}
         onOpenChange={setIsIntelligentTourOpen}
         onTourGenerated={handleTourGenerated}
         onAuthRequired={handleAuthRequired}
+      />
+
+      {/* AuthDialog with custom close handler */}
+      <AuthDialog
+        open={isAuthDialogOpen}
+        onOpenChange={handleAuthDialogClose}
       />
     </>
   );
