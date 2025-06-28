@@ -1,4 +1,3 @@
-
 import React from 'react';
 import TourPlannerDialog from './TourPlannerDialog';
 import InteractionCarousel from './InteractionCarousel';
@@ -67,7 +66,6 @@ const DialogManager: React.FC<DialogManagerProps> = ({
         open={isIntelligentTourOpen}
         onOpenChange={onIntelligentTourOpenChange}
         onTourGenerated={onTourGenerated || (() => {})}
-        user={user}
       />
     </>
   );

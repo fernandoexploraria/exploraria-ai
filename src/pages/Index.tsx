@@ -134,6 +134,11 @@ const Index: React.FC = () => {
     setIsIntelligentTourOpen(false);
   };
 
+  // Handler for Intelligent Tour - authentication is handled within the dialog now
+  const handleIntelligentTourOpen = () => {
+    setIsIntelligentTourOpen(true);
+  };
+
   if (showSplash) {
     return <SplashScreen onDismiss={handleSplashDismiss} />;
   }
@@ -171,7 +176,7 @@ const Index: React.FC = () => {
         isNewTourAssistantOpen={isNewTourAssistantOpen}
         onNewTourAssistantOpenChange={setIsNewTourAssistantOpen}
         isIntelligentTourOpen={isIntelligentTourOpen}
-        onIntelligentTourOpenChange={setIsIntelligentTourOpen}
+        onIntelligentTourOpenChange={handleIntelligentTourOpen}
         onTourGenerated={handleTourGenerated}
         tourPlan={tourPlan}
       />
