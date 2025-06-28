@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback } from 'react';
 import SplashScreen from '@/components/SplashScreen';
 import MainLayout from '@/components/MainLayout';
@@ -139,6 +138,11 @@ const Index: React.FC = () => {
     setIsIntelligentTourOpen(true);
   };
 
+  // Handler for auth required from IntelligentTourDialog
+  const handleIntelligentTourAuthRequired = () => {
+    setIsAuthDialogOpen(true);
+  };
+
   if (showSplash) {
     return <SplashScreen onDismiss={handleSplashDismiss} />;
   }
@@ -176,7 +180,7 @@ const Index: React.FC = () => {
         isNewTourAssistantOpen={isNewTourAssistantOpen}
         onNewTourAssistantOpenChange={setIsNewTourAssistantOpen}
         isIntelligentTourOpen={isIntelligentTourOpen}
-        onIntelligentTourOpenChange={handleIntelligentTourOpen}
+        onIntelligentTourOpenChange={setIsIntelligentTourOpen}
         onTourGenerated={handleTourGenerated}
         tourPlan={tourPlan}
       />
