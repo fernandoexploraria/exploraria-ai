@@ -88,7 +88,7 @@ serve(async (req) => {
       )
     }
 
-    // Step 3: Test Google API call with minimal parameters
+    // Step 3: Test Google API call with CORRECT field mask for new API
     console.log('🚀 DEBUG: Preparing Google API call...')
     
     const autocompleteUrl = 'https://places.googleapis.com/v1/places:autocomplete'
@@ -118,9 +118,9 @@ serve(async (req) => {
 
     console.log('🚀 DEBUG: Final request body:', JSON.stringify(googleRequestBody, null, 2))
 
-    // Use simplified field mask for debugging
-    const fieldMask = 'predictions.placePrediction.placeId,predictions.placePrediction.displayName'
-    console.log('🚀 DEBUG: Using field mask:', fieldMask)
+    // Use CORRECT field mask for the NEW Google Places API
+    const fieldMask = 'suggestions.placePrediction.placeId,suggestions.placePrediction.text'
+    console.log('🚀 DEBUG: Using corrected field mask:', fieldMask)
 
     console.log('🚀 DEBUG: Making Google API request...')
     
@@ -161,8 +161,8 @@ serve(async (req) => {
     try {
       googleApiData = await googleResponse.json()
       console.log('🚀 DEBUG: Google API response parsed successfully')
-      console.log('🚀 DEBUG: Response has predictions:', googleApiData.predictions ? 'YES' : 'NO')
-      console.log('🚀 DEBUG: Predictions count:', googleApiData.predictions ? googleApiData.predictions.length : 0)
+      console.log('🚀 DEBUG: Response has suggestions:', googleApiData.suggestions ? 'YES' : 'NO')
+      console.log('🚀 DEBUG: Suggestions count:', googleApiData.suggestions ? googleApiData.suggestions.length : 0)
     } catch (parseError) {
       console.error('❌ DEBUG: Failed to parse Google API response:', parseError.message)
       return new Response(
@@ -179,53 +179,53 @@ serve(async (req) => {
       )
     }
 
-    // Process predictions with minimal processing for debugging
-    const predictions = googleApiData.predictions || []
-    console.log('🚀 DEBUG: Starting to process predictions...')
+    // Process suggestions with the NEW API structure
+    const suggestions = googleApiData.suggestions || []
+    console.log('🚀 DEBUG: Starting to process suggestions...')
     
     const processedPredictions = []
     
-    for (let i = 0; i < predictions.length; i++) {
+    for (let i = 0; i < suggestions.length; i++) {
       try {
-        const prediction = predictions[i]
-        const placePrediction = prediction?.placePrediction
+        const suggestion = suggestions[i]
+        const placePrediction = suggestion?.placePrediction
         
         if (!placePrediction) {
-          console.log(`⚠️ DEBUG: No placePrediction in prediction ${i}`)
+          console.log(`⚠️ DEBUG: No placePrediction in suggestion ${i}`)
           continue
         }
         
-        // Minimal processing - just extract basic fields
+        // Extract data using the NEW API structure
         const placeId = placePrediction.placeId || `fallback-${Date.now()}-${i}`
-        const displayName = placePrediction.displayName?.text || 
-                           placePrediction.displayName || 
+        const displayText = placePrediction.text?.text || 
+                           placePrediction.text || 
                            'Unknown place'
         
         const processedPrediction = {
           place_id: placeId,
-          description: displayName,
+          description: displayText,
           types: placePrediction.types || [],
           structured_formatting: {
-            main_text: displayName,
+            main_text: displayText,
             secondary_text: ''
           }
         }
         
-        console.log(`🚀 DEBUG: Processed prediction ${i + 1}:`, processedPrediction.place_id)
+        console.log(`🚀 DEBUG: Processed suggestion ${i + 1}:`, processedPrediction.place_id)
         processedPredictions.push(processedPrediction)
         
       } catch (predictionError) {
-        console.error(`❌ DEBUG: Error processing prediction ${i + 1}:`, predictionError.message)
+        console.error(`❌ DEBUG: Error processing suggestion ${i + 1}:`, predictionError.message)
         continue
       }
     }
 
-    console.log(`🚀 DEBUG: Successfully processed ${processedPredictions.length} predictions`)
+    console.log(`🚀 DEBUG: Successfully processed ${processedPredictions.length} suggestions`)
     
     const finalResponse = {
       predictions: processedPredictions,
       status: 'OK',
-      debug: `Processed ${processedPredictions.length} predictions successfully`
+      debug: `Processed ${processedPredictions.length} suggestions successfully`
     }
     
     console.log('🚀 DEBUG: Returning final response')
