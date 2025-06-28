@@ -63,8 +63,8 @@ serve(async (req) => {
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': googleApiKey,
-        // Fixed field mask - use suggestions.placePrediction instead of predictions.placePrediction
-        'X-Goog-FieldMask': 'suggestions.placePrediction.placeId,suggestions.placePrediction.displayName,suggestions.placePrediction.types,suggestions.placePrediction.formattedAddress'
+        // Corrected field mask - use proper field names for autocomplete API
+        'X-Goog-FieldMask': 'suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.types,suggestions.placePrediction.structuredFormatting'
       },
       body: JSON.stringify(requestBody)
     })
@@ -77,17 +77,24 @@ serve(async (req) => {
 
     const data = await response.json()
     console.log('Autocomplete response received:', data.suggestions?.length || 0, 'suggestions')
+    console.log('Raw API response structure:', JSON.stringify(data, null, 2))
 
     // Map new API response to format expected by the component - use suggestions instead of predictions
     const predictions = data.suggestions?.map((suggestion: any) => {
       const placePrediction = suggestion.placePrediction
+      
+      // Use text field as primary description, with structured formatting as fallback
+      const mainText = placePrediction.structuredFormatting?.mainText || placePrediction.text || ''
+      const secondaryText = placePrediction.structuredFormatting?.secondaryText || ''
+      const description = placePrediction.text || `${mainText} ${secondaryText}`.trim()
+      
       return {
         place_id: placePrediction.placeId,
-        description: placePrediction.formattedAddress || placePrediction.displayName?.text || '',
+        description: description,
         types: placePrediction.types || [],
         structured_formatting: {
-          main_text: placePrediction.displayName?.text || '',
-          secondary_text: placePrediction.formattedAddress || ''
+          main_text: mainText,
+          secondary_text: secondaryText
         }
       }
     }) || []
