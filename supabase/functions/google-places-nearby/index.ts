@@ -42,21 +42,41 @@ const LANDMARK_TYPES = [
 // Dynamic radius logic based on destination type
 const getRadiusForDestinationType = (types: string[] = []) => {
   if (types.includes('locality') || types.includes('administrative_area_level_1')) {
-    return 15000; // 15km for locations
+    return 10000; // 10km for localities
   }
   if (types.includes('sublocality') || types.includes('neighborhood')) {
-    return 8000; // 8km for sublocations
+    return 5000; // 5km for sublocalities
   }
   if (types.includes('tourist_attraction')) {
-    return 5000; // 5km for tourist attractions
+    return 3000; // 3km for tourist attractions
   }
   if (types.includes('park')) {
-    return 5000; // 5km for parks
+    return 3000; // 3km for parks
   }
   if (types.includes('museum')) {
     return 2000; // 2km for museums
   }
   return 10000; // 10km default
+};
+
+// Dynamic result count logic based on destination type
+const getMaxResultsForDestinationType = (types: string[] = []) => {
+  if (types.includes('locality') || types.includes('administrative_area_level_1')) {
+    return 20; // 20 results for localities
+  }
+  if (types.includes('sublocality') || types.includes('neighborhood')) {
+    return 15; // 15 results for sublocalities
+  }
+  if (types.includes('tourist_attraction')) {
+    return 10; // 10 results for tourist attractions
+  }
+  if (types.includes('park')) {
+    return 5; // 5 results for parks
+  }
+  if (types.includes('museum')) {
+    return 5; // 5 results for museums
+  }
+  return 20; // 20 default
 };
 
 serve(async (req) => {
@@ -79,12 +99,14 @@ serve(async (req) => {
       throw new Error('Valid coordinates [longitude, latitude] are required')
     }
 
-    // Use dynamic radius based on destination type if provided
+    // Use dynamic radius and max results based on destination type if provided
     const searchRadius = radius || getRadiusForDestinationType(destinationTypes)
+    const maxResults = getMaxResultsForDestinationType(destinationTypes)
     
     console.log('Searching nearby landmarks:', { 
       coordinates, 
       radius: searchRadius, 
+      maxResults,
       destinationTypes,
       landmarkTypes: LANDMARK_TYPES.length 
     })
@@ -101,7 +123,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         includedTypes: LANDMARK_TYPES,
-        maxResultCount: 20,
+        maxResultCount: maxResults,
         locationRestriction: {
           circle: {
             center: {
@@ -123,7 +145,8 @@ serve(async (req) => {
 
     if (data.places) {
       // Map new API response to legacy format for backward compatibility
-      const nearbyPlaces = data.places.slice(0, 20).map((place: any) => ({
+      // Use the dynamic maxResults limit instead of fixed slice(0, 20)
+      const nearbyPlaces = data.places.slice(0, maxResults).map((place: any) => ({
         placeId: place.id,
         name: place.displayName?.text || place.displayName,
         rating: place.rating,
@@ -145,16 +168,18 @@ serve(async (req) => {
         // Enhanced fields for intelligent tour generation
         editorialSummary: place.editorialSummary?.text,
         website: place.websiteUri,
-        searchRadius: searchRadius
+        searchRadius: searchRadius,
+        maxResults: maxResults
       }))
 
-      console.log(`Found ${nearbyPlaces.length} landmarks within ${searchRadius}m`)
+      console.log(`Found ${nearbyPlaces.length} landmarks within ${searchRadius}m (max ${maxResults} results)`)
 
       return new Response(
         JSON.stringify({ 
           places: nearbyPlaces, 
           total: data.places.length,
           searchRadius: searchRadius,
+          maxResults: maxResults,
           success: true 
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -162,7 +187,13 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ places: [], total: 0, searchRadius: searchRadius, success: true }),
+      JSON.stringify({ 
+        places: [], 
+        total: 0, 
+        searchRadius: searchRadius, 
+        maxResults: maxResults,
+        success: true 
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
