@@ -151,8 +151,18 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   const handleDestinationSelect = async (destination: AutocompleteResult) => {
     // Check if user is authenticated before proceeding
     if (!user) {
-      onAuthRequired();
+      console.log('🚨 AUTH: User not authenticated, triggering auth flow');
+      
+      // FIXED: Close this dialog first, then trigger auth after a small delay
+      // This prevents React state batching conflicts between dialog states
       onOpenChange(false);
+      
+      // Use setTimeout to ensure the current dialog closes completely before opening auth
+      setTimeout(() => {
+        console.log('🚨 AUTH: Opening authentication dialog');
+        onAuthRequired();
+      }, 100); // Small delay to prevent race condition
+      
       return;
     }
 
