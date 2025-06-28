@@ -1,10 +1,11 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, Search, Clock, Star } from 'lucide-react';
+import { Sparkles, Search, Clock, Star, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/AuthProvider';
@@ -149,16 +150,6 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   };
 
   const handleDestinationSelect = async (destination: AutocompleteResult) => {
-    // Check if user is authenticated before proceeding
-    if (!user) {
-      console.log('🚨 AUTH: User not authenticated, need to trigger auth');
-      console.log('🚨 AUTH: Will keep dialog open and trigger auth from parent');
-      
-      // Don't close this dialog - let the parent handle auth
-      onAuthRequired();
-      return;
-    }
-
     console.log('Starting tour generation for user:', user?.id, 'destination:', destination.description);
     
     setSelectedDestination(destination);
@@ -474,12 +465,44 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
               )}
             </div>
 
-            {autocompleteResults.length > 0 && (
+            {/* Sign up button for non-authenticated users */}
+            {!user && (
+              <div className="bg-muted p-4 rounded-lg">
+                <div className="flex items-center gap-3 mb-2">
+                  <User className="h-5 w-5 text-primary" />
+                  <div>
+                    <h4 className="font-semibold">Sign up to create tours</h4>
+                    <p className="text-sm text-muted-foreground">
+                      You need an account to generate and save personalized tours
+                    </p>
+                  </div>
+                </div>
+                <Button 
+                  onClick={onAuthRequired}
+                  className="w-full"
+                  variant="default"
+                >
+                  Sign Up / Sign In
+                </Button>
+              </div>
+            )}
+
+            {/* Show results only for authenticated users */}
+            {user && autocompleteResults.length > 0 && (
               <div className="space-y-1 max-h-60 overflow-y-auto">
                 <div className="text-xs text-muted-foreground mb-2 px-1">
                   Results sorted by type priority: Cities → Areas → Parks → Attractions → Museums
                 </div>
                 {autocompleteResults.map(renderAutocompleteResult)}
+              </div>
+            )}
+
+            {/* Show message for non-authenticated users */}
+            {!user && autocompleteResults.length > 0 && (
+              <div className="text-center p-4 bg-muted/50 rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  Sign up above to select destinations and create tours
+                </p>
               </div>
             )}
           </div>
