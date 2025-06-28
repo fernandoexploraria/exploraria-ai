@@ -36,70 +36,113 @@ serve(async (req) => {
       )
     }
 
-    console.log('Autocomplete search for:', input, 'with types:', types, 'sessionToken:', sessionToken?.substring(0, 8) + '...')
+    console.log('🔍 Autocomplete search for:', input, 'with types:', types, 'sessionToken:', sessionToken?.substring(0, 8) + '...')
 
-    // Use Google Places API v1 autocomplete endpoint
+    // Use Google Places API v1 autocomplete endpoint - minimal approach first
     const autocompleteUrl = 'https://places.googleapis.com/v1/places:autocomplete'
     
-    // Build request body according to Google's recommendations
+    // Build minimal request body to test basic functionality
     const requestBody: any = {
       input: input,
-      includedPrimaryTypes: Array.isArray(types) ? types : [types],
       languageCode: 'en'
     }
 
-    // Add session token if provided (recommended by Google for billing optimization)
+    // Only add types if we have a simple array (avoid complex includedPrimaryTypes for now)
+    if (Array.isArray(types) && types.length > 0) {
+      requestBody.includedPrimaryTypes = types
+    }
+
+    // Add session token if provided
     if (sessionToken) {
       requestBody.sessionToken = sessionToken
     }
 
-    // Add location bias if provided (improves result relevance)
-    if (locationBias) {
-      requestBody.locationBias = locationBias
-    }
+    console.log('🔍 Request body:', JSON.stringify(requestBody, null, 2))
 
     const response = await fetch(autocompleteUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': googleApiKey,
-        // Correct field mask based on Gemini's guidance - use predictions.placePrediction
-        'X-Goog-FieldMask': 'predictions.placePrediction.placeId,predictions.placePrediction.displayName.text,predictions.placePrediction.types,predictions.placePrediction.formattedAddress,predictions.placePrediction.structuredFormat.mainText.text,predictions.placePrediction.structuredFormat.secondaryText.text'
+        // Start with minimal field mask - just get everything for now to see structure
+        'X-Goog-FieldMask': '*'
       },
       body: JSON.stringify(requestBody)
     })
 
+    console.log('🔍 Response status:', response.status)
+    console.log('🔍 Response headers:', Object.fromEntries(response.headers.entries()))
+
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('Google Places Autocomplete API error:', errorText)
+      console.error('🔍 Google Places Autocomplete API error:', errorText)
       throw new Error(`Google Places API request failed: ${response.status} - ${errorText}`)
     }
 
     const data = await response.json()
-    console.log('Autocomplete response received:', data.predictions?.length || 0, 'predictions')
-    console.log('Raw API response structure:', JSON.stringify(data, null, 2))
+    console.log('🔍 Raw API response structure:', JSON.stringify(data, null, 2))
+    console.log('🔍 Autocomplete response received:', data.suggestions?.length || data.predictions?.length || 0, 'results')
 
-    // Map API response to format expected by the component - use predictions as per Gemini
-    const predictions = data.predictions?.map((prediction: any) => {
-      const placePrediction = prediction.placePrediction
+    // Handle both possible response structures
+    let suggestions = data.suggestions || data.predictions || []
+    
+    // Map API response to format expected by the component
+    const predictions = suggestions.map((item: any) => {
+      // Handle both suggestion.placePrediction and direct prediction structures
+      const prediction = item.placePrediction || item
       
-      // Use displayName.text as primary, with structured format as fallback
-      const mainText = placePrediction.structuredFormat?.mainText?.text || placePrediction.displayName?.text || ''
-      const secondaryText = placePrediction.structuredFormat?.secondaryText?.text || placePrediction.formattedAddress || ''
-      const description = placePrediction.displayName?.text || placePrediction.formattedAddress || `${mainText} ${secondaryText}`.trim()
+      console.log('🔍 Processing prediction:', JSON.stringify(prediction, null, 2))
       
-      return {
-        place_id: placePrediction.placeId,
-        description: description,
-        types: placePrediction.types || [],
+      // Extract fields safely with multiple fallbacks
+      const placeId = prediction.placeId || prediction.place_id
+      let mainText = ''
+      let secondaryText = ''
+      let description = ''
+      
+      // Try different field structures
+      if (prediction.displayName?.text) {
+        description = prediction.displayName.text
+        mainText = prediction.displayName.text
+      } else if (prediction.text?.text) {
+        description = prediction.text.text
+        mainText = prediction.text.text
+      } else if (prediction.description) {
+        description = prediction.description
+        mainText = prediction.description
+      }
+      
+      // Try to get structured format
+      if (prediction.structuredFormat) {
+        mainText = prediction.structuredFormat.mainText?.text || mainText
+        secondaryText = prediction.structuredFormat.secondaryText?.text || ''
+      } else if (prediction.structuredFormatting) {
+        mainText = prediction.structuredFormatting.main_text || mainText
+        secondaryText = prediction.structuredFormatting.secondary_text || ''
+      }
+      
+      // Get formatted address
+      const formattedAddress = prediction.formattedAddress || prediction.formatted_address || secondaryText
+      
+      // Use description if we don't have mainText
+      if (!description && mainText) {
+        description = secondaryText ? `${mainText}, ${secondaryText}` : mainText
+      }
+      
+      const result = {
+        place_id: placeId,
+        description: description || 'Unknown place',
+        types: prediction.types || [],
         structured_formatting: {
-          main_text: mainText,
-          secondary_text: secondaryText
+          main_text: mainText || 'Unknown place',
+          secondary_text: secondaryText || formattedAddress || ''
         }
       }
-    }) || []
+      
+      console.log('🔍 Mapped result:', JSON.stringify(result, null, 2))
+      return result
+    })
 
-    console.log('Mapped predictions:', predictions.length, 'results')
+    console.log('🔍 Final mapped predictions:', predictions.length, 'results')
 
     return new Response(
       JSON.stringify({ 
@@ -110,7 +153,7 @@ serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Error in autocomplete:', error)
+    console.error('🔍 Error in autocomplete:', error)
     return new Response(
       JSON.stringify({ 
         error: error.message, 
