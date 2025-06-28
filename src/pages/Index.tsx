@@ -1,98 +1,211 @@
 
-import React, { useState, useEffect } from 'react';
-import Map from '@/components/Map';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import SplashScreen from '@/components/SplashScreen';
+import MainLayout from '@/components/MainLayout';
+import DebugWindow from '@/components/DebugWindow';
+import { landmarks as staticLandmarks, Landmark, EnhancedLandmark } from '@/data/landmarks';
 import { useTourPlanner } from '@/hooks/useTourPlanner';
-import IntelligentTourDialog from '@/components/IntelligentTourDialog';
-import TourPlannerDialog from '@/components/TourPlannerDialog';
 import { useAuth } from '@/components/AuthProvider';
-import { useRouter } from '@/hooks/useRouter';
-import { Button } from "@/components/ui/button"
-import { ArrowRight } from 'lucide-react';
+import { useMapboxToken } from '@/hooks/useMapboxToken';
+import { usePendingDestination } from '@/hooks/usePendingDestination';
+import { useDialogStates } from '@/hooks/useDialogStates';
+import { useProximityNotifications } from '@/hooks/useProximityNotifications';
+import { useDebugWindow } from '@/hooks/useDebugWindow';
+import { useConnectionMonitor } from '@/hooks/useConnectionMonitor';
 
-const Index = ({ onRegisterPostAuthActions }: { onRegisterPostAuthActions: (actions: any) => void }) => {
-  const { 
-    tourPlan,
-    plannedLandmarks,
-    isLoading,
-    error,
+interface IndexProps {
+  onRegisterPostAuthActions?: (actions: { onSmartTour?: () => void }) => void;
+}
+
+const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
+  const [showSplash, setShowSplash] = useState(true);
+  const [additionalLandmarks, setAdditionalLandmarks] = useState<Landmark[]>([]);
+  
+  const { tourPlan, plannedLandmarks, isLoading: isTourLoading, generateTour, progressState } = useTourPlanner();
+  const { user, signOut } = useAuth();
+  const mapboxToken = useMapboxToken();
+  const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
+  
+  const {
+    selectedLandmark,
+    setSelectedLandmark,
+    isTourPlannerOpen,
+    setIsTourPlannerOpen,
+    isInteractionHistoryOpen,
+    setIsInteractionHistoryOpen,
+    isAuthDialogOpen,
+    setIsAuthDialogOpen,
+    isNewTourAssistantOpen,
+    setIsNewTourAssistantOpen,
+    isIntelligentTourOpen,
+    setIsIntelligentTourOpen,
+  } = useDialogStates();
+  
+  // Updated to include callback for opening NewTourAssistant
+  const { handleTourAuthRequired: storePendingDestination } = usePendingDestination(
+    user, 
+    isTourLoading, 
     generateTour,
-    progressState,
-    destinationCoordinates, 
-    destinationName, 
-    setDestination
-  } = useTourPlanner();
-  const { user } = useAuth();
-  const { navigate } = useRouter();
+    () => setIsNewTourAssistantOpen(true) // Callback to open NewTourAssistant
+  );
 
-  const [showIntelligentTourDialog, setShowIntelligentTourDialog] = useState(false);
-  const [showTourPlannerDialog, setShowTourPlannerDialog] = useState(false);
+  // Initialize proximity notifications
+  useProximityNotifications();
+  
+  // Initialize connection monitoring
+  useConnectionMonitor();
 
+  // Register post-auth actions with App component
   useEffect(() => {
-    onRegisterPostAuthActions({
-      onSmartTour: () => setShowIntelligentTourDialog(true)
-    });
-  }, [onRegisterPostAuthActions]);
+    if (onRegisterPostAuthActions) {
+      onRegisterPostAuthActions({
+        onSmartTour: () => {
+          console.log('🎯 Executing post-auth smart tour action');
+          setIsIntelligentTourOpen(true);
+        }
+      });
+    }
+  }, [onRegisterPostAuthActions, setIsIntelligentTourOpen]);
+  
+  // Combine static landmarks with enhanced tour landmarks
+  const allLandmarks: (Landmark | EnhancedLandmark)[] = useMemo(() => {
+    const tourLandmarks = tourPlan?.landmarks || [];
+    return [...staticLandmarks, ...tourLandmarks, ...additionalLandmarks];
+  }, [tourPlan?.landmarks, additionalLandmarks]);
 
-  const handleAuthRequired = (destination: string) => {
-    console.log('Auth required, redirecting to sign-in...');
-    navigate('/sign-in', { replace: true, state: { next: '/', destination } });
+  // Also keep the basic plannedLandmarks for backward compatibility
+  const basicPlannedLandmarks = useMemo(() => {
+    return plannedLandmarks;
+  }, [plannedLandmarks]);
+
+  const handleSelectLandmark = useCallback((landmark: Landmark) => {
+    setSelectedLandmark(landmark);
+  }, [setSelectedLandmark]);
+
+  const handleGenerateTour = async (destination: string) => {
+    await generateTour(destination);
+    
+    // Watch for the 'ready' phase to close tour planner and open assistant
+    const waitForReady = () => {
+      if (progressState?.phase === 'ready') {
+        setIsTourPlannerOpen(false);
+        setIsNewTourAssistantOpen(true);
+      } else {
+        // If not ready yet, check again in 100ms
+        setTimeout(waitForReady, 100);
+      }
+    };
+    
+    // Start checking for ready state
+    setTimeout(waitForReady, 100);
   };
 
-  const handleDestinationSelected = (coordinates: [number, number], name: string) => {
-    console.log('🗺️ Destination selected in Index:', coordinates, name);
-    setDestination(coordinates, name);
+  const handleAuthDialogClose = (open: boolean) => {
+    setIsAuthDialogOpen(open);
+  };
+
+  const handleVoiceAssistantOpen = () => {
+    if (!user) {
+      setIsAuthDialogOpen(true);
+      return;
+    }
+    setIsInteractionHistoryOpen(true);
+  };
+
+  const handleInteractionHistoryOpen = () => {
+    if (!user) {
+      setIsAuthDialogOpen(true);
+      return;
+    }
+    setIsInteractionHistoryOpen(true);
+  };
+
+  const handleSplashDismiss = () => {
+    setShowSplash(false);
+  };
+
+  const handleLogoClick = () => {
+    setShowSplash(true);
+  };
+
+  const handleNewTourAssistantOpen = () => {
+    if (!user) {
+      setIsAuthDialogOpen(true);
+      return;
+    }
+    setIsNewTourAssistantOpen(true);
+  };
+
+  const handleTourAuthRequired = (destination: string) => {
+    // Store the destination for post-auth generation
+    storePendingDestination(destination);
+    // Open the auth dialog
+    setIsAuthDialogOpen(true);
   };
 
   const handleTourGenerated = (landmarks: any[]) => {
-    console.log('🎯 Tour generated in Index:', landmarks.length, 'landmarks');
-    // The landmarks are already handled by the tour planner hook
-    // This is just for any additional UI updates if needed
+    // Add generated landmarks to additional landmarks
+    setAdditionalLandmarks(prev => [...prev, ...landmarks]);
+    // Close the intelligent tour dialog
+    setIsIntelligentTourOpen(false);
   };
 
+  // Handler for Intelligent Tour - authentication is handled within the dialog now
+  const handleIntelligentTourOpen = () => {
+    setIsIntelligentTourOpen(true);
+  };
+
+  // Handler for auth required from IntelligentTourDialog
+  const handleIntelligentTourAuthRequired = () => {
+    setIsAuthDialogOpen(true);
+  };
+
+  if (showSplash) {
+    return <SplashScreen onDismiss={handleSplashDismiss} />;
+  }
+
+  // Don't render the map until we have a token
+  if (!mapboxToken) {
+    return <div className="w-screen h-screen flex items-center justify-center">Loading map...</div>;
+  }
+
   return (
-    <div className="h-screen flex flex-col">
-      <div className="flex-1 relative">
-        <Map 
-          destinationCoordinates={destinationCoordinates}
-          destinationName={destinationName}
-        />
-        
-        <div className="absolute top-4 left-4 z-10">
-          <Button onClick={() => setShowIntelligentTourDialog(true)}>
-            ✨ Generate Smart Tour
-          </Button>
-        </div>
-        
-        <div className="absolute top-4 right-4 z-10">
-          {user ? (
-            <Button onClick={() => navigate('/chat')}>
-              Go to Chat <ArrowRight className="ml-2" />
-            </Button>
-          ) : (
-            <Button onClick={() => handleAuthRequired(destinationName || 'your destination')}>
-              Go to Chat <ArrowRight className="ml-2" />
-            </Button>
-          )}
-        </div>
-        
-        <IntelligentTourDialog
-          open={showIntelligentTourDialog}
-          onOpenChange={setShowIntelligentTourDialog}
-          onTourGenerated={handleTourGenerated}
-          onAuthRequired={() => handleAuthRequired(destinationName || 'your destination')}
-          onDestinationSelected={handleDestinationSelected}
-        />
-        
-        <TourPlannerDialog
-          open={showTourPlannerDialog}
-          onOpenChange={setShowTourPlannerDialog}
-          onGenerateTour={generateTour}
-          onAuthRequired={handleAuthRequired}
-          isLoading={isLoading}
-          progressState={progressState}
-        />
-      </div>
-    </div>
+    <>
+      <MainLayout
+        mapboxToken={mapboxToken}
+        allLandmarks={allLandmarks}
+        selectedLandmark={selectedLandmark}
+        plannedLandmarks={basicPlannedLandmarks}
+        user={user}
+        onSelectLandmark={handleSelectLandmark}
+        onTourPlannerOpen={() => setIsTourPlannerOpen(true)}
+        onVoiceSearchOpen={handleInteractionHistoryOpen}
+        onVoiceAssistantOpen={handleNewTourAssistantOpen}
+        onLogoClick={handleLogoClick}
+        onSignOut={signOut}
+        onAuthDialogOpen={() => setIsAuthDialogOpen(true)}
+        isTourPlannerOpen={isTourPlannerOpen}
+        onTourPlannerOpenChange={setIsTourPlannerOpen}
+        onGenerateTour={handleGenerateTour}
+        onTourAuthRequired={handleTourAuthRequired}
+        isTourLoading={isTourLoading}
+        tourProgressState={progressState}
+        isVoiceSearchOpen={isInteractionHistoryOpen}
+        onVoiceSearchOpenChange={setIsInteractionHistoryOpen}
+        isAuthDialogOpen={isAuthDialogOpen}
+        onAuthDialogOpenChange={handleAuthDialogClose}
+        isNewTourAssistantOpen={isNewTourAssistantOpen}
+        onNewTourAssistantOpenChange={setIsNewTourAssistantOpen}
+        isIntelligentTourOpen={isIntelligentTourOpen}
+        onIntelligentTourOpenChange={setIsIntelligentTourOpen}
+        onTourGenerated={handleTourGenerated}
+        tourPlan={tourPlan}
+      />
+      <DebugWindow 
+        isVisible={isDebugVisible}
+        onClose={toggleDebug}
+      />
+    </>
   );
 };
 
