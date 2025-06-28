@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -36,6 +37,9 @@ const Map: React.FC<MapProps> = ({
   const [isMapReady, setIsMapReady] = useState(false);
   const { toast } = useToast();
 
+  // Store the click handler reference for proper cleanup
+  const mapClickHandlerRef = useRef<(e: mapboxgl.MapMouseEvent) => void>();
+
   useEffect(() => {
     if (!mapboxToken) {
       console.error('Mapbox token is missing!');
@@ -60,7 +64,8 @@ const Map: React.FC<MapProps> = ({
       setIsMapReady(true);
     });
 
-    newMap.on('click', (e) => {
+    // Create and store the click handler
+    const mapClickHandler = (e: mapboxgl.MapMouseEvent) => {
       // Check if the click was on a marker
       const features = newMap.queryRenderedFeatures(e.point, {
         layers: ['markers'] // Replace 'markers' with your marker layer id if you have one
@@ -71,10 +76,15 @@ const Map: React.FC<MapProps> = ({
         onSelectLandmark(null as any); // Passing null to deselect
         return;
       }
-    });
+    };
+
+    mapClickHandlerRef.current = mapClickHandler;
+    newMap.on('click', mapClickHandler);
 
     return () => {
-      newMap.off('click');
+      if (mapClickHandlerRef.current) {
+        newMap.off('click', mapClickHandlerRef.current);
+      }
       newMap.remove();
       map.current = null;
       window.__mapInstance = undefined;
@@ -139,6 +149,23 @@ const Map: React.FC<MapProps> = ({
   useEffect(() => {
     if (!map.current || !isMapReady) return;
 
+    // Store the planned landmarks click handler reference
+    const plannedLandmarksClickHandler = (e: mapboxgl.MapMouseEvent) => {
+      if (e.features && e.features.length > 0) {
+        const clickedFeature = e.features[0];
+        const landmarkId = clickedFeature.properties?.id;
+
+        if (landmarkId) {
+          const landmark = landmarks.find(lm => lm.id === landmarkId);
+          if (landmark) {
+            onSelectLandmark(landmark);
+          } else {
+            console.warn(`Landmark with id ${landmarkId} not found.`);
+          }
+        }
+      }
+    };
+
     if (map.current.getSource('planned-landmarks')) {
       (map.current.getSource('planned-landmarks') as mapboxgl.GeoJSONSource).setData({
         type: 'FeatureCollection',
@@ -181,21 +208,7 @@ const Map: React.FC<MapProps> = ({
         }
       });
 
-      map.current.on('click', 'planned-landmarks', (e) => {
-        if (e.features && e.features.length > 0) {
-          const clickedFeature = e.features[0];
-          const landmarkId = clickedFeature.properties?.id;
-
-          if (landmarkId) {
-            const landmark = landmarks.find(lm => lm.id === landmarkId);
-            if (landmark) {
-              onSelectLandmark(landmark);
-            } else {
-              console.warn(`Landmark with id ${landmarkId} not found.`);
-            }
-          }
-        }
-      });
+      map.current.on('click', 'planned-landmarks', plannedLandmarksClickHandler);
     }
 
     return () => {
@@ -205,7 +218,9 @@ const Map: React.FC<MapProps> = ({
       if (map.current?.getSource('planned-landmarks')) {
         map.current.removeSource('planned-landmarks');
       }
-      map.current?.off('click', 'planned-landmarks');
+      if (map.current) {
+        map.current.off('click', 'planned-landmarks', plannedLandmarksClickHandler);
+      }
     };
   }, [plannedLandmarks, landmarks, onSelectLandmark, isMapReady]);
 
