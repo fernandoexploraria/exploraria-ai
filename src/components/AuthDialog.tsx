@@ -98,7 +98,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md z-[9999]" style={{ zIndex: 9999 }}>
         <DialogHeader>
           <DialogTitle>{isSignUp ? 'Sign Up' : 'Sign In'}</DialogTitle>
           <DialogDescription>
