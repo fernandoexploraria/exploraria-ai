@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -101,20 +100,15 @@ const Map: React.FC<MapProps> = ({
     });
     markersRef.current = {};
 
-    // Add new markers
+    // Add new markers with default Mapbox styling
     landmarks.forEach(landmark => {
-      const el = document.createElement('div');
-      el.className = 'marker';
-      el.style.backgroundImage = `url(/images/marker-icon-2x.png)`;
-      el.style.width = `20px`;
-      el.style.height = `34px`;
-      el.style.cursor = 'pointer';
-
-      const marker = new mapboxgl.Marker(el)
+      // Use Mapbox's default marker (no custom styling)
+      const marker = new mapboxgl.Marker()
         .setLngLat(landmark.coordinates)
         .addTo(map.current!);
 
-      el.addEventListener('click', () => {
+      // Add click handler to the marker element
+      marker.getElement().addEventListener('click', () => {
         onSelectLandmark(landmark);
       });
 
