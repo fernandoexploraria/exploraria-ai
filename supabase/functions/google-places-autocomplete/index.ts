@@ -63,8 +63,8 @@ serve(async (req) => {
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': googleApiKey,
-        // Fixed field mask - use predictions.placePrediction instead of suggestions.placePrediction
-        'X-Goog-FieldMask': 'predictions.placePrediction.placeId,predictions.placePrediction.displayName,predictions.placePrediction.types,predictions.placePrediction.formattedAddress'
+        // Fixed field mask - use suggestions.placePrediction instead of predictions.placePrediction
+        'X-Goog-FieldMask': 'suggestions.placePrediction.placeId,suggestions.placePrediction.displayName,suggestions.placePrediction.types,suggestions.placePrediction.formattedAddress'
       },
       body: JSON.stringify(requestBody)
     })
@@ -76,11 +76,11 @@ serve(async (req) => {
     }
 
     const data = await response.json()
-    console.log('Autocomplete response received:', data.predictions?.length || 0, 'predictions')
+    console.log('Autocomplete response received:', data.suggestions?.length || 0, 'suggestions')
 
-    // Map new API response to format expected by the component
-    const predictions = data.predictions?.map((prediction: any) => {
-      const placePrediction = prediction.placePrediction
+    // Map new API response to format expected by the component - use suggestions instead of predictions
+    const predictions = data.suggestions?.map((suggestion: any) => {
+      const placePrediction = suggestion.placePrediction
       return {
         place_id: placePrediction.placeId,
         description: placePrediction.formattedAddress || placePrediction.displayName?.text || '',
@@ -91,6 +91,8 @@ serve(async (req) => {
         }
       }
     }) || []
+
+    console.log('Mapped predictions:', predictions.length, 'results')
 
     return new Response(
       JSON.stringify({ 
