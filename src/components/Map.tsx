@@ -42,7 +42,9 @@ const Map: React.FC<MapProps> = ({ destinationCoordinates, destinationName }) =>
     proximityAlerts, 
     proximitySettings,
     userLocation,
-    triggerAlert: triggerProximityAlert 
+    combinedLandmarks,
+    updateProximityEnabled,
+    updateDistanceSetting
   } = useProximityAlerts();
   
   const nearbyLandmarks = useNearbyLandmarks({ 
@@ -300,18 +302,14 @@ const Map: React.FC<MapProps> = ({ destinationCoordinates, destinationName }) =>
         landmark.coordinates[0]
       );
       
-      if (distance !== null && triggerProximityAlert) {
-        // Create a simple landmark object for the alert
-        const simpleLandmark = {
-          id: landmark.name.toLowerCase().replace(/\s+/g, '-'),
-          name: landmark.name,
-          coordinates: landmark.coordinates,
-          description: landmark.description
-        };
-        triggerProximityAlert(simpleLandmark, distance);
+      if (distance !== null) {
+        // For now, just log proximity - the actual alert system is handled by useProximityAlerts
+        if (distance < 1000) { // Within 1km
+          console.log(`📍 Near ${landmark.name}: ${Math.round(distance)}m`);
+        }
       }
     });
-  }, [currentLocation, triggerProximityAlert, distanceToLandmark]);
+  }, [currentLocation, distanceToLandmark]);
 
   if (!mapboxToken) {
     return (
@@ -335,7 +333,7 @@ const Map: React.FC<MapProps> = ({ destinationCoordinates, destinationName }) =>
           </button>
           <div className="mt-2 text-sm">
             <p>Is Online: {isOnline ? 'Yes' : 'No'}</p>
-            <p>Connection: {connectionHealth?.rtt ? `${connectionHealth.rtt}ms` : 'Unknown'}</p>
+            <p>Connection: {connectionHealth?.isHealthy ? 'Good' : 'Issues'}</p>
             {currentLocation && (
               <>
                 <p>Latitude: {currentLocation.latitude}</p>
@@ -360,9 +358,9 @@ const Map: React.FC<MapProps> = ({ destinationCoordinates, destinationName }) =>
           Offline Mode
         </div>
       )}
-      {connectionHealth?.rtt && connectionHealth.rtt > 1000 && (
+      {connectionHealth && !connectionHealth.isHealthy && (
         <div className="absolute bottom-2 right-2 bg-yellow-500 text-gray-800 rounded px-3 py-1 text-sm z-50">
-          Slow Connection
+          Connection Issues
         </div>
       )}
     </div>
