@@ -5,7 +5,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { Volume2, VolumeX, Eye, MapPin } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
-import { TOUR_LANDMARKS, setMapMarkersRef } from '@/data/tourLandmarks';
+import { TOUR_LANDMARKS, setMapMarkersRef, TourLandmark } from '@/data/tourLandmarks';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -48,6 +48,9 @@ const Map: React.FC<MapProps> = ({
   const navigationMarkers = useRef<{ marker: mapboxgl.Marker; interaction: any }[]>([]);
   const currentRouteLayer = useRef<string | null>(null);
   
+  // Add state to track tour landmarks so useMemo can react to changes
+  const [tourLandmarks, setTourLandmarks] = useState<TourLandmark[]>([]);
+  
   // New refs for GeolocateControl management
   const geolocateControl = useRef<mapboxgl.GeolocateControl | null>(null);
   const isUpdatingFromProximitySettings = useRef<boolean>(false);
@@ -75,8 +78,32 @@ const Map: React.FC<MapProps> = ({
     navigatePrevious 
   } = useStreetViewNavigation();
 
-  // Convert top landmarks and tour landmarks to Landmark format
+  // Effect to sync tour landmarks state with the global TOUR_LANDMARKS array
+  useEffect(() => {
+    console.log('🔄 Syncing tour landmarks state:', TOUR_LANDMARKS.length);
+    setTourLandmarks([...TOUR_LANDMARKS]);
+  }, [TOUR_LANDMARKS.length]); // Monitor array length changes
+
+  // Also poll for changes every second to catch updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (TOUR_LANDMARKS.length !== tourLandmarks.length) {
+        console.log('🔄 Detected tour landmarks change via polling:', TOUR_LANDMARKS.length);
+        setTourLandmarks([...TOUR_LANDMARKS]);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [tourLandmarks.length]);
+
+  // Convert top landmarks and tour landmarks to Landmark format with proper state dependency
   const allLandmarksWithTop = React.useMemo(() => {
+    console.log('🗺️ Rebuilding landmarks list:', {
+      baseLandmarks: landmarks.length,
+      topLandmarks: TOP_LANDMARKS.length,
+      tourLandmarks: tourLandmarks.length
+    });
+    
     const topLandmarksConverted: Landmark[] = TOP_LANDMARKS.map((topLandmark, index) => ({
       id: `top-landmark-${index}`,
       name: topLandmark.name,
@@ -84,15 +111,17 @@ const Map: React.FC<MapProps> = ({
       description: topLandmark.description
     }));
     
-    const tourLandmarksConverted: Landmark[] = TOUR_LANDMARKS.map((tourLandmark, index) => ({
+    const tourLandmarksConverted: Landmark[] = tourLandmarks.map((tourLandmark, index) => ({
       id: `tour-landmark-${index}`,
       name: tourLandmark.name,
       coordinates: tourLandmark.coordinates,
       description: tourLandmark.description
     }));
     
-    return [...landmarks, ...topLandmarksConverted, ...tourLandmarksConverted];
-  }, [landmarks]);
+    const result = [...landmarks, ...topLandmarksConverted, ...tourLandmarksConverted];
+    console.log('🗺️ Total landmarks for map:', result.length);
+    return result;
+  }, [landmarks, tourLandmarks]); // Now properly depends on tourLandmarks state
 
   // Function to store map marker interaction
   const storeMapMarkerInteraction = async (landmark: Landmark, imageUrl?: string) => {
