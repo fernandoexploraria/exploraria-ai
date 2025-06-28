@@ -1,4 +1,5 @@
 
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
@@ -81,8 +82,8 @@ serve(async (req) => {
 
     console.log('📝 Request body:', JSON.stringify(requestBody, null, 2))
 
-    // Use the correct field mask for Google Places API (New)
-    const fieldMask = 'predictions.place_id,predictions.description,predictions.types,predictions.structured_formatting'
+    // Use the CORRECT field mask for Google Places API (New) - this is the fix!
+    const fieldMask = 'predictions.placePrediction.placeId,predictions.placePrediction.displayName,predictions.placePrediction.types,predictions.placePrediction.formattedAddress,predictions.placePrediction.structuredFormat,predictions.placePrediction.distanceMeters'
 
     console.log('🎯 Field mask:', fieldMask)
 
@@ -129,31 +130,39 @@ serve(async (req) => {
     const data = await response.json()
     console.log('✅ Raw API response:', JSON.stringify(data, null, 2))
 
-    // Process the response - Google Places API returns predictions directly
+    // Process the response - Google Places API (New) returns predictions with placePrediction objects
     const predictions = data.predictions || []
     console.log('📊 Number of predictions received:', predictions.length)
 
     // Map predictions to the format expected by the frontend
     const mappedPredictions = predictions.map((prediction: any, index: number) => {
-      console.log(`🔄 Processing prediction ${index + 1}:`, JSON.stringify(prediction, null, 2))
+      const placePrediction = prediction.placePrediction
       
-      // Extract required fields - Google Places API (New) uses different structure
-      const placeId = prediction.place_id
-      const description = prediction.description || ''
-      const types = prediction.types || []
+      if (!placePrediction) {
+        console.warn(`⚠️ No placePrediction found in prediction ${index}:`, prediction)
+        return null
+      }
       
-      // Handle structured formatting for better UI display
-      const structuredFormatting = prediction.structured_formatting || {}
-      const mainText = structuredFormatting.main_text || description
-      const secondaryText = structuredFormatting.secondary_text || ''
+      console.log(`🔄 Processing prediction ${index + 1}:`, JSON.stringify(placePrediction, null, 2))
+      
+      // Extract required fields
+      const placeId = placePrediction.placeId
+      const displayName = placePrediction.displayName?.text || ''
+      const formattedAddress = placePrediction.formattedAddress || ''
+      const types = placePrediction.types || []
+      
+      // Handle structured format for better UI display
+      const structuredFormat = placePrediction.structuredFormat || {}
+      const mainText = structuredFormat.mainText?.text || displayName
+      const secondaryText = structuredFormat.secondaryText?.text || formattedAddress
       
       const result = {
         place_id: placeId,
-        description: description,
+        description: mainText && secondaryText ? `${mainText}, ${secondaryText}` : (mainText || displayName || 'Unknown place'),
         types: types,
         structured_formatting: {
-          main_text: mainText,
-          secondary_text: secondaryText
+          main_text: mainText || displayName || 'Unknown place',
+          secondary_text: secondaryText || formattedAddress || ''
         }
       }
       
@@ -188,3 +197,4 @@ serve(async (req) => {
     )
   }
 })
+
