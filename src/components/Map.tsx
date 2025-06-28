@@ -29,19 +29,47 @@ const Map: React.FC<MapProps> = ({ destinationCoordinates, destinationName }) =>
   
   const mapboxToken = useMapboxToken();
   const { 
-    currentLocation, 
+    userLocation: currentLocation, 
     startTracking, 
     stopTracking, 
-    locationError, 
-    isTracking,
-    distanceToLandmark 
+    locationState 
   } = useLocationTracking();
-  const { triggerProximityAlert } = useProximityAlerts();
-  const { nearbyLandmarks, fetchNearbyLandmarks } = useNearbyLandmarks();
-  const { enhancedPhotos, fetchEnhancedPhoto } = useEnhancedPhotos();
+  
+  const locationError = locationState?.error;
+  const isTracking = locationState?.isTracking;
+  
+  const { 
+    proximityAlerts, 
+    proximitySettings,
+    userLocation,
+    triggerAlert: triggerProximityAlert 
+  } = useProximityAlerts();
+  
+  const nearbyLandmarks = useNearbyLandmarks({ 
+    userLocation: currentLocation,
+    notificationDistance: proximitySettings?.notification_distance || 100
+  });
+  
+  const { fetchPhotos } = useEnhancedPhotos();
   const { isVisible: showDebugWindow, toggle: toggleDebugWindow } = useDebugWindow();
   const { isOnline } = useNetworkStatus();
   const { connectionHealth } = useConnectionMonitor();
+
+  // Simple distance calculation function
+  const distanceToLandmark = useCallback((lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371e3; // metres
+    const φ1 = lat1 * Math.PI/180; // φ, λ in radians
+    const φ2 = lat2 * Math.PI/180;
+    const Δφ = (lat2-lat1) * Math.PI/180;
+    const Δλ = (lon2-lon1) * Math.PI/180;
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+    return R * c; // in metres
+  }, []);
 
   // Initialize map
   useEffect(() => {
@@ -272,29 +300,18 @@ const Map: React.FC<MapProps> = ({ destinationCoordinates, destinationName }) =>
         landmark.coordinates[0]
       );
       
-      if (distance !== null) {
-        triggerProximityAlert(landmark, distance);
+      if (distance !== null && triggerProximityAlert) {
+        // Create a simple landmark object for the alert
+        const simpleLandmark = {
+          id: landmark.name.toLowerCase().replace(/\s+/g, '-'),
+          name: landmark.name,
+          coordinates: landmark.coordinates,
+          description: landmark.description
+        };
+        triggerProximityAlert(simpleLandmark, distance);
       }
     });
   }, [currentLocation, triggerProximityAlert, distanceToLandmark]);
-
-  // Nearby landmarks effect
-  useEffect(() => {
-    if (currentLocation) {
-      fetchNearbyLandmarks(currentLocation.latitude, currentLocation.longitude);
-    }
-  }, [currentLocation, fetchNearbyLandmarks]);
-
-  // Enhanced photos effect
-  useEffect(() => {
-    if (nearbyLandmarks.length > 0) {
-      nearbyLandmarks.forEach(landmark => {
-        if (landmark.photoReference && !enhancedPhotos[landmark.placeId]) {
-          fetchEnhancedPhoto(landmark.placeId, landmark.photoReference);
-        }
-      });
-    }
-  }, [nearbyLandmarks, enhancedPhotos, fetchEnhancedPhoto]);
 
   if (!mapboxToken) {
     return (
@@ -318,7 +335,7 @@ const Map: React.FC<MapProps> = ({ destinationCoordinates, destinationName }) =>
           </button>
           <div className="mt-2 text-sm">
             <p>Is Online: {isOnline ? 'Yes' : 'No'}</p>
-            <p>Connection: {connectionHealth.quality}</p>
+            <p>Connection: {connectionHealth?.rtt ? `${connectionHealth.rtt}ms` : 'Unknown'}</p>
             {currentLocation && (
               <>
                 <p>Latitude: {currentLocation.latitude}</p>
@@ -343,7 +360,7 @@ const Map: React.FC<MapProps> = ({ destinationCoordinates, destinationName }) =>
           Offline Mode
         </div>
       )}
-      {connectionHealth.quality === 'poor' && (
+      {connectionHealth?.rtt && connectionHealth.rtt > 1000 && (
         <div className="absolute bottom-2 right-2 bg-yellow-500 text-gray-800 rounded px-3 py-1 text-sm z-50">
           Slow Connection
         </div>
