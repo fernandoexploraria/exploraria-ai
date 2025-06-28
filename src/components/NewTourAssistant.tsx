@@ -106,8 +106,8 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       });
     },
     onMessage: (message) => {
-      console.log('Received message:', message.type, message.source);
-      if (message.source === 'ai' && message.type === 'agent_response') {
+      console.log('Received message:', message.source, message.message);
+      if (message.source === 'ai') {
         setAssistantState('playback');
       } else if (message.source === 'user') {
         setAssistantState('recording');
@@ -115,7 +115,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     },
     onError: (error) => {
       console.error('ElevenLabs conversation error:', error);
-      setConnectionError(`Connection error: ${error.message || 'Unknown error'}`);
+      setConnectionError(`Connection error: ${error}`);
       toast({
         title: "Connection Error",
         description: "There was an issue with the tour guide connection.",
@@ -179,7 +179,6 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
         console.log('Starting session with dynamic variables...');
         const conversationId = await conversation.startSession({ 
           agentId: elevenLabsConfig.agentId,
-          apiKey: elevenLabsConfig.apiKey,
           dynamicVariables: dynamicVariables
         });
         
