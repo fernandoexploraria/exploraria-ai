@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -98,7 +97,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md z-[9999]" style={{ zIndex: 9999 }}>
+      <DialogContent className="sm:max-w-md z-[99999]" style={{ zIndex: 99999 }}>
         <DialogHeader>
           <DialogTitle>{isSignUp ? 'Sign Up' : 'Sign In'}</DialogTitle>
           <DialogDescription>

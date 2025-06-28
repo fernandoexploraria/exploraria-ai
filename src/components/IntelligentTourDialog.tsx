@@ -436,7 +436,7 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto z-[9999]" style={{ zIndex: 9999 }} aria-describedby="intelligent-tour-description">
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto z-[99999]" style={{ zIndex: 99999 }} aria-describedby="intelligent-tour-description">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-yellow-500" />
