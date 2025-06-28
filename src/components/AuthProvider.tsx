@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { PostAuthAction, getPostAuthAction, clearPostAuthAction } from '@/utils/authActions';
 
 interface AuthContextType {
   user: User | null;
@@ -24,10 +25,10 @@ export const useAuth = () => {
 
 interface AuthProviderProps {
   children: React.ReactNode;
-  onAuthSuccess?: () => void;
+  onPostAuthAction?: (action: PostAuthAction) => void;
 }
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onAuthSuccess }) => {
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuthAction }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,10 +42,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onAuthSucc
         setUser(session?.user ?? null);
         setLoading(false);
         
-        // Handle OAuth success callback
-        if (event === 'SIGNED_IN' && session?.user && onAuthSuccess) {
-          console.log('OAuth sign in detected, triggering success callback');
-          onAuthSuccess();
+        // Handle post-auth actions for successful sign-ins
+        if (event === 'SIGNED_IN' && session?.user) {
+          console.log('Sign in detected, checking for pending actions');
+          const pendingAction = getPostAuthAction();
+          
+          if (pendingAction !== 'none') {
+            console.log('Executing pending post-auth action:', pendingAction);
+            clearPostAuthAction();
+            
+            // Delay execution to ensure UI is ready
+            setTimeout(() => {
+              if (onPostAuthAction) {
+                onPostAuthAction(pendingAction);
+              }
+            }, 500);
+          }
         }
       }
     );
@@ -57,7 +70,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onAuthSucc
     });
 
     return () => subscription.unsubscribe();
-  }, [onAuthSuccess]);
+  }, [onPostAuthAction]);
 
   const signUp = async (email: string, password: string) => {
     const redirectUrl = `${window.location.origin}/`;

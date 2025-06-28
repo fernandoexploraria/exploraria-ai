@@ -1,30 +1,57 @@
 
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as SonnerToaster } from "@/components/ui/sonner";
-import { AuthProvider } from '@/components/AuthProvider';
-import { TTSProvider } from '@/contexts/TTSContext';
-import Index from '@/pages/Index';
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/components/AuthProvider";
+import { PostAuthAction } from "@/utils/authActions";
+import Index from "./pages/Index";
+import { useState } from "react";
 
 const queryClient = new QueryClient();
 
-function App() {
+const App = () => {
+  const [postAuthActions, setPostAuthActions] = useState<{
+    onSmartTour?: () => void;
+  }>({});
+
+  const handlePostAuthAction = (action: PostAuthAction) => {
+    console.log('🎯 App handling post-auth action:', action);
+    
+    switch (action) {
+      case 'smart-tour':
+        if (postAuthActions.onSmartTour) {
+          postAuthActions.onSmartTour();
+        }
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
     <QueryClientProvider client={queryClient}>
-      <Router>
-        <TTSProvider>
-          <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider onPostAuthAction={handlePostAuthAction}>
             <Routes>
-              <Route path="/" element={<Index />} />
+              <Route 
+                path="/" 
+                element={
+                  <Index 
+                    onRegisterPostAuthActions={setPostAuthActions}
+                  />
+                } 
+              />
             </Routes>
-            <Toaster />
-            <SonnerToaster />
           </AuthProvider>
-        </TTSProvider>
-      </Router>
+        </BrowserRouter>
+      </TooltipProvider>
     </QueryClientProvider>
   );
-}
+};
 
 export default App;

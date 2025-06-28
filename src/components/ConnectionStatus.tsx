@@ -18,6 +18,7 @@ import { formatDistanceToNow } from 'date-fns';
 import IntelligentTourDialog from './IntelligentTourDialog';
 import AuthDialog from './AuthDialog';
 import { useAuth } from '@/components/AuthProvider';
+import { PostAuthAction } from '@/utils/authActions';
 
 interface ConnectionStatusProps {
   className?: string;
@@ -107,7 +108,7 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
     console.log('🎯 Smart Tour clicked, user:', user?.id);
     
     if (!user) {
-      console.log('🚨 User not authenticated, opening auth dialog first');
+      console.log('🚨 User not authenticated, opening auth dialog with smart-tour action');
       setIsAuthDialogOpen(true);
     } else {
       console.log('✅ User authenticated, opening smart tour dialog');
@@ -115,9 +116,11 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
     }
   };
 
-  const handleAuthSuccess = () => {
-    console.log('✅ Auth successful, opening smart tour dialog');
-    setIsIntelligentTourOpen(true);
+  const handlePostAuthAction = (action: PostAuthAction) => {
+    console.log('🎯 Executing post-auth action:', action);
+    if (action === 'smart-tour') {
+      setIsIntelligentTourOpen(true);
+    }
   };
 
   const handleTourGenerated = (landmarks: any[]) => {
@@ -126,7 +129,6 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
   };
 
   const handleAuthRequired = () => {
-    // This shouldn't be called anymore since we handle auth upfront
     console.log('🔐 Auth required callback - should not happen in new flow');
   };
 
@@ -279,7 +281,7 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
       <AuthDialog
         open={isAuthDialogOpen}
         onOpenChange={setIsAuthDialogOpen}
-        onAuthSuccess={handleAuthSuccess}
+        postAuthAction="smart-tour"
       />
     </>
   );

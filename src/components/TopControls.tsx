@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import IntelligentTourDialog from './IntelligentTourDialog';
 import AuthDialog from './AuthDialog';
 import { useAuth } from '@/components/AuthProvider';
+import { PostAuthAction } from '@/utils/authActions';
 
 interface TopControlsProps {
   allLandmarks: Landmark[];
@@ -50,7 +51,6 @@ const TopControls: React.FC<TopControlsProps> = ({
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const { toast } = useToast();
   
-  // Initialize connection monitoring
   const { connectionHealth } = useConnectionMonitor();
 
   const toggleCollapse = () => {
@@ -96,7 +96,7 @@ const TopControls: React.FC<TopControlsProps> = ({
     console.log('🎯 Smart Tour clicked from TopControls, user:', authUser?.id);
     
     if (!authUser) {
-      console.log('🚨 User not authenticated, opening auth dialog first');
+      console.log('🚨 User not authenticated, opening auth dialog with smart-tour action');
       setIsAuthDialogOpen(true);
     } else {
       console.log('✅ User authenticated, opening smart tour dialog');
@@ -104,13 +104,14 @@ const TopControls: React.FC<TopControlsProps> = ({
     }
   };
 
-  const handleAuthSuccess = () => {
-    console.log('✅ Auth successful, opening smart tour dialog');
-    setIsIntelligentTourOpen(true);
+  const handlePostAuthAction = (action: PostAuthAction) => {
+    console.log('🎯 Executing post-auth action:', action);
+    if (action === 'smart-tour') {
+      setIsIntelligentTourOpen(true);
+    }
   };
 
   const handleTourGenerated = (landmarks: any[]) => {
-    // Handle the generated tour landmarks
     landmarks.forEach(landmark => {
       onSelectLandmark(landmark);
     });
@@ -122,16 +123,13 @@ const TopControls: React.FC<TopControlsProps> = ({
   };
 
   const handleAuthRequired = () => {
-    // This shouldn't be called anymore since we handle auth upfront
     console.log('🔐 Auth required callback - should not happen in new flow');
   };
 
   return (
     <>
       <div className="absolute top-4 left-4 z-10">
-        {/* Vertical layout for all screen sizes */}
         <div className="flex flex-col items-start gap-2 max-w-[calc(100vw-120px)]">
-          {/* Logo */}
           <img 
             src="/lovable-uploads/ac9cbebd-b083-4d3d-a85e-782e03045422.png" 
             alt="Exploraria Logo" 
@@ -139,15 +137,12 @@ const TopControls: React.FC<TopControlsProps> = ({
             onClick={onLogoClick}
           />
           
-          {/* Search Control */}
           <SearchControl landmarks={allLandmarks} onSelectLandmark={onSelectLandmark} />
           
-          {/* Connection Status - Show compact version when collapsed or if there are issues */}
           {(isCollapsed || !connectionHealth.isHealthy) && (
             <ConnectionStatus compact className="w-full" />
           )}
           
-          {/* Collapse Toggle Button */}
           <Button
             variant="outline"
             size="sm"
@@ -164,10 +159,8 @@ const TopControls: React.FC<TopControlsProps> = ({
             )}
           </Button>
           
-          {/* Action Buttons - Collapsible */}
           {!isCollapsed && (
             <div className="flex flex-col gap-1 w-full animate-fade-in">
-              {/* Smart Tour Button - Updated to handle auth */}
               <Button
                 variant="outline"
                 size="sm"
@@ -214,13 +207,10 @@ const TopControls: React.FC<TopControlsProps> = ({
                 </Button>
               )}
 
-              {/* Image Analysis Button */}
               <ImageAnalysis plannedLandmarks={plannedLandmarks} />
               
-              {/* Connection Status - Full version when expanded */}
               <ConnectionStatus showDetails className="w-full" />
               
-              {/* Test CORS Button */}
               <Button
                 variant="outline"
                 size="sm"
@@ -232,7 +222,6 @@ const TopControls: React.FC<TopControlsProps> = ({
                 {isTestingCors ? 'Testing...' : 'Test CORS'}
               </Button>
               
-              {/* Debug Button wrapped in Drawer */}
               <Drawer open={isDebugDrawerOpen} onOpenChange={setIsDebugDrawerOpen}>
                 <DrawerTrigger asChild>
                   <Button
@@ -255,7 +244,6 @@ const TopControls: React.FC<TopControlsProps> = ({
         </div>
       </div>
 
-      {/* Intelligent Tour Dialog */}
       <IntelligentTourDialog
         open={isIntelligentTourOpen}
         onOpenChange={setIsIntelligentTourOpen}
@@ -263,11 +251,10 @@ const TopControls: React.FC<TopControlsProps> = ({
         onAuthRequired={handleAuthRequired}
       />
 
-      {/* AuthDialog with success callback */}
       <AuthDialog
         open={isAuthDialogOpen}
         onOpenChange={setIsAuthDialogOpen}
-        onAuthSuccess={handleAuthSuccess}
+        postAuthAction="smart-tour"
       />
     </>
   );

@@ -7,14 +7,19 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from './AuthProvider';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { setPostAuthAction, PostAuthAction } from '@/utils/authActions';
 
 interface AuthDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAuthSuccess?: () => void;
+  postAuthAction?: PostAuthAction;
 }
 
-const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange, onAuthSuccess }) => {
+const AuthDialog: React.FC<AuthDialogProps> = ({ 
+  open, 
+  onOpenChange, 
+  postAuthAction = 'none' 
+}) => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,6 +31,11 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange, onAuthSucce
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
+    // Set the post-auth action before attempting authentication
+    if (postAuthAction !== 'none') {
+      setPostAuthAction(postAuthAction);
+    }
 
     try {
       const { error } = isSignUp 
@@ -44,7 +54,6 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange, onAuthSucce
             title: "Check your email",
             description: "We've sent you a confirmation email. Please check your inbox and click the link to activate your account.",
           });
-          // Don't close dialog immediately for sign up, let user see the message
           setEmail('');
           setPassword('');
         } else {
@@ -52,10 +61,6 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange, onAuthSucce
             title: "Success",
             description: "Signed in successfully!",
           });
-          // Call success callback before closing
-          if (onAuthSuccess) {
-            onAuthSuccess();
-          }
           onOpenChange(false);
           setEmail('');
           setPassword('');
@@ -75,6 +80,11 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange, onAuthSucce
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     
+    // Set the post-auth action before initiating OAuth
+    if (postAuthAction !== 'none') {
+      setPostAuthAction(postAuthAction);
+    }
+    
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -90,8 +100,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange, onAuthSucce
           variant: "destructive"
         });
       } else {
-        // For OAuth, the success will be handled by the auth state change listener
-        // We'll close the dialog and let the auth state change trigger the callback
+        // OAuth will redirect, so we close the dialog
         onOpenChange(false);
       }
     } catch (error) {
