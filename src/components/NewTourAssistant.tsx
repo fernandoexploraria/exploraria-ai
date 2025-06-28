@@ -30,22 +30,22 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   const [elevenLabsConfig, setElevenLabsConfig] = useState<{apiKey: string, agentId: string} | null>(null);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const [assistantState, setAssistantState] = useState<AssistantState>('not-started');
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   // Fetch ElevenLabs configuration from Supabase on mount
   useEffect(() => {
     const fetchConfig = async () => {
       try {
+        setConnectionError(null);
+        
         const { data: session } = await supabase.auth.getSession();
         if (!session.session) {
-          toast({
-            title: "Authentication Required",
-            description: "Please sign in to use the tour guide.",
-            variant: "destructive"
-          });
+          setConnectionError("Please sign in to use the tour guide.");
           setIsLoadingConfig(false);
           return;
         }
 
+        console.log('Fetching ElevenLabs configuration...');
         const { data, error } = await supabase.functions.invoke('get-elevenlabs-config', {
           headers: {
             Authorization: `Bearer ${session.session.access_token}`,
@@ -54,22 +54,14 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
 
         if (error) {
           console.error('Error fetching ElevenLabs config:', error);
-          toast({
-            title: "Configuration Error",
-            description: "Failed to load tour guide configuration.",
-            variant: "destructive"
-          });
+          setConnectionError("Failed to load tour guide configuration.");
         } else {
-          console.log('ElevenLabs config loaded:', data);
+          console.log('ElevenLabs config loaded successfully:', { agentId: data?.agentId ? 'Present' : 'Missing' });
           setElevenLabsConfig(data);
         }
       } catch (error) {
         console.error('Error fetching config:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load tour guide configuration.",
-          variant: "destructive"
-        });
+        setConnectionError("Failed to connect to tour guide service.");
       } finally {
         setIsLoadingConfig(false);
       }
@@ -78,47 +70,52 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     if (open) {
       fetchConfig();
     }
-  }, [open, toast]);
+  }, [open]);
 
   // Prepare dynamic variables for the ElevenLabs agent
   const prepareDynamicVariables = () => {
-    return {
+    const variables = {
       geminiGenerated: systemPrompt || `You are a knowledgeable tour guide for ${destination}. Provide engaging information about the following landmarks: ${landmarks.map(l => l.name).join(', ')}.`,
       destination: destination,
-      user_id: user?.id // Pass user ID for webhook processing
+      user_id: user?.id,
+      landmark_count: landmarks.length,
+      landmark_names: landmarks.map(l => l.name).join(', ')
     };
+    
+    console.log('Dynamic variables prepared:', variables);
+    return variables;
   };
 
-  // Initialize the conversation with webhook support
+  // Initialize the conversation with enhanced error handling
   const conversation = useConversation({
     onConnect: () => {
-      console.log('Connected to ElevenLabs agent');
+      console.log('Successfully connected to ElevenLabs agent');
       setAssistantState('started');
+      setConnectionError(null);
       toast({
         title: "Connected",
-        description: "Ready to listen! Start speaking now.",
+        description: "Tour guide is ready! Start speaking now.",
       });
     },
     onDisconnect: () => {
       console.log('Disconnected from ElevenLabs agent');
       setAssistantState('not-started');
-      
-      // Show success message when conversation ends
       toast({
-        title: "Conversation Saved",
-        description: "Your tour conversation has been processed and saved.",
+        title: "Conversation Ended",
+        description: "Your tour conversation has been saved.",
       });
     },
     onMessage: (message) => {
-      console.log('Received message:', message);
-      if (message.source === 'ai') {
+      console.log('Received message:', message.type, message.source);
+      if (message.source === 'ai' && message.type === 'agent_response') {
         setAssistantState('playback');
       } else if (message.source === 'user') {
         setAssistantState('recording');
       }
     },
     onError: (error) => {
-      console.error('Conversation error:', error);
+      console.error('ElevenLabs conversation error:', error);
+      setConnectionError(`Connection error: ${error.message || 'Unknown error'}`);
       toast({
         title: "Connection Error",
         description: "There was an issue with the tour guide connection.",
@@ -130,6 +127,8 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
 
   // Update state based on conversation status
   useEffect(() => {
+    console.log('Conversation status changed:', conversation.status, 'isSpeaking:', conversation.isSpeaking);
+    
     if (conversation.status === 'connected') {
       if (conversation.isSpeaking) {
         setAssistantState('playback');
@@ -165,40 +164,57 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       }
 
       try {
-        console.log('Starting tour with config:', { agentId: elevenLabsConfig.agentId });
+        setConnectionError(null);
+        console.log('Starting ElevenLabs conversation with agent:', elevenLabsConfig.agentId);
         
         // Prepare dynamic variables for this conversation
         const dynamicVariables = prepareDynamicVariables();
-        console.log('Using dynamic variables:', dynamicVariables);
         
         // Request microphone permission first
+        console.log('Requesting microphone permission...');
         await navigator.mediaDevices.getUserMedia({ audio: true });
+        console.log('Microphone permission granted');
         
         // Start the conversation using the agent ID approach with dynamic variables
-        await conversation.startSession({ 
+        console.log('Starting session with dynamic variables...');
+        const conversationId = await conversation.startSession({ 
           agentId: elevenLabsConfig.agentId,
+          apiKey: elevenLabsConfig.apiKey,
           dynamicVariables: dynamicVariables
         });
         
+        console.log('ElevenLabs session started successfully:', conversationId);
+        
       } catch (error) {
         console.error('Error starting tour:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        setConnectionError(errorMessage);
+        
+        // Provide specific error messages based on error type
+        let userMessage = "Failed to start tour guide.";
+        if (errorMessage.includes('Permission denied')) {
+          userMessage = "Microphone permission is required to use the tour guide.";
+        } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+          userMessage = "Network connection issue. Please check your internet and try again.";
+        } else if (errorMessage.includes('agent')) {
+          userMessage = "Tour guide service is temporarily unavailable.";
+        }
+        
         toast({
           title: "Error",
-          description: `Failed to start tour guide: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          description: userMessage,
           variant: "destructive"
         });
       }
-    } else if (assistantState === 'playback') {
-      // Interrupt playback - this would require additional conversation controls
-      // For now, we'll just indicate the intent
-      console.log('User wants to interrupt playback');
     }
   };
 
   const handleEndTour = async () => {
     try {
+      console.log('Ending ElevenLabs session...');
       await conversation.endSession();
       setAssistantState('not-started');
+      setConnectionError(null);
     } catch (error) {
       console.error('Error ending tour:', error);
     }
@@ -266,28 +282,71 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     );
   }
 
-  // Show error if configuration couldn't be loaded
-  if (!elevenLabsConfig) {
+  // Show error if configuration couldn't be loaded or there's a connection error
+  if (!elevenLabsConfig || connectionError) {
     return (
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Configuration Error</DialogTitle>
             <DialogDescription>
-              Unable to load tour guide configuration. Please try again later.
+              {connectionError || "Unable to load tour guide configuration."}
             </DialogDescription>
           </DialogHeader>
           
           <div className="text-center py-8">
             <p className="text-muted-foreground mb-4">
-              There was an issue loading the ElevenLabs configuration.
+              {connectionError || "There was an issue loading the ElevenLabs configuration."}
             </p>
-            <Button
-              onClick={handleClose}
-              variant="outline"
-            >
-              Close
-            </Button>
+            <div className="space-y-2">
+              <Button
+                onClick={() => {
+                  setIsLoadingConfig(true);
+                  setConnectionError(null);
+                  // Retry configuration fetch
+                  const fetchConfig = async () => {
+                    try {
+                      const { data: session } = await supabase.auth.getSession();
+                      if (!session.session) {
+                        setConnectionError("Please sign in to use the tour guide.");
+                        return;
+                      }
+
+                      const { data, error } = await supabase.functions.invoke('get-elevenlabs-config', {
+                        headers: {
+                          Authorization: `Bearer ${session.session.access_token}`,
+                        },
+                      });
+
+                      if (error) {
+                        setConnectionError("Failed to load tour guide configuration.");
+                      } else {
+                        setElevenLabsConfig(data);
+                        setConnectionError(null);
+                      }
+                    } catch (error) {
+                      setConnectionError("Failed to connect to tour guide service.");
+                    } finally {
+                      setIsLoadingConfig(false);
+                    }
+                  };
+                  fetchConfig();
+                }}
+                disabled={isLoadingConfig}
+              >
+                {isLoadingConfig ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Retrying...
+                  </>
+                ) : (
+                  "Retry"
+                )}
+              </Button>
+              <Button variant="outline" onClick={handleClose}>
+                Close
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

@@ -263,22 +263,47 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
 
       setCurrentStep(4);
       
-      // Convert landmarks to expected format for the map
+      // Convert landmarks to expected format for the map - FIXED FORMAT
       const formattedLandmarks = landmarks.map(landmark => ({
-        id: landmark.placeId,
+        id: landmark.placeId || `landmark-${Date.now()}-${Math.random()}`,
         name: landmark.name,
-        coordinates: [landmark.geometry.location.lng, landmark.geometry.location.lat],
-        description: landmark.editorialSummary || `${landmark.name} - ${landmark.types?.join(', ')}`,
-        rating: landmark.rating,
+        coordinates: [
+          parseFloat(landmark.geometry?.location?.lng || landmark.location?.longitude || 0),
+          parseFloat(landmark.geometry?.location?.lat || landmark.location?.latitude || 0)
+        ] as [number, number],
+        description: landmark.editorialSummary || landmark.vicinity || `${landmark.name} - ${landmark.types?.join(', ') || 'Landmark'}`,
+        rating: landmark.rating || 0,
         photos: landmark.photoUrl ? [landmark.photoUrl] : [],
-        types: landmark.types || []
+        types: landmark.types || [],
+        placeId: landmark.placeId,
+        formattedAddress: landmark.vicinity || landmark.formattedAddress
       }));
 
-      onTourGenerated(formattedLandmarks);
+      console.log('Formatted landmarks for map:', formattedLandmarks);
+      console.log('Sample landmark coordinates:', formattedLandmarks[0]?.coordinates);
+
+      // Ensure landmarks have valid coordinates before passing to map
+      const validLandmarks = formattedLandmarks.filter(landmark => {
+        const hasValidCoords = landmark.coordinates && 
+          landmark.coordinates.length === 2 && 
+          !isNaN(landmark.coordinates[0]) && 
+          !isNaN(landmark.coordinates[1]) &&
+          landmark.coordinates[0] !== 0 && 
+          landmark.coordinates[1] !== 0;
+        
+        if (!hasValidCoords) {
+          console.warn('Invalid landmark coordinates:', landmark.name, landmark.coordinates);
+        }
+        return hasValidCoords;
+      });
+
+      console.log(`Passing ${validLandmarks.length} valid landmarks to map out of ${formattedLandmarks.length} total`);
+
+      onTourGenerated(validLandmarks);
 
       toast({
         title: "Tour Generated Successfully!",
-        description: `Found ${landmarks.length} amazing places to explore in ${destination.name}`,
+        description: `Found ${validLandmarks.length} amazing places to explore in ${destination.name}`,
       });
 
     } catch (error) {
