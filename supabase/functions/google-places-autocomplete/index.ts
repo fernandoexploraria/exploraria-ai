@@ -118,7 +118,7 @@ serve(async (req) => {
 
     console.log('🚀 DEBUG: Final request body:', JSON.stringify(googleRequestBody, null, 2))
 
-    // Use CORRECT field mask for the NEW Google Places API with types included
+    // FIXED: Use CORRECT field mask for the NEW Google Places API with types included
     const fieldMask = 'suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.types'
     console.log('🚀 DEBUG: Using enhanced field mask with types:', fieldMask)
 
