@@ -13,6 +13,7 @@ import { useConnectionMonitor } from '@/hooks/useConnectionMonitor';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import IntelligentTourDialog from './IntelligentTourDialog';
+import { useAuth } from '@/components/AuthProvider';
 
 interface TopControlsProps {
   allLandmarks: Landmark[];
@@ -24,6 +25,7 @@ interface TopControlsProps {
   user: any;
   plannedLandmarks: Landmark[];
   onIntelligentTourOpen: () => void;
+  onAuthDialogOpen?: () => void;
 }
 
 const TopControls: React.FC<TopControlsProps> = ({
@@ -36,6 +38,7 @@ const TopControls: React.FC<TopControlsProps> = ({
   user,
   plannedLandmarks,
   onIntelligentTourOpen,
+  onAuthDialogOpen,
 }) => {
   const isMobile = useIsMobile();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -96,6 +99,13 @@ const TopControls: React.FC<TopControlsProps> = ({
       title: "Tour Generated!",
       description: `${landmarks.length} amazing places added to your map`,
     });
+  };
+
+  const handleAuthRequired = () => {
+    if (onAuthDialogOpen) {
+      onAuthDialogOpen();
+    }
+    setIsIntelligentTourOpen(false);
   };
 
   return (
@@ -227,11 +237,12 @@ const TopControls: React.FC<TopControlsProps> = ({
         </div>
       </div>
 
-      {/* Intelligent Tour Dialog - Remove user prop since dialog handles auth internally */}
+      {/* Intelligent Tour Dialog - Add onAuthRequired prop */}
       <IntelligentTourDialog
         open={isIntelligentTourOpen}
         onOpenChange={setIsIntelligentTourOpen}
         onTourGenerated={handleTourGenerated}
+        onAuthRequired={handleAuthRequired}
       />
     </>
   );
