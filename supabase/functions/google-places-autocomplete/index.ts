@@ -16,7 +16,13 @@ serve(async (req) => {
   }
 
   try {
-    const { input, types = ['establishment', 'geocode'] } = await req.json()
+    const { 
+      input, 
+      types = ['locality', 'sublocality', 'tourist_attraction', 'park', 'museum'],
+      sessionToken,
+      locationBias 
+    } = await req.json()
+    
     const googleApiKey = Deno.env.get('GOOGLE_API_KEY')
     
     if (!googleApiKey) {
@@ -30,45 +36,59 @@ serve(async (req) => {
       )
     }
 
-    console.log('Autocomplete search for:', input, 'with types:', types)
+    console.log('Autocomplete search for:', input, 'with types:', types, 'sessionToken:', sessionToken?.substring(0, 8) + '...')
 
-    // Use new Google Places API v1 autocomplete endpoint
+    // Use Google Places API v1 autocomplete endpoint with correct structure
     const autocompleteUrl = 'https://places.googleapis.com/v1/places:autocomplete'
     
+    // Build request body according to Google's recommendations
+    const requestBody: any = {
+      input: input,
+      includedPrimaryTypes: Array.isArray(types) ? types : [types],
+      languageCode: 'en'
+    }
+
+    // Add session token if provided (recommended by Google for billing optimization)
+    if (sessionToken) {
+      requestBody.sessionToken = sessionToken
+    }
+
+    // Add location bias if provided (improves result relevance)
+    if (locationBias) {
+      requestBody.locationBias = locationBias
+    }
+
     const response = await fetch(autocompleteUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': googleApiKey,
-        'X-Goog-FieldMask': 'suggestions.placePrediction.place,suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat,suggestions.placePrediction.types'
+        // Fixed field mask - use predictions.placePrediction instead of suggestions.placePrediction
+        'X-Goog-FieldMask': 'predictions.placePrediction.placeId,predictions.placePrediction.displayName,predictions.placePrediction.types,predictions.placePrediction.formattedAddress'
       },
-      body: JSON.stringify({
-        input: input,
-        includedPrimaryTypes: Array.isArray(types) ? types : [types],
-        languageCode: 'en'
-      })
+      body: JSON.stringify(requestBody)
     })
 
     if (!response.ok) {
       const errorText = await response.text()
       console.error('Google Places Autocomplete API error:', errorText)
-      throw new Error(`Google Places API request failed: ${response.status}`)
+      throw new Error(`Google Places API request failed: ${response.status} - ${errorText}`)
     }
 
     const data = await response.json()
-    console.log('Autocomplete response received:', data.suggestions?.length || 0, 'suggestions')
+    console.log('Autocomplete response received:', data.predictions?.length || 0, 'predictions')
 
-    // Map new API response to legacy format expected by the component
-    const predictions = data.suggestions?.map((suggestion: any) => {
-      const prediction = suggestion.placePrediction
+    // Map new API response to format expected by the component
+    const predictions = data.predictions?.map((prediction: any) => {
+      const placePrediction = prediction.placePrediction
       return {
-        place_id: prediction.placeId,
-        description: prediction.text?.text || prediction.text,
-        types: prediction.types || [],
-        structured_formatting: prediction.structuredFormat ? {
-          main_text: prediction.structuredFormat.mainText?.text || prediction.structuredFormat.mainText,
-          secondary_text: prediction.structuredFormat.secondaryText?.text || prediction.structuredFormat.secondaryText
-        } : undefined
+        place_id: placePrediction.placeId,
+        description: placePrediction.formattedAddress || placePrediction.displayName?.text || '',
+        types: placePrediction.types || [],
+        structured_formatting: {
+          main_text: placePrediction.displayName?.text || '',
+          secondary_text: placePrediction.formattedAddress || ''
+        }
       }
     }) || []
 

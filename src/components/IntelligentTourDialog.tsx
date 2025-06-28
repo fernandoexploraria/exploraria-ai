@@ -50,7 +50,17 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   const [destinationDetails, setDestinationDetails] = useState<any>(null);
   const [nearbyLandmarks, setNearbyLandmarks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [sessionToken, setSessionToken] = useState<string>('');
   const { toast } = useToast();
+
+  // Generate a new session token when dialog opens
+  React.useEffect(() => {
+    if (open && !sessionToken) {
+      const newSessionToken = crypto.randomUUID();
+      setSessionToken(newSessionToken);
+      console.log('Generated new autocomplete session token:', newSessionToken);
+    }
+  }, [open, sessionToken]);
 
   const handleSearchDestination = async (query: string) => {
     if (query.length < 3) {
@@ -59,10 +69,35 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
     }
 
     try {
+      // Get user's current location for location bias (if available)
+      let locationBias = null;
+      if ('geolocation' in navigator) {
+        try {
+          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+          });
+          
+          locationBias = {
+            circle: {
+              center: {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude
+              },
+              radius: 50000.0 // 50km radius
+            }
+          };
+          console.log('Using location bias:', locationBias);
+        } catch (geoError) {
+          console.log('Could not get user location for bias:', geoError);
+        }
+      }
+
       const { data, error } = await supabase.functions.invoke('google-places-autocomplete', {
         body: { 
           input: query,
-          types: ['locality', 'sublocality', 'tourist_attraction', 'park', 'museum']
+          types: ['locality', 'sublocality', 'tourist_attraction', 'park', 'museum'],
+          sessionToken: sessionToken,
+          locationBias: locationBias
         }
       });
 
@@ -320,6 +355,8 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
     setDestinationDetails(null);
     setNearbyLandmarks([]);
     setIsLoading(false);
+    // Generate new session token for next autocomplete session
+    setSessionToken(crypto.randomUUID());
   };
 
   const handleClose = () => {
