@@ -23,6 +23,7 @@ interface TopControlsProps {
   onLogoClick: () => void;
   user: any;
   plannedLandmarks: Landmark[];
+  onIntelligentTourOpen: () => void;
 }
 
 const TopControls: React.FC<TopControlsProps> = ({
@@ -34,6 +35,7 @@ const TopControls: React.FC<TopControlsProps> = ({
   onLogoClick,
   user,
   plannedLandmarks,
+  onIntelligentTourOpen,
 }) => {
   const isMobile = useIsMobile();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -225,12 +227,11 @@ const TopControls: React.FC<TopControlsProps> = ({
         </div>
       </div>
 
-      {/* Intelligent Tour Dialog */}
+      {/* Intelligent Tour Dialog - Remove user prop since dialog handles auth internally */}
       <IntelligentTourDialog
         open={isIntelligentTourOpen}
         onOpenChange={setIsIntelligentTourOpen}
         onTourGenerated={handleTourGenerated}
-        user={user}
       />
     </>
   );

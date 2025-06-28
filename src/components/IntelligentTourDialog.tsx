@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -52,6 +53,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   const [nearbyLandmarks, setNearbyLandmarks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [sessionToken, setSessionToken] = useState<string>('');
+  const [autocompleteError, setAutocompleteError] = useState<string>('');
   
   // Authentication state
   const [isSignUp, setIsSignUp] = useState(false);
@@ -146,8 +148,12 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   const handleSearchDestination = async (query: string) => {
     if (query.length < 3) {
       setAutocompleteResults([]);
+      setAutocompleteError('');
       return;
     }
+
+    console.log('🔍 Autocomplete search - Browser context:', window.location.href);
+    console.log('🔍 Session token:', sessionToken?.substring(0, 8) + '...');
 
     try {
       // Get user's current location for location bias (if available)
@@ -182,7 +188,13 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('🔍 Autocomplete error:', error);
+        setAutocompleteError(`Search failed: ${error.message}`);
+        throw error;
+      }
+
+      console.log('🔍 Autocomplete success:', data.predictions?.length || 0, 'results');
 
       // Client-side sorting: localities > sublocalities > tourist_attractions > parks > museums
       const sortedResults = data.predictions?.sort((a: AutocompleteResult, b: AutocompleteResult) => {
@@ -198,11 +210,13 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       }) || [];
 
       setAutocompleteResults(sortedResults);
+      setAutocompleteError('');
     } catch (error) {
-      console.error('Autocomplete error:', error);
+      console.error('🔍 Autocomplete error:', error);
+      setAutocompleteError('Search unavailable. Please try entering a city name directly.');
       toast({
         title: "Search Error",
-        description: "Failed to search destinations. Please try again.",
+        description: "Search is currently unavailable. You can still enter a destination manually.",
         variant: "destructive",
       });
     }
@@ -427,6 +441,7 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
     setEmail('');
     setPassword('');
     setIsSignUp(false);
+    setAutocompleteError('');
     // Generate new session token for next autocomplete session
     setSessionToken(crypto.randomUUID());
   };
@@ -440,12 +455,15 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto" aria-describedby="intelligent-tour-description">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-yellow-500" />
             Intelligent Tour Generator
           </DialogTitle>
+          <DialogDescription id="intelligent-tour-description">
+            Create personalized tours by discovering amazing places at your destination
+          </DialogDescription>
         </DialogHeader>
 
         {/* Show authentication UI if user is not authenticated */}
@@ -566,6 +584,11 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
                       className="pl-10"
                     />
                   </div>
+                  {autocompleteError && (
+                    <p className="text-sm text-muted-foreground mt-1 text-amber-600">
+                      {autocompleteError}
+                    </p>
+                  )}
                 </div>
 
                 {autocompleteResults.length > 0 && (
