@@ -18,12 +18,17 @@ serve(async (req) => {
   }
 
   try {
+    console.log('🚀 Edge Function started - processing autocomplete request')
+    
+    const requestBody = await req.json()
+    console.log('📥 Incoming request body:', JSON.stringify(requestBody, null, 2))
+    
     const { 
       input, 
       types = ['locality', 'sublocality', 'tourist_attraction', 'park', 'museum'],
       sessionToken,
       locationBias 
-    } = await req.json()
+    } = requestBody
     
     const googleApiKey = Deno.env.get('GOOGLE_API_KEY')
     
@@ -46,12 +51,12 @@ serve(async (req) => {
     if (!input || input.length < 3) {
       console.log('⚠️ Input too short, returning empty predictions')
       return new Response(
-        JSON.stringify({ predictions: [] }),
+        JSON.stringify({ predictions: [], status: 'OK' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log('🔍 Starting autocomplete request:')
+    console.log('🔍 Processing autocomplete request:')
     console.log('  - Input:', input)
     console.log('  - Types:', types)
     console.log('  - Session Token:', sessionToken ? `${sessionToken.substring(0, 8)}...` : 'none')
@@ -59,64 +64,54 @@ serve(async (req) => {
 
     const autocompleteUrl = 'https://places.googleapis.com/v1/places:autocomplete'
     
-    // Build request body according to Google's specification
-    const requestBody: any = {
+    // Build request body for Google Places API (New)
+    const googleRequestBody: any = {
       input: input,
       languageCode: 'en'
     }
 
-    // Add included primary types if provided - map from 'types' parameter
+    // Map frontend 'types' parameter to Google's 'includedPrimaryTypes'
     if (Array.isArray(types) && types.length > 0) {
-      requestBody.includedPrimaryTypes = types
+      googleRequestBody.includedPrimaryTypes = types
     }
 
-    // Add session token if provided (crucial for billing optimization)
     if (sessionToken) {
-      requestBody.sessionToken = sessionToken
+      googleRequestBody.sessionToken = sessionToken
     }
 
-    // Add location bias if provided
     if (locationBias) {
-      requestBody.locationBias = locationBias
+      googleRequestBody.locationBias = locationBias
     }
 
-    console.log('📝 Request body:', JSON.stringify(requestBody, null, 2))
+    console.log('📤 Request to Google Places API:', JSON.stringify(googleRequestBody, null, 2))
 
-    // Use the CORRECT field mask for Google Places API (New) - this is the fix!
+    // Corrected field mask for Google Places API (New)
     const fieldMask = 'predictions.placePrediction.placeId,predictions.placePrediction.displayName,predictions.placePrediction.types,predictions.placePrediction.formattedAddress,predictions.placePrediction.structuredFormat,predictions.placePrediction.distanceMeters'
 
-    console.log('🎯 Field mask:', fieldMask)
+    console.log('🎯 Using field mask:', fieldMask)
 
-    const response = await fetch(autocompleteUrl, {
+    const googleResponse = await fetch(autocompleteUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': googleApiKey,
         'X-Goog-FieldMask': fieldMask
       },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify(googleRequestBody)
     })
 
-    console.log('📡 API Response status:', response.status)
-    console.log('📡 API Response headers:', Object.fromEntries(response.headers.entries()))
+    console.log('📡 Google API Response status:', googleResponse.status)
+    console.log('📡 Google API Response headers:', Object.fromEntries(googleResponse.headers.entries()))
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('❌ Google Places Autocomplete API error:')
-      console.error('  - Status:', response.status)
+    if (!googleResponse.ok) {
+      const errorText = await googleResponse.text()
+      console.error('❌ Google Places API error:')
+      console.error('  - Status:', googleResponse.status)
       console.error('  - Response:', errorText)
-      
-      // Try to parse error details
-      try {
-        const errorJson = JSON.parse(errorText)
-        console.error('  - Parsed error:', JSON.stringify(errorJson, null, 2))
-      } catch (e) {
-        console.error('  - Could not parse error as JSON')
-      }
       
       return new Response(
         JSON.stringify({ 
-          error: `Google Places API error: ${response.status} - ${errorText}`,
+          error: `Google Places API error: ${googleResponse.status} - ${errorText}`,
           predictions: [],
           status: 'ERROR'
         }),
@@ -127,66 +122,89 @@ serve(async (req) => {
       )
     }
 
-    const data = await response.json()
-    console.log('✅ Raw API response:', JSON.stringify(data, null, 2))
+    const googleApiData = await googleResponse.json()
+    console.log('✅ Google API Raw Response:', JSON.stringify(googleApiData, null, 2))
 
-    // Process the response - Google Places API (New) returns predictions with placePrediction objects
-    const predictions = data.predictions || []
+    // Safely process the response
+    const predictions = googleApiData.predictions || []
     console.log('📊 Number of predictions received:', predictions.length)
 
-    // Map predictions to the format expected by the frontend
-    const mappedPredictions = predictions.map((prediction: any, index: number) => {
-      const placePrediction = prediction.placePrediction
-      
-      if (!placePrediction) {
-        console.warn(`⚠️ No placePrediction found in prediction ${index}:`, prediction)
-        return null
-      }
-      
-      console.log(`🔄 Processing prediction ${index + 1}:`, JSON.stringify(placePrediction, null, 2))
-      
-      // Extract required fields
-      const placeId = placePrediction.placeId
-      const displayName = placePrediction.displayName?.text || ''
-      const formattedAddress = placePrediction.formattedAddress || ''
-      const types = placePrediction.types || []
-      
-      // Handle structured format for better UI display
-      const structuredFormat = placePrediction.structuredFormat || {}
-      const mainText = structuredFormat.mainText?.text || displayName
-      const secondaryText = structuredFormat.secondaryText?.text || formattedAddress
-      
-      const result = {
-        place_id: placeId,
-        description: mainText && secondaryText ? `${mainText}, ${secondaryText}` : (mainText || displayName || 'Unknown place'),
-        types: types,
-        structured_formatting: {
-          main_text: mainText || displayName || 'Unknown place',
-          secondary_text: secondaryText || formattedAddress || ''
-        }
-      }
-      
-      console.log(`✅ Mapped prediction ${index + 1}:`, JSON.stringify(result, null, 2))
-      return result
-    }).filter(Boolean) // Remove any null results
+    if (predictions.length === 0) {
+      console.log('📭 No predictions returned from Google API')
+      return new Response(
+        JSON.stringify({ predictions: [], status: 'OK' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
-    console.log('🎉 Final response:', mappedPredictions.length, 'predictions mapped successfully')
+    // Process predictions with proper error handling
+    const processedPredictions = []
+    
+    for (let i = 0; i < predictions.length; i++) {
+      try {
+        const prediction = predictions[i]
+        console.log(`🔄 Processing prediction ${i + 1}:`, JSON.stringify(prediction, null, 2))
+        
+        const placePrediction = prediction.placePrediction
+        
+        if (!placePrediction) {
+          console.warn(`⚠️ No placePrediction found in prediction ${i}:`, prediction)
+          continue
+        }
+        
+        // Safely extract fields with fallbacks
+        const placeId = placePrediction.placeId || null
+        const displayName = placePrediction.displayName?.text || ''
+        const formattedAddress = placePrediction.formattedAddress || ''
+        const types = Array.isArray(placePrediction.types) ? placePrediction.types : []
+        
+        // Handle structured format safely
+        const structuredFormat = placePrediction.structuredFormat || {}
+        const mainText = structuredFormat.mainText?.text || displayName || 'Unknown place'
+        const secondaryText = structuredFormat.secondaryText?.text || formattedAddress || ''
+        
+        const processedPrediction = {
+          place_id: placeId,
+          description: mainText && secondaryText ? `${mainText}, ${secondaryText}` : mainText,
+          types: types,
+          structured_formatting: {
+            main_text: mainText,
+            secondary_text: secondaryText
+          }
+        }
+        
+        console.log(`✅ Processed prediction ${i + 1}:`, JSON.stringify(processedPrediction, null, 2))
+        processedPredictions.push(processedPrediction)
+        
+      } catch (predictionError) {
+        console.error(`❌ Error processing prediction ${i + 1}:`, predictionError.message)
+        console.error('Raw prediction data:', JSON.stringify(predictions[i], null, 2))
+        // Continue processing other predictions instead of failing entirely
+        continue
+      }
+    }
+
+    console.log(`🎉 Successfully processed ${processedPredictions.length} predictions`)
+    
+    const finalResponse = {
+      predictions: processedPredictions,
+      status: 'OK'
+    }
+    
+    console.log('📤 Final response to frontend:', JSON.stringify(finalResponse, null, 2))
 
     return new Response(
-      JSON.stringify({ 
-        predictions: mappedPredictions,
-        status: 'OK'
-      }),
+      JSON.stringify(finalResponse),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
   } catch (error) {
-    console.error('💥 Error in autocomplete function:', error)
+    console.error('💥 Unhandled error in autocomplete function:', error.message)
     console.error('💥 Error stack:', error.stack)
     
     return new Response(
       JSON.stringify({ 
-        error: error.message, 
+        error: `Internal server error: ${error.message}`, 
         predictions: [],
         status: 'ERROR'
       }),
