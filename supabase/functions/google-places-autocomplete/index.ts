@@ -1,5 +1,4 @@
 
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
@@ -85,8 +84,8 @@ serve(async (req) => {
 
     console.log('📤 Request to Google Places API:', JSON.stringify(googleRequestBody, null, 2))
 
-    // Corrected field mask for Google Places API (New)
-    const fieldMask = 'predictions.placePrediction.placeId,predictions.placePrediction.displayName,predictions.placePrediction.types,predictions.placePrediction.formattedAddress,predictions.placePrediction.structuredFormat,predictions.placePrediction.distanceMeters'
+    // Use correct field mask for Google Places API (New)
+    const fieldMask = 'predictions.placePrediction.placeId,predictions.placePrediction.displayName,predictions.placePrediction.types,predictions.placePrediction.formattedAddress,predictions.placePrediction.structuredFormat'
 
     console.log('🎯 Using field mask:', fieldMask)
 
@@ -122,8 +121,27 @@ serve(async (req) => {
       )
     }
 
-    const googleApiData = await googleResponse.json()
-    console.log('✅ Google API Raw Response:', JSON.stringify(googleApiData, null, 2))
+    console.log('🎉 Google API call successful, parsing response...')
+    
+    let googleApiData
+    try {
+      googleApiData = await googleResponse.json()
+      console.log('✅ Google API Raw Response parsed successfully')
+      console.log('📊 Raw response structure:', JSON.stringify(googleApiData, null, 2))
+    } catch (parseError) {
+      console.error('❌ Failed to parse Google API response as JSON:', parseError.message)
+      return new Response(
+        JSON.stringify({ 
+          error: 'Failed to parse Google API response',
+          predictions: [],
+          status: 'ERROR'
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+          status: 500 
+        }
+      )
+    }
 
     // Safely process the response
     const predictions = googleApiData.predictions || []
@@ -137,7 +155,9 @@ serve(async (req) => {
       )
     }
 
-    // Process predictions with proper error handling
+    console.log('🔄 Starting to process predictions...')
+    
+    // Process predictions with extensive error handling
     const processedPredictions = []
     
     for (let i = 0; i < predictions.length; i++) {
@@ -145,23 +165,23 @@ serve(async (req) => {
         const prediction = predictions[i]
         console.log(`🔄 Processing prediction ${i + 1}:`, JSON.stringify(prediction, null, 2))
         
-        const placePrediction = prediction.placePrediction
+        const placePrediction = prediction?.placePrediction
         
         if (!placePrediction) {
           console.warn(`⚠️ No placePrediction found in prediction ${i}:`, prediction)
           continue
         }
         
-        // Safely extract fields with fallbacks
-        const placeId = placePrediction.placeId || null
-        const displayName = placePrediction.displayName?.text || ''
+        // Safely extract fields with extensive fallbacks
+        const placeId = placePrediction.placeId || `fallback-${Date.now()}-${i}`
+        const displayName = placePrediction.displayName?.text || placePrediction.displayName || ''
         const formattedAddress = placePrediction.formattedAddress || ''
         const types = Array.isArray(placePrediction.types) ? placePrediction.types : []
         
-        // Handle structured format safely
+        // Handle structured format very defensively
         const structuredFormat = placePrediction.structuredFormat || {}
-        const mainText = structuredFormat.mainText?.text || displayName || 'Unknown place'
-        const secondaryText = structuredFormat.secondaryText?.text || formattedAddress || ''
+        const mainText = structuredFormat.mainText?.text || structuredFormat.mainText || displayName || 'Unknown place'
+        const secondaryText = structuredFormat.secondaryText?.text || structuredFormat.secondaryText || formattedAddress || ''
         
         const processedPrediction = {
           place_id: placeId,
@@ -173,18 +193,19 @@ serve(async (req) => {
           }
         }
         
-        console.log(`✅ Processed prediction ${i + 1}:`, JSON.stringify(processedPrediction, null, 2))
+        console.log(`✅ Successfully processed prediction ${i + 1}:`, JSON.stringify(processedPrediction, null, 2))
         processedPredictions.push(processedPrediction)
         
       } catch (predictionError) {
         console.error(`❌ Error processing prediction ${i + 1}:`, predictionError.message)
-        console.error('Raw prediction data:', JSON.stringify(predictions[i], null, 2))
+        console.error('❌ Error stack:', predictionError.stack)
+        console.error('❌ Raw prediction data:', JSON.stringify(predictions[i], null, 2))
         // Continue processing other predictions instead of failing entirely
         continue
       }
     }
 
-    console.log(`🎉 Successfully processed ${processedPredictions.length} predictions`)
+    console.log(`🎉 Successfully processed ${processedPredictions.length} predictions out of ${predictions.length} total`)
     
     const finalResponse = {
       predictions: processedPredictions,
@@ -201,6 +222,8 @@ serve(async (req) => {
   } catch (error) {
     console.error('💥 Unhandled error in autocomplete function:', error.message)
     console.error('💥 Error stack:', error.stack)
+    console.error('💥 Error name:', error.name)
+    console.error('💥 Error constructor:', error.constructor.name)
     
     return new Response(
       JSON.stringify({ 
@@ -215,4 +238,3 @@ serve(async (req) => {
     )
   }
 })
-
