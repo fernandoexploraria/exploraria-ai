@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useCallback } from 'react';
+
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import SplashScreen from '@/components/SplashScreen';
 import MainLayout from '@/components/MainLayout';
 import DebugWindow from '@/components/DebugWindow';
@@ -12,7 +13,11 @@ import { useProximityNotifications } from '@/hooks/useProximityNotifications';
 import { useDebugWindow } from '@/hooks/useDebugWindow';
 import { useConnectionMonitor } from '@/hooks/useConnectionMonitor';
 
-const Index: React.FC = () => {
+interface IndexProps {
+  onRegisterPostAuthActions?: (actions: { onSmartTour?: () => void }) => void;
+}
+
+const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
   const [showSplash, setShowSplash] = useState(true);
   const [additionalLandmarks, setAdditionalLandmarks] = useState<Landmark[]>([]);
   
@@ -49,6 +54,18 @@ const Index: React.FC = () => {
   
   // Initialize connection monitoring
   useConnectionMonitor();
+
+  // Register post-auth actions with App component
+  useEffect(() => {
+    if (onRegisterPostAuthActions) {
+      onRegisterPostAuthActions({
+        onSmartTour: () => {
+          console.log('🎯 Executing post-auth smart tour action');
+          setIsIntelligentTourOpen(true);
+        }
+      });
+    }
+  }, [onRegisterPostAuthActions, setIsIntelligentTourOpen]);
   
   // Combine static landmarks with enhanced tour landmarks
   const allLandmarks: (Landmark | EnhancedLandmark)[] = useMemo(() => {
