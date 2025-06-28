@@ -1,3 +1,4 @@
+
 import React from 'react';
 import Map from '@/components/Map';
 import TopControls from '@/components/TopControls';
@@ -83,6 +84,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     onIntelligentTourOpenChange(true);
   };
 
+  // FIXED: Ensure the auth dialog opens when required
+  const handleAuthRequired = () => {
+    console.log('🚨 AUTH: MainLayout handleAuthRequired called - opening auth dialog');
+    onAuthDialogOpen();
+  };
+
   return (
     <div className="w-screen h-screen relative">
       <TopControls
@@ -126,7 +133,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         isIntelligentTourOpen={isIntelligentTourOpen}
         onIntelligentTourOpenChange={onIntelligentTourOpenChange}
         onTourGenerated={onTourGenerated}
-        onAuthRequired={onAuthDialogOpen}
+        onAuthRequired={handleAuthRequired}
       />
 
       <NewTourAssistant
