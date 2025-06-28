@@ -32,26 +32,30 @@ export const useConnectionMonitor = () => {
     console.log('🏥 Connection Health Check:', { tourStatus, proximityStatus });
 
     // Check tour stats connection
-    if (tourStatus.status === 'failed') {
-      issues.push(`Tour Stats: Failed (${tourStatus.consecutiveFailures} consecutive failures)`);
-    } else if (tourStatus.status === 'polling') {
-      issues.push('Tour Stats: Using polling fallback (real-time unavailable)');
-    } else if (tourStatus.status === 'connecting') {
-      const connectingTime = tourStatus.lastConnectionTime ? now - tourStatus.lastConnectionTime : 0;
-      if (connectingTime > 30000) { // 30 seconds
-        issues.push('Tour Stats: Connection taking too long');
+    if (tourStatus.status !== 'connected') {
+      if (tourStatus.status === 'failed') {
+        issues.push(`Tour Stats: Failed (${tourStatus.consecutiveFailures} consecutive failures)`);
+      } else if (tourStatus.status === 'polling') {
+        issues.push('Tour Stats: Using polling fallback (real-time unavailable)');
+      } else if (tourStatus.status === 'connecting') {
+        const connectingTime = tourStatus.lastConnectionTime ? now - tourStatus.lastConnectionTime : 0;
+        if (connectingTime > 30000) { // 30 seconds
+          issues.push('Tour Stats: Connection taking too long');
+        }
       }
     }
 
     // Check proximity alerts connection
-    if (proximityStatus.status === 'failed') {
-      issues.push(`Proximity Alerts: Failed (${proximityStatus.consecutiveFailures} consecutive failures)`);
-    } else if (proximityStatus.status === 'polling') {
-      issues.push('Proximity Alerts: Using polling fallback (real-time unavailable)');
-    } else if (proximityStatus.status === 'connecting') {
-      const connectingTime = proximityStatus.lastConnectionTime ? now - proximityStatus.lastConnectionTime : 0;
-      if (connectingTime > 30000) { // 30 seconds
-        issues.push('Proximity Alerts: Connection taking too long');
+    if (proximityStatus.status !== 'connected') {
+      if (proximityStatus.status === 'failed') {
+        issues.push(`Proximity Alerts: Failed (${proximityStatus.consecutiveFailures} consecutive failures)`);
+      } else if (proximityStatus.status === 'polling') {
+        issues.push('Proximity Alerts: Using polling fallback (real-time unavailable)');
+      } else if (proximityStatus.status === 'connecting') {
+        const connectingTime = proximityStatus.lastConnectionTime ? now - proximityStatus.lastConnectionTime : 0;
+        if (connectingTime > 30000) { // 30 seconds
+          issues.push('Proximity Alerts: Connection taking too long');
+        }
       }
     }
 

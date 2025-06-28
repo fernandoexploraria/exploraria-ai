@@ -183,6 +183,11 @@ export const useLocationTracking = (): LocationTrackingHook => {
     isInBackground: enhancedState.isInBackground
   };
 
+  // Force location update wrapper that returns Promise<void>
+  const forceLocationUpdate = async (): Promise<void> => {
+    await basicLocationTracking.requestCurrentLocation();
+  };
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -198,6 +203,6 @@ export const useLocationTracking = (): LocationTrackingHook => {
     startTracking: basicLocationTracking.startTracking,
     stopTracking: basicLocationTracking.stopTracking,
     requestCurrentLocation: basicLocationTracking.requestCurrentLocation,
-    forceLocationUpdate: basicLocationTracking.requestCurrentLocation,
+    forceLocationUpdate,
   };
 };
