@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/components/AuthProvider";
+import { TTSProvider } from "@/contexts/TTSContext";
 import { PostAuthAction } from "@/utils/authActions";
 import Index from "./pages/Index";
 import { useState } from "react";
@@ -33,22 +34,24 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AuthProvider onPostAuthAction={handlePostAuthAction}>
-            <Routes>
-              <Route 
-                path="/" 
-                element={
-                  <Index 
-                    onRegisterPostAuthActions={setPostAuthActions}
-                  />
-                } 
-              />
-            </Routes>
-          </AuthProvider>
-        </BrowserRouter>
+        <TTSProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AuthProvider onPostAuthAction={handlePostAuthAction}>
+              <Routes>
+                <Route 
+                  path="/" 
+                  element={
+                    <Index 
+                      onRegisterPostAuthActions={setPostAuthActions}
+                    />
+                  } 
+                />
+              </Routes>
+            </AuthProvider>
+          </BrowserRouter>
+        </TTSProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
