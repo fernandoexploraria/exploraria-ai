@@ -28,7 +28,17 @@ serve(async (req) => {
     
     if (!googleApiKey) {
       console.error('❌ Google API key not configured')
-      throw new Error('Google API key not configured')
+      return new Response(
+        JSON.stringify({ 
+          error: 'Google API key not configured',
+          predictions: [],
+          status: 'ERROR'
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+          status: 500 
+        }
+      )
     }
 
     // Return empty predictions for short input
@@ -54,7 +64,7 @@ serve(async (req) => {
       languageCode: 'en'
     }
 
-    // Add included primary types if provided
+    // Add included primary types if provided - map from 'types' parameter
     if (Array.isArray(types) && types.length > 0) {
       requestBody.includedPrimaryTypes = types
     }
@@ -72,7 +82,7 @@ serve(async (req) => {
     console.log('📝 Request body:', JSON.stringify(requestBody, null, 2))
 
     // Use the correct field mask for Google Places API (New)
-    const fieldMask = 'predictions.placePrediction.placeId,predictions.placePrediction.displayName,predictions.placePrediction.types,predictions.placePrediction.formattedAddress,predictions.placePrediction.structuredFormat,predictions.placePrediction.distanceMeters'
+    const fieldMask = 'predictions.place_id,predictions.description,predictions.types,predictions.structured_formatting'
 
     console.log('🎯 Field mask:', fieldMask)
 
@@ -103,45 +113,47 @@ serve(async (req) => {
         console.error('  - Could not parse error as JSON')
       }
       
-      throw new Error(`Google Places API error: ${response.status} - ${errorText}`)
+      return new Response(
+        JSON.stringify({ 
+          error: `Google Places API error: ${response.status} - ${errorText}`,
+          predictions: [],
+          status: 'ERROR'
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+          status: 500 
+        }
+      )
     }
 
     const data = await response.json()
     console.log('✅ Raw API response:', JSON.stringify(data, null, 2))
 
-    // Process the response - Google Places API (New) returns predictions directly
+    // Process the response - Google Places API returns predictions directly
     const predictions = data.predictions || []
     console.log('📊 Number of predictions received:', predictions.length)
 
     // Map predictions to the format expected by the frontend
     const mappedPredictions = predictions.map((prediction: any, index: number) => {
-      const placePrediction = prediction.placePrediction
+      console.log(`🔄 Processing prediction ${index + 1}:`, JSON.stringify(prediction, null, 2))
       
-      if (!placePrediction) {
-        console.warn(`⚠️ No placePrediction found in prediction ${index}:`, prediction)
-        return null
-      }
+      // Extract required fields - Google Places API (New) uses different structure
+      const placeId = prediction.place_id
+      const description = prediction.description || ''
+      const types = prediction.types || []
       
-      console.log(`🔄 Processing prediction ${index + 1}:`, JSON.stringify(placePrediction, null, 2))
-      
-      // Extract required fields
-      const placeId = placePrediction.placeId
-      const displayName = placePrediction.displayName?.text || ''
-      const formattedAddress = placePrediction.formattedAddress || ''
-      const types = placePrediction.types || []
-      
-      // Handle structured format for better UI display
-      const structuredFormat = placePrediction.structuredFormat || {}
-      const mainText = structuredFormat.mainText?.text || displayName
-      const secondaryText = structuredFormat.secondaryText?.text || formattedAddress
+      // Handle structured formatting for better UI display
+      const structuredFormatting = prediction.structured_formatting || {}
+      const mainText = structuredFormatting.main_text || description
+      const secondaryText = structuredFormatting.secondary_text || ''
       
       const result = {
         place_id: placeId,
-        description: mainText && secondaryText ? `${mainText}, ${secondaryText}` : (mainText || displayName || 'Unknown place'),
+        description: description,
         types: types,
         structured_formatting: {
-          main_text: mainText || displayName || 'Unknown place',
-          secondary_text: secondaryText || formattedAddress || ''
+          main_text: mainText,
+          secondary_text: secondaryText
         }
       }
       
