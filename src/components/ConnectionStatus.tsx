@@ -16,6 +16,7 @@ import { useTourStats } from '@/hooks/useTourStats';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { formatDistanceToNow } from 'date-fns';
 import IntelligentTourDialog from './IntelligentTourDialog';
+import AuthDialog from './AuthDialog';
 
 interface ConnectionStatusProps {
   className?: string;
@@ -29,6 +30,7 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
   compact = false
 }) => {
   const [isIntelligentTourOpen, setIsIntelligentTourOpen] = useState(false);
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   
   const { 
     connectionStatus: tourConnectionStatus, 
@@ -105,8 +107,8 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
   };
 
   const handleAuthRequired = () => {
-    console.log('🔐 Auth required for tour generation');
-    setIsIntelligentTourOpen(false);
+    console.log('🔐 Auth required for tour generation - opening auth dialog');
+    setIsAuthDialogOpen(true);
   };
 
   if (compact) {
@@ -252,6 +254,12 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
         onOpenChange={setIsIntelligentTourOpen}
         onTourGenerated={handleTourGenerated}
         onAuthRequired={handleAuthRequired}
+      />
+
+      {/* AuthDialog - embedded within this component's context */}
+      <AuthDialog
+        open={isAuthDialogOpen}
+        onOpenChange={setIsAuthDialogOpen}
       />
     </>
   );
