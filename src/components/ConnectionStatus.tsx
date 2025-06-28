@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,11 +9,13 @@ import {
   AlertTriangle, 
   CheckCircle, 
   Clock,
-  Activity
+  Activity,
+  Sparkles
 } from 'lucide-react';
 import { useTourStats } from '@/hooks/useTourStats';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { formatDistanceToNow } from 'date-fns';
+import IntelligentTourDialog from './IntelligentTourDialog';
 
 interface ConnectionStatusProps {
   className?: string;
@@ -27,6 +28,8 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
   showDetails = false,
   compact = false
 }) => {
+  const [isIntelligentTourOpen, setIsIntelligentTourOpen] = useState(false);
+  
   const { 
     connectionStatus: tourConnectionStatus, 
     forceReconnect: tourForceReconnect 
@@ -96,6 +99,16 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
     proximityForceReconnect();
   };
 
+  const handleTourGenerated = (landmarks: any[]) => {
+    console.log('🗺️ Tour generated with landmarks:', landmarks);
+    setIsIntelligentTourOpen(false);
+  };
+
+  const handleAuthRequired = () => {
+    console.log('🔐 Auth required for tour generation');
+    setIsIntelligentTourOpen(false);
+  };
+
   if (compact) {
     return (
       <div className={`flex items-center gap-2 ${className}`}>
@@ -132,94 +145,115 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
   }
 
   return (
-    <Card className={className}>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <Wifi className="h-4 w-4" />
-          Connection Status
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Tour Stats Connection */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {getStatusIcon(tourConnectionStatus.status)}
-            <span className="text-sm font-medium">Tour Stats</span>
+    <>
+      <Card className={className}>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Wifi className="h-4 w-4" />
+            Connection Status
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Tour Stats Connection */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {getStatusIcon(tourConnectionStatus.status)}
+              <span className="text-sm font-medium">Tour Stats</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant={getStatusVariant(tourConnectionStatus.status) as any}>
+                {getStatusText(tourConnectionStatus.status)}
+              </Badge>
+              {tourConnectionStatus.status === 'failed' && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={tourForceReconnect}
+                  className="h-6 px-2"
+                >
+                  <RefreshCcw className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant={getStatusVariant(tourConnectionStatus.status) as any}>
-              {getStatusText(tourConnectionStatus.status)}
-            </Badge>
-            {tourConnectionStatus.status === 'failed' && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={tourForceReconnect}
-                className="h-6 px-2"
-              >
-                <RefreshCcw className="h-3 w-3" />
-              </Button>
-            )}
-          </div>
-        </div>
 
-        {/* Proximity Alerts Connection */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {getStatusIcon(proximityConnectionStatus.status)}
-            <span className="text-sm font-medium">Proximity Alerts</span>
+          {/* Proximity Alerts Connection */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {getStatusIcon(proximityConnectionStatus.status)}
+              <span className="text-sm font-medium">Proximity Alerts</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant={getStatusVariant(proximityConnectionStatus.status) as any}>
+                {getStatusText(proximityConnectionStatus.status)}
+              </Badge>
+              {proximityConnectionStatus.status === 'failed' && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={proximityForceReconnect}
+                  className="h-6 px-2"
+                >
+                  <RefreshCcw className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant={getStatusVariant(proximityConnectionStatus.status) as any}>
-              {getStatusText(proximityConnectionStatus.status)}
-            </Badge>
-            {proximityConnectionStatus.status === 'failed' && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={proximityForceReconnect}
-                className="h-6 px-2"
-              >
-                <RefreshCcw className="h-3 w-3" />
-              </Button>
-            )}
-          </div>
-        </div>
 
-        {/* Detailed Information */}
-        {showDetails && (
-          <div className="pt-2 border-t space-y-2 text-xs text-muted-foreground">
-            <div className="flex justify-between">
-              <span>Tour Stats Last Update:</span>
-              <span>{formatLastUpdate(tourConnectionStatus.lastDataUpdate)}</span>
+          {/* Detailed Information */}
+          {showDetails && (
+            <div className="pt-2 border-t space-y-2 text-xs text-muted-foreground">
+              <div className="flex justify-between">
+                <span>Tour Stats Last Update:</span>
+                <span>{formatLastUpdate(tourConnectionStatus.lastDataUpdate)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Proximity Last Update:</span>
+                <span>{formatLastUpdate(proximityConnectionStatus.lastDataUpdate)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Tour Stats Failures:</span>
+                <span>{tourConnectionStatus.consecutiveFailures}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Proximity Failures:</span>
+                <span>{proximityConnectionStatus.consecutiveFailures}</span>
+              </div>
             </div>
-            <div className="flex justify-between">
-              <span>Proximity Last Update:</span>
-              <span>{formatLastUpdate(proximityConnectionStatus.lastDataUpdate)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Tour Stats Failures:</span>
-              <span>{tourConnectionStatus.consecutiveFailures}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Proximity Failures:</span>
-              <span>{proximityConnectionStatus.consecutiveFailures}</span>
-            </div>
-          </div>
-        )}
+          )}
 
-        {/* Reconnect All Button */}
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleReconnectAll}
-          className="w-full"
-        >
-          <RefreshCcw className="h-4 w-4 mr-2" />
-          Reconnect All
-        </Button>
-      </CardContent>
-    </Card>
+          {/* Test IntelligentTour Button */}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setIsIntelligentTourOpen(true)}
+            className="w-full"
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
+            Test Smart Tour Dialog
+          </Button>
+
+          {/* Reconnect All Button */}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleReconnectAll}
+            className="w-full"
+          >
+            <RefreshCcw className="h-4 w-4 mr-2" />
+            Reconnect All
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* IntelligentTourDialog - embedded within this component's context */}
+      <IntelligentTourDialog
+        open={isIntelligentTourOpen}
+        onOpenChange={setIsIntelligentTourOpen}
+        onTourGenerated={handleTourGenerated}
+        onAuthRequired={handleAuthRequired}
+      />
+    </>
   );
 };
 
