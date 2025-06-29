@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import MobileResponsiveDialog from '@/components/MobileResponsiveDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/AuthProvider';
 import { getPlaceTypeIcon, getPlaceTypeLabel } from '@/utils/placeTypeIcons';
 import { setTourLandmarks } from '@/data/tourLandmarks';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface IntelligentTourDialogProps {
   open: boolean;
@@ -50,6 +51,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   onTourReadyForVoice
 }) => {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const [currentStep, setCurrentStep] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [autocompleteResults, setAutocompleteResults] = useState<AutocompleteResult[]>([]);
@@ -446,138 +448,136 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto z-[99999]" style={{ zIndex: 99999 }} aria-describedby="intelligent-tour-description">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-yellow-500" />
-            Intelligent Tour Generator
-          </DialogTitle>
-          <DialogDescription id="intelligent-tour-description">
-            Create personalized tours by discovering amazing places at your destination
-          </DialogDescription>
-        </DialogHeader>
-
-        {/* Progress Bar */}
-        <div className="space-y-2">
-          <Progress value={progress} className="w-full" />
-          <div className="flex justify-between text-sm text-muted-foreground">
-            {STEPS.map((step) => (
-              <div key={step.id} className={`text-center ${currentStep >= step.id ? 'text-primary' : ''}`}>
-                <div className="font-medium">{step.title}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Step 1: Choose Destination */}
-        {currentStep === 1 && (
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Where do you want to explore?</h3>
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search for cities, attractions, parks, museums..."
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    handleSearchDestination(e.target.value);
-                  }}
-                  className="pl-10"
-                />
-              </div>
-              {autocompleteError && (
-                <p className="text-sm text-muted-foreground mt-1 text-amber-600">
-                  {autocompleteError}
-                </p>
-              )}
+    <MobileResponsiveDialog
+      open={open}
+      onOpenChange={handleClose}
+      title={
+        <>
+          <Sparkles className="h-5 w-5 text-yellow-500" />
+          Intelligent Tour Generator
+        </>
+      }
+      description="Create personalized tours by discovering amazing places at your destination"
+    >
+      {/* Progress Bar */}
+      <div className="space-y-2">
+        <Progress value={progress} className="w-full" />
+        <div className="flex justify-between text-sm text-muted-foreground">
+          {STEPS.map((step) => (
+            <div key={step.id} className={`text-center ${currentStep >= step.id ? 'text-primary' : ''}`}>
+              <div className="font-medium">{step.title}</div>
             </div>
+          ))}
+        </div>
+      </div>
 
-            {autocompleteResults.length > 0 && (
-              <div className="space-y-1 max-h-60 overflow-y-auto">
-                <div className="text-xs text-muted-foreground mb-2 px-1">
-                  Results sorted by type priority: Cities → Areas → Parks → Attractions → Museums
-                </div>
-                {autocompleteResults.map(renderAutocompleteResult)}
-              </div>
+      {/* Step 1: Choose Destination */}
+      {currentStep === 1 && (
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Where do you want to explore?</h3>
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search for cities, attractions, parks, museums..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  handleSearchDestination(e.target.value);
+                }}
+                className="pl-10"
+              />
+            </div>
+            {autocompleteError && (
+              <p className="text-sm text-muted-foreground mt-1 text-amber-600">
+                {autocompleteError}
+              </p>
             )}
           </div>
-        )}
 
-        {/* Step 2: Discovering Landmarks */}
-        {currentStep === 2 && (
-          <div className="space-y-4 text-center">
-            <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
-            <div>
-              <h3 className="text-lg font-semibold">Discovering Amazing Places</h3>
-              <p className="text-muted-foreground">
-                Searching for attractions near {selectedDestination?.structured_formatting?.main_text || selectedDestination?.description}
-              </p>
+          {autocompleteResults.length > 0 && (
+            <div className={`space-y-1 overflow-y-auto ${isMobile ? 'max-h-48' : 'max-h-60'}`}>
+              <div className="text-xs text-muted-foreground mb-2 px-1">
+                Results sorted by type priority: Cities → Areas → Parks → Attractions → Museums
+              </div>
+              {autocompleteResults.map(renderAutocompleteResult)}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Step 2: Discovering Landmarks */}
+      {currentStep === 2 && (
+        <div className="space-y-4 text-center">
+          <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
+          <div>
+            <h3 className="text-lg font-semibold">Discovering Amazing Places</h3>
+            <p className="text-muted-foreground">
+              Searching for attractions near {selectedDestination?.structured_formatting?.main_text || selectedDestination?.description}
+            </p>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Step 3: Generating Tour */}
-        {currentStep === 3 && (
-          <div className="space-y-4">
-            <div className="text-center">
-              <div className="animate-pulse h-8 w-8 bg-primary rounded-full mx-auto mb-4" />
-              <h3 className="text-lg font-semibold">Creating Your Personal Tour</h3>
-              <p className="text-muted-foreground">
-                Found {nearbyLandmarks.length} amazing places! Generating your tour...
-              </p>
-            </div>
-            
-            {destinationDetails && (
-              <div className="bg-muted/50 rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  {(() => {
-                    const { icon: IconComponent, color } = getPlaceTypeIcon(destinationDetails.types || [], destinationDetails.name);
-                    return <IconComponent className={`h-5 w-5 mt-1 ${color}`} />;
-                  })()}
-                  <div>
-                    <h4 className="font-semibold">{destinationDetails.name}</h4>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      {destinationDetails.rating && (
-                        <div className="flex items-center gap-1">
-                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                          {destinationDetails.rating}
-                        </div>
-                      )}
-                      <span>{destinationDetails.address}</span>
-                    </div>
+      {/* Step 3: Generating Tour */}
+      {currentStep === 3 && (
+        <div className="space-y-4">
+          <div className="text-center">
+            <div className="animate-pulse h-8 w-8 bg-primary rounded-full mx-auto mb-4" />
+            <h3 className="text-lg font-semibold">Creating Your Personal Tour</h3>
+            <p className="text-muted-foreground">
+              Found {nearbyLandmarks.length} amazing places! Generating your tour...
+            </p>
+          </div>
+          
+          {destinationDetails && (
+            <div className="bg-muted/50 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                {(() => {
+                  const { icon: IconComponent, color } = getPlaceTypeIcon(destinationDetails.types || [], destinationDetails.name);
+                  return <IconComponent className={`h-5 w-5 mt-1 ${color}`} />;
+                })()}
+                <div>
+                  <h4 className="font-semibold">{destinationDetails.name}</h4>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    {destinationDetails.rating && (
+                      <div className="flex items-center gap-1">
+                        <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                        {destinationDetails.rating}
+                      </div>
+                    )}
+                    <span>{destinationDetails.address}</span>
                   </div>
                 </div>
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
+      )}
 
-        {/* Step 4: Ready */}
-        {currentStep === 4 && (
-          <div className="space-y-4 text-center">
-            <div className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-              <Sparkles className="h-8 w-8 text-green-600" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-green-600">Tour Ready!</h3>
-              <p className="text-muted-foreground">
-                Your personalized tour of {destinationDetails?.name} is ready with {nearbyLandmarks.length} amazing places to explore.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Button onClick={handleClose} className="w-full">
-                Start Exploring
-              </Button>
-              <Button variant="outline" onClick={resetDialog} className="w-full">
-                Create Another Tour
-              </Button>
-            </div>
+      {/* Step 4: Ready */}
+      {currentStep === 4 && (
+        <div className="space-y-4 text-center">
+          <div className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+            <Sparkles className="h-8 w-8 text-green-600" />
           </div>
-        )}
-      </DialogContent>
-    </Dialog>
+          <div>
+            <h3 className="text-lg font-semibold text-green-600">Tour Ready!</h3>
+            <p className="text-muted-foreground">
+              Your personalized tour of {destinationDetails?.name} is ready with {nearbyLandmarks.length} amazing places to explore.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Button onClick={handleClose} className="w-full">
+              Start Exploring
+            </Button>
+            <Button variant="outline" onClick={resetDialog} className="w-full">
+              Create Another Tour
+            </Button>
+          </div>
+        </div>
+      )}
+    </MobileResponsiveDialog>
   );
 };
 
