@@ -51,17 +51,92 @@ const Map: React.FC<MapProps> = ({
 
     const newMap = new mapboxgl.Map({
       container: mapContainer.current!,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: [13.405, 52.52], // Berlin coordinates
-      zoom: 10,
+      style: 'mapbox://styles/mapbox/satellite-streets-v12',
+      projection: 'globe',
+      center: [30, 15], // Globe center
+      zoom: 1.5,
+      pitch: 45,
     });
 
     map.current = newMap;
     window.__mapInstance = newMap;
 
+    // Add navigation controls
+    newMap.addControl(
+      new mapboxgl.NavigationControl({
+        visualizePitch: true,
+      }),
+      'top-right'
+    );
+
+    // Disable scroll zoom initially for smoother globe experience
+    newMap.scrollZoom.disable();
+
     newMap.on('load', () => {
       setIsMapReady(true);
+      
+      // Add atmosphere and fog effects for globe
+      newMap.setFog({
+        color: 'rgb(186, 210, 235)',
+        'high-color': 'rgb(36, 92, 223)',
+        'horizon-blend': 0.02,
+        'space-color': 'rgb(11, 11, 25)',
+        'star-intensity': 0.6,
+      });
+
+      // Enable scroll zoom after map loads
+      newMap.scrollZoom.enable();
     });
+
+    // Globe rotation settings
+    const secondsPerRevolution = 240;
+    const maxSpinZoom = 5;
+    const slowSpinZoom = 3;
+    let userInteracting = false;
+    let spinEnabled = true;
+
+    // Spin globe function
+    function spinGlobe() {
+      if (!newMap) return;
+      
+      const zoom = newMap.getZoom();
+      if (spinEnabled && !userInteracting && zoom < maxSpinZoom) {
+        let distancePerSecond = 360 / secondsPerRevolution;
+        if (zoom > slowSpinZoom) {
+          const zoomDif = (maxSpinZoom - zoom) / (maxSpinZoom - slowSpinZoom);
+          distancePerSecond *= zoomDif;
+        }
+        const center = newMap.getCenter();
+        center.lng -= distancePerSecond;
+        newMap.easeTo({ center, duration: 1000, easing: (n) => n });
+      }
+    }
+
+    // Event listeners for interaction
+    newMap.on('mousedown', () => {
+      userInteracting = true;
+    });
+    
+    newMap.on('dragstart', () => {
+      userInteracting = true;
+    });
+    
+    newMap.on('mouseup', () => {
+      userInteracting = false;
+      spinGlobe();
+    });
+    
+    newMap.on('touchend', () => {
+      userInteracting = false;
+      spinGlobe();
+    });
+
+    newMap.on('moveend', () => {
+      spinGlobe();
+    });
+
+    // Start the globe spinning
+    spinGlobe();
 
     // Create and store the click handler
     const mapClickHandler = (e: mapboxgl.MapMouseEvent) => {
@@ -94,26 +169,40 @@ const Map: React.FC<MapProps> = ({
   useEffect(() => {
     if (!map.current || !isMapReady) return;
 
+    console.log('🗺️ Adding markers for landmarks:', landmarks.length);
+
     // Clear existing markers
     Object.keys(markersRef.current).forEach(id => {
       markersRef.current[id].remove();
     });
     markersRef.current = {};
 
-    // Add new markers with default Mapbox styling
+    // Add new markers with custom styling for better visibility on globe
     landmarks.forEach(landmark => {
-      // Use Mapbox's default marker (no custom styling)
-      const marker = new mapboxgl.Marker()
+      // Create custom marker element for better visibility
+      const el = document.createElement('div');
+      el.className = 'custom-marker';
+      el.style.width = '12px';
+      el.style.height = '12px';
+      el.style.borderRadius = '50%';
+      el.style.backgroundColor = '#ff6b6b';
+      el.style.border = '2px solid #fff';
+      el.style.cursor = 'pointer';
+      el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+
+      const marker = new mapboxgl.Marker(el)
         .setLngLat(landmark.coordinates)
         .addTo(map.current!);
 
       // Add click handler to the marker element
-      marker.getElement().addEventListener('click', () => {
+      el.addEventListener('click', () => {
         onSelectLandmark(landmark);
       });
 
       markersRef.current[landmark.id] = marker;
     });
+
+    console.log('🗺️ Markers added:', Object.keys(markersRef.current).length);
   }, [landmarks, onSelectLandmark, isMapReady]);
 
   // Effect to highlight the selected landmark
