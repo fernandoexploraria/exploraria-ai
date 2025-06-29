@@ -207,17 +207,6 @@ const TopControls: React.FC<TopControlsProps> = ({
                 <span className="hidden lg:inline">Smart Tour</span>
               </Button>
               
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
-                onClick={onTourPlannerOpen}
-              >
-                <Sparkles className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
-                <span className="lg:hidden">Plan Tour</span>
-                <span className="hidden lg:inline">Plan a Tour</span>
-              </Button>
-              
               {plannedLandmarks.length > 0 && (
                 <Button
                   variant="outline"
