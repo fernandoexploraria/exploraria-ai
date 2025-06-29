@@ -48,25 +48,22 @@ interface FloatingProximityCardProps {
   onGetDirections: (service: NearbyService) => void;
 }
 
-// Tourist service types for nearby search
+// Tourist service types for nearby search - UPDATED to use only 5 types as per Google API limit
 const TOURIST_SERVICE_TYPES = [
   'restaurant',
-  'cafe',
-  'gas_station',
-  'hospital',
-  'pharmacy',
-  'atm',
-  'bank',
-  'tourist_attraction',
-  'lodging'
+  'cafe', 
+  'shopping_mall',
+  'subway_station',
+  'public_bathroom'
 ];
 
-// Service type icons
+// Service type icons - UPDATED to handle new service types
 const getServiceIcon = (types: string[]) => {
   if (types.includes('restaurant') || types.includes('food')) return <Utensils className="w-4 h-4" />;
   if (types.includes('cafe')) return <Coffee className="w-4 h-4" />;
-  if (types.includes('gas_station')) return <Car className="w-4 h-4" />;
-  if (types.includes('hospital') || types.includes('pharmacy')) return <Plus className="w-4 h-4" />;
+  if (types.includes('shopping_mall')) return <Car className="w-4 h-4" />; // Using Car as placeholder for shopping
+  if (types.includes('subway_station')) return <Navigation className="w-4 h-4" />;
+  if (types.includes('public_bathroom')) return <Plus className="w-4 h-4" />; // Using Plus as placeholder for facilities
   return <MapPin className="w-4 h-4" />;
 };
 
