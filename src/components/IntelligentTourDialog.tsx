@@ -71,6 +71,30 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
     }
   }, [open, sessionToken]);
 
+  // Reset dialog state whenever it opens
+  React.useEffect(() => {
+    if (open) {
+      resetDialog();
+    }
+  }, [open]);
+
+  const resetDialog = () => {
+    setCurrentStep(1);
+    setSearchQuery('');
+    setAutocompleteResults([]);
+    setSelectedDestination(null);
+    setDestinationDetails(null);
+    setNearbyLandmarks([]);
+    setIsLoading(false);
+    setAutocompleteError('');
+    // Generate new session token for next autocomplete session
+    setSessionToken(crypto.randomUUID());
+  };
+
+  const handleClose = () => {
+    onOpenChange(false);
+  };
+
   const handleSearchDestination = async (query: string) => {
     if (query.length < 3) {
       setAutocompleteResults([]);
@@ -378,24 +402,6 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
       console.error('Database error:', error);
       throw error;
     }
-  };
-
-  const resetDialog = () => {
-    setCurrentStep(1);
-    setSearchQuery('');
-    setAutocompleteResults([]);
-    setSelectedDestination(null);
-    setDestinationDetails(null);
-    setNearbyLandmarks([]);
-    setIsLoading(false);
-    setAutocompleteError('');
-    // Generate new session token for next autocomplete session
-    setSessionToken(crypto.randomUUID());
-  };
-
-  const handleClose = () => {
-    onOpenChange(false);
-    setTimeout(resetDialog, 300);
   };
 
   const progress = (currentStep / STEPS.length) * 100;
