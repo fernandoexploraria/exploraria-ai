@@ -1,6 +1,6 @@
 
 import React from 'react';
-import VoiceSearchDialog from '@/components/VoiceSearchDialog';
+import InteractionCarousel from '@/components/InteractionCarousel';
 import AuthDialog from '@/components/AuthDialog';
 import IntelligentTourDialog from '@/components/IntelligentTourDialog';
 
@@ -29,11 +29,17 @@ const DialogManager: React.FC<DialogManagerProps> = ({
   onAuthRequired,
   onTourReadyForVoice,
 }) => {
+  const handleLocationSelect = (coordinates: [number, number]) => {
+    console.log('Location selected from travel log:', coordinates);
+    onLocationSelect();
+  };
+
   return (
     <>
-      <VoiceSearchDialog
+      <InteractionCarousel
         open={isVoiceSearchOpen}
         onOpenChange={onVoiceSearchOpenChange}
+        onLocationSelect={handleLocationSelect}
       />
 
       <AuthDialog
