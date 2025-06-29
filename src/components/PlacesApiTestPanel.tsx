@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,7 +18,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { placesApiTester, GooglePlacesAPITester } from '@/utils/placesApiTesting';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 interface TestResult {
   testName: string;
