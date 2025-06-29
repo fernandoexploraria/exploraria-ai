@@ -100,11 +100,11 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = ({
     try {
       setIsLoadingNearby(true);
       
-      // FIXED: Send coordinates in the format expected by the edge function
-      const { data, error } = await supabase.functions.invoke('google-places-nearby', {
+      // UPDATED: Use the new google-places-proximity function for services
+      const { data, error } = await supabase.functions.invoke('google-places-proximity', {
         body: {
           coordinates: landmark.coordinates, // [lng, lat] format
-          radius: 100, // 100 meters around landmark
+          radius: 300, // 300 meters for walking distance to services
           types: TOURIST_SERVICE_TYPES
         }
       });
@@ -125,7 +125,7 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = ({
             const bReviews = b.user_ratings_total || 0;
             return bReviews - aReviews;
           })
-          .slice(0, 10); // Limit to top 10 services
+          .slice(0, 8); // Limit to top 8 services
 
         setNearbyServices(sortedServices);
         console.log(`🏪 Loaded ${sortedServices.length} nearby services for ${landmark.name}`);

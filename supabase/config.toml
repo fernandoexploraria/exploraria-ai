@@ -35,6 +35,9 @@ verify_jwt = false
 [functions.google-places-autocomplete]
 verify_jwt = false
 
+[functions.google-places-proximity]
+verify_jwt = false
+
 [storage]
 enabled = true
 port = 54325
