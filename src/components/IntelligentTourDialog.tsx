@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/AuthProvider';
 import { getPlaceTypeIcon, getPlaceTypeLabel } from '@/utils/placeTypeIcons';
+import { setTourLandmarks } from '@/data/tourLandmarks';
 
 interface IntelligentTourDialogProps {
   open: boolean;
@@ -343,6 +344,16 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
       });
 
       console.log(`Passing ${validLandmarks.length} valid landmarks to map out of ${formattedLandmarks.length} total`);
+
+      // Convert to TourLandmark format and call setTourLandmarks
+      const tourLandmarks = validLandmarks.map(landmark => ({
+        name: landmark.name,
+        coordinates: landmark.coordinates,
+        description: landmark.description
+      }));
+
+      console.log('Adding Smart Tour landmarks to TOUR_LANDMARKS array for proximity system:', tourLandmarks.length);
+      setTourLandmarks(tourLandmarks);
 
       onTourGenerated(validLandmarks);
 
