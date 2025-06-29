@@ -129,18 +129,39 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = ({
 
   const handleSuggestionSelect = async (suggestion: AutocompleteSuggestion) => {
     try {
-      // Get place details for the selected suggestion
+      // FIXED: Use correct parameter name 'placeId' instead of 'place_id'
       const { data, error } = await supabase.functions.invoke('google-places-details', {
         body: {
-          place_id: suggestion.place_id,
-          fields: ['name', 'vicinity', 'rating', 'user_ratings_total', 'types', 'geometry', 'photos', 'opening_hours', 'price_level']
+          placeId: suggestion.place_id
         }
       });
 
       if (error) throw error;
 
-      if (data?.result) {
-        setSelectedService(data.result);
+      // FIXED: Handle the correct response structure with data.data
+      if (data?.data) {
+        // Transform the response to match the expected NearbyService format
+        const serviceData = {
+          place_id: suggestion.place_id,
+          name: data.data.name || suggestion.description,
+          vicinity: data.data.address || '',
+          rating: data.data.rating,
+          user_ratings_total: data.data.userRatingsTotal,
+          types: data.data.types || suggestion.types,
+          geometry: {
+            location: {
+              lat: data.data.location?.latitude || 0,
+              lng: data.data.location?.longitude || 0
+            }
+          },
+          photos: data.data.photos || [],
+          opening_hours: data.data.isOpenNow !== undefined ? {
+            open_now: data.data.isOpenNow
+          } : undefined,
+          price_level: data.data.priceLevel
+        };
+
+        setSelectedService(serviceData);
       }
     } catch (error) {
       console.error('Failed to get place details:', error);
@@ -188,9 +209,9 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = ({
   };
 
   if (selectedService) {
-    // Detailed service view
+    // Detailed service view - UPDATED: Glass morphism background
     return (
-      <Card className="fixed bottom-4 right-4 w-80 max-h-96 bg-white/95 backdrop-blur-sm shadow-xl border z-50 overflow-hidden">
+      <Card className="fixed bottom-4 right-4 w-80 max-h-96 bg-white/95 backdrop-blur-sm shadow-xl border border-white/20 z-50 overflow-hidden">
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between">
             <div className="flex-1">
@@ -259,9 +280,9 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = ({
     );
   }
 
-  // Main services list view
+  // Main services list view - UPDATED: Glass morphism background
   return (
-    <Card className="fixed bottom-4 right-4 w-80 max-h-96 bg-white/95 backdrop-blur-sm shadow-xl border z-50">
+    <Card className="fixed bottom-4 right-4 w-80 max-h-96 bg-white/95 backdrop-blur-sm shadow-xl border border-white/20 z-50">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-semibold">Services near {landmark.name}</CardTitle>
