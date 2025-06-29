@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { X, MapPin, Star, Navigation, Clock, Utensils, Coffee, Car, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -209,20 +208,20 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = ({
   };
 
   if (selectedService) {
-    // Detailed service view - UPDATED: Glass morphism background
+    // Detailed service view - UPDATED: Dark background to match travel log
     return (
-      <Card className="fixed bottom-4 right-4 w-80 max-h-96 bg-white/95 backdrop-blur-sm shadow-xl border border-white/20 z-50 overflow-hidden">
+      <Card className="fixed bottom-4 right-4 w-80 max-h-96 bg-gray-900 backdrop-blur-sm shadow-xl border border-gray-700 z-50 overflow-hidden">
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <CardTitle className="text-sm font-semibold line-clamp-2">{selectedService.name}</CardTitle>
-              <p className="text-xs text-muted-foreground mt-1">{selectedService.vicinity}</p>
+              <CardTitle className="text-sm font-semibold text-white line-clamp-2">{selectedService.name}</CardTitle>
+              <p className="text-xs text-gray-300 mt-1">{selectedService.vicinity}</p>
             </div>
             <div className="flex gap-1 ml-2">
-              <Button variant="ghost" size="sm" onClick={() => setSelectedService(null)} className="p-1 h-6 w-6">
+              <Button variant="ghost" size="sm" onClick={() => setSelectedService(null)} className="p-1 h-6 w-6 text-gray-300 hover:text-white hover:bg-gray-800">
                 ←
               </Button>
-              <Button variant="ghost" size="sm" onClick={onClose} className="p-1 h-6 w-6">
+              <Button variant="ghost" size="sm" onClick={onClose} className="p-1 h-6 w-6 text-gray-300 hover:text-white hover:bg-gray-800">
                 <X className="w-3 h-3" />
               </Button>
             </div>
@@ -235,17 +234,17 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = ({
               <div className="flex">
                 {renderStars(selectedService.rating)}
               </div>
-              <span className="text-xs font-medium">{selectedService.rating.toFixed(1)}</span>
+              <span className="text-xs font-medium text-white">{selectedService.rating.toFixed(1)}</span>
               {selectedService.user_ratings_total && (
-                <span className="text-xs text-muted-foreground">({selectedService.user_ratings_total})</span>
+                <span className="text-xs text-gray-400">({selectedService.user_ratings_total})</span>
               )}
             </div>
           )}
 
           {selectedService.opening_hours && (
             <div className="flex items-center gap-2">
-              <Clock className="w-3 h-3" />
-              <span className={`text-xs font-medium ${selectedService.opening_hours.open_now ? 'text-green-600' : 'text-red-600'}`}>
+              <Clock className="w-3 h-3 text-gray-400" />
+              <span className={`text-xs font-medium ${selectedService.opening_hours.open_now ? 'text-green-400' : 'text-red-400'}`}>
                 {selectedService.opening_hours.open_now ? 'Open now' : 'Closed'}
               </span>
             </div>
@@ -253,14 +252,14 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = ({
 
           {selectedService.price_level && (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Price:</span>
-              <span className="text-xs">{'$'.repeat(selectedService.price_level)}</span>
+              <span className="text-xs text-gray-400">Price:</span>
+              <span className="text-xs text-white">{'$'.repeat(selectedService.price_level)}</span>
             </div>
           )}
 
           <div className="flex items-center gap-2">
-            <MapPin className="w-3 h-3" />
-            <span className="text-xs text-muted-foreground">
+            <MapPin className="w-3 h-3 text-gray-400" />
+            <span className="text-xs text-gray-400">
               {userLocation ? calculateDistance(selectedService) : 'Distance unknown'}
             </span>
           </div>
@@ -280,13 +279,13 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = ({
     );
   }
 
-  // Main services list view - UPDATED: Glass morphism background
+  // Main services list view - UPDATED: Dark background to match travel log
   return (
-    <Card className="fixed bottom-4 right-4 w-80 max-h-96 bg-white/95 backdrop-blur-sm shadow-xl border border-white/20 z-50">
+    <Card className="fixed bottom-4 right-4 w-80 max-h-96 bg-gray-900 backdrop-blur-sm shadow-xl border border-gray-700 z-50">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-semibold">Services near {landmark.name}</CardTitle>
-          <Button variant="ghost" size="sm" onClick={onClose} className="p-1 h-6 w-6">
+          <CardTitle className="text-sm font-semibold text-white">Services near {landmark.name}</CardTitle>
+          <Button variant="ghost" size="sm" onClick={onClose} className="p-1 h-6 w-6 text-gray-300 hover:text-white hover:bg-gray-800">
             <X className="w-3 h-3" />
           </Button>
         </div>
@@ -313,37 +312,37 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = ({
       <CardContent className="pt-0">
         <div className="space-y-2 max-h-64 overflow-y-auto">
           {isLoadingNearby ? (
-            <div className="text-center text-xs text-muted-foreground py-4">
+            <div className="text-center text-xs text-gray-400 py-4">
               Loading nearby services...
             </div>
           ) : nearbyServices.length === 0 ? (
-            <div className="text-center text-xs text-muted-foreground py-4">
+            <div className="text-center text-xs text-gray-400 py-4">
               No services found nearby
             </div>
           ) : (
             nearbyServices.map((service) => (
               <div
                 key={service.place_id}
-                className="p-2 border rounded-md hover:bg-gray-50 cursor-pointer transition-colors"
+                className="p-2 border border-gray-700 rounded-md hover:bg-gray-800 cursor-pointer transition-colors"
                 onClick={() => setSelectedService(service)}
               >
                 <div className="flex items-start gap-2">
-                  <div className="flex-shrink-0 mt-0.5">
+                  <div className="flex-shrink-0 mt-0.5 text-gray-400">
                     {getServiceIcon(service.types)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium truncate">{service.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{service.vicinity}</p>
+                    <p className="text-xs font-medium truncate text-white">{service.name}</p>
+                    <p className="text-xs text-gray-400 truncate">{service.vicinity}</p>
                     
                     <div className="flex items-center gap-2 mt-1">
                       {service.rating && (
                         <div className="flex items-center gap-1">
                           <Star className="w-2 h-2 fill-yellow-400 text-yellow-400" />
-                          <span className="text-xs">{service.rating.toFixed(1)}</span>
+                          <span className="text-xs text-white">{service.rating.toFixed(1)}</span>
                         </div>
                       )}
                       {userLocation && (
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-gray-400">
                           {calculateDistance(service)}
                         </span>
                       )}
