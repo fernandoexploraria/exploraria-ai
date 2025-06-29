@@ -151,6 +151,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   const handleDestinationSelect = async (destination: AutocompleteResult) => {
     console.log('Starting tour generation for user:', user?.id, 'destination:', destination.description);
     
+    // Since we handle auth upfront, we can proceed directly
     setSelectedDestination(destination);
     setCurrentStep(2);
     setIsLoading(true);
@@ -168,28 +169,6 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       
       console.log('Destination details retrieved:', detailsData.data);
       setDestinationDetails(detailsData.data);
-
-      // PHASE 1: Immediately create and emit destination landmark
-      const destinationLandmark = {
-        id: `destination-${destination.place_id}`,
-        name: detailsData.data.name,
-        coordinates: [
-          parseFloat(detailsData.data.location?.longitude || 0),
-          parseFloat(detailsData.data.location?.latitude || 0)
-        ] as [number, number],
-        description: detailsData.data.editorialSummary || `${detailsData.data.name} - Your selected destination`,
-        rating: detailsData.data.rating || 0,
-        photos: detailsData.data.photoUrl ? [detailsData.data.photoUrl] : [],
-        types: detailsData.data.types || [],
-        placeId: destination.place_id,
-        formattedAddress: detailsData.data.address,
-        isDestination: true // Mark as destination for special styling if needed
-      };
-
-      console.log('🎯 Emitting destination landmark for immediate fly-to:', destinationLandmark);
-      
-      // Emit destination landmark immediately - this will trigger map fly-to
-      onTourGenerated([destinationLandmark]);
 
       // Search nearby landmarks with dynamic radius
       const coordinates = [
@@ -216,7 +195,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       setCurrentStep(3);
 
       // Generate tour in database
-      await generateTourInDatabase(detailsData.data, nearbyData.places || [], destination, destinationLandmark);
+      await generateTourInDatabase(detailsData.data, nearbyData.places || [], destination);
       
     } catch (error) {
       console.error('Tour generation error:', error);
@@ -231,7 +210,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
     }
   };
 
-  const generateTourInDatabase = async (destination: any, landmarks: any[], destinationInfo: AutocompleteResult, destinationLandmark: any) => {
+  const generateTourInDatabase = async (destination: any, landmarks: any[], destinationInfo: AutocompleteResult) => {
     if (!user?.id) {
       console.error('User authentication failed before database operations');
       throw new Error('User not authenticated');
@@ -329,7 +308,7 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
 
       setCurrentStep(4);
       
-      // PHASE 2: Convert landmarks to expected format and add to destination
+      // Convert landmarks to expected format for the map - FIXED FORMAT
       const formattedLandmarks = landmarks.map(landmark => ({
         id: landmark.placeId || `landmark-${Date.now()}-${Math.random()}`,
         name: landmark.name,
@@ -346,6 +325,7 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
       }));
 
       console.log('Formatted landmarks for map:', formattedLandmarks);
+      console.log('Sample landmark coordinates:', formattedLandmarks[0]?.coordinates);
 
       // Ensure landmarks have valid coordinates before passing to map
       const validLandmarks = formattedLandmarks.filter(landmark => {
@@ -362,11 +342,9 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
         return hasValidCoords;
       });
 
-      console.log(`🏛️ PHASE 2: Adding ${validLandmarks.length} nearby landmarks to existing destination`);
+      console.log(`Passing ${validLandmarks.length} valid landmarks to map out of ${formattedLandmarks.length} total`);
 
-      // Combine destination with nearby landmarks for progressive loading
-      const allLandmarks = [destinationLandmark, ...validLandmarks];
-      onTourGenerated(allLandmarks);
+      onTourGenerated(validLandmarks);
 
       toast({
         title: "Tour Generated Successfully!",
@@ -503,9 +481,9 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
           <div className="space-y-4 text-center">
             <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
             <div>
-              <h3 className="text-lg font-semibold">Flying to Destination</h3>
+              <h3 className="text-lg font-semibold">Discovering Amazing Places</h3>
               <p className="text-muted-foreground">
-                Flying to {selectedDestination?.structured_formatting?.main_text || selectedDestination?.description} and discovering amazing places nearby
+                Searching for attractions near {selectedDestination?.structured_formatting?.main_text || selectedDestination?.description}
               </p>
             </div>
           </div>
@@ -516,9 +494,9 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
           <div className="space-y-4">
             <div className="text-center">
               <div className="animate-pulse h-8 w-8 bg-primary rounded-full mx-auto mb-4" />
-              <h3 className="text-lg font-semibold">Loading Nearby Attractions</h3>
+              <h3 className="text-lg font-semibold">Creating Your Personal Tour</h3>
               <p className="text-muted-foreground">
-                Found {nearbyLandmarks.length} amazing places! Adding them to your tour...
+                Found {nearbyLandmarks.length} amazing places! Generating your tour...
               </p>
             </div>
             
