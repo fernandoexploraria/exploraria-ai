@@ -187,7 +187,7 @@ const NetworkTestingPanel: React.FC = () => {
           {/* Network Simulation Controls */}
           <div className="flex items-center gap-4">
             <Select value={selectedCondition} onValueChange={simulateNetworkCondition}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-48" aria-label="Select network condition for testing">
                 <SelectValue placeholder="Select network condition" />
               </SelectTrigger>
               <SelectContent>
