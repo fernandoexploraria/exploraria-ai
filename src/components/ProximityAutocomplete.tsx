@@ -215,36 +215,39 @@ const ProximityAutocomplete: React.FC<ProximityAutocompleteProps> = ({
           ref={suggestionsRef}
           className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-64 overflow-y-auto animate-fade-in"
         >
-          {suggestions.map((suggestion, index) => (
-            <button
-              key={suggestion.place_id}
-              className={`w-full px-3 py-2 text-left text-xs hover:bg-gray-50 border-b last:border-b-0 transition-colors ${
-                index === selectedIndex ? 'bg-blue-50 border-blue-200' : ''
-              }`}
-              onClick={() => handleSuggestionClick(suggestion)}
-            >
-              <div className="flex items-start gap-2">
-                <div className="flex-shrink-0 mt-0.5">
-                  {getServiceIcon(suggestion.types)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium truncate">
-                      {suggestion.structured_formatting?.main_text || suggestion.description}
-                    </span>
-                    <Badge variant="secondary" className="text-xs px-1 py-0 shrink-0">
-                      {getServiceType(suggestion.types)}
-                    </Badge>
+          {suggestions.map((suggestion, index) => {
+            const IconComponent = getServiceIcon(suggestion.types);
+            return (
+              <button
+                key={suggestion.place_id}
+                className={`w-full px-3 py-2 text-left text-xs hover:bg-gray-50 border-b last:border-b-0 transition-colors ${
+                  index === selectedIndex ? 'bg-blue-50 border-blue-200' : ''
+                }`}
+                onClick={() => handleSuggestionClick(suggestion)}
+              >
+                <div className="flex items-start gap-2">
+                  <div className="flex-shrink-0 mt-0.5">
+                    <IconComponent className="w-4 h-4" />
                   </div>
-                  {suggestion.structured_formatting?.secondary_text && (
-                    <p className="text-muted-foreground text-xs truncate">
-                      {suggestion.structured_formatting.secondary_text}
-                    </p>
-                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-medium truncate">
+                        {suggestion.structured_formatting?.main_text || suggestion.description}
+                      </span>
+                      <Badge variant="secondary" className="text-xs px-1 py-0 shrink-0">
+                        {getServiceType(suggestion.types)}
+                      </Badge>
+                    </div>
+                    {suggestion.structured_formatting?.secondary_text && (
+                      <p className="text-muted-foreground text-xs truncate">
+                        {suggestion.structured_formatting.secondary_text}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
