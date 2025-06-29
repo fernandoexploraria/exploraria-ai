@@ -6,8 +6,11 @@ import UserControls from '@/components/UserControls';
 import DialogManager from '@/components/DialogManager';
 import NewTourAssistant from '@/components/NewTourAssistant';
 import ProximityControlPanel from '@/components/ProximityControlPanel';
+import FloatingProximityCard from '@/components/FloatingProximityCard';
 import DebugWindow from '@/components/DebugWindow';
 import { useDebugWindow } from '@/hooks/useDebugWindow';
+import { useProximityNotifications } from '@/hooks/useProximityNotifications';
+import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { Landmark } from '@/data/landmarks';
 import { User } from '@supabase/supabase-js';
 import { ProgressState } from '@/hooks/useTourPlanner';
@@ -74,6 +77,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   tourPlan,
 }) => {
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
+  const { userLocation } = useLocationTracking();
+  const { activeCards, closeProximityCard, showRouteToService } = useProximityNotifications();
 
   const handleLocationSelect = () => {
     console.log('Location select called but no action taken');
@@ -117,6 +122,26 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         selectedLandmark={selectedLandmark}
         plannedLandmarks={[...plannedLandmarks]}
       />
+
+      {/* Floating Proximity Cards */}
+      {Object.entries(activeCards).map(([landmarkId, landmark], index) => (
+        <div
+          key={landmarkId}
+          style={{
+            position: 'fixed',
+            bottom: `${24 + (index * 420)}px`, // Stack cards vertically with 420px spacing
+            right: '16px',
+            zIndex: 40 + index // Ensure proper stacking order
+          }}
+        >
+          <FloatingProximityCard
+            landmark={landmark}
+            userLocation={userLocation}
+            onClose={() => closeProximityCard(landmarkId)}
+            onGetDirections={showRouteToService}
+          />
+        </div>
+      ))}
 
       <DialogManager
         isTourPlannerOpen={isTourPlannerOpen}

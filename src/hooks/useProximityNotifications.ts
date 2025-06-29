@@ -1,5 +1,4 @@
-
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
@@ -21,9 +20,18 @@ interface PrepZoneState {
   };
 }
 
+interface CardState {
+  [landmarkId: string]: {
+    shown: boolean;
+    timestamp: number;
+  };
+}
+
 const NOTIFICATION_COOLDOWN = 5 * 60 * 1000; // 5 minutes in milliseconds
+const CARD_COOLDOWN = 10 * 60 * 1000; // 10 minutes in milliseconds for cards
 const STORAGE_KEY = 'proximity_notifications_state';
 const PREP_ZONE_STORAGE_KEY = 'prep_zone_state';
+const CARD_STORAGE_KEY = 'proximity_cards_state';
 
 export const useProximityNotifications = () => {
   const { proximitySettings } = useProximityAlerts();
@@ -32,7 +40,12 @@ export const useProximityNotifications = () => {
   const { preloadStreetView, getCachedData } = useStreetView();
   const notificationStateRef = useRef<NotificationState>({});
   const prepZoneStateRef = useRef<PrepZoneState>({});
+  const cardStateRef = useRef<CardState>({});
   const previousNearbyLandmarksRef = useRef<Set<string>>(new Set());
+  const previousCardZoneLandmarksRef = useRef<Set<string>>(new Set());
+
+  // State for active proximity cards
+  const [activeCards, setActiveCards] = useState<{[landmarkId: string]: Landmark}>({});
 
   // Check if proximity settings are loaded with valid distance values
   const isProximitySettingsReady = proximitySettings && 
@@ -52,6 +65,12 @@ export const useProximityNotifications = () => {
     notificationDistance: isProximitySettingsReady ? proximitySettings.outer_distance : 250
   });
 
+  // Get landmarks within card zone (card_distance) - only if settings are ready
+  const cardZoneLandmarks = useNearbyLandmarks({
+    userLocation,
+    notificationDistance: isProximitySettingsReady ? proximitySettings.card_distance : 75
+  });
+
   // Load notification state from localStorage
   useEffect(() => {
     try {
@@ -64,6 +83,11 @@ export const useProximityNotifications = () => {
       if (savedPrepState) {
         prepZoneStateRef.current = JSON.parse(savedPrepState);
       }
+
+      const savedCardState = localStorage.getItem(CARD_STORAGE_KEY);
+      if (savedCardState) {
+        cardStateRef.current = JSON.parse(savedCardState);
+      }
     } catch (error) {
       console.error('Failed to load notification state:', error);
     }
@@ -74,6 +98,7 @@ export const useProximityNotifications = () => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(notificationStateRef.current));
       localStorage.setItem(PREP_ZONE_STORAGE_KEY, JSON.stringify(prepZoneStateRef.current));
+      localStorage.setItem(CARD_STORAGE_KEY, JSON.stringify(cardStateRef.current));
     } catch (error) {
       console.error('Failed to save notification state:', error);
     }
@@ -86,6 +111,15 @@ export const useProximityNotifications = () => {
     
     const timeSinceLastNotification = Date.now() - lastNotification;
     return timeSinceLastNotification >= NOTIFICATION_COOLDOWN;
+  }, []);
+
+  // Check if card cooldown has passed
+  const canShowCard = useCallback((landmarkId: string): boolean => {
+    const lastCard = cardStateRef.current[landmarkId];
+    if (!lastCard) return true;
+    
+    const timeSinceLastCard = Date.now() - lastCard.timestamp;
+    return timeSinceLastCard >= CARD_COOLDOWN;
   }, []);
 
   // Play notification sound
@@ -150,6 +184,44 @@ export const useProximityNotifications = () => {
     }
   }, [userLocation]);
 
+  // Function to show route to service from proximity card
+  const showRouteToService = useCallback(async (service: any) => {
+    if (!userLocation) {
+      console.log('No user location available for service route');
+      return;
+    }
+
+    try {
+      console.log(`🏪 Getting route to ${service.name}`);
+      
+      const { data, error } = await supabase.functions.invoke('mapbox-directions', {
+        body: {
+          origin: [userLocation.longitude, userLocation.latitude],
+          destination: [service.geometry.location.lng, service.geometry.location.lat],
+          profile: 'walking'
+        }
+      });
+
+      if (error) {
+        console.error('Error getting service route:', error);
+        return;
+      }
+
+      if (data?.routes && data.routes.length > 0) {
+        const route = data.routes[0];
+        console.log(`📍 Service route found: ${Math.round(route.distance)}m, ${Math.round(route.duration / 60)}min`);
+        
+        // Call global function to show route on map
+        if ((window as any).showRouteOnMap) {
+          (window as any).showRouteOnMap(route, { name: service.name, coordinates: [service.geometry.location.lng, service.geometry.location.lat] });
+        }
+      }
+      
+    } catch (error) {
+      console.error('Failed to get service route:', error);
+    }
+  }, [userLocation]);
+
   // Handle prep zone entry and Street View pre-loading
   const handlePrepZoneEntry = useCallback(async (landmark: Landmark) => {
     const landmarkId = landmark.id;
@@ -185,6 +257,43 @@ export const useProximityNotifications = () => {
       console.error(`❌ Failed to pre-load Street View for ${landmark.name}:`, error);
     }
   }, [preloadStreetView, saveNotificationState]);
+
+  // Handle card zone entry
+  const showProximityCard = useCallback((landmark: Landmark) => {
+    const landmarkId = landmark.id;
+    
+    if (!canShowCard(landmarkId)) {
+      console.log(`🏪 Card for ${landmark.name} still in cooldown`);
+      return;
+    }
+
+    console.log(`🏪 Showing proximity card for ${landmark.name}`);
+
+    // Update card state
+    cardStateRef.current[landmarkId] = {
+      shown: true,
+      timestamp: Date.now()
+    };
+
+    // Add to active cards
+    setActiveCards(prev => ({
+      ...prev,
+      [landmarkId]: landmark
+    }));
+
+    saveNotificationState();
+  }, [canShowCard, saveNotificationState]);
+
+  // Function to close a proximity card
+  const closeProximityCard = useCallback((landmarkId: string) => {
+    console.log(`🏪 Closing proximity card for landmark ${landmarkId}`);
+    
+    setActiveCards(prev => {
+      const updated = { ...prev };
+      delete updated[landmarkId];
+      return updated;
+    });
+  }, []);
 
   // Show proximity toast notification with sound, TTS, and Street View
   const showProximityToast = useCallback(async (landmark: Landmark, distance: number) => {
@@ -254,6 +363,44 @@ export const useProximityNotifications = () => {
     });
   }, [prepZoneLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, handlePrepZoneEntry, saveNotificationState]);
 
+  // Monitor card zone entries - only when settings are ready
+  useEffect(() => {
+    if (!isProximitySettingsReady || !proximitySettings.is_enabled || !userLocation || cardZoneLandmarks.length === 0) {
+      return;
+    }
+
+    const currentCardZoneIds = new Set(cardZoneLandmarks.map(nl => nl.landmark.id));
+    const previousCardZoneIds = previousCardZoneLandmarksRef.current;
+
+    // Find newly entered card zone landmarks
+    const newlyEnteredCardIds = Array.from(currentCardZoneIds).filter(id => !previousCardZoneIds.has(id));
+
+    console.log(`🏪 Card zone check: ${currentCardZoneIds.size} in zone, ${newlyEnteredCardIds.length} newly entered`);
+
+    // Show card for newly entered landmarks (one at a time, closest first)
+    if (newlyEnteredCardIds.length > 0) {
+      const closestNewCardLandmark = cardZoneLandmarks.find(nl => 
+        newlyEnteredCardIds.includes(nl.landmark.id)
+      );
+
+      if (closestNewCardLandmark && canShowCard(closestNewCardLandmark.landmark.id)) {
+        showProximityCard(closestNewCardLandmark.landmark);
+      }
+    }
+
+    // Hide cards for landmarks that are no longer in card zone
+    const exitedCardIds = Array.from(previousCardZoneIds).filter(id => !currentCardZoneIds.has(id));
+    exitedCardIds.forEach(landmarkId => {
+      if (activeCards[landmarkId]) {
+        console.log(`🏪 Exiting card zone for ${landmarkId}, hiding card`);
+        closeProximityCard(landmarkId);
+      }
+    });
+
+    // Update previous card zone landmarks
+    previousCardZoneLandmarksRef.current = currentCardZoneIds;
+  }, [cardZoneLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, canShowCard, showProximityCard, activeCards, closeProximityCard]);
+
   // Monitor for newly entered proximity zones - only when settings are ready
   useEffect(() => {
     if (!isProximitySettingsReady || !proximitySettings.is_enabled || !userLocation || nearbyLandmarks.length === 0) {
@@ -309,6 +456,14 @@ export const useProximityNotifications = () => {
         }
       }
 
+      // Clean up card state (keep for 2x cooldown period)
+      for (const [landmarkId, state] of Object.entries(cardStateRef.current)) {
+        if (now - state.timestamp > CARD_COOLDOWN * 2) {
+          delete cardStateRef.current[landmarkId];
+          hasChanges = true;
+        }
+      }
+
       if (hasChanges) {
         saveNotificationState();
       }
@@ -320,8 +475,13 @@ export const useProximityNotifications = () => {
   return {
     nearbyLandmarks,
     prepZoneLandmarks,
+    cardZoneLandmarks,
+    activeCards,
     notificationState: notificationStateRef.current,
     prepZoneState: prepZoneStateRef.current,
-    isEnabled: proximitySettings?.is_enabled || false
+    cardState: cardStateRef.current,
+    isEnabled: proximitySettings?.is_enabled || false,
+    closeProximityCard,
+    showRouteToService
   };
 };
