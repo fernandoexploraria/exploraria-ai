@@ -48,11 +48,8 @@ const Map: React.FC<MapProps> = ({
   const navigationMarkers = useRef<{ marker: mapboxgl.Marker; interaction: any }[]>([]);
   const currentRouteLayer = useRef<string | null>(null);
   
-  // Tour landmarks tracking - direct monitoring of TOUR_LANDMARKS array
-  const [lastTourLandmarkCount, setLastTourLandmarkCount] = useState(0);
-  const [hasProcessedInitialTour, setHasProcessedInitialTour] = useState(false);
-  const [deliberateMapInteraction, setDeliberateMapInteraction] = useState(false);
-  const mapInitialized = useRef(false);
+  // Add state to track tour landmarks so useMemo can react to changes
+  const [tourLandmarks, setTourLandmarks] = useState<TourLandmark[]>([]);
   
   // New refs for GeolocateControl management
   const geolocateControl = useRef<mapboxgl.GeolocateControl | null>(null);
@@ -81,92 +78,30 @@ const Map: React.FC<MapProps> = ({
     navigatePrevious 
   } = useStreetViewNavigation();
 
-  // PHASE 1: Direct Tour Landmarks Detection with Enhanced Logging
+  // Effect to sync tour landmarks state with the global TOUR_LANDMARKS array
   useEffect(() => {
-    const currentTourCount = TOUR_LANDMARKS.length;
-    
-    console.log('🔍 Tour landmarks detection check:', {
-      currentCount: currentTourCount,
-      lastCount: lastTourLandmarkCount,
-      hasProcessedInitial: hasProcessedInitialTour,
-      deliberateInteraction: deliberateMapInteraction,
-      mapInitialized: mapInitialized.current,
-      mapExists: !!map.current
-    });
+    console.log('🔄 Syncing tour landmarks state:', TOUR_LANDMARKS.length);
+    setTourLandmarks([...TOUR_LANDMARKS]);
+  }, [TOUR_LANDMARKS.length]); // Monitor array length changes
 
-    // Check if we have new tour landmarks for the first time
-    if (
-      mapInitialized.current &&
-      map.current &&
-      currentTourCount > 0 &&
-      lastTourLandmarkCount === 0 &&
-      !hasProcessedInitialTour &&
-      !deliberateMapInteraction
-    ) {
-      console.log('🎯 TRIGGERING FIRST TOUR FLY-TO:', {
-        tourLandmarks: TOUR_LANDMARKS.map(l => ({ name: l.name, coords: l.coordinates }))
-      });
-      
-      setHasProcessedInitialTour(true);
-      flyToTourLandmarks();
-    }
-    
-    setLastTourLandmarkCount(currentTourCount);
-  }, [TOUR_LANDMARKS.length, hasProcessedInitialTour, deliberateMapInteraction]);
-
-  // PHASE 3: Enhanced Fly-To Function with Globe-to-Mercator Transition
-  const flyToTourLandmarks = useCallback(() => {
-    if (!map.current || TOUR_LANDMARKS.length === 0) {
-      console.log('❌ Cannot fly to tour landmarks - no map or landmarks');
-      return;
-    }
-
-    console.log('🚀 Starting fly-to tour landmarks sequence...');
-
-    // Step 1: Switch from globe to mercator projection for better landmark viewing
-    console.log('🌍 Switching projection from globe to mercator...');
-    map.current.setProjection({ name: 'mercator' });
-
-    // Step 2: Calculate optimal view
-    const tourCoordinates = TOUR_LANDMARKS.map(landmark => landmark.coordinates);
-    
-    // Small delay to allow projection change to settle
-    setTimeout(() => {
-      if (!map.current) return;
-      
-      if (tourCoordinates.length === 1) {
-        // Single landmark - fly to it with appropriate zoom
-        console.log('🎯 Flying to single tour landmark at:', tourCoordinates[0]);
-        map.current.flyTo({
-          center: tourCoordinates[0],
-          zoom: 12,
-          speed: 0.6,
-          curve: 1.0,
-          duration: 3000,
-        });
-      } else if (tourCoordinates.length > 1) {
-        // Multiple landmarks - fit bounds to show all
-        console.log('🎯 Flying to fit all tour landmarks:', tourCoordinates.length);
-        const bounds = new mapboxgl.LngLatBounds();
-        tourCoordinates.forEach(coord => bounds.extend(coord));
-        
-        map.current.fitBounds(bounds, {
-          padding: 80,
-          speed: 0.6,
-          curve: 1.0,
-          duration: 3000,
-          maxZoom: 14,
-        });
+  // Also poll for changes every second to catch updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (TOUR_LANDMARKS.length !== tourLandmarks.length) {
+        console.log('🔄 Detected tour landmarks change via polling:', TOUR_LANDMARKS.length);
+        setTourLandmarks([...TOUR_LANDMARKS]);
       }
-    }, 500);
-  }, []);
+    }, 1000);
 
-  // Convert top landmarks and tour landmarks to Landmark format
+    return () => clearInterval(interval);
+  }, [tourLandmarks.length]);
+
+  // Convert top landmarks and tour landmarks to Landmark format with proper state dependency
   const allLandmarksWithTop = React.useMemo(() => {
     console.log('🗺️ Rebuilding landmarks list:', {
       baseLandmarks: landmarks.length,
       topLandmarks: TOP_LANDMARKS.length,
-      tourLandmarks: TOUR_LANDMARKS.length
+      tourLandmarks: tourLandmarks.length
     });
     
     const topLandmarksConverted: Landmark[] = TOP_LANDMARKS.map((topLandmark, index) => ({
@@ -176,7 +111,7 @@ const Map: React.FC<MapProps> = ({
       description: topLandmark.description
     }));
     
-    const tourLandmarksConverted: Landmark[] = TOUR_LANDMARKS.map((tourLandmark, index) => ({
+    const tourLandmarksConverted: Landmark[] = tourLandmarks.map((tourLandmark, index) => ({
       id: `tour-landmark-${index}`,
       name: tourLandmark.name,
       coordinates: tourLandmark.coordinates,
@@ -186,7 +121,7 @@ const Map: React.FC<MapProps> = ({
     const result = [...landmarks, ...topLandmarksConverted, ...tourLandmarksConverted];
     console.log('🗺️ Total landmarks for map:', result.length);
     return result;
-  }, [landmarks, TOUR_LANDMARKS.length]); // Direct dependency on TOUR_LANDMARKS.length
+  }, [landmarks, tourLandmarks]); // Now properly depends on tourLandmarks state
 
   // Function to store map marker interaction
   const storeMapMarkerInteraction = async (landmark: Landmark, imageUrl?: string) => {
@@ -264,25 +199,6 @@ const Map: React.FC<MapProps> = ({
 
       // Set the markers reference for tour landmarks management
       setMapMarkersRef(markers, photoPopups);
-
-      // PHASE 2: More Specific User Interaction Tracking
-      const trackDeliberateMapInteraction = (eventType: string) => {
-        console.log('🖱️ Deliberate map interaction detected:', eventType);
-        setDeliberateMapInteraction(true);
-        
-        // Reset after 10 seconds to allow future tour generations to fly-to
-        setTimeout(() => {
-          console.log('🔄 Resetting deliberate interaction flag');
-          setDeliberateMapInteraction(false);
-          setHasProcessedInitialTour(false);
-        }, 10000);
-      };
-
-      // Add specific interaction listeners (only for map manipulation, not general page activity)
-      map.current.on('dragstart', () => trackDeliberateMapInteraction('drag'));
-      map.current.on('zoomstart', () => trackDeliberateMapInteraction('zoom'));
-      map.current.on('rotatestart', () => trackDeliberateMapInteraction('rotate'));
-      map.current.on('pitchstart', () => trackDeliberateMapInteraction('pitch'));
 
       // Add location control for authenticated users
       if (user) {
@@ -383,14 +299,6 @@ const Map: React.FC<MapProps> = ({
         map.current?.setFog({}); // Add a sky layer and atmosphere
       });
 
-      // Mark map as initialized
-      map.current.on('idle', () => {
-        if (!mapInitialized.current) {
-          console.log('🗺️ [Map] Map fully initialized and ready');
-          mapInitialized.current = true;
-        }
-      });
-
       // Close all popups when clicking on the map
       map.current.on('click', (e) => {
         // Check if the click was on a marker by looking for our marker class
@@ -447,7 +355,6 @@ const Map: React.FC<MapProps> = ({
         geolocateControl.current = null;
         map.current?.remove();
         map.current = null;
-        mapInitialized.current = false;
       };
     } catch (error) {
       console.error('🗺️ [Map] Error during map initialization:', error);
