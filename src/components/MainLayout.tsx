@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Map from '@/components/Map';
 import TopControls from '@/components/TopControls';
@@ -42,7 +43,9 @@ interface MainLayoutProps {
   isIntelligentTourOpen: boolean;
   onIntelligentTourOpenChange: (open: boolean) => void;
   onTourGenerated?: (landmarks: any[]) => void;
+  onTourReadyForVoice?: (tourData: { destination: string; systemPrompt: string; landmarks: any[] }) => void;
   tourPlan: any;
+  voiceTourData?: { destination: string; systemPrompt: string; landmarks: any[] } | null;
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({
@@ -73,7 +76,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   isIntelligentTourOpen,
   onIntelligentTourOpenChange,
   onTourGenerated,
+  onTourReadyForVoice,
   tourPlan,
+  voiceTourData,
 }) => {
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
   const { userLocation } = useLocationTracking();
@@ -202,14 +207,15 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         onIntelligentTourOpenChange={onIntelligentTourOpenChange}
         onTourGenerated={onTourGenerated}
         onAuthRequired={handleAuthRequired}
+        onTourReadyForVoice={onTourReadyForVoice}
       />
 
       <NewTourAssistant
         open={isNewTourAssistantOpen}
         onOpenChange={onNewTourAssistantOpenChange}
-        destination={tourPlan?.destination || ''}
-        landmarks={plannedLandmarks}
-        systemPrompt={tourPlan?.systemPrompt}
+        destination={voiceTourData?.destination || tourPlan?.destination || ''}
+        landmarks={voiceTourData?.landmarks || plannedLandmarks}
+        systemPrompt={voiceTourData?.systemPrompt || tourPlan?.systemPrompt}
       />
 
       <DebugWindow

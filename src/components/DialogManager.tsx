@@ -1,9 +1,9 @@
 
 import React from 'react';
-import TourPlannerDialog from './TourPlannerDialog';
-import InteractionCarousel from './InteractionCarousel';
-import AuthDialog from './AuthDialog';
-import IntelligentTourDialog from './IntelligentTourDialog';
+import TourPlannerDialog from '@/components/TourPlannerDialog';
+import VoiceSearchDialog from '@/components/VoiceSearchDialog';
+import AuthDialog from '@/components/AuthDialog';
+import IntelligentTourDialog from '@/components/IntelligentTourDialog';
 import { ProgressState } from '@/hooks/useTourPlanner';
 
 interface DialogManagerProps {
@@ -17,11 +17,12 @@ interface DialogManagerProps {
   onVoiceSearchOpenChange: (open: boolean) => void;
   isAuthDialogOpen: boolean;
   onAuthDialogOpenChange: (open: boolean) => void;
-  onLocationSelect?: (coordinates: [number, number]) => void;
+  onLocationSelect: () => void;
   isIntelligentTourOpen: boolean;
   onIntelligentTourOpenChange: (open: boolean) => void;
   onTourGenerated?: (landmarks: any[]) => void;
   onAuthRequired: () => void;
+  onTourReadyForVoice?: (tourData: { destination: string; systemPrompt: string; landmarks: any[] }) => void;
 }
 
 const DialogManager: React.FC<DialogManagerProps> = ({
@@ -40,6 +41,7 @@ const DialogManager: React.FC<DialogManagerProps> = ({
   onIntelligentTourOpenChange,
   onTourGenerated,
   onAuthRequired,
+  onTourReadyForVoice,
 }) => {
   return (
     <>
@@ -52,7 +54,7 @@ const DialogManager: React.FC<DialogManagerProps> = ({
         progressState={tourProgressState}
       />
 
-      <InteractionCarousel
+      <VoiceSearchDialog
         open={isVoiceSearchOpen}
         onOpenChange={onVoiceSearchOpenChange}
         onLocationSelect={onLocationSelect}
@@ -68,6 +70,7 @@ const DialogManager: React.FC<DialogManagerProps> = ({
         onOpenChange={onIntelligentTourOpenChange}
         onTourGenerated={onTourGenerated || (() => {})}
         onAuthRequired={onAuthRequired}
+        onTourReadyForVoice={onTourReadyForVoice}
       />
     </>
   );

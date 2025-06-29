@@ -20,6 +20,11 @@ interface IndexProps {
 const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
   const [showSplash, setShowSplash] = useState(true);
   const [additionalLandmarks, setAdditionalLandmarks] = useState<Landmark[]>([]);
+  const [voiceTourData, setVoiceTourData] = useState<{
+    destination: string;
+    systemPrompt: string;
+    landmarks: any[];
+  } | null>(null);
   
   const { tourPlan, plannedLandmarks, isLoading: isTourLoading, generateTour, progressState } = useTourPlanner();
   const { user, signOut } = useAuth();
@@ -160,6 +165,20 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
     setIsAuthDialogOpen(true);
   };
 
+  // NEW: Handler for when tour is ready for voice agent
+  const handleTourReadyForVoice = (tourData: { destination: string; systemPrompt: string; landmarks: any[] }) => {
+    console.log('🎙️ Tour ready for voice agent:', tourData.destination);
+    
+    // Store the tour data for the voice assistant
+    setVoiceTourData(tourData);
+    
+    // Close the intelligent tour dialog
+    setIsIntelligentTourOpen(false);
+    
+    // Open the voice assistant with the tour data
+    setIsNewTourAssistantOpen(true);
+  };
+
   if (showSplash) {
     return <SplashScreen onDismiss={handleSplashDismiss} />;
   }
@@ -199,7 +218,9 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
         isIntelligentTourOpen={isIntelligentTourOpen}
         onIntelligentTourOpenChange={setIsIntelligentTourOpen}
         onTourGenerated={handleTourGenerated}
+        onTourReadyForVoice={handleTourReadyForVoice}
         tourPlan={tourPlan}
+        voiceTourData={voiceTourData}
       />
       <DebugWindow 
         isVisible={isDebugVisible}

@@ -16,6 +16,7 @@ interface IntelligentTourDialogProps {
   onOpenChange: (open: boolean) => void;
   onTourGenerated: (landmarks: any[]) => void;
   onAuthRequired: () => void;
+  onTourReadyForVoice?: (tourData: { destination: string; systemPrompt: string; landmarks: any[] }) => void;
 }
 
 interface AutocompleteResult {
@@ -45,7 +46,8 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   open,
   onOpenChange,
   onTourGenerated,
-  onAuthRequired
+  onAuthRequired,
+  onTourReadyForVoice
 }) => {
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
@@ -361,6 +363,16 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
         title: "Tour Generated Successfully!",
         description: `Found ${validLandmarks.length} amazing places to explore in ${destination.name}`,
       });
+
+      // Call the voice agent callback if provided
+      if (onTourReadyForVoice) {
+        console.log('🎙️ Calling onTourReadyForVoice callback with tour data');
+        onTourReadyForVoice({
+          destination: destination.name,
+          systemPrompt: alexisPrompt,
+          landmarks: validLandmarks
+        });
+      }
 
     } catch (error) {
       console.error('Database error:', error);
