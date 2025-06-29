@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -213,25 +212,25 @@ const ProximityAutocomplete: React.FC<ProximityAutocompleteProps> = ({
       {showSuggestions && suggestions.length > 0 && (
         <div 
           ref={suggestionsRef}
-          className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-64 overflow-y-auto animate-fade-in"
+          className="absolute top-full left-0 right-0 bg-gray-800 border border-gray-600 rounded-md shadow-lg z-50 max-h-64 overflow-y-auto animate-fade-in"
         >
           {suggestions.map((suggestion, index) => {
             const IconComponent = getServiceIcon(suggestion.types);
             return (
               <button
                 key={suggestion.place_id}
-                className={`w-full px-3 py-2 text-left text-xs hover:bg-gray-50 border-b last:border-b-0 transition-colors ${
-                  index === selectedIndex ? 'bg-blue-50 border-blue-200' : ''
+                className={`w-full px-3 py-2 text-left text-xs hover:bg-gray-700 border-b border-gray-600 last:border-b-0 transition-colors ${
+                  index === selectedIndex ? 'bg-gray-700 border-gray-500' : ''
                 }`}
                 onClick={() => handleSuggestionClick(suggestion)}
               >
                 <div className="flex items-start gap-2">
                   <div className="flex-shrink-0 mt-0.5">
-                    <IconComponent className="w-4 h-4" />
+                    <IconComponent className="w-4 h-4 text-gray-400" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium truncate">
+                      <span className="font-medium truncate text-white">
                         {suggestion.structured_formatting?.main_text || suggestion.description}
                       </span>
                       <Badge variant="secondary" className="text-xs px-1 py-0 shrink-0">
@@ -239,7 +238,7 @@ const ProximityAutocomplete: React.FC<ProximityAutocompleteProps> = ({
                       </Badge>
                     </div>
                     {suggestion.structured_formatting?.secondary_text && (
-                      <p className="text-muted-foreground text-xs truncate">
+                      <p className="text-gray-400 text-xs truncate">
                         {suggestion.structured_formatting.secondary_text}
                       </p>
                     )}
