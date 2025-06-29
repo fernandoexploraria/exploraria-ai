@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { X, MapPin, Star, Navigation, Search, Clock, Utensils, Coffee, Car, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -104,12 +103,10 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = ({
     try {
       setIsLoadingNearby(true);
       
+      // FIXED: Send coordinates in the format expected by the edge function
       const { data, error } = await supabase.functions.invoke('google-places-nearby', {
         body: {
-          location: {
-            lat: landmark.coordinates[1],
-            lng: landmark.coordinates[0]
-          },
+          coordinates: landmark.coordinates, // [lng, lat] format
           radius: 100, // 100 meters around landmark
           types: TOURIST_SERVICE_TYPES
         }

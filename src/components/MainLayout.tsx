@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Map from '@/components/Map';
 import TopControls from '@/components/TopControls';
@@ -98,20 +97,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     onAuthDialogOpen();
   };
 
-  // Create mock test landmark for debugging
+  // Create mock test landmark for debugging - FIXED: removed category property
   const createTestLandmark = (): Landmark => ({
     id: 'debug-fuente-coyotes',
     name: 'Fuente de los Coyotes',
     description: 'A beautiful fountain located in Mexico City, perfect for testing proximity card functionality with nearby services.',
-    coordinates: [-99.1332, 19.4326], // Mexico City coordinates
-    category: 'attraction',
-    images: [],
-    rating: 4.5,
-    reviews: 127,
-    openingHours: 'Always open',
-    website: '',
-    phone: '',
-    address: 'Mexico City, CDMX, Mexico'
+    coordinates: [-99.1332, 19.4326] // Mexico City coordinates
   });
 
   // Handle test proximity card display
