@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube, MapPin, ToggleLeft, ToggleRight } from 'lucide-react';
@@ -133,9 +134,13 @@ const TopControls: React.FC<TopControlsProps> = ({
     });
   };
 
-  const handleTourReadyForVoice = (destination: string, landmarks: any[], systemPrompt?: string) => {
-    console.log('🎯 Opening tour assistant with:', { destination, landmarkCount: landmarks.length });
-    setTourAssistantData({ destination, landmarks, systemPrompt });
+  const handleTourReadyForVoice = (tourData: { destination: string; systemPrompt: string; landmarks: any[]; }) => {
+    console.log('🎯 Opening tour assistant with:', { destination: tourData.destination, landmarkCount: tourData.landmarks.length });
+    setTourAssistantData({ 
+      destination: tourData.destination, 
+      landmarks: tourData.landmarks, 
+      systemPrompt: tourData.systemPrompt 
+    });
     setIsTourAssistantOpen(true);
   };
 
