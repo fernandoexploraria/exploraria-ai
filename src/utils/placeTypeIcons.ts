@@ -1,6 +1,7 @@
 
-import { MapPin, Camera, TreePine, Building } from 'lucide-react';
+import { MapPin, Camera, TreePine, Building, Utensils, Coffee, Car, Navigation, Plus } from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
+import React from 'react';
 
 export interface PlaceTypeIconResult {
   icon: LucideIcon;
@@ -118,4 +119,24 @@ export const getPlaceTypeLabel = (types: string[], name?: string): string => {
     return 'Museum';
   }
   return 'Place';
+};
+
+// Service-specific icon function for proximity services
+export const getServiceIcon = (types: string[]): React.ReactElement => {
+  if (types.includes('restaurant') || types.includes('food') || types.includes('meal_takeaway')) {
+    return <Utensils className="w-4 h-4" />;
+  }
+  if (types.includes('cafe') || types.includes('coffee_shop')) {
+    return <Coffee className="w-4 h-4" />;
+  }
+  if (types.includes('shopping_mall') || types.includes('store')) {
+    return <Car className="w-4 h-4" />; // Using Car as placeholder for shopping
+  }
+  if (types.includes('subway_station') || types.includes('transit_station')) {
+    return <Navigation className="w-4 h-4" />;
+  }
+  if (types.includes('public_bathroom')) {
+    return <Plus className="w-4 h-4" />; // Using Plus as placeholder for facilities
+  }
+  return <MapPin className="w-4 h-4" />;
 };
