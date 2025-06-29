@@ -10,7 +10,6 @@ export interface TourPlan {
   landmarks: EnhancedLandmark[];
   systemPrompt: string;
   destination: string;
-  destinationCoordinates?: [number, number];
   metadata?: {
     totalLandmarks: number;
     coordinateQuality: {
@@ -49,9 +48,6 @@ export const useTourPlanner = () => {
     totalLandmarks: 0,
     errors: []
   });
-  const [destinationCoordinates, setDestinationCoordinates] = useState<[number, number] | null>(null);
-  const [destinationName, setDestinationName] = useState<string>('');
-  
   const { subscriptionData } = useSubscription();
   const { tourStats, forceRefresh } = useTourStats();
 
@@ -79,11 +75,7 @@ export const useTourPlanner = () => {
 
     // Clear existing tour markers first
     clearTourMarkers();
-    
-    // Clear destination coordinates from previous tour
-    setDestinationCoordinates(null);
-    setDestinationName('');
-    
+
     // Check if user is subscribed or within free tour limit
     const FREE_TOUR_LIMIT = 3;
     const toursUsed = tourStats?.tour_count || 0;
@@ -220,18 +212,10 @@ export const useTourPlanner = () => {
         description: lm.description
       })));
 
-      // Extract destination coordinates if available
-      if (enhancedTourData.destinationCoordinates) {
-        console.log('🗺️ Setting destination coordinates from tour data:', enhancedTourData.destinationCoordinates);
-        setDestinationCoordinates(enhancedTourData.destinationCoordinates);
-        setDestinationName(destination);
-      }
-
       const newTourPlan: TourPlan = {
         landmarks: enhancedLandmarks,
         systemPrompt: enhancedTourData.systemPrompt,
         destination: destination,
-        destinationCoordinates: enhancedTourData.destinationCoordinates,
         metadata: enhancedTourData.metadata
       };
 
@@ -335,21 +319,12 @@ export const useTourPlanner = () => {
     }
   };
 
-  const setDestination = (coordinates: [number, number], name: string) => {
-    console.log('🗺️ Setting destination from dialog:', coordinates, name);
-    setDestinationCoordinates(coordinates);
-    setDestinationName(name);
-  };
-
   return { 
     tourPlan, 
     plannedLandmarks, // Keep for backward compatibility
     isLoading, 
     error, 
     generateTour,
-    progressState,
-    destinationCoordinates,
-    destinationName,
-    setDestination
+    progressState
   };
 };

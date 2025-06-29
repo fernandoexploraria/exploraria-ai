@@ -12,30 +12,15 @@ export const TOUR_LANDMARKS: TourLandmark[] = [];
 let mapMarkersRef: { current: { [key: string]: any } } | null = null;
 let photoPopupsRef: { current: { [key: string]: any } } | null = null;
 
-// Callback to notify when landmarks change
-let landmarksChangeCallback: (() => void) | null = null;
-
 // Function to set the markers reference from Map component
 export const setMapMarkersRef = (markersRef: { current: { [key: string]: any } }, popupsRef: { current: { [key: string]: any } }) => {
   mapMarkersRef = markersRef;
   photoPopupsRef = popupsRef;
 };
 
-// Function to set change callback
-export const setLandmarksChangeCallback = (callback: () => void) => {
-  landmarksChangeCallback = callback;
-};
-
-// Function to notify about changes
-const notifyLandmarksChange = () => {
-  if (landmarksChangeCallback) {
-    landmarksChangeCallback();
-  }
-};
-
 // Function to clear tour markers from map and array
 export const clearTourMarkers = () => {
-  console.log('🧹 Clearing tour markers from map and state...');
+  console.log('Clearing tour markers from map...');
   
   if (mapMarkersRef?.current) {
     // Find and remove all tour landmarks from the map
@@ -62,28 +47,15 @@ export const clearTourMarkers = () => {
   }
   
   // Clear the landmarks array
-  const previousLength = TOUR_LANDMARKS.length;
   TOUR_LANDMARKS.length = 0;
-  
-  console.log(`🧹 Tour landmarks cleared: ${previousLength} → ${TOUR_LANDMARKS.length}`);
-  
-  // Notify about the change
-  notifyLandmarksChange();
+  console.log('Tour landmarks array cleared');
 };
 
 // Function to clear and set new tour landmarks
 export const setTourLandmarks = (landmarks: TourLandmark[]) => {
-  console.log('🎯 Setting new tour landmarks:', landmarks.length);
-  
   // Clear existing landmarks and markers first
   clearTourMarkers();
-  
   // Add new landmarks
   TOUR_LANDMARKS.push(...landmarks);
-  
-  console.log(`🎯 Tour landmarks updated: 0 → ${TOUR_LANDMARKS.length}`);
-  console.log('🎯 New landmarks:', TOUR_LANDMARKS.map(l => l.name));
-  
-  // Notify about the change
-  notifyLandmarksChange();
+  console.log('New tour landmarks set:', landmarks.length);
 };

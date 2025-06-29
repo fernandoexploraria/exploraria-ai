@@ -15,7 +15,6 @@ interface IntelligentTourDialogProps {
   onOpenChange: (open: boolean) => void;
   onTourGenerated: (landmarks: any[]) => void;
   onAuthRequired: () => void;
-  onDestinationSelected?: (coordinates: [number, number], name: string) => void;
 }
 
 interface AutocompleteResult {
@@ -45,8 +44,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   open,
   onOpenChange,
   onTourGenerated,
-  onAuthRequired,
-  onDestinationSelected
+  onAuthRequired
 }) => {
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
@@ -153,13 +151,13 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   const handleDestinationSelect = async (destination: AutocompleteResult) => {
     console.log('Starting tour generation for user:', user?.id, 'destination:', destination.description);
     
+    // Since we handle auth upfront, we can proceed directly
     setSelectedDestination(destination);
     setCurrentStep(2);
     setIsLoading(true);
 
     try {
-      // Fetch destination details FIRST
-      console.log('Fetching destination details for immediate map flight...');
+      // Fetch destination details
       const { data: detailsData, error: detailsError } = await supabase.functions.invoke('google-places-details', {
         body: { placeId: destination.place_id }
       });
@@ -172,22 +170,17 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       console.log('Destination details retrieved:', detailsData.data);
       setDestinationDetails(detailsData.data);
 
-      // IMMEDIATELY notify parent to fly to destination
-      const destinationCoordinates: [number, number] = [
+      // Search nearby landmarks with dynamic radius
+      const coordinates = [
         detailsData.data.location?.longitude || 0,
         detailsData.data.location?.latitude || 0
       ];
-      
-      console.log('🗺️ Flying to destination coordinates:', destinationCoordinates);
-      if (onDestinationSelected && destinationCoordinates[0] !== 0 && destinationCoordinates[1] !== 0) {
-        onDestinationSelected(destinationCoordinates, detailsData.data.name);
-      }
 
-      // Then search nearby landmarks
-      console.log('Searching for nearby landmarks...');
+      console.log('Searching for nearby landmarks at coordinates:', coordinates);
+
       const { data: nearbyData, error: nearbyError } = await supabase.functions.invoke('google-places-nearby', {
         body: { 
-          coordinates: destinationCoordinates,
+          coordinates,
           destinationTypes: destination.types
         }
       });
