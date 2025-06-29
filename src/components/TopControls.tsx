@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube, MapPin } from 'lucide-react';
+import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube, MapPin, ToggleLeft, ToggleRight } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerTrigger, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import SearchControl from '@/components/SearchControl';
 import FreeTourCounter from '@/components/FreeTourCounter';
@@ -10,6 +10,7 @@ import ConnectionStatus from '@/components/ConnectionStatus';
 import { Landmark } from '@/data/landmarks';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useConnectionMonitor } from '@/hooks/useConnectionMonitor';
+import { useDemoMode } from '@/hooks/useDemoMode';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import IntelligentTourDialog from './IntelligentTourDialog';
@@ -52,6 +53,7 @@ const TopControls: React.FC<TopControlsProps> = ({
   const [isIntelligentTourOpen, setIsIntelligentTourOpen] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const { toast } = useToast();
+  const { isDemoMode, toggleDemoMode } = useDemoMode();
   
   const { connectionHealth } = useConnectionMonitor();
 
@@ -152,7 +154,7 @@ const TopControls: React.FC<TopControlsProps> = ({
           
           <SearchControl landmarks={allLandmarks} onSelectLandmark={onSelectLandmark} />
           
-          {(isCollapsed || !connectionHealth.isHealthy) && (
+          {!isDemoMode && (isCollapsed || !connectionHealth.isHealthy) && (
             <ConnectionStatus compact className="w-full" />
           )}
           
@@ -174,6 +176,26 @@ const TopControls: React.FC<TopControlsProps> = ({
           
           {!isCollapsed && (
             <div className="flex flex-col gap-1 w-full animate-fade-in">
+              {/* Demo Mode Toggle - Always visible for easy access */}
+              <Button
+                variant={isDemoMode ? "default" : "outline"}
+                size="sm"
+                className={`backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 ${
+                  isDemoMode 
+                    ? 'bg-green-500/80 hover:bg-green-400/80 text-white border-green-400' 
+                    : 'bg-background/80 hover:bg-accent hover:text-accent-foreground'
+                }`}
+                onClick={toggleDemoMode}
+              >
+                {isDemoMode ? (
+                  <ToggleRight className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+                ) : (
+                  <ToggleLeft className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+                )}
+                <span className="lg:hidden">{isDemoMode ? 'Demo On' : 'Demo Off'}</span>
+                <span className="hidden lg:inline">{isDemoMode ? 'Demo Mode On' : 'Demo Mode Off'}</span>
+              </Button>
+              
               <Button
                 variant="outline"
                 size="sm"
@@ -222,47 +244,52 @@ const TopControls: React.FC<TopControlsProps> = ({
 
               <ImageAnalysis plannedLandmarks={plannedLandmarks} />
               
-              <ConnectionStatus showDetails className="w-full" />
-              
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
-                onClick={handleTestCors}
-                disabled={isTestingCors}
-              >
-                <TestTube className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
-                {isTestingCors ? 'Testing...' : 'Test CORS'}
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
-                onClick={handleTestProximityCard}
-              >
-                <MapPin className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
-                Test Proximity Card
-              </Button>
-              
-              <Drawer open={isDebugDrawerOpen} onOpenChange={setIsDebugDrawerOpen}>
-                <DrawerTrigger asChild>
+              {/* Debug Tools - Hidden in Demo Mode */}
+              {!isDemoMode && (
+                <>
+                  <ConnectionStatus showDetails className="w-full" />
+                  
                   <Button
                     variant="outline"
                     size="sm"
                     className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
+                    onClick={handleTestCors}
+                    disabled={isTestingCors}
                   >
-                    <List className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
-                    Debug
+                    <TestTube className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+                    {isTestingCors ? 'Testing...' : 'Test CORS'}
                   </Button>
-                </DrawerTrigger>
-                <DrawerContent className="max-h-[85vh]">
-                  <DrawerHeader>
-                    <DrawerTitle>Debug Window</DrawerTitle>
-                  </DrawerHeader>
-                  <DebugWindow isVisible={true} onClose={() => setIsDebugDrawerOpen(false)} />
-                </DrawerContent>
-              </Drawer>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
+                    onClick={handleTestProximityCard}
+                  >
+                    <MapPin className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+                    Test Proximity Card
+                  </Button>
+                  
+                  <Drawer open={isDebugDrawerOpen} onOpenChange={setIsDebugDrawerOpen}>
+                    <DrawerTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
+                      >
+                        <List className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+                        Debug
+                      </Button>
+                    </DrawerTrigger>
+                    <DrawerContent className="max-h-[85vh]">
+                      <DrawerHeader>
+                        <DrawerTitle>Debug Window</DrawerTitle>
+                      </DrawerHeader>
+                      <DebugWindow isVisible={true} onClose={() => setIsDebugDrawerOpen(false)} />
+                    </DrawerContent>
+                  </Drawer>
+                </>
+              )}
               
               {user && <FreeTourCounter />}
             </div>
