@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import Map from '@/components/Map';
 import TopControls from '@/components/TopControls';
 import UserControls from '@/components/UserControls';
@@ -79,6 +79,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
   const { userLocation } = useLocationTracking();
   const { activeCards, closeProximityCard, showRouteToService } = useProximityNotifications();
+  
+  // Debug state for test proximity card
+  const [debugProximityCard, setDebugProximityCard] = useState<Landmark | null>(null);
 
   const handleLocationSelect = () => {
     console.log('Location select called but no action taken');
@@ -95,6 +98,35 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     onAuthDialogOpen();
   };
 
+  // Create mock test landmark for debugging
+  const createTestLandmark = (): Landmark => ({
+    id: 'debug-fuente-coyotes',
+    name: 'Fuente de los Coyotes',
+    description: 'A beautiful fountain located in Mexico City, perfect for testing proximity card functionality with nearby services.',
+    coordinates: [-99.1332, 19.4326], // Mexico City coordinates
+    category: 'attraction',
+    images: [],
+    rating: 4.5,
+    reviews: 127,
+    openingHours: 'Always open',
+    website: '',
+    phone: '',
+    address: 'Mexico City, CDMX, Mexico'
+  });
+
+  // Handle test proximity card display
+  const handleTestProximityCard = () => {
+    console.log('🧪 Debug: Creating test proximity card for Fuente de los Coyotes');
+    const testLandmark = createTestLandmark();
+    setDebugProximityCard(testLandmark);
+  };
+
+  // Close debug proximity card
+  const closeDebugProximityCard = () => {
+    console.log('🧪 Debug: Closing test proximity card');
+    setDebugProximityCard(null);
+  };
+
   return (
     <div className="w-screen h-screen relative">
       <TopControls
@@ -107,6 +139,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         user={user}
         plannedLandmarks={plannedLandmarks}
         onIntelligentTourOpen={handleIntelligentTourOpen}
+        onTestProximityCard={handleTestProximityCard}
       />
 
       <UserControls
@@ -123,7 +156,26 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         plannedLandmarks={[...plannedLandmarks]}
       />
 
-      {/* Floating Proximity Cards */}
+      {/* Debug Proximity Card - positioned above regular cards */}
+      {debugProximityCard && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '16px',
+            zIndex: 50 // Higher than regular cards
+          }}
+        >
+          <FloatingProximityCard
+            landmark={debugProximityCard}
+            userLocation={userLocation}
+            onClose={closeDebugProximityCard}
+            onGetDirections={showRouteToService}
+          />
+        </div>
+      )}
+
+      {/* Regular Floating Proximity Cards */}
       {Object.entries(activeCards).map(([landmarkId, landmark], index) => (
         <div
           key={landmarkId}
