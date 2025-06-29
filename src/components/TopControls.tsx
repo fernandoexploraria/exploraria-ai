@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube, MapPin, ToggleLeft, ToggleRight } from 'lucide-react';
@@ -21,12 +22,11 @@ import { PostAuthAction } from '@/utils/authActions';
 interface TopControlsProps {
   allLandmarks: Landmark[];
   onSelectLandmark: (landmark: Landmark) => void;
-  onTourPlannerOpen: () => void;
   onVoiceSearchOpen: () => void;
   onVoiceAssistantOpen: () => void;
   onLogoClick: () => void;
   user: any;
-  plannedLandmarks: Landmark[];
+  smartTourLandmarks: Landmark[];
   onIntelligentTourOpen: () => void;
   onAuthDialogOpen?: () => void;
   onTestProximityCard?: () => void;
@@ -35,12 +35,11 @@ interface TopControlsProps {
 const TopControls: React.FC<TopControlsProps> = ({
   allLandmarks,
   onSelectLandmark,
-  onTourPlannerOpen,
   onVoiceSearchOpen,
   onVoiceAssistantOpen,
   onLogoClick,
   user,
-  plannedLandmarks,
+  smartTourLandmarks,
   onIntelligentTourOpen,
   onAuthDialogOpen,
   onTestProximityCard,
@@ -207,7 +206,8 @@ const TopControls: React.FC<TopControlsProps> = ({
                 <span className="hidden lg:inline">Smart Tour</span>
               </Button>
               
-              {plannedLandmarks.length > 0 && (
+              {/* Tour Guide Button - only appears when there's an active Smart Tour */}
+              {smartTourLandmarks.length > 0 && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -231,7 +231,8 @@ const TopControls: React.FC<TopControlsProps> = ({
                 </Button>
               )}
 
-              <ImageAnalysis plannedLandmarks={plannedLandmarks} />
+              {/* Image Analysis Button - only appears when there's an active Smart Tour */}
+              <ImageAnalysis smartTourLandmarks={smartTourLandmarks} />
               
               {/* Debug Tools - Hidden in Demo Mode */}
               {!isDemoMode && (

@@ -1,18 +1,10 @@
 
 import React from 'react';
-import TourPlannerDialog from '@/components/TourPlannerDialog';
 import VoiceSearchDialog from '@/components/VoiceSearchDialog';
 import AuthDialog from '@/components/AuthDialog';
 import IntelligentTourDialog from '@/components/IntelligentTourDialog';
-import { ProgressState } from '@/hooks/useTourPlanner';
 
 interface DialogManagerProps {
-  isTourPlannerOpen: boolean;
-  onTourPlannerOpenChange: (open: boolean) => void;
-  onGenerateTour: (destination: string) => Promise<void>;
-  onTourAuthRequired: (destination: string) => void;
-  isTourLoading: boolean;
-  tourProgressState?: ProgressState;
   isVoiceSearchOpen: boolean;
   onVoiceSearchOpenChange: (open: boolean) => void;
   isAuthDialogOpen: boolean;
@@ -26,12 +18,6 @@ interface DialogManagerProps {
 }
 
 const DialogManager: React.FC<DialogManagerProps> = ({
-  isTourPlannerOpen,
-  onTourPlannerOpenChange,
-  onGenerateTour,
-  onTourAuthRequired,
-  isTourLoading,
-  tourProgressState,
   isVoiceSearchOpen,
   onVoiceSearchOpenChange,
   isAuthDialogOpen,
@@ -45,15 +31,6 @@ const DialogManager: React.FC<DialogManagerProps> = ({
 }) => {
   return (
     <>
-      <TourPlannerDialog
-        open={isTourPlannerOpen}
-        onOpenChange={onTourPlannerOpenChange}
-        onGenerateTour={onGenerateTour}
-        onAuthRequired={onTourAuthRequired}
-        isLoading={isTourLoading}
-        progressState={tourProgressState}
-      />
-
       <VoiceSearchDialog
         open={isVoiceSearchOpen}
         onOpenChange={onVoiceSearchOpenChange}

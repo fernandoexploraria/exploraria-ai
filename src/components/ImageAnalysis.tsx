@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -14,7 +13,7 @@ import EnhancedProgressiveImage from './EnhancedProgressiveImage';
 import PhotoCarousel from './photo-carousel/PhotoCarousel';
 
 interface ImageAnalysisProps {
-  plannedLandmarks: Landmark[];
+  smartTourLandmarks: Landmark[];
 }
 
 interface AnalysisResult {
@@ -26,7 +25,7 @@ interface AnalysisResult {
   place_id?: string; // Enhanced with place_id for photo fetching
 }
 
-const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
+const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ smartTourLandmarks }) => {
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
@@ -41,8 +40,8 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
   const { user } = useAuth();
   const { fetchPhotos } = useEnhancedPhotos();
 
-  // Don't render the button if there are no planned landmarks
-  if (plannedLandmarks.length === 0) {
+  // Don't render the button if there are no smart tour landmarks
+  if (smartTourLandmarks.length === 0) {
     return null;
   }
 
@@ -267,7 +266,7 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ plannedLandmarks }) => {
       const { data, error } = await supabase.functions.invoke('analyze-landmark-image', {
         body: {
           image: base64Data,
-          plannedLandmarks: plannedLandmarks
+          plannedLandmarks: smartTourLandmarks
         }
       });
 

@@ -3,11 +3,9 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import SplashScreen from '@/components/SplashScreen';
 import MainLayout from '@/components/MainLayout';
 import DebugWindow from '@/components/DebugWindow';
-import { landmarks as staticLandmarks, Landmark, EnhancedLandmark } from '@/data/landmarks';
-import { useTourPlanner } from '@/hooks/useTourPlanner';
+import { landmarks as staticLandmarks, Landmark } from '@/data/landmarks';
 import { useAuth } from '@/components/AuthProvider';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
-import { usePendingDestination } from '@/hooks/usePendingDestination';
 import { useDialogStates } from '@/hooks/useDialogStates';
 import { useProximityNotifications } from '@/hooks/useProximityNotifications';
 import { useDebugWindow } from '@/hooks/useDebugWindow';
@@ -19,14 +17,13 @@ interface IndexProps {
 
 const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
   const [showSplash, setShowSplash] = useState(true);
-  const [additionalLandmarks, setAdditionalLandmarks] = useState<Landmark[]>([]);
+  const [smartTourLandmarks, setSmartTourLandmarks] = useState<Landmark[]>([]);
   const [voiceTourData, setVoiceTourData] = useState<{
     destination: string;
     systemPrompt: string;
     landmarks: any[];
   } | null>(null);
   
-  const { tourPlan, plannedLandmarks, isLoading: isTourLoading, generateTour, progressState } = useTourPlanner();
   const { user, signOut } = useAuth();
   const mapboxToken = useMapboxToken();
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
@@ -34,8 +31,6 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
   const {
     selectedLandmark,
     setSelectedLandmark,
-    isTourPlannerOpen,
-    setIsTourPlannerOpen,
     isInteractionHistoryOpen,
     setIsInteractionHistoryOpen,
     isAuthDialogOpen,
@@ -45,14 +40,6 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
     isIntelligentTourOpen,
     setIsIntelligentTourOpen,
   } = useDialogStates();
-  
-  // Updated to include callback for opening NewTourAssistant
-  const { handleTourAuthRequired: storePendingDestination } = usePendingDestination(
-    user, 
-    isTourLoading, 
-    generateTour,
-    () => setIsNewTourAssistantOpen(true) // Callback to open NewTourAssistant
-  );
 
   // Initialize proximity notifications
   useProximityNotifications();
@@ -72,38 +59,14 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
     }
   }, [onRegisterPostAuthActions, setIsIntelligentTourOpen]);
   
-  // Combine static landmarks with enhanced tour landmarks
-  const allLandmarks: (Landmark | EnhancedLandmark)[] = useMemo(() => {
-    const tourLandmarks = tourPlan?.landmarks || [];
-    return [...staticLandmarks, ...tourLandmarks, ...additionalLandmarks];
-  }, [tourPlan?.landmarks, additionalLandmarks]);
-
-  // Also keep the basic plannedLandmarks for backward compatibility
-  const basicPlannedLandmarks = useMemo(() => {
-    return plannedLandmarks;
-  }, [plannedLandmarks]);
+  // Combine static landmarks with smart tour landmarks
+  const allLandmarks: Landmark[] = useMemo(() => {
+    return [...staticLandmarks, ...smartTourLandmarks];
+  }, [smartTourLandmarks]);
 
   const handleSelectLandmark = useCallback((landmark: Landmark) => {
     setSelectedLandmark(landmark);
   }, [setSelectedLandmark]);
-
-  const handleGenerateTour = async (destination: string) => {
-    await generateTour(destination);
-    
-    // Watch for the 'ready' phase to close tour planner and open assistant
-    const waitForReady = () => {
-      if (progressState?.phase === 'ready') {
-        setIsTourPlannerOpen(false);
-        setIsNewTourAssistantOpen(true);
-      } else {
-        // If not ready yet, check again in 100ms
-        setTimeout(waitForReady, 100);
-      }
-    };
-    
-    // Start checking for ready state
-    setTimeout(waitForReady, 100);
-  };
 
   const handleAuthDialogClose = (open: boolean) => {
     setIsAuthDialogOpen(open);
@@ -114,7 +77,7 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
       setIsAuthDialogOpen(true);
       return;
     }
-    setIsInteractionHistoryOpen(true);
+    setIsNewTourAssistantOpen(true);
   };
 
   const handleInteractionHistoryOpen = () => {
@@ -141,16 +104,9 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
     setIsNewTourAssistantOpen(true);
   };
 
-  const handleTourAuthRequired = (destination: string) => {
-    // Store the destination for post-auth generation
-    storePendingDestination(destination);
-    // Open the auth dialog
-    setIsAuthDialogOpen(true);
-  };
-
   const handleTourGenerated = (landmarks: any[]) => {
-    // Add generated landmarks to additional landmarks
-    setAdditionalLandmarks(prev => [...prev, ...landmarks]);
+    // Set generated landmarks as smart tour landmarks
+    setSmartTourLandmarks(landmarks);
     // Close the intelligent tour dialog
     setIsIntelligentTourOpen(false);
   };
@@ -165,7 +121,7 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
     setIsAuthDialogOpen(true);
   };
 
-  // NEW: Handler for when tour is ready for voice agent
+  // Handler for when tour is ready for voice agent
   const handleTourReadyForVoice = (tourData: { destination: string; systemPrompt: string; landmarks: any[] }) => {
     console.log('🎙️ Tour ready for voice agent:', tourData.destination);
     
@@ -194,21 +150,14 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
         mapboxToken={mapboxToken}
         allLandmarks={allLandmarks}
         selectedLandmark={selectedLandmark}
-        plannedLandmarks={basicPlannedLandmarks}
+        smartTourLandmarks={smartTourLandmarks}
         user={user}
         onSelectLandmark={handleSelectLandmark}
-        onTourPlannerOpen={() => setIsTourPlannerOpen(true)}
         onVoiceSearchOpen={handleInteractionHistoryOpen}
         onVoiceAssistantOpen={handleNewTourAssistantOpen}
         onLogoClick={handleLogoClick}
         onSignOut={signOut}
         onAuthDialogOpen={() => setIsAuthDialogOpen(true)}
-        isTourPlannerOpen={isTourPlannerOpen}
-        onTourPlannerOpenChange={setIsTourPlannerOpen}
-        onGenerateTour={handleGenerateTour}
-        onTourAuthRequired={handleTourAuthRequired}
-        isTourLoading={isTourLoading}
-        tourProgressState={progressState}
         isVoiceSearchOpen={isInteractionHistoryOpen}
         onVoiceSearchOpenChange={setIsInteractionHistoryOpen}
         isAuthDialogOpen={isAuthDialogOpen}
@@ -219,7 +168,6 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
         onIntelligentTourOpenChange={setIsIntelligentTourOpen}
         onTourGenerated={handleTourGenerated}
         onTourReadyForVoice={handleTourReadyForVoice}
-        tourPlan={tourPlan}
         voiceTourData={voiceTourData}
       />
       <DebugWindow 

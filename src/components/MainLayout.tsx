@@ -13,27 +13,19 @@ import { useProximityNotifications } from '@/hooks/useProximityNotifications';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { Landmark } from '@/data/landmarks';
 import { User } from '@supabase/supabase-js';
-import { ProgressState } from '@/hooks/useTourPlanner';
 
 interface MainLayoutProps {
   mapboxToken: string;
   allLandmarks: Landmark[];
   selectedLandmark: Landmark | null;
-  plannedLandmarks: Landmark[];
+  smartTourLandmarks: Landmark[];
   user: User | null;
   onSelectLandmark: (landmark: Landmark) => void;
-  onTourPlannerOpen: () => void;
   onVoiceSearchOpen: () => void;
   onVoiceAssistantOpen: () => void;
   onLogoClick: () => void;
   onSignOut: () => Promise<void>;
   onAuthDialogOpen: () => void;
-  isTourPlannerOpen: boolean;
-  onTourPlannerOpenChange: (open: boolean) => void;
-  onGenerateTour: (destination: string) => Promise<void>;
-  onTourAuthRequired: (destination: string) => void;
-  isTourLoading: boolean;
-  tourProgressState?: ProgressState;
   isVoiceSearchOpen: boolean;
   onVoiceSearchOpenChange: (open: boolean) => void;
   isAuthDialogOpen: boolean;
@@ -44,7 +36,6 @@ interface MainLayoutProps {
   onIntelligentTourOpenChange: (open: boolean) => void;
   onTourGenerated?: (landmarks: any[]) => void;
   onTourReadyForVoice?: (tourData: { destination: string; systemPrompt: string; landmarks: any[] }) => void;
-  tourPlan: any;
   voiceTourData?: { destination: string; systemPrompt: string; landmarks: any[] } | null;
 }
 
@@ -52,21 +43,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   mapboxToken,
   allLandmarks,
   selectedLandmark,
-  plannedLandmarks,
+  smartTourLandmarks,
   user,
   onSelectLandmark,
-  onTourPlannerOpen,
   onVoiceSearchOpen,
   onVoiceAssistantOpen,
   onLogoClick,
   onSignOut,
   onAuthDialogOpen,
-  isTourPlannerOpen,
-  onTourPlannerOpenChange,
-  onGenerateTour,
-  onTourAuthRequired,
-  isTourLoading,
-  tourProgressState,
   isVoiceSearchOpen,
   onVoiceSearchOpenChange,
   isAuthDialogOpen,
@@ -77,7 +61,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   onIntelligentTourOpenChange,
   onTourGenerated,
   onTourReadyForVoice,
-  tourPlan,
   voiceTourData,
 }) => {
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
@@ -128,12 +111,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       <TopControls
         allLandmarks={allLandmarks}
         onSelectLandmark={onSelectLandmark}
-        onTourPlannerOpen={onTourPlannerOpen}
         onVoiceSearchOpen={onVoiceSearchOpen}
         onVoiceAssistantOpen={onVoiceAssistantOpen}
         onLogoClick={onLogoClick}
         user={user}
-        plannedLandmarks={plannedLandmarks}
+        smartTourLandmarks={smartTourLandmarks}
         onIntelligentTourOpen={handleIntelligentTourOpen}
         onTestProximityCard={handleTestProximityCard}
       />
@@ -149,7 +131,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         landmarks={allLandmarks}
         onSelectLandmark={onSelectLandmark}
         selectedLandmark={selectedLandmark}
-        plannedLandmarks={[...plannedLandmarks]}
+        plannedLandmarks={[...smartTourLandmarks]}
       />
 
       {/* Debug Proximity Card - positioned above regular cards */}
@@ -192,12 +174,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       ))}
 
       <DialogManager
-        isTourPlannerOpen={isTourPlannerOpen}
-        onTourPlannerOpenChange={onTourPlannerOpenChange}
-        onGenerateTour={onGenerateTour}
-        onTourAuthRequired={onTourAuthRequired}
-        isTourLoading={isTourLoading}
-        tourProgressState={tourProgressState}
         isVoiceSearchOpen={isVoiceSearchOpen}
         onVoiceSearchOpenChange={onVoiceSearchOpenChange}
         isAuthDialogOpen={isAuthDialogOpen}
@@ -213,9 +189,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       <NewTourAssistant
         open={isNewTourAssistantOpen}
         onOpenChange={onNewTourAssistantOpenChange}
-        destination={voiceTourData?.destination || tourPlan?.destination || ''}
-        landmarks={voiceTourData?.landmarks || plannedLandmarks}
-        systemPrompt={voiceTourData?.systemPrompt || tourPlan?.systemPrompt}
+        destination={voiceTourData?.destination || ''}
+        landmarks={voiceTourData?.landmarks || smartTourLandmarks}
+        systemPrompt={voiceTourData?.systemPrompt}
       />
 
       <DebugWindow
