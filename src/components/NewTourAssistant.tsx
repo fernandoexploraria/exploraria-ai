@@ -261,117 +261,110 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     }
   };
 
+  // Don't render anything if not open
+  if (!open) {
+    return null;
+  }
+
   // Show loading if configuration is being fetched
   if (isLoadingConfig) {
     return (
-      <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-xs p-8">
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <div className="flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
     );
   }
 
   // Show error if configuration couldn't be loaded or there's a connection error
   if (!elevenLabsConfig || connectionError) {
     return (
-      <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-xs p-8">
-          <div className="text-center space-y-4">
-            <div className="text-red-500 text-sm">Connection Error</div>
-            <Button
-              onClick={() => {
-                setIsLoadingConfig(true);
-                setConnectionError(null);
-                // Retry configuration fetch
-                const fetchConfig = async () => {
-                  try {
-                    const { data: session } = await supabase.auth.getSession();
-                    if (!session.session) {
-                      setConnectionError("Please sign in to use the tour guide.");
-                      return;
-                    }
+      <div className="text-center space-y-4">
+        <div className="text-red-500 text-sm">Connection Error</div>
+        <Button
+          onClick={() => {
+            setIsLoadingConfig(true);
+            setConnectionError(null);
+            // Retry configuration fetch
+            const fetchConfig = async () => {
+              try {
+                const { data: session } = await supabase.auth.getSession();
+                if (!session.session) {
+                  setConnectionError("Please sign in to use the tour guide.");
+                  return;
+                }
 
-                    const { data, error } = await supabase.functions.invoke('get-elevenlabs-config', {
-                      headers: {
-                        Authorization: `Bearer ${session.session.access_token}`,
-                      },
-                    });
+                const { data, error } = await supabase.functions.invoke('get-elevenlabs-config', {
+                  headers: {
+                    Authorization: `Bearer ${session.session.access_token}`,
+                  },
+                });
 
-                    if (error) {
-                      setConnectionError("Failed to load tour guide configuration.");
-                    } else {
-                      setElevenLabsConfig(data);
-                      setConnectionError(null);
-                    }
-                  } catch (error) {
-                    setConnectionError("Failed to connect to tour guide service.");
-                  } finally {
-                    setIsLoadingConfig(false);
-                  }
-                };
-                fetchConfig();
-              }}
-              disabled={isLoadingConfig}
-              size="sm"
-            >
-              {isLoadingConfig ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Retry
-                </>
-              ) : (
-                "Retry"
-              )}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+                if (error) {
+                  setConnectionError("Failed to load tour guide configuration.");
+                } else {
+                  setElevenLabsConfig(data);
+                  setConnectionError(null);
+                }
+              } catch (error) {
+                setConnectionError("Failed to connect to tour guide service.");
+              } finally {
+                setIsLoadingConfig(false);
+              }
+            };
+            fetchConfig();
+          }}
+          disabled={isLoadingConfig}
+          size="sm"
+        >
+          {isLoadingConfig ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Retry
+            </>
+          ) : (
+            "Retry"
+          )}
+        </Button>
+      </div>
     );
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-xs p-8">
-        <div className="flex items-center justify-center">
-          <div className="relative flex items-center justify-center">
-            <div className={`w-48 h-48 rounded-full border-4 flex items-center justify-center transition-all duration-300 ${getCircleColor()}`}>
-              <Button
-                onClick={handleMainAction}
-                disabled={conversation.status === 'connecting' || assistantState === 'listening' || assistantState === 'recording'}
-                variant="outline"
-                className="text-lg font-semibold px-6 py-3 h-auto whitespace-normal text-center bg-background text-foreground border-border hover:bg-accent hover:text-accent-foreground"
-              >
-                {conversation.status === 'connecting' ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Connecting...
-                  </>
-                ) : (
-                  getButtonLabel()
-                )}
-              </Button>
-            </div>
-            
-            {/* Animated rings for active states */}
-            {(assistantState === 'listening' || assistantState === 'recording' || assistantState === 'playback') && (
+    <div className="flex items-center justify-center">
+      <div className="relative flex items-center justify-center">
+        <div className={`w-48 h-48 rounded-full border-4 flex items-center justify-center transition-all duration-300 ${getCircleColor()}`}>
+          <Button
+            onClick={handleMainAction}
+            disabled={conversation.status === 'connecting' || assistantState === 'listening' || assistantState === 'recording'}
+            variant="outline"
+            className="text-lg font-semibold px-6 py-3 h-auto whitespace-normal text-center bg-background text-foreground border-border hover:bg-accent hover:text-accent-foreground"
+          >
+            {conversation.status === 'connecting' ? (
               <>
-                <div className={`absolute inset-0 rounded-full border-2 animate-ping ${
-                  assistantState === 'playback' ? 'border-green-400' : 
-                  assistantState === 'recording' ? 'border-red-400' : 'border-blue-400'
-                }`} style={{ animationDuration: '2s' }} />
-                <div className={`absolute inset-4 rounded-full border-2 animate-ping ${
-                  assistantState === 'playback' ? 'border-green-300' : 
-                  assistantState === 'recording' ? 'border-red-300' : 'border-blue-300'
-                }`} style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Connecting...
               </>
+            ) : (
+              getButtonLabel()
             )}
-          </div>
+          </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+        
+        {/* Animated rings for active states */}
+        {(assistantState === 'listening' || assistantState === 'recording' || assistantState === 'playback') && (
+          <>
+            <div className={`absolute inset-0 rounded-full border-2 animate-ping ${
+              assistantState === 'playback' ? 'border-green-400' : 
+              assistantState === 'recording' ? 'border-red-400' : 'border-blue-400'
+            }`} style={{ animationDuration: '2s' }} />
+            <div className={`absolute inset-4 rounded-full border-2 animate-ping ${
+              assistantState === 'playback' ? 'border-green-300' : 
+              assistantState === 'recording' ? 'border-red-300' : 'border-blue-300'
+            }`} style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
+          </>
+        )}
+      </div>
+    </div>
   );
 };
 
