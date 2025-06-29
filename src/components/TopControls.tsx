@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube } from 'lucide-react';
-import { Drawer, DrawerContent, DrawerTrigger } from '@/components/ui/drawer';
+import { Drawer, DrawerContent, DrawerTrigger, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import SearchControl from '@/components/SearchControl';
 import FreeTourCounter from '@/components/FreeTourCounter';
 import ImageAnalysis from '@/components/ImageAnalysis';
@@ -234,6 +234,9 @@ const TopControls: React.FC<TopControlsProps> = ({
                   </Button>
                 </DrawerTrigger>
                 <DrawerContent className="max-h-[85vh]">
+                  <DrawerHeader>
+                    <DrawerTitle>Debug Window</DrawerTitle>
+                  </DrawerHeader>
                   <DebugWindow isVisible={true} onClose={() => setIsDebugDrawerOpen(false)} />
                 </DrawerContent>
               </Drawer>
