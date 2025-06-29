@@ -57,7 +57,6 @@ const DialogManager: React.FC<DialogManagerProps> = ({
       <VoiceSearchDialog
         open={isVoiceSearchOpen}
         onOpenChange={onVoiceSearchOpenChange}
-        onLocationSelect={onLocationSelect}
       />
 
       <AuthDialog
