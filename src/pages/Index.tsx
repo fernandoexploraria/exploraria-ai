@@ -4,7 +4,6 @@ import SplashScreen from '@/components/SplashScreen';
 import MainLayout from '@/components/MainLayout';
 import DebugWindow from '@/components/DebugWindow';
 import { landmarks as staticLandmarks, Landmark, EnhancedLandmark } from '@/data/landmarks';
-import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { useTourPlanner } from '@/hooks/useTourPlanner';
 import { useAuth } from '@/components/AuthProvider';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
@@ -21,7 +20,6 @@ interface IndexProps {
 const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
   const [showSplash, setShowSplash] = useState(true);
   const [additionalLandmarks, setAdditionalLandmarks] = useState<Landmark[]>([]);
-  const [destinationCoordinates, setDestinationCoordinates] = useState<[number, number] | undefined>();
   
   const { tourPlan, plannedLandmarks, isLoading: isTourLoading, generateTour, progressState } = useTourPlanner();
   const { user, signOut } = useAuth();
@@ -69,26 +67,10 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
     }
   }, [onRegisterPostAuthActions, setIsIntelligentTourOpen]);
   
-  // Convert TOP_LANDMARKS to Landmark format and combine with static landmarks
+  // Combine static landmarks with enhanced tour landmarks
   const allLandmarks: (Landmark | EnhancedLandmark)[] = useMemo(() => {
-    // Convert TOP_LANDMARKS to Landmark format
-    const topLandmarksConverted: Landmark[] = TOP_LANDMARKS.map((topLandmark, index) => ({
-      id: `top-landmark-${index}`,
-      name: topLandmark.name,
-      coordinates: topLandmark.coordinates,
-      description: topLandmark.description,
-    }));
-
     const tourLandmarks = tourPlan?.landmarks || [];
-    const combinedLandmarks = [...staticLandmarks, ...topLandmarksConverted, ...tourLandmarks, ...additionalLandmarks];
-    
-    console.log('🗺️ Total landmarks loaded:', combinedLandmarks.length);
-    console.log('🗺️ Static landmarks:', staticLandmarks.length);
-    console.log('🗺️ Top landmarks:', topLandmarksConverted.length);
-    console.log('🗺️ Tour landmarks:', tourLandmarks.length);
-    console.log('🗺️ Additional landmarks:', additionalLandmarks.length);
-    
-    return combinedLandmarks;
+    return [...staticLandmarks, ...tourLandmarks, ...additionalLandmarks];
   }, [tourPlan?.landmarks, additionalLandmarks]);
 
   // Also keep the basic plannedLandmarks for backward compatibility
@@ -178,12 +160,6 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
     setIsAuthDialogOpen(true);
   };
 
-  // PHASE 1: Handle destination selection
-  const handleDestinationSelected = useCallback((coordinates: [number, number]) => {
-    console.log('🎯 Index received destination coordinates:', coordinates);
-    setDestinationCoordinates(coordinates);
-  }, []);
-
   if (showSplash) {
     return <SplashScreen onDismiss={handleSplashDismiss} />;
   }
@@ -224,8 +200,6 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
         onIntelligentTourOpenChange={setIsIntelligentTourOpen}
         onTourGenerated={handleTourGenerated}
         tourPlan={tourPlan}
-        destinationCoordinates={destinationCoordinates}
-        onDestinationSelected={handleDestinationSelected}
       />
       <DebugWindow 
         isVisible={isDebugVisible}

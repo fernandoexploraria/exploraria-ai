@@ -15,7 +15,6 @@ interface IntelligentTourDialogProps {
   onOpenChange: (open: boolean) => void;
   onTourGenerated: (landmarks: any[]) => void;
   onAuthRequired: () => void;
-  onDestinationSelected?: (coordinates: [number, number]) => void;
 }
 
 interface AutocompleteResult {
@@ -45,8 +44,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   open,
   onOpenChange,
   onTourGenerated,
-  onAuthRequired,
-  onDestinationSelected
+  onAuthRequired
 }) => {
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
@@ -171,16 +169,6 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       
       console.log('Destination details retrieved:', detailsData.data);
       setDestinationDetails(detailsData.data);
-
-      // PHASE 1: Emit destination coordinates immediately
-      if (onDestinationSelected && detailsData.data.location) {
-        const coordinates: [number, number] = [
-          detailsData.data.location.longitude,
-          detailsData.data.location.latitude
-        ];
-        console.log('🎯 Emitting destination coordinates:', coordinates);
-        onDestinationSelected(coordinates);
-      }
 
       // Search nearby landmarks with dynamic radius
       const coordinates = [
