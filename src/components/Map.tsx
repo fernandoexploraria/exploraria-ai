@@ -51,6 +51,10 @@ const Map: React.FC<MapProps> = ({
   // Add state to track tour landmarks so useMemo can react to changes
   const [tourLandmarks, setTourLandmarks] = useState<TourLandmark[]>([]);
   
+  // New state to track first tour load and user interaction
+  const [hasHadTourLandmarks, setHasHadTourLandmarks] = useState(false);
+  const [userHasInteracted, setUserHasInteracted] = useState(false);
+  
   // New refs for GeolocateControl management
   const geolocateControl = useRef<mapboxgl.GeolocateControl | null>(null);
   const isUpdatingFromProximitySettings = useRef<boolean>(false);
@@ -122,6 +126,49 @@ const Map: React.FC<MapProps> = ({
     console.log('🗺️ Total landmarks for map:', result.length);
     return result;
   }, [landmarks, tourLandmarks]); // Now properly depends on tourLandmarks state
+
+  // NEW: Effect to detect first tour landmarks load and fly to them
+  useEffect(() => {
+    if (!map.current || userHasInteracted) {
+      return;
+    }
+
+    // Check if we just got our first tour landmarks
+    const currentHasTourLandmarks = tourLandmarks.length > 0;
+    
+    if (currentHasTourLandmarks && !hasHadTourLandmarks) {
+      console.log('🎯 First tour landmarks detected, flying to tour area:', tourLandmarks.length);
+      setHasHadTourLandmarks(true);
+      
+      // Convert tour landmarks to coordinates for bounds calculation
+      const tourCoordinates = tourLandmarks.map(landmark => landmark.coordinates);
+      
+      if (tourCoordinates.length === 1) {
+        // Single landmark - fly to it with appropriate zoom
+        console.log('🎯 Flying to single tour landmark');
+        map.current.flyTo({
+          center: tourCoordinates[0],
+          zoom: 12,
+          speed: 0.8,
+          curve: 1.2,
+          duration: 2500,
+        });
+      } else if (tourCoordinates.length > 1) {
+        // Multiple landmarks - fit bounds to show all
+        console.log('🎯 Flying to fit all tour landmarks');
+        const bounds = new mapboxgl.LngLatBounds();
+        tourCoordinates.forEach(coord => bounds.extend(coord));
+        
+        map.current.fitBounds(bounds, {
+          padding: 100,
+          speed: 0.8,
+          curve: 1.2,
+          duration: 2500,
+          maxZoom: 14,
+        });
+      }
+    }
+  }, [tourLandmarks, hasHadTourLandmarks, userHasInteracted]);
 
   // Function to store map marker interaction
   const storeMapMarkerInteraction = async (landmark: Landmark, imageUrl?: string) => {
@@ -199,6 +246,18 @@ const Map: React.FC<MapProps> = ({
 
       // Set the markers reference for tour landmarks management
       setMapMarkersRef(markers, photoPopups);
+
+      // Track user interactions to prevent auto-fly after user has interacted
+      const trackUserInteraction = () => {
+        console.log('🖱️ User interaction detected, disabling auto-fly');
+        setUserHasInteracted(true);
+      };
+
+      // Add user interaction listeners
+      map.current.on('mousedown', trackUserInteraction);
+      map.current.on('touchstart', trackUserInteraction);
+      map.current.on('wheel', trackUserInteraction);
+      map.current.on('dragstart', trackUserInteraction);
 
       // Add location control for authenticated users
       if (user) {
