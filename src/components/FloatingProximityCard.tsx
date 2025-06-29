@@ -1,13 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
-import { X, MapPin, Star, Navigation, Search, Clock, Utensils, Coffee, Car, Plus } from 'lucide-react';
+import { X, MapPin, Star, Navigation, Clock, Utensils, Coffee, Car, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { Landmark } from '@/data/landmarks';
 import { toast } from 'sonner';
+import ProximityAutocomplete from './ProximityAutocomplete';
 
 interface NearbyService {
   place_id: string;
@@ -37,8 +37,10 @@ interface AutocompleteSuggestion {
   place_id: string;
   description: string;
   types: string[];
-  icon: string;
-  label: string;
+  structured_formatting?: {
+    main_text: string;
+    secondary_text: string;
+  };
 }
 
 interface FloatingProximityCardProps {
@@ -76,25 +78,12 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = ({
   const [nearbyServices, setNearbyServices] = useState<NearbyService[]>([]);
   const [selectedService, setSelectedService] = useState<NearbyService | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchSuggestions, setSearchSuggestions] = useState<AutocompleteSuggestion[]>([]);
   const [isLoadingNearby, setIsLoadingNearby] = useState(true);
-  const [isSearching, setIsSearching] = useState(false);
-  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Load nearby services when component mounts
   useEffect(() => {
     loadNearbyServices();
   }, [landmark]);
-
-  // Handle search input changes with autocomplete
-  useEffect(() => {
-    if (searchQuery.length >= 2) {
-      handleSearchInput();
-    } else {
-      setSearchSuggestions([]);
-      setShowSuggestions(false);
-    }
-  }, [searchQuery]);
 
   const loadNearbyServices = async () => {
     try {
@@ -138,48 +127,6 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = ({
     }
   };
 
-  const handleSearchInput = async () => {
-    try {
-      setIsSearching(true);
-
-      const { data, error } = await supabase.functions.invoke('google-places-autocomplete', {
-        body: {
-          input: searchQuery,
-          types: TOURIST_SERVICE_TYPES,
-          sessionToken: `proximity-search-${Date.now()}`,
-          locationBias: {
-            circle: {
-              center: {
-                latitude: landmark.coordinates[1],
-                longitude: landmark.coordinates[0]
-              },
-              radius: 1000 // 1km radius from landmark
-            }
-          }
-        }
-      });
-
-      if (error) throw error;
-
-      if (data?.suggestions) {
-        const formattedSuggestions: AutocompleteSuggestion[] = data.suggestions.map((suggestion: any) => ({
-          place_id: suggestion.placePrediction.placeId,
-          description: suggestion.placePrediction.text.text,
-          types: suggestion.placePrediction.types || [],
-          icon: suggestion.icon || 'mapPin',
-          label: suggestion.label || 'Place'
-        }));
-
-        setSearchSuggestions(formattedSuggestions);
-        setShowSuggestions(true);
-      }
-    } catch (error) {
-      console.error('Search autocomplete error:', error);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
   const handleSuggestionSelect = async (suggestion: AutocompleteSuggestion) => {
     try {
       // Get place details for the selected suggestion
@@ -194,8 +141,6 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = ({
 
       if (data?.result) {
         setSelectedService(data.result);
-        setSearchQuery(suggestion.description);
-        setShowSuggestions(false);
       }
     } catch (error) {
       console.error('Failed to get place details:', error);
@@ -325,37 +270,23 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = ({
           </Button>
         </div>
         
-        {/* Search input with autocomplete */}
-        <div className="relative">
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-            <Input
-              placeholder="Search nearby services..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-7 h-7 text-xs"
-              onFocus={() => searchSuggestions.length > 0 && setShowSuggestions(true)}
-            />
-          </div>
-          
-          {/* Autocomplete suggestions */}
-          {showSuggestions && searchSuggestions.length > 0 && (
-            <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-md shadow-lg z-10 max-h-32 overflow-y-auto">
-              {searchSuggestions.map((suggestion) => (
-                <button
-                  key={suggestion.place_id}
-                  className="w-full px-3 py-2 text-left text-xs hover:bg-gray-50 border-b last:border-b-0"
-                  onClick={() => handleSuggestionSelect(suggestion)}
-                >
-                  <div className="flex items-center gap-2">
-                    {getServiceIcon(suggestion.types)}
-                    <span className="truncate">{suggestion.description}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Enhanced search input with ProximityAutocomplete */}
+        <ProximityAutocomplete
+          placeholder="Search nearby services..."
+          value={searchQuery}
+          onChange={setSearchQuery}
+          onSuggestionSelect={handleSuggestionSelect}
+          locationBias={{
+            circle: {
+              center: {
+                latitude: landmark.coordinates[1],
+                longitude: landmark.coordinates[0]
+              },
+              radius: 1000 // 1km radius from landmark
+            }
+          }}
+          serviceTypes={TOURIST_SERVICE_TYPES}
+        />
       </CardHeader>
 
       <CardContent className="pt-0">
