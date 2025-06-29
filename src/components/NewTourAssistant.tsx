@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -15,7 +14,6 @@ interface NewTourAssistantProps {
   destination: string;
   landmarks: Landmark[];
   systemPrompt?: string;
-  onDialogClose?: () => void;
 }
 
 type AssistantState = 'not-started' | 'started' | 'listening' | 'recording' | 'playback';
@@ -25,8 +23,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   onOpenChange, 
   destination, 
   landmarks,
-  systemPrompt,
-  onDialogClose
+  systemPrompt 
 }) => {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -95,13 +92,6 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       console.log('Successfully connected to ElevenLabs agent');
       setAssistantState('started');
       setConnectionError(null);
-      
-      // Close the calling dialog after successful connection
-      if (onDialogClose) {
-        console.log('🎯 Closing tour generation dialog after successful connection');
-        onDialogClose();
-      }
-      
       toast({
         title: "Connected",
         description: "Tour guide is ready! Start speaking now.",

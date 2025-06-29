@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube, MapPin, ToggleLeft, ToggleRight } from 'lucide-react';
@@ -16,7 +15,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import IntelligentTourDialog from './IntelligentTourDialog';
 import AuthDialog from './AuthDialog';
-import NewTourAssistant from './NewTourAssistant';
 import { useAuth } from '@/components/AuthProvider';
 import { PostAuthAction } from '@/utils/authActions';
 
@@ -54,12 +52,6 @@ const TopControls: React.FC<TopControlsProps> = ({
   const [isTestingCors, setIsTestingCors] = useState(false);
   const [isIntelligentTourOpen, setIsIntelligentTourOpen] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
-  const [isTourAssistantOpen, setIsTourAssistantOpen] = useState(false);
-  const [tourAssistantData, setTourAssistantData] = useState<{
-    destination: string;
-    landmarks: any[];
-    systemPrompt?: string;
-  } | null>(null);
   const { toast } = useToast();
   const { isDemoMode, toggleDemoMode } = useDemoMode();
   
@@ -132,16 +124,6 @@ const TopControls: React.FC<TopControlsProps> = ({
       title: "Tour Generated!",
       description: `${landmarks.length} amazing places added to your map`,
     });
-  };
-
-  const handleTourReadyForVoice = (tourData: { destination: string; systemPrompt: string; landmarks: any[]; }) => {
-    console.log('🎯 Opening tour assistant with:', { destination: tourData.destination, landmarkCount: tourData.landmarks.length });
-    setTourAssistantData({ 
-      destination: tourData.destination, 
-      landmarks: tourData.landmarks, 
-      systemPrompt: tourData.systemPrompt 
-    });
-    setIsTourAssistantOpen(true);
   };
 
   const handleAuthRequired = () => {
@@ -309,7 +291,6 @@ const TopControls: React.FC<TopControlsProps> = ({
         onOpenChange={setIsIntelligentTourOpen}
         onTourGenerated={handleTourGenerated}
         onAuthRequired={handleAuthRequired}
-        onTourReadyForVoice={handleTourReadyForVoice}
       />
 
       <AuthDialog
@@ -317,17 +298,6 @@ const TopControls: React.FC<TopControlsProps> = ({
         onOpenChange={setIsAuthDialogOpen}
         postAuthAction="smart-tour"
       />
-
-      {tourAssistantData && (
-        <NewTourAssistant
-          open={isTourAssistantOpen}
-          onOpenChange={setIsTourAssistantOpen}
-          destination={tourAssistantData.destination}
-          landmarks={tourAssistantData.landmarks}
-          systemPrompt={tourAssistantData.systemPrompt}
-          onDialogClose={() => setIsIntelligentTourOpen(false)}
-        />
-      )}
     </>
   );
 };
