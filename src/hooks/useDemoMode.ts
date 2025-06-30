@@ -7,10 +7,10 @@ export const useDemoMode = () => {
   const [isDemoMode, setIsDemoMode] = useState(() => {
     try {
       const saved = localStorage.getItem(DEMO_MODE_KEY);
-      return saved ? JSON.parse(saved) : false;
+      return saved ? JSON.parse(saved) : true; // Changed from false to true
     } catch (error) {
       console.warn('Failed to read demo mode from localStorage:', error);
-      return false;
+      return true; // Changed from false to true
     }
   });
 
