@@ -1,3 +1,4 @@
+
 export interface Landmark {
   id: string;
   name: string;
@@ -9,6 +10,16 @@ export interface Landmark {
   placeId?: string;
   formattedAddress?: string;
   tourId?: string; // 🔥 NEW: Optional tour_id for database-linked landmarks
+}
+
+export interface EnhancedLandmark extends Landmark {
+  placeId?: string;
+  coordinateSource: string;
+  confidence: number;
+  rating?: number;
+  photos?: string[];
+  types?: string[];
+  formattedAddress?: string;
 }
 
 export const landmarks: Landmark[] = [
