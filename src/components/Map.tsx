@@ -164,7 +164,7 @@ const Map: React.FC<MapProps> = ({
     };
   }, [mapboxToken, initialize, cleanup]);
 
-  // Set initial load state when map loads - remove map from dependencies
+  // Set initial load state when map loads
   useEffect(() => {
     if (!map) return;
 
@@ -177,9 +177,13 @@ const Map: React.FC<MapProps> = ({
       handleMapLoad();
     } else {
       map.on('load', handleMapLoad);
-      return () => map.off('load', handleMapLoad);
+      return () => {
+        if (map) {
+          map.off('load', handleMapLoad);
+        }
+      };
     }
-  }, [!!map]); // Use boolean conversion to avoid map object in dependencies
+  }, [map]);
 
   // Add all landmarks markers - only update when landmarks or map readiness changes
   useEffect(() => {
@@ -215,7 +219,7 @@ const Map: React.FC<MapProps> = ({
         console.warn('⚠️ Error creating marker for landmark:', landmark.name, error);
       }
     });
-  }, [allLandmarks, handleLandmarkSelect, initialLoad, !!map]);
+  }, [allLandmarks, handleLandmarkSelect, initialLoad, map]);
 
   // Handle selected landmark changes
   useEffect(() => {
@@ -319,7 +323,7 @@ const Map: React.FC<MapProps> = ({
         console.warn('⚠️ Error fitting bounds for tour landmarks:', error);
       }
     }
-  }, [plannedLandmarks, handleLandmarkSelect, !!map]);
+  }, [plannedLandmarks, handleLandmarkSelect, map]);
 
   return <div ref={mapContainerRef} className="map-container" style={{ height: '100vh' }} />;
 };
