@@ -37,6 +37,7 @@ const Map: React.FC<MapProps> = ({
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
+  const markers = useRef<{ [key: string]: mapboxgl.Marker }>({});
   const imageCache = useRef<{ [key: string]: string }>({});
   const enhancedPhotosCache = useRef<{ [key: string]: PhotoData[] }>({});
   const photoPopups = useRef<{ [key: string]: mapboxgl.Popup }>({});
@@ -46,7 +47,6 @@ const Map: React.FC<MapProps> = ({
   const currentAudio = useRef<HTMLAudioElement | null>(null);
   const navigationMarkers = useRef<{ marker: mapboxgl.Marker; interaction: any }[]>([]);
   const currentRouteLayer = useRef<string | null>(null);
-  const layersInitialized = useRef<boolean>(false);
   
   // Add state to track tour landmarks so useMemo can react to changes
   const [tourLandmarks, setTourLandmarks] = useState<TourLandmark[]>([]);
@@ -96,174 +96,32 @@ const Map: React.FC<MapProps> = ({
     return () => clearInterval(interval);
   }, [tourLandmarks.length]);
 
-  // Convert landmarks to GeoJSON format
-  const createGeoJSONFromLandmarks = useCallback((landmarksArray: any[], type: 'tour' | 'top' | 'regular') => {
-    return {
-      type: 'FeatureCollection' as const,
-      features: landmarksArray.map((landmark, index) => ({
-        type: 'Feature' as const,
-        id: landmark.id || `${type}-landmark-${index}`,
-        properties: {
-          id: landmark.id || `${type}-landmark-${index}`,
-          name: landmark.name,
-          description: landmark.description,
-          type: type
-        },
-        geometry: {
-          type: 'Point' as const,
-          coordinates: landmark.coordinates
-        }
-      }))
-    };
-  }, []);
-
-  // Initialize map layers
-  const initializeLayers = useCallback(() => {
-    if (!map.current || layersInitialized.current) return;
-
-    console.log('🗺️ Initializing map layers...');
-
-    // Add sources for each layer
-    map.current.addSource('tour-landmarks', {
-      type: 'geojson',
-      data: createGeoJSONFromLandmarks([], 'tour')
+  // Convert top landmarks and tour landmarks to Landmark format with proper state dependency
+  const allLandmarksWithTop = React.useMemo(() => {
+    console.log('🗺️ Rebuilding landmarks list:', {
+      baseLandmarks: landmarks.length,
+      topLandmarks: TOP_LANDMARKS.length,
+      tourLandmarks: tourLandmarks.length
     });
-
-    map.current.addSource('top-landmarks', {
-      type: 'geojson',
-      data: createGeoJSONFromLandmarks(TOP_LANDMARKS, 'top')
-    });
-
-    map.current.addSource('regular-landmarks', {
-      type: 'geojson',
-      data: createGeoJSONFromLandmarks(landmarks, 'regular')
-    });
-
-    // Add layers with different styling
-    map.current.addLayer({
-      id: 'tour-landmarks-layer',
-      type: 'circle',
-      source: 'tour-landmarks',
-      paint: {
-        'circle-radius': 8,
-        'circle-color': '#4ade80', // green-400
-        'circle-stroke-width': 2,
-        'circle-stroke-color': '#ffffff'
-      }
-    });
-
-    map.current.addLayer({
-      id: 'top-landmarks-layer',
-      type: 'circle',
-      source: 'top-landmarks',
-      paint: {
-        'circle-radius': 8,
-        'circle-color': '#facc15', // yellow-400
-        'circle-stroke-width': 2,
-        'circle-stroke-color': '#ffffff'
-      }
-    });
-
-    map.current.addLayer({
-      id: 'regular-landmarks-layer',
-      type: 'circle',
-      source: 'regular-landmarks',
-      paint: {
-        'circle-radius': 8,
-        'circle-color': '#22d3ee', // cyan-400
-        'circle-stroke-width': 2,
-        'circle-stroke-color': '#ffffff'
-      }
-    });
-
-    // Add click handlers for each layer
-    ['tour-landmarks-layer', 'top-landmarks-layer', 'regular-landmarks-layer'].forEach(layerId => {
-      map.current!.on('click', layerId, async (e) => {
-        if (e.features && e.features.length > 0) {
-          const feature = e.features[0];
-          const landmark: Landmark = {
-            id: feature.properties!.id,
-            name: feature.properties!.name,
-            description: feature.properties!.description,
-            coordinates: feature.geometry.coordinates as [number, number]
-          };
-
-          console.log('Layer marker clicked:', landmark.name);
-          
-          // Check current zoom level and zoom in if needed
-          const currentZoom = map.current?.getZoom() || 1.5;
-          if (currentZoom < 10) {
-            isZooming.current = true;
-            pendingPopupLandmark.current = landmark;
-            map.current?.flyTo({
-              center: landmark.coordinates,
-              zoom: 16,
-              speed: 0.3,
-              curve: 1,
-              easing: (t) => t,
-            });
-          } else {
-            // Show popup immediately for marker clicks when already zoomed
-            showLandmarkPopup(landmark);
-          }
-          
-          // Call the landmark selection handler to update the selected landmark
-          onSelectLandmark(landmark);
-        }
-      });
-
-      // Add hover effects
-      map.current!.on('mouseenter', layerId, () => {
-        map.current!.getCanvas().style.cursor = 'pointer';
-      });
-
-      map.current!.on('mouseleave', layerId, () => {
-        map.current!.getCanvas().style.cursor = '';
-      });
-    });
-
-    layersInitialized.current = true;
-    console.log('🗺️ Map layers initialized successfully');
-  }, [landmarks, createGeoJSONFromLandmarks, onSelectLandmark]);
-
-  // Update layer functions
-  const updateTourLandmarksLayer = useCallback(() => {
-    if (!map.current || !layersInitialized.current) return;
     
-    console.log('🔄 Updating tour landmarks layer with', tourLandmarks.length, 'landmarks');
-    const source = map.current.getSource('tour-landmarks') as mapboxgl.GeoJSONSource;
-    if (source) {
-      source.setData(createGeoJSONFromLandmarks(tourLandmarks, 'tour'));
-    }
-  }, [tourLandmarks, createGeoJSONFromLandmarks]);
-
-  const updateTopLandmarksLayer = useCallback(() => {
-    if (!map.current || !layersInitialized.current) return;
+    const topLandmarksConverted: Landmark[] = TOP_LANDMARKS.map((topLandmark, index) => ({
+      id: `top-landmark-${index}`,
+      name: topLandmark.name,
+      coordinates: topLandmark.coordinates,
+      description: topLandmark.description
+    }));
     
-    const source = map.current.getSource('top-landmarks') as mapboxgl.GeoJSONSource;
-    if (source) {
-      source.setData(createGeoJSONFromLandmarks(TOP_LANDMARKS, 'top'));
-    }
-  }, [createGeoJSONFromLandmarks]);
-
-  const updateRegularLandmarksLayer = useCallback(() => {
-    if (!map.current || !layersInitialized.current) return;
+    const tourLandmarksConverted: Landmark[] = tourLandmarks.map((tourLandmark, index) => ({
+      id: `tour-landmark-${index}`,
+      name: tourLandmark.name,
+      coordinates: tourLandmark.coordinates,
+      description: tourLandmark.description
+    }));
     
-    const source = map.current.getSource('regular-landmarks') as mapboxgl.GeoJSONSource;
-    if (source) {
-      source.setData(createGeoJSONFromLandmarks(landmarks, 'regular'));
-    }
-  }, [landmarks, createGeoJSONFromLandmarks]);
-
-  const clearTourLandmarksLayer = useCallback(() => {
-    if (!map.current || !layersInitialized.current) return;
-    
-    console.log('🧹 Clearing tour landmarks layer');
-    const source = map.current.getSource('tour-landmarks') as mapboxgl.GeoJSONSource;
-    if (source) {
-      source.setData(createGeoJSONFromLandmarks([], 'tour'));
-    }
-  }, [createGeoJSONFromLandmarks]);
+    const result = [...landmarks, ...topLandmarksConverted, ...tourLandmarksConverted];
+    console.log('🗺️ Total landmarks for map:', result.length);
+    return result;
+  }, [landmarks, tourLandmarks]); // Now properly depends on tourLandmarks state
 
   // Function to store map marker interaction
   const storeMapMarkerInteraction = async (landmark: Landmark, imageUrl?: string) => {
@@ -339,10 +197,8 @@ const Map: React.FC<MapProps> = ({
 
       console.log('🗺️ [Map] Map instance created successfully');
 
-      // Initialize layers after map loads
-      map.current.on('load', () => {
-        initializeLayers();
-      });
+      // Set the markers reference for tour landmarks management
+      setMapMarkersRef(markers, photoPopups);
 
       // Add location control for authenticated users
       if (user) {
@@ -445,12 +301,11 @@ const Map: React.FC<MapProps> = ({
 
       // Close all popups when clicking on the map
       map.current.on('click', (e) => {
-        // Check if the click was on a feature
-        const features = map.current!.queryRenderedFeatures(e.point, {
-          layers: ['tour-landmarks-layer', 'top-landmarks-layer', 'regular-landmarks-layer']
-        });
+        // Check if the click was on a marker by looking for our marker class
+        const clickedElement = e.originalEvent.target as HTMLElement;
+        const isMarkerClick = clickedElement.closest('.w-4.h-4.rounded-full') || clickedElement.closest('.w-6.h-6.rounded-full');
         
-        if (features.length === 0) {
+        if (!isMarkerClick) {
           // Stop any playing audio
           stopCurrentAudio();
           
@@ -500,25 +355,11 @@ const Map: React.FC<MapProps> = ({
         geolocateControl.current = null;
         map.current?.remove();
         map.current = null;
-        layersInitialized.current = false;
       };
     } catch (error) {
       console.error('🗺️ [Map] Error during map initialization:', error);
     }
-  }, [mapboxToken, user, initializeLayers]);
-
-  // Update layers when data changes
-  useEffect(() => {
-    updateTourLandmarksLayer();
-  }, [updateTourLandmarksLayer]);
-
-  useEffect(() => {
-    updateRegularLandmarksLayer();
-  }, [updateRegularLandmarksLayer]);
-
-  useEffect(() => {
-    updateTopLandmarksLayer();
-  }, [updateTopLandmarksLayer]);
+  }, [mapboxToken, user]);
 
   // Effect to handle proximity settings changes and sync with GeolocateControl
   useEffect(() => {
@@ -980,6 +821,85 @@ const Map: React.FC<MapProps> = ({
     }
   };
 
+  // Update markers when landmarks change
+  useEffect(() => {
+    if (!map.current) return;
+
+    const landmarkIds = new Set(allLandmarksWithTop.map(l => l.id));
+
+    // Remove markers that are no longer in the landmarks list
+    Object.keys(markers.current).forEach(markerId => {
+      if (!landmarkIds.has(markerId)) {
+        markers.current[markerId].remove();
+        delete markers.current[markerId];
+        if (photoPopups.current[markerId]) {
+          if (popupRoots.current[markerId]) {
+            popupRoots.current[markerId].unmount();
+            delete popupRoots.current[markerId];
+          }
+          photoPopups.current[markerId].remove();
+          delete photoPopups.current[markerId];
+        }
+      }
+    });
+
+    // Add new markers
+    allLandmarksWithTop.forEach((landmark) => {
+      if (!markers.current[landmark.id]) {
+        const el = document.createElement('div');
+        
+        // Different styling for different landmark types
+        const isTopLandmark = landmark.id.startsWith('top-landmark-');
+        const isTourLandmark = landmark.id.startsWith('tour-landmark-');
+        
+        let markerColor;
+        if (isTopLandmark) {
+          markerColor = 'bg-yellow-400';
+        } else if (isTourLandmark) {
+          markerColor = 'bg-green-400';
+        } else {
+          markerColor = 'bg-cyan-400';
+        }
+        
+        el.className = `w-4 h-4 rounded-full ${markerColor} border-2 border-white shadow-lg cursor-pointer transition-transform duration-300 hover:scale-125`;
+        el.style.transition = 'background-color 0.3s, transform 0.3s';
+        
+        const marker = new mapboxgl.Marker(el)
+          .setLngLat(landmark.coordinates)
+          .addTo(map.current!);
+
+        marker.getElement().addEventListener('click', async (e) => {
+          e.stopPropagation(); // Prevent map click event
+          
+          console.log('Marker clicked:', landmark.name);
+          
+          // Check current zoom level and zoom in if needed
+          const currentZoom = map.current?.getZoom() || 1.5;
+          if (currentZoom < 10) {
+            isZooming.current = true;
+            pendingPopupLandmark.current = landmark;
+            map.current?.flyTo({
+              center: landmark.coordinates,
+              zoom: 16,
+              speed: 0.3,
+              curve: 1,
+              easing: (t) => t,
+            });
+          } else {
+            // Show popup immediately for marker clicks when already zoomed
+            showLandmarkPopup(landmark);
+          }
+          
+          // Call the landmark selection handler to update the selected landmark
+          onSelectLandmark(landmark);
+        });
+
+        markers.current[landmark.id] = marker;
+      }
+    });
+
+  }, [allLandmarksWithTop, playingAudio, onSelectLandmark]);
+
   // Fly to selected landmark and update marker styles
   useEffect(() => {
     if (map.current && selectedLandmark) {
@@ -1017,33 +937,26 @@ const Map: React.FC<MapProps> = ({
       }
     }
 
-    // Update layer styling for selected landmark
-    if (map.current && layersInitialized.current) {
-      ['tour-landmarks-layer', 'top-landmarks-layer', 'regular-landmarks-layer'].forEach(layerId => {
-        const filter = selectedLandmark 
-          ? ['==', 'id', selectedLandmark.id]
-          : ['==', 'id', ''];
-        
-        // Add a selected state layer if it doesn't exist
-        const selectedLayerId = `${layerId}-selected`;
-        if (!map.current!.getLayer(selectedLayerId)) {
-          map.current!.addLayer({
-            id: selectedLayerId,
-            type: 'circle',
-            source: layerId.replace('-layer', ''),
-            paint: {
-              'circle-radius': 12,
-              'circle-color': '#f87171', // red-400
-              'circle-stroke-width': 2,
-              'circle-stroke-color': '#ffffff'
-            },
-            filter: filter
-          });
+    Object.entries(markers.current).forEach(([id, marker]) => {
+      const element = marker.getElement();
+      const isSelected = id === selectedLandmark?.id;
+      const isTopLandmark = id.startsWith('top-landmark-');
+      const isTourLandmark = id.startsWith('tour-landmark-');
+      
+      if (isSelected) {
+        element.style.backgroundColor = '#f87171'; // red-400
+        element.style.transform = 'scale(1.5)';
+      } else {
+        if (isTopLandmark) {
+          element.style.backgroundColor = '#facc15'; // yellow-400
+        } else if (isTourLandmark) {
+          element.style.backgroundColor = '#4ade80'; // green-400
         } else {
-          map.current!.setFilter(selectedLayerId, filter);
+          element.style.backgroundColor = '#22d3ee'; // cyan-400
         }
-      });
-    }
+        element.style.transform = 'scale(1)';
+      }
+    });
   }, [selectedLandmark]);
 
   // Zooms to fit planned landmarks when a new tour is generated
@@ -1355,12 +1268,11 @@ const Map: React.FC<MapProps> = ({
     if (!map.current) return;
 
     const handleMapClick = (e: mapboxgl.MapMouseEvent) => {
-      // Check if the click was on a feature
-      const features = map.current!.queryRenderedFeatures(e.point, {
-        layers: ['tour-landmarks-layer', 'top-landmarks-layer', 'regular-landmarks-layer']
-      });
+      // Check if the click was on a marker by looking for our marker class
+      const clickedElement = e.originalEvent.target as HTMLElement;
+      const isMarkerClick = clickedElement.closest('.w-4.h-4.rounded-full') || clickedElement.closest('.w-6.h-6.rounded-full');
       
-      if (features.length === 0) {
+      if (!isMarkerClick) {
         // Stop any playing audio
         stopCurrentAudio();
         
@@ -1405,7 +1317,6 @@ const Map: React.FC<MapProps> = ({
     (window as any).navigateToMapCoordinates = navigateToCoordinates;
     (window as any).stopCurrentAudio = stopCurrentAudio;
     (window as any).showRouteOnMap = showRouteOnMap;
-    (window as any).clearTourLandmarks = clearTourLandmarksLayer;
     
     // Add global handler for interaction listen button
     (window as any).handleInteractionListen = (interactionId: string) => {
@@ -1419,20 +1330,7 @@ const Map: React.FC<MapProps> = ({
     // Add global handler for Street View button with better debugging
     (window as any).handleStreetViewOpen = async (landmarkId: string) => {
       console.log('🔍 handleStreetViewOpen called with landmark ID:', landmarkId);
-      // Need to search all landmark sources for the ID
-      const allLandmarks = [...landmarks, ...TOP_LANDMARKS.map((tl, idx) => ({
-        id: `top-landmark-${idx}`,
-        name: tl.name,
-        coordinates: tl.coordinates,
-        description: tl.description
-      })), ...tourLandmarks.map((tl, idx) => ({
-        id: `tour-landmark-${idx}`,
-        name: tl.name,
-        coordinates: tl.coordinates,
-        description: tl.description
-      }))];
-      
-      const targetLandmark = allLandmarks.find(l => l.id === landmarkId);
+      const targetLandmark = allLandmarksWithTop.find(l => l.id === landmarkId);
       console.log('🎯 Found landmark:', targetLandmark?.name);
       
       if (targetLandmark) {
@@ -1451,7 +1349,7 @@ const Map: React.FC<MapProps> = ({
     // Add test function for debugging
     (window as any).testStreetViewModal = async () => {
       console.log('🧪 Testing Street View modal with first available landmark...');
-      const testLandmark = landmarks[0];
+      const testLandmark = allLandmarksWithTop[0];
       if (testLandmark) {
         console.log('🧪 Test landmark:', testLandmark.name);
         await openStreetViewModal([testLandmark], testLandmark);
@@ -1464,11 +1362,10 @@ const Map: React.FC<MapProps> = ({
       delete (window as any).handleInteractionListen;
       delete (window as any).stopCurrentAudio;
       delete (window as any).showRouteOnMap;
-      delete (window as any).clearTourLandmarks;
       delete (window as any).handleStreetViewOpen;
       delete (window as any).testStreetViewModal;
     };
-  }, [showRouteOnMap, navigateToCoordinates, openStreetViewModal, landmarks, tourLandmarks, clearTourLandmarksLayer]);
+  }, [showRouteOnMap, navigateToCoordinates, openStreetViewModal, allLandmarksWithTop]);
 
   return (
     <>
