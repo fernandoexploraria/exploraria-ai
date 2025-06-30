@@ -32,6 +32,9 @@ major_version = 15
 [functions.elevenlabs-webhook]
 verify_jwt = false
 
+[functions.get-tour-details]
+verify_jwt = false
+
 [functions.google-places-autocomplete]
 verify_jwt = false
 

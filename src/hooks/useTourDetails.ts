@@ -28,13 +28,19 @@ export const useTourDetails = (landmarks: any[]) => {
       setError(null);
 
       try {
+        console.log('📡 Calling get-tour-details function...');
         const { data, error } = await supabase.functions.invoke('get-tour-details', {
           body: { tourId: firstLandmarkWithTourId.tourId }
         });
 
         if (error) {
-          console.error('❌ Error fetching tour details:', error);
-          throw error;
+          console.error('❌ Supabase function error:', error);
+          throw new Error(`Function error: ${error.message || 'Unknown error'}`);
+        }
+
+        if (!data) {
+          console.error('❌ No data returned from function');
+          throw new Error('No data returned from tour details function');
         }
 
         console.log('✅ Successfully fetched tour details:', data);
@@ -42,7 +48,20 @@ export const useTourDetails = (landmarks: any[]) => {
 
       } catch (err) {
         console.error('❌ Failed to fetch tour details:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch tour details');
+        
+        // Enhanced error handling
+        let errorMessage = 'Failed to fetch tour details';
+        if (err instanceof Error) {
+          if (err.message.includes('CORS')) {
+            errorMessage = 'CORS error - function may not be deployed correctly';
+          } else if (err.message.includes('Failed to send a request')) {
+            errorMessage = 'Network error - function may not be available';
+          } else {
+            errorMessage = err.message;
+          }
+        }
+        
+        setError(errorMessage);
         setTourDetails(null);
       } finally {
         setIsLoading(false);

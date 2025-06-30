@@ -6,27 +6,33 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
 serve(async (req) => {
+  console.log('🚀 get-tour-details function called with method:', req.method);
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('✅ Handling CORS preflight request');
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
+    console.log('📝 Processing request body...');
     const { tourId } = await req.json();
 
     if (!tourId) {
+      console.error('❌ Tour ID is required');
       throw new Error('Tour ID is required');
     }
+
+    console.log('🔍 Fetching tour details for tour ID:', tourId);
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
-
-    console.log('🔍 Fetching tour details for tour ID:', tourId);
 
     // Fetch tour details from the database
     const { data: tourData, error: tourError } = await supabase
@@ -50,20 +56,26 @@ serve(async (req) => {
       hasSystemPrompt: !!tourData.system_prompt
     });
 
+    const response = {
+      destination: tourData.destination,
+      systemPrompt: tourData.system_prompt
+    };
+
     return new Response(
-      JSON.stringify({
-        destination: tourData.destination,
-        systemPrompt: tourData.system_prompt
-      }),
+      JSON.stringify(response),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
       }
     );
 
   } catch (error) {
     console.error('❌ Error in get-tour-details function:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        details: 'Check function logs for more information'
+      }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
