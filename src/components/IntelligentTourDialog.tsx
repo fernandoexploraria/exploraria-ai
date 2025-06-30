@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/AuthProvider';
 import { getPlaceTypeIcon, getPlaceTypeLabel } from '@/utils/placeTypeIcons';
-import { setTourLandmarks } from '@/data/tourLandmarks';
+import { setTourLandmarks, clearTourMarkers } from '@/data/tourLandmarks';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useMarkerLoadingState } from '@/hooks/useMarkerLoadingState';
 
@@ -76,14 +76,26 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
     }
   }, [open, sessionToken]);
 
-  // Reset dialog state whenever it opens
+  // Enhanced reset and cleanup when dialog opens
   React.useEffect(() => {
     if (open) {
+      console.log('🎯 IntelligentTourDialog opened - performing enhanced cleanup');
+      
+      // Clear existing tour markers immediately
+      clearTourMarkers();
+      
+      // Reset dialog state
       resetDialog();
+      
+      // Add a small delay to ensure cleanup completes
+      setTimeout(() => {
+        console.log('🎯 Enhanced cleanup completed');
+      }, 100);
     }
   }, [open]);
 
   const resetDialog = () => {
+    console.log('🔄 Resetting IntelligentTourDialog state');
     setCurrentStep(1);
     setSearchQuery('');
     setAutocompleteResults([]);
@@ -98,6 +110,11 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   };
 
   const handleClose = () => {
+    console.log('🎯 IntelligentTourDialog closing - performing cleanup');
+    // Clear tour markers when dialog closes without completing
+    if (currentStep < 5) {
+      clearTourMarkers();
+    }
     onOpenChange(false);
   };
 
@@ -182,9 +199,15 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   };
 
   const handleDestinationSelect = async (destination: AutocompleteResult) => {
-    console.log('Starting tour generation for user:', user?.id, 'destination:', destination.description);
+    console.log('🚀 Starting enhanced tour generation for user:', user?.id, 'destination:', destination.description);
     
-    // Since we handle auth upfront, we can proceed directly
+    // Clear any existing tour markers before starting new tour
+    console.log('🧹 Clearing existing tour markers before new generation');
+    clearTourMarkers();
+    
+    // Wait a moment for cleanup to complete
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
     setSelectedDestination(destination);
     setCurrentStep(2);
     setIsLoading(true);
@@ -249,7 +272,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       throw new Error('User not authenticated');
     }
 
-    console.log('Generating tour in database for user:', user.id);
+    console.log('🗃️ Generating tour in database for user:', user.id);
 
     try {
       // Create the "Alexis" template system prompt
@@ -342,9 +365,9 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
       // Move to step 4 - preparing map
       setCurrentStep(4);
       
-      // Convert landmarks to expected format for the map - FIXED FORMAT
-      const formattedLandmarks = landmarks.map(landmark => ({
-        id: landmark.placeId || `landmark-${Date.now()}-${Math.random()}`,
+      // Convert landmarks to expected format for the map - ENHANCED FORMAT
+      const formattedLandmarks = landmarks.map((landmark, index) => ({
+        id: landmark.placeId || `landmark-${Date.now()}-${index}`,
         name: landmark.name,
         coordinates: [
           parseFloat(landmark.geometry?.location?.lng || landmark.location?.longitude || 0),
@@ -358,28 +381,38 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
         formattedAddress: landmark.vicinity || landmark.formattedAddress
       }));
 
-      console.log('Formatted landmarks for map:', formattedLandmarks);
-      console.log('Sample landmark coordinates:', formattedLandmarks[0]?.coordinates);
+      console.log('🗺️ Enhanced landmarks for map:', formattedLandmarks.length);
 
-      // Ensure landmarks have valid coordinates before passing to map
+      // Validate coordinates more strictly
       const validLandmarks = formattedLandmarks.filter(landmark => {
         const hasValidCoords = landmark.coordinates && 
           landmark.coordinates.length === 2 && 
           !isNaN(landmark.coordinates[0]) && 
           !isNaN(landmark.coordinates[1]) &&
           landmark.coordinates[0] !== 0 && 
-          landmark.coordinates[1] !== 0;
+          landmark.coordinates[1] !== 0 &&
+          Math.abs(landmark.coordinates[0]) <= 180 &&
+          Math.abs(landmark.coordinates[1]) <= 90;
         
         if (!hasValidCoords) {
-          console.warn('Invalid landmark coordinates:', landmark.name, landmark.coordinates);
+          console.warn('❌ Invalid landmark coordinates:', landmark.name, landmark.coordinates);
+        } else {
+          console.log('✅ Valid landmark coordinates:', landmark.name, landmark.coordinates);
         }
         return hasValidCoords;
       });
 
-      console.log(`Passing ${validLandmarks.length} valid landmarks to map out of ${formattedLandmarks.length} total`);
+      console.log(`🗺️ Passing ${validLandmarks.length} valid landmarks to map out of ${formattedLandmarks.length} total`);
 
-      // Start marker loading state
+      // Enhanced marker loading with cleanup verification
       startMarkerLoading();
+
+      // Ensure complete cleanup before adding new landmarks
+      console.log('🧹 Final cleanup verification before adding new landmarks');
+      clearTourMarkers();
+      
+      // Wait for cleanup to complete
+      await new Promise(resolve => setTimeout(resolve, 300));
 
       // Convert to TourLandmark format and call setTourLandmarks
       const tourLandmarks = validLandmarks.map(landmark => ({
@@ -388,9 +421,10 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
         description: landmark.description
       }));
 
-      console.log('Adding Smart Tour landmarks to TOUR_LANDMARKS array for proximity system:', tourLandmarks.length);
+      console.log('📍 Adding Enhanced Smart Tour landmarks to TOUR_LANDMARKS array:', tourLandmarks.length);
       setTourLandmarks(tourLandmarks);
 
+      // Call onTourGenerated with enhanced landmarks
       onTourGenerated(validLandmarks);
 
       // Wait for markers to load completely before finishing
@@ -403,9 +437,12 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
         description: `Found ${validLandmarks.length} amazing places to explore in ${destination.name}`,
       });
 
-      // Call the voice agent callback if provided
+      // Enhanced voice agent callback with state verification
       if (onTourReadyForVoice) {
-        console.log('🎙️ Calling onTourReadyForVoice callback with tour data');
+        console.log('🎙️ Calling onTourReadyForVoice with enhanced tour data');
+        console.log('🎙️ Tour landmarks count:', validLandmarks.length);
+        console.log('🎙️ Destination:', destination.name);
+        
         onTourReadyForVoice({
           destination: destination.name,
           systemPrompt: alexisPrompt,

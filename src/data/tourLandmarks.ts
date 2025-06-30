@@ -18,19 +18,27 @@ export const setMapMarkersRef = (markersRef: { current: { [key: string]: any } }
   photoPopupsRef = popupsRef;
 };
 
-// Function to clear tour markers from map and array
+// Enhanced function to clear tour markers from map and array
 export const clearTourMarkers = () => {
-  console.log('Clearing tour markers from map...');
+  console.log('🧹 Enhanced clearing of tour markers from map...');
+  
+  let markersRemoved = 0;
+  let popupsRemoved = 0;
   
   if (mapMarkersRef?.current) {
     // Find and remove all tour landmarks from the map
     Object.keys(mapMarkersRef.current).forEach(markerId => {
       if (markerId.startsWith('tour-landmark-')) {
-        console.log('Removing map marker:', markerId);
-        // Remove marker from map
-        mapMarkersRef.current[markerId].remove();
-        // Delete from markers ref
-        delete mapMarkersRef.current[markerId];
+        console.log('🗑️ Removing map marker:', markerId);
+        try {
+          // Remove marker from map
+          mapMarkersRef.current[markerId].remove();
+          // Delete from markers ref
+          delete mapMarkersRef.current[markerId];
+          markersRemoved++;
+        } catch (error) {
+          console.warn('⚠️ Error removing marker:', markerId, error);
+        }
       }
     });
   }
@@ -39,23 +47,61 @@ export const clearTourMarkers = () => {
     // Close any open popups for tour landmarks
     Object.keys(photoPopupsRef.current).forEach(popupId => {
       if (popupId.startsWith('tour-landmark-')) {
-        console.log('Removing popup:', popupId);
-        photoPopupsRef.current[popupId].remove();
-        delete photoPopupsRef.current[popupId];
+        console.log('🗑️ Removing popup:', popupId);
+        try {
+          photoPopupsRef.current[popupId].remove();
+          delete photoPopupsRef.current[popupId];
+          popupsRemoved++;
+        } catch (error) {
+          console.warn('⚠️ Error removing popup:', popupId, error);
+        }
       }
     });
   }
   
   // Clear the landmarks array
+  const landmarksCleared = TOUR_LANDMARKS.length;
   TOUR_LANDMARKS.length = 0;
-  console.log('Tour landmarks array cleared');
+  
+  console.log(`🧹 Enhanced cleanup completed: ${markersRemoved} markers, ${popupsRemoved} popups, ${landmarksCleared} landmarks cleared`);
 };
 
-// Function to clear and set new tour landmarks
+// Enhanced function to clear and set new tour landmarks
 export const setTourLandmarks = (landmarks: TourLandmark[]) => {
-  // Clear existing landmarks and markers first
+  console.log('📍 Enhanced setTourLandmarks called with:', landmarks.length, 'landmarks');
+  
+  // Clear existing landmarks and markers first with verification
   clearTourMarkers();
-  // Add new landmarks
-  TOUR_LANDMARKS.push(...landmarks);
-  console.log('New tour landmarks set:', landmarks.length);
+  
+  // Verify cleanup completed
+  if (TOUR_LANDMARKS.length > 0) {
+    console.warn('⚠️ TOUR_LANDMARKS array not properly cleared, forcing clear');
+    TOUR_LANDMARKS.length = 0;
+  }
+  
+  // Add new landmarks with validation
+  const validLandmarks = landmarks.filter(landmark => {
+    const isValid = landmark.name && 
+      landmark.coordinates && 
+      landmark.coordinates.length === 2 &&
+      !isNaN(landmark.coordinates[0]) && 
+      !isNaN(landmark.coordinates[1]);
+    
+    if (!isValid) {
+      console.warn('⚠️ Invalid landmark filtered out:', landmark);
+    }
+    
+    return isValid;
+  });
+  
+  TOUR_LANDMARKS.push(...validLandmarks);
+  console.log('📍 Enhanced tour landmarks set:', validLandmarks.length, 'valid landmarks added');
+  
+  // Log first few landmarks for verification
+  if (validLandmarks.length > 0) {
+    console.log('📍 Sample landmarks:', validLandmarks.slice(0, 3).map(l => ({
+      name: l.name,
+      coordinates: l.coordinates
+    })));
+  }
 };

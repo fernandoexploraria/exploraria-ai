@@ -105,14 +105,26 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
   };
 
   const handleTourGenerated = (landmarks: any[]) => {
-    // Set generated landmarks as smart tour landmarks
-    setSmartTourLandmarks(landmarks);
+    console.log('🗺️ Tour generated with landmarks:', landmarks.length);
+    // Clear previous smart tour landmarks before setting new ones
+    setSmartTourLandmarks([]);
+    // Wait a moment then set new landmarks
+    setTimeout(() => {
+      setSmartTourLandmarks(landmarks);
+      console.log('🗺️ Smart tour landmarks updated:', landmarks.length);
+    }, 100);
     // Close the intelligent tour dialog
     setIsIntelligentTourOpen(false);
   };
 
-  // Handler for Intelligent Tour - authentication is handled within the dialog now
+  // Handler for Intelligent Tour - with enhanced state cleanup
   const handleIntelligentTourOpen = () => {
+    console.log('🎯 Opening Intelligent Tour dialog - clearing previous state');
+    // Clear previous tour data before opening new tour dialog
+    setVoiceTourData(null);
+    setSmartTourLandmarks([]);
+    // Close voice assistant if open to prevent conflicts
+    setIsNewTourAssistantOpen(false);
     setIsIntelligentTourOpen(true);
   };
 
@@ -121,18 +133,35 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
     setIsAuthDialogOpen(true);
   };
 
-  // Handler for when tour is ready for voice agent
+  // Enhanced handler for when tour is ready for voice agent
   const handleTourReadyForVoice = (tourData: { destination: string; systemPrompt: string; landmarks: any[] }) => {
     console.log('🎙️ Tour ready for voice agent:', tourData.destination);
+    console.log('🎙️ Previous voice tour data:', voiceTourData?.destination || 'none');
     
-    // Store the tour data for the voice assistant
-    setVoiceTourData(tourData);
+    // Clear any existing voice tour data first
+    setVoiceTourData(null);
     
-    // Close the intelligent tour dialog
-    setIsIntelligentTourOpen(false);
-    
-    // Open the voice assistant with the tour data
-    setIsNewTourAssistantOpen(true);
+    // Set the new tour data after a brief delay to ensure cleanup
+    setTimeout(() => {
+      console.log('🎙️ Setting new voice tour data:', tourData.destination);
+      setVoiceTourData(tourData);
+      
+      // Close the intelligent tour dialog
+      setIsIntelligentTourOpen(false);
+      
+      // Open the voice assistant with the new tour data
+      setIsNewTourAssistantOpen(true);
+    }, 200);
+  };
+
+  // Enhanced handler to clear voice data when assistant closes
+  const handleNewTourAssistantOpenChange = (open: boolean) => {
+    setIsNewTourAssistantOpen(open);
+    if (!open) {
+      console.log('🎙️ Voice assistant closed - clearing tour data');
+      // Clear voice tour data when assistant closes
+      setTimeout(() => setVoiceTourData(null), 100);
+    }
   };
 
   if (showSplash) {
@@ -154,7 +183,7 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
         user={user}
         onSelectLandmark={handleSelectLandmark}
         onVoiceSearchOpen={handleInteractionHistoryOpen}
-        onVoiceAssistantOpen={handleNewTourAssistantOpen}
+        onVoiceAssistantOpen={handleIntelligentTourOpen}
         onLogoClick={handleLogoClick}
         onSignOut={signOut}
         onAuthDialogOpen={() => setIsAuthDialogOpen(true)}
@@ -163,7 +192,7 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
         isAuthDialogOpen={isAuthDialogOpen}
         onAuthDialogOpenChange={handleAuthDialogClose}
         isNewTourAssistantOpen={isNewTourAssistantOpen}
-        onNewTourAssistantOpenChange={setIsNewTourAssistantOpen}
+        onNewTourAssistantOpenChange={handleNewTourAssistantOpenChange}
         isIntelligentTourOpen={isIntelligentTourOpen}
         onIntelligentTourOpenChange={setIsIntelligentTourOpen}
         onTourGenerated={handleTourGenerated}
