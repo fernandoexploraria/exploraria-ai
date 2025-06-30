@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import SplashScreen from '@/components/SplashScreen';
 import MainLayout from '@/components/MainLayout';
@@ -183,7 +182,7 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
         user={user}
         onSelectLandmark={handleSelectLandmark}
         onVoiceSearchOpen={handleInteractionHistoryOpen}
-        onVoiceAssistantOpen={handleIntelligentTourOpen}
+        onVoiceAssistantOpen={handleVoiceAssistantOpen}
         onLogoClick={handleLogoClick}
         onSignOut={signOut}
         onAuthDialogOpen={() => setIsAuthDialogOpen(true)}
