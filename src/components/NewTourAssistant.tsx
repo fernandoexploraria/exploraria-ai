@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Landmark } from '@/data/landmarks';
@@ -266,6 +266,9 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     return (
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="sm:max-w-xs p-8">
+          <DialogHeader>
+            <DialogTitle>Loading Tour Guide</DialogTitle>
+          </DialogHeader>
           <div className="flex items-center justify-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
           </div>
@@ -279,6 +282,9 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     return (
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="sm:max-w-xs p-8">
+          <DialogHeader>
+            <DialogTitle>Connection Error</DialogTitle>
+          </DialogHeader>
           <div className="text-center space-y-4">
             <div className="text-red-500 text-sm">Connection Error</div>
             <Button
@@ -335,6 +341,9 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-xs p-8">
+        <DialogHeader>
+          <DialogTitle>Tour Guide Assistant</DialogTitle>
+        </DialogHeader>
         <div className="flex items-center justify-center">
           <div className="relative flex items-center justify-center">
             <div className={`w-48 h-48 rounded-full border-4 flex items-center justify-center transition-all duration-300 ${getCircleColor()}`}>
