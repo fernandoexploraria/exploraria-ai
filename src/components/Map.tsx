@@ -1,7 +1,8 @@
+
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { Landmark } from '@/data/landmarks';
+import { Landmark, EnhancedLandmark } from '@/data/landmarks';
 import { TourLandmark } from '@/data/tourLandmarks';
 import { useMap } from '@/hooks/useMap';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -29,6 +30,14 @@ const Map: React.FC<MapProps> = ({
   const pendingPopupLandmark = useRef<Landmark | null>(null);
   const isZooming = useRef<boolean>(false);
   const isMobile = useIsMobile();
+
+  // Convert smartTourLandmarks to planned landmarks with proper Landmark interface
+  const plannedLandmarks: Landmark[] = smartTourLandmarks.map((landmark, index) => ({
+    id: landmark.id || `tour-${index}`,
+    name: landmark.name,
+    coordinates: landmark.coordinates as [number, number],
+    description: landmark.description
+  }));
 
   // Fly to landmark function
   const flyToLandmark = useCallback((landmark: Landmark, zoomLevel: number = 16) => {
@@ -79,16 +88,19 @@ const Map: React.FC<MapProps> = ({
 
     pendingPopupLandmark.current = landmark;
 
+    // Check if landmark has enhanced properties
+    const enhancedLandmark = landmark as EnhancedLandmark;
+
     // Define popup content
     const popupContent = document.createElement('div');
     popupContent.innerHTML = `
       <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
         <h3 style="font-size: 1.2em; margin-bottom: 0.5em;">${landmark.name}</h3>
-        ${landmark.photos && landmark.photos.length > 0
-        ? `<img src="${landmark.photos[0]}" alt="${landmark.name}" style="max-width: 200px; max-height: 150px; margin-bottom: 0.5em; border-radius: 8px; object-fit: cover;">`
+        ${enhancedLandmark.photos && enhancedLandmark.photos.length > 0
+        ? `<img src="${enhancedLandmark.photos[0]}" alt="${landmark.name}" style="max-width: 200px; max-height: 150px; margin-bottom: 0.5em; border-radius: 8px; object-fit: cover;">`
         : ''}
         <p style="font-size: 0.9em; color: #555; margin-bottom: 0.5em;">${landmark.description}</p>
-        ${landmark.formattedAddress ? `<p style="font-size: 0.8em; color: #777;">${landmark.formattedAddress}</p>` : ''}
+        ${enhancedLandmark.formattedAddress ? `<p style="font-size: 0.8em; color: #777;">${enhancedLandmark.formattedAddress}</p>` : ''}
       </div>
     `;
 
@@ -308,11 +320,6 @@ const Map: React.FC<MapProps> = ({
 
     console.log('✅ Enhanced Smart Tour landmarks effect completed');
   }, [plannedLandmarks, handleLandmarkSelect]);
-
-  const plannedLandmarks: TourLandmark[] = smartTourLandmarks.map(landmark => ({
-    ...landmark,
-    coordinates: landmark.coordinates as [number, number]
-  }));
 
   return <div ref={mapContainerRef} className="map-container" style={{ height: '100vh' }} />;
 };
