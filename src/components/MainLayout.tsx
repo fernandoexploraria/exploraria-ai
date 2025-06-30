@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Map from '@/components/Map';
 import TopControls from '@/components/TopControls';
@@ -127,10 +128,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
       <Map 
         mapboxToken={mapboxToken}
-        allLandmarks={allLandmarks}
+        landmarks={allLandmarks}
         onSelectLandmark={onSelectLandmark}
         selectedLandmark={selectedLandmark}
-        smartTourLandmarks={smartTourLandmarks}
+        plannedLandmarks={[...smartTourLandmarks]}
       />
 
       {/* Debug Proximity Card - positioned above regular cards */}
