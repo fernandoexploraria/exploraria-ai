@@ -106,6 +106,25 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     setDebugProximityCard(null);
   };
 
+  // Helper function to get fallback destination from smart tour landmarks
+  const getFallbackDestination = () => {
+    if (smartTourLandmarks.length > 0) {
+      // Extract city/region from first landmark or use a generic description
+      const firstLandmark = smartTourLandmarks[0];
+      // For now, return a generic description - could be enhanced to parse location
+      return `Tour of ${smartTourLandmarks.length} amazing places`;
+    }
+    return 'Smart Tour';
+  };
+
+  // Get destination with fallback logic
+  const getDestination = () => {
+    if (voiceTourData?.destination) {
+      return voiceTourData.destination;
+    }
+    return getFallbackDestination();
+  };
+
   return (
     <div className="w-screen h-screen relative">
       <TopControls
@@ -189,7 +208,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       <NewTourAssistant
         open={isNewTourAssistantOpen}
         onOpenChange={onNewTourAssistantOpenChange}
-        destination={voiceTourData?.destination || ''}
+        destination={getDestination()}
         landmarks={voiceTourData?.landmarks || smartTourLandmarks}
         systemPrompt={voiceTourData?.systemPrompt}
       />

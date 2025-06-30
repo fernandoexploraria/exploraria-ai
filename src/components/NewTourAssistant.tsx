@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -72,11 +73,24 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     }
   }, [open]);
 
+  // Helper function to get effective destination
+  const getEffectiveDestination = () => {
+    if (destination && destination.trim()) {
+      return destination;
+    }
+    if (landmarks.length > 0) {
+      return `Tour of ${landmarks.length} amazing places`;
+    }
+    return 'Smart Tour';
+  };
+
   // Prepare dynamic variables for the ElevenLabs agent
   const prepareDynamicVariables = () => {
+    const effectiveDestination = getEffectiveDestination();
+    
     const variables = {
-      geminiGenerated: systemPrompt || `You are a knowledgeable tour guide for ${destination}. Provide engaging information about the following landmarks: ${landmarks.map(l => l.name).join(', ')}.`,
-      destination: destination,
+      geminiGenerated: systemPrompt || `You are a knowledgeable tour guide for ${effectiveDestination}. Provide engaging information about the following landmarks: ${landmarks.map(l => l.name).join(', ')}.`,
+      destination: effectiveDestination,
       user_id: user?.id,
       landmark_count: landmarks.length,
       landmark_names: landmarks.map(l => l.name).join(', ')
