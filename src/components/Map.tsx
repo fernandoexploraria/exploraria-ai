@@ -880,7 +880,7 @@ const Map: React.FC<MapProps> = ({
             pendingPopupLandmark.current = landmark;
             map.current?.flyTo({
               center: landmark.coordinates,
-              zoom: 14,
+              zoom: 16,
               speed: 0.3,
               curve: 1,
               easing: (t) => t,
@@ -914,7 +914,7 @@ const Map: React.FC<MapProps> = ({
         pendingPopupLandmark.current = selectedLandmark;
         map.current.flyTo({
           center: selectedLandmark.coordinates,
-          zoom: 14,
+          zoom: 16,
           speed: 0.3,
           curve: 1,
           easing: (t) => t,
@@ -924,7 +924,7 @@ const Map: React.FC<MapProps> = ({
         console.log('Flying to landmark and showing popup');
         map.current.flyTo({
           center: selectedLandmark.coordinates,
-          zoom: 14,
+          zoom: 16,
           speed: 0.3,
           curve: 1,
           easing: (t) => t,
@@ -995,7 +995,7 @@ const Map: React.FC<MapProps> = ({
     } else if (plannedLandmarks.length === 1) {
       map.current.flyTo({
         center: plannedLandmarks[0].coordinates,
-        zoom: 14,
+        zoom: 16,
         speed: 0.3,
         curve: 1,
         easing: (t) => t,
@@ -1018,7 +1018,7 @@ const Map: React.FC<MapProps> = ({
     console.log('Flying to coordinates...');
     map.current.flyTo({
       center: coordinates,
-      zoom: 14,
+      zoom: 16,
       speed: 0.3,
       curve: 1,
       easing: (t) => t,
