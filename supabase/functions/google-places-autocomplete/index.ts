@@ -118,7 +118,7 @@ serve(async (req) => {
 
     console.log('🚀 DEBUG: Final request body:', JSON.stringify(googleRequestBody, null, 2))
 
-    // Use CORRECT field mask for the NEW Google Places API with types included
+    // FIXED: Use CORRECT field mask for the NEW Google Places API with types included
     const fieldMask = 'suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.types'
     console.log('🚀 DEBUG: Using enhanced field mask with types:', fieldMask)
 
@@ -201,7 +201,7 @@ serve(async (req) => {
                            placePrediction.text || 
                            'Unknown place'
         
-        // Extract types from the API response
+        // CRITICAL: Extract types from the API response
         const types = placePrediction.types || []
         
         // Enhanced logging for type debugging
@@ -217,7 +217,7 @@ serve(async (req) => {
         const processedPrediction = {
           place_id: placeId,
           description: displayText,
-          types: types,
+          types: types, // Now we're getting real types from Google!
           structured_formatting: {
             main_text: displayText,
             secondary_text: ''

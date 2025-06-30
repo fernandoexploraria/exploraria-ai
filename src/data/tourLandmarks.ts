@@ -1,6 +1,4 @@
 
-import { generateTourLandmarkId } from '@/utils/markerIdUtils';
-
 export interface TourLandmark {
   name: string;
   coordinates: [number, number];
@@ -14,109 +12,70 @@ export const TOUR_LANDMARKS: TourLandmark[] = [];
 let mapMarkersRef: { current: { [key: string]: any } } | null = null;
 let photoPopupsRef: { current: { [key: string]: any } } | null = null;
 
-// Flag to prevent race conditions during cleanup
-let isCleanupInProgress = false;
-
 // Function to set the markers reference from Map component
 export const setMapMarkersRef = (markersRef: { current: { [key: string]: any } }, popupsRef: { current: { [key: string]: any } }) => {
   mapMarkersRef = markersRef;
   photoPopupsRef = popupsRef;
 };
 
-// FIXED: Array-driven cleanup - removes markers by exact IDs from the current array
-export const clearTourMarkers = async () => {
-  if (isCleanupInProgress) {
-    console.log('🔄 Cleanup already in progress, skipping duplicate call');
-    return;
-  }
-
-  isCleanupInProgress = true;
-  console.log('🧹 ARRAY-DRIVEN: Starting enhanced clearing - using exact IDs from array...');
+// Enhanced function to clear tour markers from map and array
+export const clearTourMarkers = () => {
+  console.log('🧹 Enhanced clearing of tour markers from map...');
   
   let markersRemoved = 0;
   let popupsRemoved = 0;
-  const landmarksBeforeCleanup = TOUR_LANDMARKS.length;
-
-  // STEP 1: Remove markers from map using exact IDs from current array
-  if (mapMarkersRef?.current && TOUR_LANDMARKS.length > 0) {
-    console.log('🗑️ STEP 1: Removing markers by exact IDs from array...');
-    
-    TOUR_LANDMARKS.forEach((landmark, index) => {
-      const markerId = generateTourLandmarkId(index);
-      console.log('🗑️ Attempting to remove marker with ID:', markerId);
-      
-      if (mapMarkersRef.current[markerId]) {
+  
+  if (mapMarkersRef?.current) {
+    // Find and remove all tour landmarks from the map
+    Object.keys(mapMarkersRef.current).forEach(markerId => {
+      if (markerId.startsWith('tour-landmark-')) {
+        console.log('🗑️ Removing map marker:', markerId);
         try {
-          console.log('✅ Found and removing marker:', markerId);
+          // Remove marker from map
           mapMarkersRef.current[markerId].remove();
+          // Delete from markers ref
           delete mapMarkersRef.current[markerId];
           markersRemoved++;
         } catch (error) {
           console.warn('⚠️ Error removing marker:', markerId, error);
         }
-      } else {
-        console.warn('⚠️ Marker not found in map:', markerId);
       }
     });
   }
   
-  // STEP 2: Close popups using exact IDs from current array
-  if (photoPopupsRef?.current && TOUR_LANDMARKS.length > 0) {
-    console.log('🗑️ STEP 2: Removing popups by exact IDs from array...');
-    
-    TOUR_LANDMARKS.forEach((landmark, index) => {
-      const popupId = generateTourLandmarkId(index);
-      console.log('🗑️ Attempting to remove popup with ID:', popupId);
-      
-      if (photoPopupsRef.current[popupId]) {
+  if (photoPopupsRef?.current) {
+    // Close any open popups for tour landmarks
+    Object.keys(photoPopupsRef.current).forEach(popupId => {
+      if (popupId.startsWith('tour-landmark-')) {
+        console.log('🗑️ Removing popup:', popupId);
         try {
-          console.log('✅ Found and removing popup:', popupId);
           photoPopupsRef.current[popupId].remove();
           delete photoPopupsRef.current[popupId];
           popupsRemoved++;
         } catch (error) {
           console.warn('⚠️ Error removing popup:', popupId, error);
         }
-      } else {
-        console.warn('⚠️ Popup not found:', popupId);
       }
     });
   }
   
-  // STEP 3: Small delay to ensure map cleanup completes before array clear
-  console.log('⏱️ STEP 3: Waiting for map cleanup to complete...');
-  await new Promise(resolve => setTimeout(resolve, 100));
-  
-  // STEP 4: Clear the landmarks array LAST
-  console.log('🗑️ STEP 4: Clearing landmarks array...');
+  // Clear the landmarks array
+  const landmarksCleared = TOUR_LANDMARKS.length;
   TOUR_LANDMARKS.length = 0;
   
-  // Verify cleanup completed
-  const remainingTourMarkers = mapMarkersRef?.current ? 
-    Object.keys(mapMarkersRef.current).filter(id => id.startsWith('tour-landmark-')).length : 0;
-  
-  console.log(`🧹 ARRAY-DRIVEN cleanup completed: ${markersRemoved} markers, ${popupsRemoved} popups, ${landmarksBeforeCleanup} landmarks cleared, ${remainingTourMarkers} tour markers remaining`);
-  
-  if (remainingTourMarkers > 0) {
-    console.warn('⚠️ Some tour markers may still exist on map:', remainingTourMarkers);
-    // Log remaining marker IDs for debugging
-    const remainingIds = Object.keys(mapMarkersRef.current).filter(id => id.startsWith('tour-landmark-'));
-    console.warn('⚠️ Remaining tour marker IDs:', remainingIds);
-  }
-  
-  isCleanupInProgress = false;
+  console.log(`🧹 Enhanced cleanup completed: ${markersRemoved} markers, ${popupsRemoved} popups, ${landmarksCleared} landmarks cleared`);
 };
 
 // Enhanced function to clear and set new tour landmarks
-export const setTourLandmarks = async (landmarks: TourLandmark[]) => {
+export const setTourLandmarks = (landmarks: TourLandmark[]) => {
   console.log('📍 Enhanced setTourLandmarks called with:', landmarks.length, 'landmarks');
   
   // Clear existing landmarks and markers first with verification
-  await clearTourMarkers();
+  clearTourMarkers();
   
-  // Double-check cleanup completed
+  // Verify cleanup completed
   if (TOUR_LANDMARKS.length > 0) {
-    console.warn('⚠️ TOUR_LANDMARKS array not properly cleared after cleanup, forcing clear');
+    console.warn('⚠️ TOUR_LANDMARKS array not properly cleared, forcing clear');
     TOUR_LANDMARKS.length = 0;
   }
   
