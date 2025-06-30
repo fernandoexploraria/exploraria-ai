@@ -133,25 +133,21 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
     setIsAuthDialogOpen(true);
   };
 
-  // Enhanced handler for when tour is ready for voice agent
+  // Fixed handler for when tour is ready for voice agent - remove race condition
   const handleTourReadyForVoice = (tourData: { destination: string; systemPrompt: string; landmarks: any[] }) => {
     console.log('🎙️ Tour ready for voice agent:', tourData.destination);
-    console.log('🎙️ Previous voice tour data:', voiceTourData?.destination || 'none');
+    console.log('🎙️ Setting voice tour data directly without clearing');
     
-    // Clear any existing voice tour data first
-    setVoiceTourData(null);
+    // Set the new tour data directly without clearing or delays
+    setVoiceTourData(tourData);
     
-    // Set the new tour data after a brief delay to ensure cleanup
-    setTimeout(() => {
-      console.log('🎙️ Setting new voice tour data:', tourData.destination);
-      setVoiceTourData(tourData);
-      
-      // Close the intelligent tour dialog
-      setIsIntelligentTourOpen(false);
-      
-      // Open the voice assistant with the new tour data
-      setIsNewTourAssistantOpen(true);
-    }, 200);
+    // Close the intelligent tour dialog
+    setIsIntelligentTourOpen(false);
+    
+    // Open the voice assistant with the new tour data
+    setIsNewTourAssistantOpen(true);
+    
+    console.log('🎙️ Voice agent should now open with proper tour data');
   };
 
   // Enhanced handler to clear voice data when assistant closes
