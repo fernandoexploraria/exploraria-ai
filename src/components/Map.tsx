@@ -6,7 +6,6 @@ import { Volume2, VolumeX, Eye, MapPin } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { TOUR_LANDMARKS, setMapMarkersRef, TourLandmark } from '@/data/tourLandmarks';
-import { generateTourLandmarkId } from '@/utils/markerIdUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -97,9 +96,9 @@ const Map: React.FC<MapProps> = ({
     return () => clearInterval(interval);
   }, [tourLandmarks.length]);
 
-  // Convert top landmarks and tour landmarks to Landmark format with consistent ID generation
+  // Convert top landmarks and tour landmarks to Landmark format with proper state dependency
   const allLandmarksWithTop = React.useMemo(() => {
-    console.log('🗺️ Rebuilding landmarks list with consistent IDs:', {
+    console.log('🗺️ Rebuilding landmarks list:', {
       baseLandmarks: landmarks.length,
       topLandmarks: TOP_LANDMARKS.length,
       tourLandmarks: tourLandmarks.length
@@ -112,9 +111,8 @@ const Map: React.FC<MapProps> = ({
       description: topLandmark.description
     }));
     
-    // Use consistent ID generation for tour landmarks
     const tourLandmarksConverted: Landmark[] = tourLandmarks.map((tourLandmark, index) => ({
-      id: generateTourLandmarkId(tourLandmark, index),
+      id: `tour-landmark-${index}`,
       name: tourLandmark.name,
       coordinates: tourLandmark.coordinates,
       description: tourLandmark.description
@@ -122,7 +120,6 @@ const Map: React.FC<MapProps> = ({
     
     const result = [...landmarks, ...topLandmarksConverted, ...tourLandmarksConverted];
     console.log('🗺️ Total landmarks for map:', result.length);
-    console.log('🗺️ Tour landmark IDs created:', tourLandmarksConverted.map(l => l.id));
     return result;
   }, [landmarks, tourLandmarks]); // Now properly depends on tourLandmarks state
 
@@ -200,9 +197,8 @@ const Map: React.FC<MapProps> = ({
 
       console.log('🗺️ [Map] Map instance created successfully');
 
-      // CRITICAL: Set the markers reference for tour landmarks management immediately after map creation
+      // Set the markers reference for tour landmarks management
       setMapMarkersRef(markers, photoPopups);
-      console.log('🗺️ [Map] Marker references set for tour landmarks cleanup system');
 
       // Add location control for authenticated users
       if (user) {
@@ -834,7 +830,6 @@ const Map: React.FC<MapProps> = ({
     // Remove markers that are no longer in the landmarks list
     Object.keys(markers.current).forEach(markerId => {
       if (!landmarkIds.has(markerId)) {
-        console.log('🗑️ Removing obsolete marker:', markerId);
         markers.current[markerId].remove();
         delete markers.current[markerId];
         if (photoPopups.current[markerId]) {
@@ -848,10 +843,9 @@ const Map: React.FC<MapProps> = ({
       }
     });
 
-    // Add new markers with consistent ID usage - ensuring tour markers use the exact same IDs as cleanup
+    // Add new markers
     allLandmarksWithTop.forEach((landmark) => {
       if (!markers.current[landmark.id]) {
-        console.log('📍 Creating new marker with ID:', landmark.id);
         const el = document.createElement('div');
         
         // Different styling for different landmark types
@@ -877,7 +871,7 @@ const Map: React.FC<MapProps> = ({
         marker.getElement().addEventListener('click', async (e) => {
           e.stopPropagation(); // Prevent map click event
           
-          console.log('Marker clicked:', landmark.name, 'ID:', landmark.id);
+          console.log('Marker clicked:', landmark.name);
           
           // Check current zoom level and zoom in if needed
           const currentZoom = map.current?.getZoom() || 1.5;
@@ -900,14 +894,7 @@ const Map: React.FC<MapProps> = ({
           onSelectLandmark(landmark);
         });
 
-        // Store marker with the exact same ID that will be used for cleanup
         markers.current[landmark.id] = marker;
-        console.log('✅ Marker created and stored with ID:', landmark.id);
-        
-        // For tour landmarks, log the ID pattern for debugging
-        if (isTourLandmark) {
-          console.log('🔍 Tour marker stored - cleanup will look for this exact ID:', landmark.id);
-        }
       }
     });
 
