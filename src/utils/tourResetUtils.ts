@@ -22,17 +22,17 @@ export interface TourPlannerStates {
   setProgressState?: (state: any) => void;
 }
 
-// Comprehensive reset function for tour generation
-export const performComprehensiveTourReset = (
+// Comprehensive reset function for tour generation - ASYNC for proper cleanup
+export const performComprehensiveTourReset = async (
   dialogStates: DialogStates,
   pageStates: PageStates,
   tourPlannerStates?: TourPlannerStates
 ) => {
   console.log('🧹 Starting comprehensive tour reset...');
   
-  // Phase 1: Clear core data structures
+  // Phase 1: Clear core data structures FIRST
   console.log('🧹 Phase 1: Clearing core data structures');
-  clearTourMarkers();
+  await clearTourMarkers(); // FIXED: Now properly awaits async cleanup
   
   // Phase 2: Reset page-level states
   console.log('🧹 Phase 2: Resetting page-level states');
