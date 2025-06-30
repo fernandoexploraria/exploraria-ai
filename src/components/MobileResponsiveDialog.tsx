@@ -28,17 +28,17 @@ const MobileResponsiveDialog: React.FC<MobileResponsiveDialogProps> = ({
       <DialogContent 
         className={cn(
           "max-w-2xl overflow-y-auto",
-          // Mobile-specific positioning to avoid keyboard issues
+          // Mobile-specific positioning to avoid keyboard issues with reduced height
           isMobile 
-            ? "fixed left-[50%] top-[5%] translate-x-[-50%] translate-y-0 max-h-[85vh] w-[95vw]" 
+            ? "fixed left-[50%] top-[5%] translate-x-[-50%] translate-y-0 max-h-[70vh] w-[95vw]" 
             : "fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] max-h-[80vh]",
           className
         )}
         style={{ 
           zIndex: 99999,
-          // Use dynamic viewport height on mobile for better keyboard handling
+          // Use reduced dynamic viewport height on mobile for better keyboard handling
           ...(isMobile && {
-            maxHeight: 'min(85vh, calc(100vh - 100px))',
+            maxHeight: 'min(70vh, calc(100vh - 150px))',
             marginBottom: '20px'
           })
         }}

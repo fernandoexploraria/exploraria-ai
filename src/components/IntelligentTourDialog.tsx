@@ -470,7 +470,6 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
           Intelligent Tour Generator
         </>
       }
-      description="Create personalized tours by discovering amazing places at your destination"
     >
       {/* Progress Bar */}
       <div className="space-y-2">
