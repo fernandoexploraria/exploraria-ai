@@ -48,11 +48,17 @@ export const useMap = (mapContainerRef: React.RefObject<HTMLDivElement>) => {
     console.log('🧹 Cleaning up map...');
     
     try {
-      // Remove all event listeners first
-      map.current.off();
+      // Remove specific event listeners
+      map.current.off('load');
+      map.current.off('error');
+      map.current.off('moveend');
+      map.current.off('mousedown');
+      map.current.off('mouseup');
+      map.current.off('dragstart');
+      map.current.off('touchend');
       
       // Check if map is still valid before removing
-      if (map.current.getContainer()) {
+      if (map.current.getContainer() && map.current.getContainer().parentNode) {
         map.current.remove();
       }
     } catch (error) {
