@@ -23,7 +23,7 @@ const Map: React.FC<MapProps> = ({
   onSelectLandmark,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const { current: map, initialize, cleanup, isInitializing } = useMap(mapContainerRef);
+  const { current: map, initialize, cleanup } = useMap(mapContainerRef);
   const [initialLoad, setInitialLoad] = useState(true);
   const markersRef = useRef<{ [key: string]: mapboxgl.Marker }>({});
   const photoPopupsRef = useRef<{ [key: string]: mapboxgl.Popup }>({});
@@ -39,67 +39,58 @@ const Map: React.FC<MapProps> = ({
     description: landmark.description
   }));
 
-  // Fly to landmark function with safety checks
-  const flyToLandmark = useCallback((landmark: Landmark, zoomLevel: number = 16) => {
+  // Stable callback for landmark selection - only recreate when onSelectLandmark changes
+  const handleLandmarkSelect = useCallback((landmark: Landmark) => {
+    console.log('📍 Landmark selected:', landmark.name);
+    onSelectLandmark(landmark);
+    
     if (!map || !map.isStyleLoaded()) {
       console.warn('⚠️ Map not ready for flyTo operation');
       return;
     }
 
-    console.log('✈️ Flying to landmark:', landmark.name, 'Zoom:', zoomLevel);
+    console.log('✈️ Flying to landmark:', landmark.name);
     isZooming.current = true;
 
     try {
       map.flyTo({
         center: landmark.coordinates,
-        zoom: zoomLevel,
+        zoom: 16,
         duration: 2000,
         essential: true
       });
 
       const delay = isMobile ? 1500 : 2000;
-
       setTimeout(() => {
         isZooming.current = false;
         console.log('✅ Zoom animation complete for:', landmark.name);
         
         if (!pendingPopupLandmark.current) {
           openPhotoPopup(landmark);
-        } else {
-          console.log('⚠️ Another popup is pending, delaying popup for:', landmark.name);
         }
       }, delay);
     } catch (error) {
       console.error('⚠️ Error during flyTo:', error);
       isZooming.current = false;
     }
-  }, [map, isMobile]);
+  }, [onSelectLandmark, map, isMobile]);
 
-  // Open photo popup function with safety checks
+  // Stable callback for photo popup - only recreate when map changes
   const openPhotoPopup = useCallback((landmark: Landmark) => {
     if (!map || !map.isStyleLoaded()) {
       console.warn('⚠️ Map not ready for popup operation');
       return;
     }
 
-    if (isZooming.current) {
-      console.log('⚠️ Map is currently zooming, delaying popup for:', landmark.name);
-      pendingPopupLandmark.current = landmark;
-      return;
-    }
-
-    if (pendingPopupLandmark.current) {
-      console.log('⚠️ Another popup is already open, delaying popup for:', landmark.name);
+    if (isZooming.current || pendingPopupLandmark.current) {
+      console.log('⚠️ Map is busy or popup already pending');
       return;
     }
 
     pendingPopupLandmark.current = landmark;
-
-    // Check if landmark has enhanced properties
     const enhancedLandmark = landmark as EnhancedLandmark;
 
     try {
-      // Define popup content
       const popupContent = document.createElement('div');
       popupContent.innerHTML = `
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
@@ -112,7 +103,6 @@ const Map: React.FC<MapProps> = ({
         </div>
       `;
 
-      // Create popup
       const popup = new mapboxgl.Popup({
         closeButton: true,
         closeOnClick: true,
@@ -123,17 +113,10 @@ const Map: React.FC<MapProps> = ({
         .setDOMContent(popupContent)
         .addTo(map);
 
-      // Store popup
       const popupId = `photo-popup-${landmark.name.replace(/[^a-zA-Z0-9]/g, '-')}`;
       photoPopupsRef.current[popupId] = popup;
 
-      // Set popup callbacks
-      popup.on('open', () => {
-        console.log('ℹ️ Popup opened for:', landmark.name);
-      });
-
       popup.on('close', () => {
-        console.log('ℹ️ Popup closed for:', landmark.name);
         delete photoPopupsRef.current[popupId];
         pendingPopupLandmark.current = null;
       });
@@ -145,14 +128,7 @@ const Map: React.FC<MapProps> = ({
     }
   }, [map]);
 
-  // Handler for landmark selection
-  const handleLandmarkSelect = useCallback((landmark: Landmark) => {
-    console.log('📍 Landmark selected:', landmark.name);
-    onSelectLandmark(landmark);
-    flyToLandmark(landmark);
-  }, [onSelectLandmark, flyToLandmark]);
-
-  // Initialize map with proper error handling
+  // Initialize map with token - only reinitialize when token changes
   useEffect(() => {
     if (!mapboxToken) {
       console.warn('⚠️ No Mapbox token provided');
@@ -160,52 +136,40 @@ const Map: React.FC<MapProps> = ({
     }
 
     mapboxgl.accessToken = mapboxToken;
+    initialize();
 
-    if (!map && !isInitializing) {
-      initialize();
-    }
-
-    // Cleanup function with safety checks
     return () => {
-      try {
-        // Clean up markers
-        Object.values(markersRef.current).forEach(marker => {
-          try {
-            marker.remove();
-          } catch (error) {
-            console.warn('⚠️ Error removing marker:', error);
-          }
-        });
-        markersRef.current = {};
+      // Clean up markers and popups
+      Object.values(markersRef.current).forEach(marker => {
+        try {
+          marker.remove();
+        } catch (error) {
+          console.warn('⚠️ Error removing marker:', error);
+        }
+      });
+      markersRef.current = {};
 
-        // Clean up popups
-        Object.values(photoPopupsRef.current).forEach(popup => {
-          try {
-            popup.remove();
-          } catch (error) {
-            console.warn('⚠️ Error removing popup:', error);
-          }
-        });
-        photoPopupsRef.current = {};
+      Object.values(photoPopupsRef.current).forEach(popup => {
+        try {
+          popup.remove();
+        } catch (error) {
+          console.warn('⚠️ Error removing popup:', error);
+        }
+      });
+      photoPopupsRef.current = {};
 
-        // Reset state
-        pendingPopupLandmark.current = null;
-        isZooming.current = false;
-
-        // Clean up map
-        cleanup();
-      } catch (error) {
-        console.error('⚠️ Error in cleanup:', error);
-      }
+      pendingPopupLandmark.current = null;
+      isZooming.current = false;
+      cleanup();
     };
-  }, [mapboxToken, map, isInitializing, initialize, cleanup]);
+  }, [mapboxToken, initialize, cleanup]);
 
-  // Effect for initial map load
+  // Set initial load state when map loads - remove map from dependencies
   useEffect(() => {
     if (!map) return;
 
     const handleMapLoad = () => {
-      console.log('🗺️ Map loaded successfully');
+      console.log('🗺️ Map style loaded');
       setInitialLoad(false);
     };
 
@@ -213,22 +177,17 @@ const Map: React.FC<MapProps> = ({
       handleMapLoad();
     } else {
       map.on('load', handleMapLoad);
+      return () => map.off('load', handleMapLoad);
     }
+  }, [!!map]); // Use boolean conversion to avoid map object in dependencies
 
-    return () => {
-      if (map) {
-        map.off('load', handleMapLoad);
-      }
-    };
-  }, [map]);
-
-  // Effect for all landmarks with safety checks
+  // Add all landmarks markers - only update when landmarks or map readiness changes
   useEffect(() => {
     if (!map || initialLoad || !map.isStyleLoaded()) return;
 
     console.log('📍 Adding all landmarks:', allLandmarks.length);
 
-    // Clean up existing general markers first
+    // Clean up existing general markers
     Object.keys(markersRef.current).forEach(markerId => {
       if (!markerId.startsWith('tour-landmark-')) {
         try {
@@ -240,49 +199,44 @@ const Map: React.FC<MapProps> = ({
       }
     });
 
-    // Create markers with error handling
+    // Create new markers
     allLandmarks.forEach((landmark, index) => {
       try {
         const marker = new mapboxgl.Marker()
           .setLngLat(landmark.coordinates)
           .addTo(map);
 
-        // Marker click handler
         marker.getElement().addEventListener('click', () => {
           handleLandmarkSelect(landmark);
         });
 
-        // Store marker
         markersRef.current[`landmark-${index}`] = marker;
       } catch (error) {
         console.warn('⚠️ Error creating marker for landmark:', landmark.name, error);
       }
     });
-  }, [allLandmarks, handleLandmarkSelect, initialLoad, map]);
+  }, [allLandmarks, handleLandmarkSelect, initialLoad, !!map]);
 
-  // Effect for selected landmark
+  // Handle selected landmark changes
   useEffect(() => {
-    if (!map || !selectedLandmark) return;
-
+    if (!selectedLandmark) return;
     console.log('📍 Selected landmark changed:', selectedLandmark.name);
-    flyToLandmark(selectedLandmark);
-  }, [selectedLandmark, flyToLandmark, map]);
+    handleLandmarkSelect(selectedLandmark);
+  }, [selectedLandmark, handleLandmarkSelect]);
 
-  // Enhanced effect for planned landmarks with improved error handling
+  // Handle planned landmarks (smart tour) - only update when tour landmarks change
   useEffect(() => {
     if (!map || !plannedLandmarks || plannedLandmarks.length === 0) return;
 
-    console.log('🗺️ Enhanced planned landmarks effect triggered with', plannedLandmarks.length, 'landmarks');
+    console.log('🗺️ Adding planned landmarks:', plannedLandmarks.length);
     
-    // Clear pending popup state to prevent interference with voice agent
+    // Clear state
     pendingPopupLandmark.current = null;
     isZooming.current = false;
-    console.log('🧹 Cleared pending popup state for new tour');
 
-    // Enhanced cleanup of existing tour markers
+    // Clean up existing tour markers
     Object.keys(markersRef.current).forEach(markerId => {
       if (markerId.startsWith('tour-landmark-')) {
-        console.log('🗑️ Removing existing tour marker:', markerId);
         try {
           markersRef.current[markerId].remove();
           delete markersRef.current[markerId];
@@ -292,10 +246,9 @@ const Map: React.FC<MapProps> = ({
       }
     });
 
-    // Enhanced cleanup of existing popups
+    // Clean up tour popups
     Object.keys(photoPopupsRef.current).forEach(popupId => {
       if (popupId.startsWith('tour-landmark-')) {
-        console.log('🗑️ Removing existing tour popup:', popupId);
         try {
           photoPopupsRef.current[popupId].remove();
           delete photoPopupsRef.current[popupId];
@@ -305,9 +258,7 @@ const Map: React.FC<MapProps> = ({
       }
     });
 
-    // Create bounds and add markers with error handling
     const bounds = new mapboxgl.LngLatBounds();
-    const newMarkers: { [key: string]: mapboxgl.Marker } = {};
 
     plannedLandmarks.forEach((landmark, index) => {
       const coordinates = landmark.coordinates;
@@ -317,10 +268,7 @@ const Map: React.FC<MapProps> = ({
         return;
       }
 
-      console.log(`📍 Adding Enhanced Smart Tour marker ${index + 1}:`, landmark.name, coordinates);
-
       try {
-        // Create marker element
         const markerElement = document.createElement('div');
         markerElement.className = 'tour-landmark-marker';
         markerElement.style.cssText = `
@@ -338,42 +286,30 @@ const Map: React.FC<MapProps> = ({
           font-weight: bold;
           font-size: 12px;
           transition: all 0.3s ease;
-          animation: tourMarkerPulse 2s infinite;
         `;
         markerElement.textContent = (index + 1).toString();
 
-        // Create marker
         const marker = new mapboxgl.Marker(markerElement)
           .setLngLat(coordinates)
           .addTo(map);
 
-        // Store marker with enhanced ID
         const markerId = `tour-landmark-${landmark.name.replace(/[^a-zA-Z0-9]/g, '-')}-${index}`;
-        newMarkers[markerId] = marker;
+        markersRef.current[markerId] = marker;
         
-        // Add marker click handler
         markerElement.addEventListener('click', () => {
-          console.log('🎯 Enhanced Smart Tour marker clicked:', landmark.name);
           handleLandmarkSelect(landmark);
         });
 
-        // Extend bounds
         bounds.extend(coordinates);
       } catch (error) {
         console.warn('⚠️ Error creating tour marker for:', landmark.name, error);
       }
     });
 
-    // Update markers ref
-    Object.assign(markersRef.current, newMarkers);
-
-    // Enhanced camera animation for tour landmarks
+    // Fit map to tour bounds
     if (plannedLandmarks.length > 0 && map.isStyleLoaded()) {
-      console.log('🎬 Flying to Enhanced Smart Tour landmarks with camera animation');
-      
       try {
         const padding = { top: 80, bottom: 80, left: 80, right: 80 };
-        
         map.fitBounds(bounds, {
           padding,
           duration: 2000,
@@ -383,9 +319,7 @@ const Map: React.FC<MapProps> = ({
         console.warn('⚠️ Error fitting bounds for tour landmarks:', error);
       }
     }
-
-    console.log('✅ Enhanced Smart Tour landmarks effect completed');
-  }, [plannedLandmarks, handleLandmarkSelect, map]);
+  }, [plannedLandmarks, handleLandmarkSelect, !!map]);
 
   return <div ref={mapContainerRef} className="map-container" style={{ height: '100vh' }} />;
 };

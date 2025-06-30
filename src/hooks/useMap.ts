@@ -40,7 +40,7 @@ export const useMap = (mapContainerRef: React.RefObject<HTMLDivElement>) => {
       isInitializing.current = false;
       map.current = null;
     }
-  }, [mapContainerRef]);
+  }, []); // Remove mapContainerRef from dependencies to prevent recreation
 
   const cleanup = useCallback(() => {
     if (!map.current) return;
