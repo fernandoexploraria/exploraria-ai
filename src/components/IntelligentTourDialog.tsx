@@ -367,7 +367,7 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
       // Move to step 4 - preparing map
       setCurrentStep(4);
       
-      // Convert landmarks to expected format for the map - ENHANCED FORMAT
+      // Convert landmarks to expected format for the map - ENHANCED FORMAT WITH TOUR_ID
       const formattedLandmarks = landmarks.map((landmark, index) => ({
         id: landmark.placeId || `landmark-${Date.now()}-${index}`,
         name: landmark.name,
@@ -380,10 +380,11 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
         photos: landmark.photoUrl ? [landmark.photoUrl] : [],
         types: landmark.types || [],
         placeId: landmark.placeId,
-        formattedAddress: landmark.vicinity || landmark.formattedAddress
+        formattedAddress: landmark.vicinity || landmark.formattedAddress,
+        tourId: tourData.id // 🔥 CRUCIAL: Add tour_id to each landmark
       }));
 
-      console.log('🗺️ Enhanced landmarks for map:', formattedLandmarks.length);
+      console.log('🗺️ Enhanced landmarks for map with tour_id:', formattedLandmarks.length);
 
       // Validate coordinates more strictly
       const validLandmarks = formattedLandmarks.filter(landmark => {
@@ -399,7 +400,7 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
         if (!hasValidCoords) {
           console.warn('❌ Invalid landmark coordinates:', landmark.name, landmark.coordinates);
         } else {
-          console.log('✅ Valid landmark coordinates:', landmark.name, landmark.coordinates);
+          console.log('✅ Valid landmark coordinates:', landmark.name, landmark.coordinates, 'tour_id:', landmark.tourId);
         }
         return hasValidCoords;
       });
@@ -426,7 +427,7 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
       console.log('📍 Adding Enhanced Smart Tour landmarks to TOUR_LANDMARKS array:', tourLandmarks.length);
       setTourLandmarks(tourLandmarks);
 
-      // Call onTourGenerated with enhanced landmarks
+      // Call onTourGenerated with enhanced landmarks INCLUDING tour_id
       onTourGenerated(validLandmarks);
 
       // Wait for markers to load completely before finishing

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -8,6 +7,7 @@ import { Landmark } from '@/data/landmarks';
 import { useConversation } from '@11labs/react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthProvider';
+import { useTourDetails } from '@/hooks/useTourDetails';
 
 interface NewTourAssistantProps {
   open: boolean;
@@ -22,9 +22,9 @@ type AssistantState = 'not-started' | 'started' | 'listening' | 'recording' | 'p
 const NewTourAssistant: React.FC<NewTourAssistantProps> = ({ 
   open, 
   onOpenChange, 
-  destination, 
+  destination: fallbackDestination, 
   landmarks,
-  systemPrompt 
+  systemPrompt: fallbackSystemPrompt 
 }) => {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -32,6 +32,9 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const [assistantState, setAssistantState] = useState<AssistantState>('not-started');
   const [connectionError, setConnectionError] = useState<string | null>(null);
+
+  // 🔥 NEW: Fetch tour details from database
+  const { tourDetails, isLoading: isFetchingTourDetails, error: tourDetailsError } = useTourDetails(landmarks);
 
   // Fetch ElevenLabs configuration from Supabase on mount
   useEffect(() => {
@@ -73,30 +76,65 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     }
   }, [open]);
 
-  // Helper function to get effective destination
+  // 🔥 NEW: Get effective destination and system prompt from database or fallback
   const getEffectiveDestination = () => {
-    if (destination && destination.trim()) {
-      return destination;
+    // Priority: 1. Database tour details, 2. Prop destination, 3. Generated fallback
+    if (tourDetails?.destination) {
+      console.log('🎯 Using destination from database:', tourDetails.destination);
+      return tourDetails.destination;
     }
+    
+    if (fallbackDestination && fallbackDestination.trim()) {
+      console.log('🎯 Using fallback destination from props:', fallbackDestination);
+      return fallbackDestination;
+    }
+    
     if (landmarks.length > 0) {
-      return `Tour of ${landmarks.length} amazing places`;
+      const generatedDestination = `Tour of ${landmarks.length} amazing places`;
+      console.log('🎯 Using generated destination:', generatedDestination);
+      return generatedDestination;
     }
+    
+    console.log('🎯 Using default destination: Smart Tour');
     return 'Smart Tour';
+  };
+
+  const getEffectiveSystemPrompt = () => {
+    // Priority: 1. Database tour details, 2. Prop system prompt, 3. Generated fallback
+    if (tourDetails?.systemPrompt) {
+      console.log('🎯 Using system prompt from database (length:', tourDetails.systemPrompt.length, 'chars)');
+      return tourDetails.systemPrompt;
+    }
+    
+    if (fallbackSystemPrompt) {
+      console.log('🎯 Using fallback system prompt from props');
+      return fallbackSystemPrompt;
+    }
+    
+    const effectiveDestination = getEffectiveDestination();
+    const generatedPrompt = `You are a knowledgeable tour guide for ${effectiveDestination}. Provide engaging information about the following landmarks: ${landmarks.map(l => l.name).join(', ')}.`;
+    console.log('🎯 Using generated system prompt');
+    return generatedPrompt;
   };
 
   // Prepare dynamic variables for the ElevenLabs agent
   const prepareDynamicVariables = () => {
     const effectiveDestination = getEffectiveDestination();
+    const effectiveSystemPrompt = getEffectiveSystemPrompt();
     
     const variables = {
-      geminiGenerated: systemPrompt || `You are a knowledgeable tour guide for ${effectiveDestination}. Provide engaging information about the following landmarks: ${landmarks.map(l => l.name).join(', ')}.`,
+      geminiGenerated: effectiveSystemPrompt,
       destination: effectiveDestination,
       user_id: user?.id,
       landmark_count: landmarks.length,
       landmark_names: landmarks.map(l => l.name).join(', ')
     };
     
-    console.log('Dynamic variables prepared:', variables);
+    console.log('Dynamic variables prepared with database-sourced data:', {
+      destination: effectiveDestination,
+      hasSystemPrompt: !!effectiveSystemPrompt,
+      landmarkCount: landmarks.length
+    });
     return variables;
   };
 
@@ -275,8 +313,8 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     }
   };
 
-  // Show loading if configuration is being fetched
-  if (isLoadingConfig) {
+  // Show loading if configuration is being fetched or tour details are loading
+  if (isLoadingConfig || isFetchingTourDetails) {
     return (
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="sm:max-w-xs p-8">
@@ -286,13 +324,18 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
           <div className="flex items-center justify-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
           </div>
+          {isFetchingTourDetails && (
+            <div className="text-center text-sm text-muted-foreground">
+              Fetching tour details from database...
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     );
   }
 
   // Show error if configuration couldn't be loaded or there's a connection error
-  if (!elevenLabsConfig || connectionError) {
+  if (!elevenLabsConfig || connectionError || tourDetailsError) {
     return (
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="sm:max-w-xs p-8">
@@ -300,7 +343,9 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
             <DialogTitle>Connection Error</DialogTitle>
           </DialogHeader>
           <div className="text-center space-y-4">
-            <div className="text-red-500 text-sm">Connection Error</div>
+            <div className="text-red-500 text-sm">
+              {tourDetailsError ? `Tour Details Error: ${tourDetailsError}` : 'Connection Error'}
+            </div>
             <Button
               onClick={() => {
                 setIsLoadingConfig(true);
