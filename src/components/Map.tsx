@@ -959,7 +959,7 @@ const Map: React.FC<MapProps> = ({
     });
   }, [selectedLandmark]);
 
-  // Zooms to fit planned landmarks when a new tour is generated
+  // Modified effect for planned landmarks - remove fitBounds behavior
   useEffect(() => {
     if (!map.current || !plannedLandmarks || plannedLandmarks.length === 0) {
       return;
@@ -977,30 +977,14 @@ const Map: React.FC<MapProps> = ({
       return;
     }
 
-    console.log('🗺️ New planned landmarks detected, flying to show tour');
+    console.log('🗺️ New planned landmarks detected - tour generated markers will zoom in when clicked individually');
     
     // Update the processed landmarks reference
     processedPlannedLandmarks.current = currentLandmarkIds;
 
-    if (plannedLandmarks.length > 1) {
-      const bounds = new mapboxgl.LngLatBounds();
-      plannedLandmarks.forEach(landmark => {
-        bounds.extend(landmark.coordinates);
-      });
-      map.current.fitBounds(bounds, {
-        padding: 100,
-        duration: 2000,
-        maxZoom: 15,
-      });
-    } else if (plannedLandmarks.length === 1) {
-      map.current.flyTo({
-        center: plannedLandmarks[0].coordinates,
-        zoom: 14,
-        speed: 0.2,
-        curve: 1,
-        easing: (t) => t,
-      });
-    }
+    // Note: We removed the automatic fitBounds behavior here
+    // Individual tour markers will now zoom in like all other markers when clicked
+    // The tour overview can still be accessed through other UI elements if needed
   }, [plannedLandmarks]);
 
   // New function specifically for "Show on Map" button
