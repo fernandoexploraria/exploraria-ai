@@ -4,13 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, Search, Clock, Star } from 'lucide-react';
+import { Sparkles, Search, Clock, Star, MapPin } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/AuthProvider';
 import { getPlaceTypeIcon, getPlaceTypeLabel } from '@/utils/placeTypeIcons';
 import { setTourLandmarks } from '@/data/tourLandmarks';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useMarkerLoadingState } from '@/hooks/useMarkerLoadingState';
 
 interface IntelligentTourDialogProps {
   open: boolean;
@@ -40,7 +41,8 @@ const STEPS: Step[] = [
   { id: 1, title: "Choose Destination", description: "Search and select your destination" },
   { id: 2, title: "Discover Landmarks", description: "Finding nearby attractions" },
   { id: 3, title: "Generate Tour", description: "Creating your personalized tour" },
-  { id: 4, title: "Ready to Explore", description: "Your tour is ready!" }
+  { id: 4, title: "Prepare Map", description: "Loading landmarks to map" },
+  { id: 5, title: "Ready to Explore", description: "Your tour is ready!" }
 ];
 
 const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
@@ -63,6 +65,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   const [autocompleteError, setAutocompleteError] = useState<string>('');
   
   const { toast } = useToast();
+  const { isMarkersLoading, markersLoaded, startMarkerLoading, finishMarkerLoading, resetMarkerState } = useMarkerLoadingState(750);
 
   // Generate a new session token when dialog opens
   React.useEffect(() => {
@@ -89,6 +92,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
     setNearbyLandmarks([]);
     setIsLoading(false);
     setAutocompleteError('');
+    resetMarkerState();
     // Generate new session token for next autocomplete session
     setSessionToken(crypto.randomUUID());
   };
@@ -335,6 +339,7 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
         console.log('Landmarks inserted successfully');
       }
 
+      // Move to step 4 - preparing map
       setCurrentStep(4);
       
       // Convert landmarks to expected format for the map - FIXED FORMAT
@@ -373,6 +378,9 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
 
       console.log(`Passing ${validLandmarks.length} valid landmarks to map out of ${formattedLandmarks.length} total`);
 
+      // Start marker loading state
+      startMarkerLoading();
+
       // Convert to TourLandmark format and call setTourLandmarks
       const tourLandmarks = validLandmarks.map(landmark => ({
         name: landmark.name,
@@ -384,6 +392,11 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
       setTourLandmarks(tourLandmarks);
 
       onTourGenerated(validLandmarks);
+
+      // Wait for markers to load completely before finishing
+      await finishMarkerLoading();
+      
+      setCurrentStep(5);
 
       toast({
         title: "Tour Generated Successfully!",
@@ -555,8 +568,25 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
         </div>
       )}
 
-      {/* Step 4: Ready */}
+      {/* Step 4: Preparing Map */}
       {currentStep === 4 && (
+        <div className="space-y-4 text-center">
+          <div className="animate-pulse h-8 w-8 bg-blue-500 rounded-full mx-auto" />
+          <div>
+            <h3 className="text-lg font-semibold">Preparing Your Map</h3>
+            <p className="text-muted-foreground">
+              Loading {nearbyLandmarks.length} landmarks to the map...
+            </p>
+            <div className="flex items-center justify-center gap-2 mt-2 text-sm text-blue-600">
+              <MapPin className="h-4 w-4" />
+              <span>Ensuring all markers are properly positioned</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Step 5: Ready */}
+      {currentStep === 5 && (
         <div className="space-y-4 text-center">
           <div className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
             <Sparkles className="h-8 w-8 text-green-600" />

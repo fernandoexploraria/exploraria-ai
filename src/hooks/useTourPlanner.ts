@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { supabase } from '@/integrations/supabase/client';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useTourStats } from '@/hooks/useTourStats';
+import { useMarkerLoadingState } from '@/hooks/useMarkerLoadingState';
 
 export interface TourPlan {
   landmarks: EnhancedLandmark[];
@@ -50,6 +51,7 @@ export const useTourPlanner = () => {
   });
   const { subscriptionData } = useSubscription();
   const { tourStats, forceRefresh } = useTourStats();
+  const { startMarkerLoading, finishMarkerLoading } = useMarkerLoadingState(1000);
 
   // Keep backward compatibility - convert enhanced landmarks to basic landmarks for components that need it
   const plannedLandmarks: Landmark[] = tourPlan?.landmarks?.map(landmark => ({
@@ -201,8 +203,11 @@ export const useTourPlanner = () => {
       }));
 
       // Phase 4: Finalize tour with slower progress
-      await animateProgress(95, 'Finalizing tour...', 'finalizing');
-      await animateProgress(98, 'Updating map markers...', 'finalizing');
+      await animateProgress(90, 'Finalizing tour...', 'finalizing');
+
+      // Start marker loading
+      startMarkerLoading();
+      await animateProgress(95, 'Loading landmarks to map...', 'finalizing');
 
       // Set tour landmarks for map display (simplified version)
       console.log('Setting enhanced tour landmarks:', enhancedLandmarks.length);
@@ -220,6 +225,9 @@ export const useTourPlanner = () => {
       };
 
       setTourPlan(newTourPlan);
+      
+      // Wait for markers to load before completing
+      await finishMarkerLoading();
       
       // Update tour count
       try {

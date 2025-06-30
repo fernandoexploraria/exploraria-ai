@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { Loader2, MapPin, Sparkles, CheckCircle, AlertCircle, Target, Zap, Shield } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { ProgressState } from '@/hooks/useTourPlanner';
+import { useMarkerLoadingState } from '@/hooks/useMarkerLoadingState';
 
 interface TourPlannerDialogProps {
   open: boolean;
@@ -28,6 +29,7 @@ const TourPlannerDialog: React.FC<TourPlannerDialogProps> = ({
 }) => {
   const [destination, setDestination] = useState('');
   const { user } = useAuth();
+  const { isMarkersLoading } = useMarkerLoadingState();
 
   const handleGenerate = async () => {
     if (!destination) return;
@@ -71,7 +73,7 @@ const TourPlannerDialog: React.FC<TourPlannerDialogProps> = ({
       case 'finalizing':
         return 'Preparing your personalized tour experience';
       case 'complete':
-        return 'Your enhanced tour is ready!';
+        return isMarkersLoading ? 'Loading landmarks to map...' : 'Your enhanced tour is ready!';
       case 'error':
         return 'Something went wrong during generation';
       default:
@@ -151,6 +153,13 @@ const TourPlannerDialog: React.FC<TourPlannerDialogProps> = ({
                         {error}
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {isMarkersLoading && (
+                  <div className="flex items-center gap-1 text-blue-700">
+                    <MapPin className="h-3 w-3" />
+                    <span>Positioning markers on map...</span>
                   </div>
                 )}
               </div>
