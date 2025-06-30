@@ -18,12 +18,15 @@ let photoPopupsRef: { current: { [key: string]: any } } | null = null;
 export const setMapMarkersRef = (markersRef: { current: { [key: string]: any } }, popupsRef: { current: { [key: string]: any } }) => {
   mapMarkersRef = markersRef;
   photoPopupsRef = popupsRef;
+  console.log('📍 Map markers reference set for tour landmarks management');
 };
 
-// Array-driven individual marker cleanup function
+// Enhanced array-driven individual marker cleanup function with fallback
 export const clearTourMarkers = () => {
   console.log('🧹 Starting array-driven individual marker cleanup...');
   console.log('📊 Landmarks to process:', TOUR_LANDMARKS.length);
+  console.log('📊 Current markers in mapMarkersRef:', mapMarkersRef?.current ? Object.keys(mapMarkersRef.current).length : 'NO_REF');
+  console.log('📊 Current popups in photoPopupsRef:', photoPopupsRef?.current ? Object.keys(photoPopupsRef.current).length : 'NO_REF');
   
   let markersRemoved = 0;
   let popupsRemoved = 0;
@@ -70,11 +73,53 @@ export const clearTourMarkers = () => {
     }
   });
   
-  // STEP 2: Clear the landmarks array AFTER all markers are processed
+  // STEP 2: Fallback cleanup - check for any remaining tour markers using pattern matching
+  if (mapMarkersRef?.current) {
+    console.log('🔍 Running fallback cleanup for any remaining tour markers...');
+    const remainingMarkerKeys = Object.keys(mapMarkersRef.current);
+    const tourMarkerKeys = remainingMarkerKeys.filter(key => key.startsWith('tour-landmark-'));
+    
+    console.log(`🔍 Found ${tourMarkerKeys.length} remaining tour markers in fallback`);
+    
+    tourMarkerKeys.forEach(markerId => {
+      try {
+        console.log(`🧹 Fallback removing marker: ${markerId}`);
+        mapMarkersRef.current![markerId].remove();
+        delete mapMarkersRef.current![markerId];
+        markersRemoved++;
+        console.log(`✅ Fallback removed marker: ${markerId}`);
+      } catch (error) {
+        console.warn(`⚠️ Error in fallback marker removal ${markerId}:`, error);
+      }
+    });
+  }
+  
+  // STEP 3: Fallback cleanup for popups
+  if (photoPopupsRef?.current) {
+    console.log('🔍 Running fallback cleanup for any remaining tour popups...');
+    const remainingPopupKeys = Object.keys(photoPopupsRef.current);
+    const tourPopupKeys = remainingPopupKeys.filter(key => key.startsWith('tour-landmark-'));
+    
+    console.log(`🔍 Found ${tourPopupKeys.length} remaining tour popups in fallback`);
+    
+    tourPopupKeys.forEach(popupId => {
+      try {
+        console.log(`🧹 Fallback removing popup: ${popupId}`);
+        photoPopupsRef.current![popupId].remove();
+        delete photoPopupsRef.current![popupId];
+        popupsRemoved++;
+        console.log(`✅ Fallback removed popup: ${popupId}`);
+      } catch (error) {
+        console.warn(`⚠️ Error in fallback popup removal ${popupId}:`, error);
+      }
+    });
+  }
+  
+  // STEP 4: Clear the landmarks array AFTER all markers are processed
   const landmarksCleared = TOUR_LANDMARKS.length;
   TOUR_LANDMARKS.length = 0;
   
-  // STEP 3: Verification and detailed logging
+  // STEP 5: Verification and detailed logging
   console.log(`🧹 Array-driven cleanup completed!`);
   console.log(`📊 Cleanup Summary:`);
   console.log(`   - Landmarks processed: ${landmarksCleared}`);
@@ -82,6 +127,16 @@ export const clearTourMarkers = () => {
   console.log(`   - Markers not found: ${markersNotFound}`);
   console.log(`   - Popups removed: ${popupsRemoved}`);
   console.log(`   - Popups not found: ${popupsNotFound}`);
+  
+  // Final verification
+  if (mapMarkersRef?.current) {
+    const remainingTourMarkers = Object.keys(mapMarkersRef.current).filter(key => key.startsWith('tour-landmark-'));
+    if (remainingTourMarkers.length > 0) {
+      console.warn(`⚠️ ${remainingTourMarkers.length} tour markers still remain:`, remainingTourMarkers);
+    } else {
+      console.log(`✅ All tour markers successfully removed from map`);
+    }
+  }
   
   // Verify complete cleanup
   if (TOUR_LANDMARKS.length === 0) {

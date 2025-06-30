@@ -134,25 +134,3 @@ export const landmarks: Landmark[] = [
     types: ['park', 'point_of_interest', 'establishment']
   }
 ];
-
-export const clearTourMarkers = () => {
-  landmarks.forEach(landmark => {
-    if ((landmark as any).marker) {
-      (landmark as any).marker.remove();
-      delete (landmark as any).marker;
-    }
-  });
-};
-
-export const setTourLandmarks = (newLandmarks: Omit<Landmark, 'id' | 'rating' | 'photos' | 'types'>[]) => {
-  clearTourMarkers();
-  newLandmarks.forEach((landmark, index) => {
-    const id = `tour-landmark-${index}`;
-    landmarks.push({
-      id,
-      name: landmark.name,
-      description: landmark.description,
-      coordinates: landmark.coordinates,
-    });
-  });
-};

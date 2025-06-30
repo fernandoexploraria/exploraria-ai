@@ -200,8 +200,9 @@ const Map: React.FC<MapProps> = ({
 
       console.log('🗺️ [Map] Map instance created successfully');
 
-      // Set the markers reference for tour landmarks management
+      // CRITICAL: Set the markers reference for tour landmarks management immediately after map creation
       setMapMarkersRef(markers, photoPopups);
+      console.log('🗺️ [Map] Marker references set for tour landmarks cleanup system');
 
       // Add location control for authenticated users
       if (user) {
@@ -847,7 +848,7 @@ const Map: React.FC<MapProps> = ({
       }
     });
 
-    // Add new markers with consistent ID usage
+    // Add new markers with consistent ID usage - ensuring tour markers use the exact same IDs as cleanup
     allLandmarksWithTop.forEach((landmark) => {
       if (!markers.current[landmark.id]) {
         console.log('📍 Creating new marker with ID:', landmark.id);
@@ -899,8 +900,14 @@ const Map: React.FC<MapProps> = ({
           onSelectLandmark(landmark);
         });
 
+        // Store marker with the exact same ID that will be used for cleanup
         markers.current[landmark.id] = marker;
         console.log('✅ Marker created and stored with ID:', landmark.id);
+        
+        // For tour landmarks, log the ID pattern for debugging
+        if (isTourLandmark) {
+          console.log('🔍 Tour marker stored - cleanup will look for this exact ID:', landmark.id);
+        }
       }
     });
 
