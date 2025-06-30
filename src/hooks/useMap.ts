@@ -48,17 +48,9 @@ export const useMap = (mapContainerRef: React.RefObject<HTMLDivElement>) => {
     console.log('🧹 Cleaning up map...');
     
     try {
-      // Remove specific event listeners
-      map.current.off('load');
-      map.current.off('error');
-      map.current.off('moveend');
-      map.current.off('mousedown');
-      map.current.off('mouseup');
-      map.current.off('dragstart');
-      map.current.off('touchend');
-      
       // Check if map is still valid before removing
       if (map.current.getContainer() && map.current.getContainer().parentNode) {
+        // Mapbox GL JS automatically removes all event listeners when map.remove() is called
         map.current.remove();
       }
     } catch (error) {
