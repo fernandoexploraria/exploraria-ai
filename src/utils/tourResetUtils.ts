@@ -22,17 +22,17 @@ export interface TourPlannerStates {
   setProgressState?: (state: any) => void;
 }
 
-// Comprehensive reset function for tour generation
+// Comprehensive reset function for tour generation using layer system
 export const performComprehensiveTourReset = (
   dialogStates: DialogStates,
   pageStates: PageStates,
   tourPlannerStates?: TourPlannerStates
 ) => {
-  console.log('🧹 Starting comprehensive tour reset...');
+  console.log('🧹 Starting comprehensive tour reset with layer system...');
   
-  // Phase 1: Clear core data structures
-  console.log('🧹 Phase 1: Clearing core data structures');
-  clearTourMarkers();
+  // Phase 1: Clear core data structures using enhanced layer system
+  console.log('🧹 Phase 1: Clearing core data structures with layer system');
+  clearTourMarkers(); // This now uses the layer-based approach
   
   // Phase 2: Reset page-level states
   console.log('🧹 Phase 2: Resetting page-level states');
@@ -61,7 +61,7 @@ export const performComprehensiveTourReset = (
     });
   }
   
-  console.log('🧹 Comprehensive tour reset completed');
+  console.log('🧹 Comprehensive tour reset completed with layer system');
 };
 
 // Reset function specifically for dialog internal states

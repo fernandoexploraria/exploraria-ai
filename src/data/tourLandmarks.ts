@@ -8,69 +8,46 @@ export interface TourLandmark {
 // Mutable array that gets cleared and repopulated for each new tour
 export const TOUR_LANDMARKS: TourLandmark[] = [];
 
-// Reference to the map markers - will be set by Map component
-let mapMarkersRef: { current: { [key: string]: any } } | null = null;
-let photoPopupsRef: { current: { [key: string]: any } } | null = null;
+// Reference to the map instance and layer clearing function - will be set by Map component
+let mapRef: { current: mapboxgl.Map | null } | null = null;
+let clearTourLayerFunction: (() => void) | null = null;
 
-// Function to set the markers reference from Map component
-export const setMapMarkersRef = (markersRef: { current: { [key: string]: any } }, popupsRef: { current: { [key: string]: any } }) => {
-  mapMarkersRef = markersRef;
-  photoPopupsRef = popupsRef;
+// Function to set the map reference and clear function from Map component
+export const setMapMarkersRef = (
+  markersRef: any, // Legacy parameter, kept for compatibility
+  popupsRef: any,  // Legacy parameter, kept for compatibility
+  mapInstance?: { current: mapboxgl.Map | null },
+  clearLayerFn?: () => void
+) => {
+  mapRef = mapInstance || null;
+  clearTourLayerFunction = clearLayerFn || null;
+  console.log('🗺️ Map references updated for layer-based system');
 };
 
-// Enhanced function to clear tour markers from map and array
+// Enhanced function to clear tour landmarks using layer system
 export const clearTourMarkers = () => {
-  console.log('🧹 Enhanced clearing of tour markers from map...');
-  
-  let markersRemoved = 0;
-  let popupsRemoved = 0;
-  
-  if (mapMarkersRef?.current) {
-    // Find and remove all tour landmarks from the map
-    Object.keys(mapMarkersRef.current).forEach(markerId => {
-      if (markerId.startsWith('tour-landmark-')) {
-        console.log('🗑️ Removing map marker:', markerId);
-        try {
-          // Remove marker from map
-          mapMarkersRef.current[markerId].remove();
-          // Delete from markers ref
-          delete mapMarkersRef.current[markerId];
-          markersRemoved++;
-        } catch (error) {
-          console.warn('⚠️ Error removing marker:', markerId, error);
-        }
-      }
-    });
-  }
-  
-  if (photoPopupsRef?.current) {
-    // Close any open popups for tour landmarks
-    Object.keys(photoPopupsRef.current).forEach(popupId => {
-      if (popupId.startsWith('tour-landmark-')) {
-        console.log('🗑️ Removing popup:', popupId);
-        try {
-          photoPopupsRef.current[popupId].remove();
-          delete photoPopupsRef.current[popupId];
-          popupsRemoved++;
-        } catch (error) {
-          console.warn('⚠️ Error removing popup:', popupId, error);
-        }
-      }
-    });
-  }
+  console.log('🧹 Enhanced clearing of tour landmarks using layer system...');
   
   // Clear the landmarks array
   const landmarksCleared = TOUR_LANDMARKS.length;
   TOUR_LANDMARKS.length = 0;
   
-  console.log(`🧹 Enhanced cleanup completed: ${markersRemoved} markers, ${popupsRemoved} popups, ${landmarksCleared} landmarks cleared`);
+  // Use the layer clearing function if available
+  if (clearTourLayerFunction) {
+    clearTourLayerFunction();
+    console.log('🧹 Layer-based cleanup completed successfully');
+  } else {
+    console.log('⚠️ Layer clearing function not available, using array-only cleanup');
+  }
+  
+  console.log(`🧹 Enhanced cleanup completed: ${landmarksCleared} landmarks cleared`);
 };
 
 // Enhanced function to clear and set new tour landmarks
 export const setTourLandmarks = (landmarks: TourLandmark[]) => {
   console.log('📍 Enhanced setTourLandmarks called with:', landmarks.length, 'landmarks');
   
-  // Clear existing landmarks and markers first with verification
+  // Clear existing landmarks first with verification
   clearTourMarkers();
   
   // Verify cleanup completed
@@ -104,4 +81,7 @@ export const setTourLandmarks = (landmarks: TourLandmark[]) => {
       coordinates: l.coordinates
     })));
   }
+  
+  // Trigger layer update - this will happen automatically via the Map component's useEffect
+  console.log('📍 Layer system will auto-update via Map component state changes');
 };
