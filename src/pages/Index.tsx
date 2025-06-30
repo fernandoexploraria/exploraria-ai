@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import SplashScreen from '@/components/SplashScreen';
 import MainLayout from '@/components/MainLayout';
@@ -9,6 +10,7 @@ import { useDialogStates } from '@/hooks/useDialogStates';
 import { useProximityNotifications } from '@/hooks/useProximityNotifications';
 import { useDebugWindow } from '@/hooks/useDebugWindow';
 import { useConnectionMonitor } from '@/hooks/useConnectionMonitor';
+import { performComprehensiveTourReset } from '@/utils/tourResetUtils';
 
 interface IndexProps {
   onRegisterPostAuthActions?: (actions: { onSmartTour?: () => void }) => void;
@@ -38,6 +40,7 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
     setIsNewTourAssistantOpen,
     isIntelligentTourOpen,
     setIsIntelligentTourOpen,
+    resetAllDialogStates,
   } = useDialogStates();
 
   // Initialize proximity notifications
@@ -52,11 +55,11 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
       onRegisterPostAuthActions({
         onSmartTour: () => {
           console.log('🎯 Executing post-auth smart tour action');
-          setIsIntelligentTourOpen(true);
+          handleIntelligentTourOpen();
         }
       });
     }
-  }, [onRegisterPostAuthActions, setIsIntelligentTourOpen]);
+  }, [onRegisterPostAuthActions]);
   
   // Combine static landmarks with smart tour landmarks
   const allLandmarks: Landmark[] = useMemo(() => {
@@ -116,15 +119,28 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
     setIsIntelligentTourOpen(false);
   };
 
-  // Handler for Intelligent Tour - with enhanced state cleanup
+  // Enhanced handler for Intelligent Tour with comprehensive reset
   const handleIntelligentTourOpen = () => {
-    console.log('🎯 Opening Intelligent Tour dialog - clearing previous state');
-    // Clear previous tour data before opening new tour dialog
-    setVoiceTourData(null);
-    setSmartTourLandmarks([]);
-    // Close voice assistant if open to prevent conflicts
-    setIsNewTourAssistantOpen(false);
-    setIsIntelligentTourOpen(true);
+    console.log('🎯 Opening Intelligent Tour dialog - performing comprehensive reset');
+    
+    // Perform comprehensive reset before opening dialog
+    performComprehensiveTourReset(
+      {
+        setIsIntelligentTourOpen,
+        setIsNewTourAssistantOpen,
+        setIsInteractionHistoryOpen,
+        setSelectedLandmark,
+      },
+      {
+        setSmartTourLandmarks,
+        setVoiceTourData,
+      }
+    );
+    
+    // Wait for cleanup to complete before opening dialog
+    setTimeout(() => {
+      setIsIntelligentTourOpen(true);
+    }, 200);
   };
 
   // Handler for auth required from IntelligentTourDialog

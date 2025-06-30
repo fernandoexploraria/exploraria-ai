@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube, MapPin, ToggleLeft, ToggleRight } from 'lucide-react';
@@ -18,6 +17,7 @@ import IntelligentTourDialog from './IntelligentTourDialog';
 import AuthDialog from './AuthDialog';
 import { useAuth } from '@/components/AuthProvider';
 import { PostAuthAction } from '@/utils/authActions';
+import { performComprehensiveTourReset } from '@/utils/tourResetUtils';
 
 interface TopControlsProps {
   allLandmarks: Landmark[];
@@ -103,14 +103,15 @@ const TopControls: React.FC<TopControlsProps> = ({
       setIsAuthDialogOpen(true);
     } else {
       console.log('✅ User authenticated, opening smart tour dialog');
-      setIsIntelligentTourOpen(true);
+      // Note: Reset logic is now handled by onIntelligentTourOpen from parent
+      onIntelligentTourOpen();
     }
   };
 
   const handlePostAuthAction = (action: PostAuthAction) => {
     console.log('🎯 Executing post-auth action:', action);
     if (action === 'smart-tour') {
-      setIsIntelligentTourOpen(true);
+      onIntelligentTourOpen();
     }
   };
 

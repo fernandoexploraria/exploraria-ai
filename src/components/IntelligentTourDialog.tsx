@@ -12,6 +12,7 @@ import { getPlaceTypeIcon, getPlaceTypeLabel } from '@/utils/placeTypeIcons';
 import { setTourLandmarks, clearTourMarkers } from '@/data/tourLandmarks';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useMarkerLoadingState } from '@/hooks/useMarkerLoadingState';
+import { resetIntelligentTourDialogState } from '@/utils/tourResetUtils';
 
 interface IntelligentTourDialogProps {
   open: boolean;
@@ -54,29 +55,23 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
 }) => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
-  const [currentStep, setCurrentStep] = useState(1);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [autocompleteResults, setAutocompleteResults] = useState<AutocompleteResult[]>([]);
-  const [selectedDestination, setSelectedDestination] = useState<AutocompleteResult | null>(null);
-  const [destinationDetails, setDestinationDetails] = useState<any>(null);
-  const [nearbyLandmarks, setNearbyLandmarks] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [sessionToken, setSessionToken] = useState<string>('');
-  const [autocompleteError, setAutocompleteError] = useState<string>('');
+  
+  // Initialize state with reset utility
+  const initialState = resetIntelligentTourDialogState();
+  const [currentStep, setCurrentStep] = useState(initialState.currentStep);
+  const [searchQuery, setSearchQuery] = useState(initialState.searchQuery);
+  const [autocompleteResults, setAutocompleteResults] = useState<AutocompleteResult[]>(initialState.autocompleteResults);
+  const [selectedDestination, setSelectedDestination] = useState<AutocompleteResult | null>(initialState.selectedDestination);
+  const [destinationDetails, setDestinationDetails] = useState<any>(initialState.destinationDetails);
+  const [nearbyLandmarks, setNearbyLandmarks] = useState<any[]>(initialState.nearbyLandmarks);
+  const [isLoading, setIsLoading] = useState(initialState.isLoading);
+  const [sessionToken, setSessionToken] = useState<string>(initialState.sessionToken);
+  const [autocompleteError, setAutocompleteError] = useState<string>(initialState.autocompleteError);
   
   const { toast } = useToast();
   const { isMarkersLoading, markersLoaded, startMarkerLoading, finishMarkerLoading, resetMarkerState } = useMarkerLoadingState(750);
 
-  // Generate a new session token when dialog opens
-  React.useEffect(() => {
-    if (open && !sessionToken) {
-      const newSessionToken = crypto.randomUUID();
-      setSessionToken(newSessionToken);
-      console.log('Generated new autocomplete session token:', newSessionToken);
-    }
-  }, [open, sessionToken]);
-
-  // Enhanced reset and cleanup when dialog opens
+  // Enhanced reset and cleanup when dialog opens using utility
   React.useEffect(() => {
     if (open) {
       console.log('🎯 IntelligentTourDialog opened - performing enhanced cleanup');
@@ -84,29 +79,36 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       // Clear existing tour markers immediately
       clearTourMarkers();
       
-      // Reset dialog state
-      resetDialog();
+      // Reset dialog state using utility
+      const newState = resetIntelligentTourDialogState();
+      setCurrentStep(newState.currentStep);
+      setSearchQuery(newState.searchQuery);
+      setAutocompleteResults(newState.autocompleteResults);
+      setSelectedDestination(newState.selectedDestination);
+      setDestinationDetails(newState.destinationDetails);
+      setNearbyLandmarks(newState.nearbyLandmarks);
+      setIsLoading(newState.isLoading);
+      setAutocompleteError(newState.autocompleteError);
+      setSessionToken(newState.sessionToken);
+      resetMarkerState();
       
-      // Add a small delay to ensure cleanup completes
-      setTimeout(() => {
-        console.log('🎯 Enhanced cleanup completed');
-      }, 100);
+      console.log('🎯 Enhanced cleanup completed with fresh session token:', newState.sessionToken.substring(0, 8));
     }
-  }, [open]);
+  }, [open, resetMarkerState]);
 
   const resetDialog = () => {
     console.log('🔄 Resetting IntelligentTourDialog state');
-    setCurrentStep(1);
-    setSearchQuery('');
-    setAutocompleteResults([]);
-    setSelectedDestination(null);
-    setDestinationDetails(null);
-    setNearbyLandmarks([]);
-    setIsLoading(false);
-    setAutocompleteError('');
+    const newState = resetIntelligentTourDialogState();
+    setCurrentStep(newState.currentStep);
+    setSearchQuery(newState.searchQuery);
+    setAutocompleteResults(newState.autocompleteResults);
+    setSelectedDestination(newState.selectedDestination);
+    setDestinationDetails(newState.destinationDetails);
+    setNearbyLandmarks(newState.nearbyLandmarks);
+    setIsLoading(newState.isLoading);
+    setAutocompleteError(newState.autocompleteError);
+    setSessionToken(newState.sessionToken);
     resetMarkerState();
-    // Generate new session token for next autocomplete session
-    setSessionToken(crypto.randomUUID());
   };
 
   const handleClose = () => {
