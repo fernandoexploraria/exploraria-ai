@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Landmark } from '@/data/landmarks';
@@ -58,7 +58,7 @@ const Map: React.FC<MapProps> = ({
   const [selectedLandmark, setSelectedLandmark] = useState<Landmark | null>(null);
 
   const mapboxToken = useMapboxToken();
-  const { startTracking, stopTracking, userLocation: currentLocation, error: locationError } = useLocationTracking();
+  const { startTracking, stopTracking, userLocation: currentLocation, locationError } = useLocationTracking();
   const proximityAlertsHook = useProximityAlerts();
   const { fetchStreetView } = useStreetView();
 
@@ -80,6 +80,7 @@ const Map: React.FC<MapProps> = ({
       console.log(`🔍 Map: Fetching photos for landmark: ${landmark.name}`);
       
       // Use database-first approach via useLandmarkPhotos hook
+      // Convert basic Landmark to the format expected by the hook
       const result = await fetchLandmarkPhotosHook(landmark, {
         maxWidth: 800,
         quality: 'medium'
@@ -143,9 +144,9 @@ const Map: React.FC<MapProps> = ({
         allowZoom: true
       });
 
-      // Render the React component to a string
-      const carouselHTML = renderReactComponentToString(carousel);
-      carouselContainer.innerHTML = carouselHTML;
+      // Render the React component using createRoot
+      const root = createRoot(carouselContainer);
+      root.render(carousel);
       popupContent.appendChild(carouselContainer);
     } else {
       const noPhotosMessage = document.createElement('p');
@@ -162,8 +163,8 @@ const Map: React.FC<MapProps> = ({
       smartTourLandmarks: smartTourLandmarks
     });
 
-    const enhancedInfoHTML = renderReactComponentToString(enhancedInfo);
-    infoContainer.innerHTML = enhancedInfoHTML;
+    const infoRoot = createRoot(infoContainer);
+    infoRoot.render(enhancedInfo);
     popupContent.appendChild(infoContainer);
 
     const streetViewButton = document.createElement('button');
@@ -352,12 +353,6 @@ const Map: React.FC<MapProps> = ({
     }
   }, [selectedLandmarkForStreetView, fetchStreetView]);
 
-  const renderReactComponentToString = (reactComponent: React.ReactElement): string => {
-    const div = document.createElement("div");
-    ReactDOM.render(reactComponent, div);
-    return div.innerHTML;
-  };
-
   return (
     <>
       <div 
@@ -369,7 +364,13 @@ const Map: React.FC<MapProps> = ({
         <FloatingProximityCard
           key={alert.landmark.id}
           landmark={alert.landmark}
-          distance={alert.distance}
+          userLocation={currentLocation}
+          onClose={() => {
+            setProximityAlerts(prev => prev.filter(a => a.landmark.id !== alert.landmark.id));
+          }}
+          onGetDirections={(service) => {
+            console.log('Get directions to service:', service);
+          }}
         />
       ))}
 
@@ -379,18 +380,47 @@ const Map: React.FC<MapProps> = ({
           setIsStreetViewModalOpen(false);
           setSelectedLandmarkForStreetView(null);
         }}
-        landmark={selectedLandmarkForStreetView}
-        streetViewImages={streetViewImages}
-        onViewAll={() => {
-          setIsStreetViewGridOpen(true);
+        streetViewData={{
+          imageUrl: streetViewImages[0] || '',
+          heading: 0,
+          pitch: 0,
+          fov: 90,
+          location: {
+            lat: selectedLandmarkForStreetView?.coordinates[1] || 0,
+            lng: selectedLandmarkForStreetView?.coordinates[0] || 0
+          },
+          landmarkName: selectedLandmarkForStreetView?.name || '',
+          metadata: {
+            status: 'OK'
+          }
+        }}
+        onLocationSelect={(coordinates) => {
+          console.log('Location selected:', coordinates);
         }}
       />
 
       <StreetViewThumbnailGrid
-        isOpen={isStreetViewGridOpen}
-        onClose={() => setIsStreetViewGridOpen(false)}
-        landmark={selectedLandmarkForStreetView}
-        streetViewImages={streetViewImages}
+        thumbnails={selectedLandmarkForStreetView ? [{
+          landmark: selectedLandmarkForStreetView,
+          streetViewData: {
+            imageUrl: streetViewImages[0] || '',
+            heading: 0,
+            pitch: 0,
+            fov: 90,
+            location: {
+              lat: selectedLandmarkForStreetView.coordinates[1],
+              lng: selectedLandmarkForStreetView.coordinates[0]
+            },
+            landmarkName: selectedLandmarkForStreetView.name,
+            metadata: {
+              status: 'OK'
+            }
+          }
+        }] : []}
+        onThumbnailClick={(index) => {
+          console.log('Thumbnail clicked:', index);
+        }}
+        isLoading={false}
       />
     </>
   );
