@@ -198,12 +198,12 @@ export type Database = {
           evaluation_criteria_embedding: string | null
           full_transcript: Json | null
           id: string
-          image_url: string | null
           info_accuracy_explanation: string | null
           info_accuracy_status: string | null
           interaction_type: string | null
           is_favorite: boolean | null
           landmark_coordinates: unknown | null
+          landmark_image_url: string | null
           navigation_effectiveness_explanation: string | null
           navigation_effectiveness_status: string | null
           points_of_interest_embedding: string | null
@@ -240,12 +240,12 @@ export type Database = {
           evaluation_criteria_embedding?: string | null
           full_transcript?: Json | null
           id?: string
-          image_url?: string | null
           info_accuracy_explanation?: string | null
           info_accuracy_status?: string | null
           interaction_type?: string | null
           is_favorite?: boolean | null
           landmark_coordinates?: unknown | null
+          landmark_image_url?: string | null
           navigation_effectiveness_explanation?: string | null
           navigation_effectiveness_status?: string | null
           points_of_interest_embedding?: string | null
@@ -282,12 +282,12 @@ export type Database = {
           evaluation_criteria_embedding?: string | null
           full_transcript?: Json | null
           id?: string
-          image_url?: string | null
           info_accuracy_explanation?: string | null
           info_accuracy_status?: string | null
           interaction_type?: string | null
           is_favorite?: boolean | null
           landmark_coordinates?: unknown | null
+          landmark_image_url?: string | null
           navigation_effectiveness_explanation?: string | null
           navigation_effectiveness_status?: string | null
           points_of_interest_embedding?: string | null
