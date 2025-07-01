@@ -19,7 +19,7 @@ const PhotoThumbnailGrid: React.FC<PhotoThumbnailGridProps> = ({
   maxVisible = 8,
   className
 }) => {
-  console.log(`🔍 [PhotoThumbnailGrid] Rendered with currentIndex: ${currentIndex}, totalPhotos: ${photos.length}`);
+  console.log(`🖼️ [PhotoThumbnailGrid] Rendered with currentIndex: ${currentIndex}, totalPhotos: ${photos.length}`);
 
   // Calculate which thumbnails to show based on current index
   const getVisiblePhotos = () => {
@@ -57,6 +57,19 @@ const PhotoThumbnailGrid: React.FC<PhotoThumbnailGridProps> = ({
     return 'Fair';
   };
 
+  const handleThumbnailClick = (originalIndex: number, event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    console.log(`🖼️ [PhotoThumbnailGrid] Thumbnail ${originalIndex} clicked (current: ${currentIndex})`);
+    
+    if (originalIndex !== currentIndex) {
+      console.log(`🖼️ [PhotoThumbnailGrid] Calling onThumbnailClick with index: ${originalIndex}`);
+      onThumbnailClick(originalIndex);
+    } else {
+      console.log(`🖼️ [PhotoThumbnailGrid] Same index clicked, no action needed`);
+    }
+  };
+
   return (
     <div className={cn('flex items-center justify-center gap-2 overflow-hidden', className)}>
       {/* Show indicator if there are photos before the visible range */}
@@ -68,11 +81,8 @@ const PhotoThumbnailGrid: React.FC<PhotoThumbnailGridProps> = ({
 
       {visiblePhotos.map(({ photo, originalIndex }) => (
         <button
-          key={originalIndex}
-          onClick={() => {
-            console.log(`🔍 [PhotoThumbnailGrid] Thumbnail ${originalIndex} clicked, calling onThumbnailClick`);
-            onThumbnailClick(originalIndex);
-          }}
+          key={`${photo.id}-${originalIndex}`}
+          onClick={(e) => handleThumbnailClick(originalIndex, e)}
           className={cn(
             'relative group flex-shrink-0 w-16 h-12 rounded overflow-hidden transition-all duration-200',
             'border-2 hover:scale-105',

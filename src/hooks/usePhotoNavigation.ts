@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { PhotoData } from './useEnhancedPhotos';
 
 interface UsePhotoNavigationProps {
@@ -16,13 +16,21 @@ export const usePhotoNavigation = ({
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  console.log(`🔍 [usePhotoNavigation] Hook initialized with initialIndex: ${initialIndex}, currentIndex: ${currentIndex}`);
+  console.log(`🔍 [usePhotoNavigation] Hook initialized - photos: ${photos.length}, initialIndex: ${initialIndex}, currentIndex: ${currentIndex}`);
+
+  // Only update currentIndex if initialIndex changes and it's different from current
+  useEffect(() => {
+    if (initialIndex !== currentIndex && initialIndex >= 0 && initialIndex < photos.length) {
+      console.log(`🔍 [usePhotoNavigation] Updating currentIndex due to initialIndex change: ${currentIndex} → ${initialIndex}`);
+      setCurrentIndex(initialIndex);
+    }
+  }, [initialIndex, photos.length]);
 
   const handleIndexChange = useCallback((newIndex: number) => {
     console.log(`🔍 [usePhotoNavigation] handleIndexChange called: ${currentIndex} → ${newIndex}`);
     setCurrentIndex(newIndex);
     onIndexChange?.(newIndex);
-  }, [onIndexChange]); // Removed currentIndex from dependency array
+  }, [onIndexChange, currentIndex]);
 
   const goToNext = useCallback(() => {
     const nextIndex = currentIndex < photos.length - 1 ? currentIndex + 1 : 0;
@@ -39,13 +47,13 @@ export const usePhotoNavigation = ({
   const goToFirst = useCallback(() => {
     console.log(`🔍 [usePhotoNavigation] goToFirst: ${currentIndex} → 0`);
     handleIndexChange(0);
-  }, [handleIndexChange]);
+  }, [handleIndexChange, currentIndex]);
 
   const goToLast = useCallback(() => {
     const lastIndex = photos.length - 1;
     console.log(`🔍 [usePhotoNavigation] goToLast: ${currentIndex} → ${lastIndex}`);
     handleIndexChange(lastIndex);
-  }, [photos.length, handleIndexChange]);
+  }, [photos.length, handleIndexChange, currentIndex]);
 
   const openFullscreen = useCallback(() => {
     setIsFullscreen(true);
@@ -55,10 +63,14 @@ export const usePhotoNavigation = ({
     setIsFullscreen(false);
   }, []);
 
+  console.log(`🔍 [usePhotoNavigation] Returning state - currentIndex: ${currentIndex}, currentPhoto: ${currentPhoto?.id || 'none'}`);
+
+  const currentPhoto = photos[currentIndex];
+
   return {
     currentIndex,
     isFullscreen,
-    currentPhoto: photos[currentIndex],
+    currentPhoto,
     hasNext: currentIndex < photos.length - 1,
     hasPrevious: currentIndex > 0,
     totalCount: photos.length,

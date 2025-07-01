@@ -36,6 +36,8 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
   const [showAttribution, setShowAttribution] = useState(false);
   const { getOptimalImageQuality } = useNetworkStatus();
 
+  console.log(`🎠 [PhotoCarousel] Rendering with ${photos.length} photos, initialIndex: ${initialIndex}`);
+
   const {
     currentIndex,
     isFullscreen,
@@ -52,8 +54,13 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
     closeFullscreen
   } = usePhotoNavigation({
     photos,
-    initialIndex
+    initialIndex,
+    onIndexChange: (newIndex) => {
+      console.log(`🎠 [PhotoCarousel] Photo navigation changed to index: ${newIndex}`);
+    }
   });
+
+  console.log(`🎠 [PhotoCarousel] Current state - index: ${currentIndex}, photo: ${currentPhoto?.id || 'none'}`);
 
   const zoomIn = useCallback(() => {
     setZoomLevel(prev => Math.min(prev * 1.5, 4));
@@ -69,6 +76,7 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
 
   // Reset zoom when changing photos
   useEffect(() => {
+    console.log(`🎠 [PhotoCarousel] Resetting zoom due to photo change (index: ${currentIndex})`);
     setZoomLevel(1);
   }, [currentIndex]);
 
@@ -86,13 +94,21 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
     onFullscreen: allowFullscreen ? openFullscreen : undefined
   });
 
+  const handleThumbnailClick = useCallback((index: number) => {
+    console.log(`🎠 [PhotoCarousel] Thumbnail ${index} clicked, calling goToIndex`);
+    goToIndex(index);
+  }, [goToIndex]);
+
   if (!currentPhoto) {
+    console.log(`🎠 [PhotoCarousel] No current photo available`);
     return (
       <div className="flex items-center justify-center h-64 bg-gray-100 rounded-lg">
         <p className="text-gray-500">No photos available</p>
       </div>
     );
   }
+
+  console.log(`🎠 [PhotoCarousel] Rendering main photo: ${currentPhoto.id}`);
 
   return (
     <>
@@ -170,6 +186,7 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
               alt={`Photo ${currentIndex + 1}`}
               className="w-full h-full"
               showAttribution={false}
+              key={`photo-${currentPhoto.id}-${currentIndex}`}
             />
           </div>
           
@@ -212,7 +229,7 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
             <PhotoThumbnailGrid
               photos={photos}
               currentIndex={currentIndex}
-              onThumbnailClick={goToIndex}
+              onThumbnailClick={handleThumbnailClick}
             />
           </div>
         )}
