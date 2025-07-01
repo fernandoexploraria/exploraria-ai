@@ -431,18 +431,13 @@ const Map: React.FC<MapProps> = ({
         
         map.current.addLayer({
           id: TOUR_LANDMARKS_LAYER_ID,
-          type: 'symbol',
+          type: 'circle',
           source: TOUR_LANDMARKS_SOURCE_ID,
-          layout: {
-            'icon-image': 'circle-15',
-            'icon-size': 1.2,
-            'icon-allow-overlap': true,
-            'icon-ignore-placement': true
-          },
           paint: {
-            'icon-color': '#4ade80', // green-400 for tour landmarks
-            'icon-halo-color': '#ffffff',
-            'icon-halo-width': 2
+            'circle-radius': 8,
+            'circle-color': '#4ade80', // green-400 for tour landmarks
+            'circle-stroke-color': '#ffffff',
+            'circle-stroke-width': 2
           }
         });
         
@@ -454,18 +449,13 @@ const Map: React.FC<MapProps> = ({
         
         map.current.addLayer({
           id: TOP_LANDMARKS_LAYER_ID,
-          type: 'symbol',
+          type: 'circle',
           source: TOP_LANDMARKS_SOURCE_ID,
-          layout: {
-            'icon-image': 'circle-15',
-            'icon-size': 1.0,
-            'icon-allow-overlap': true,
-            'icon-ignore-placement': true
-          },
           paint: {
-            'icon-color': '#facc15', // yellow-400 for top landmarks
-            'icon-halo-color': '#ffffff',
-            'icon-halo-width': 2
+            'circle-radius': 6,
+            'circle-color': '#facc15', // yellow-400 for top landmarks
+            'circle-stroke-color': '#ffffff',
+            'circle-stroke-width': 2
           }
         });
         
@@ -477,18 +467,13 @@ const Map: React.FC<MapProps> = ({
         
         map.current.addLayer({
           id: BASE_LANDMARKS_LAYER_ID,
-          type: 'symbol',
+          type: 'circle',
           source: BASE_LANDMARKS_SOURCE_ID,
-          layout: {
-            'icon-image': 'circle-15',
-            'icon-size': 1.0,
-            'icon-allow-overlap': true,
-            'icon-ignore-placement': true
-          },
           paint: {
-            'icon-color': '#22d3ee', // cyan-400 for base landmarks
-            'icon-halo-color': '#ffffff',
-            'icon-halo-width': 2
+            'circle-radius': 6,
+            'circle-color': '#22d3ee', // cyan-400 for base landmarks
+            'circle-stroke-color': '#ffffff',
+            'circle-stroke-width': 2
           }
         });
         
