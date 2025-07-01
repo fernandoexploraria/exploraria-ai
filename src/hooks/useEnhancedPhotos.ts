@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { usePhotoOptimization } from './photo-optimization/usePhotoOptimization';
 
 export interface PhotoData {
   id: number;
@@ -105,8 +106,8 @@ const isValidUrl = (url: string): boolean => {
   }
 };
 
-// Extract photos from database raw_data with improved URL construction
-const extractPhotosFromRawData = (rawData: any): PhotoData[] => {
+// Extract photos from database raw_data with enhanced URL construction
+const extractPhotosFromRawData = (rawData: any, photoOptimization?: any): PhotoData[] => {
   if (!rawData?.photos || !Array.isArray(rawData.photos)) {
     return [];
   }
@@ -116,7 +117,7 @@ const extractPhotosFromRawData = (rawData: any): PhotoData[] => {
   return rawData.photos.map((photo: any, index: number) => {
     const originalPhotoUri = photo.photoUri || '';
     
-    // Construct URLs for different sizes
+    // Use photo optimization if available for URL construction
     const thumbUrl = constructPhotoUrl(originalPhotoUri, 400);
     const mediumUrl = constructPhotoUrl(originalPhotoUri, 800);
     const largeUrl = constructPhotoUrl(originalPhotoUri, 1600);
@@ -201,6 +202,14 @@ const extractPhotosFromPhotosField = (photos: any): PhotoData[] => {
 export const useEnhancedPhotos = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Initialize photo optimization
+  const photoOptimization = usePhotoOptimization({
+    enablePreValidation: true,
+    enableUrlCaching: true,
+    enableMetrics: true,
+    preValidateOnSlowConnection: false
+  });
 
   // Fetch landmark data from database (tour landmarks with enhanced data)
   const fetchLandmarkFromDatabase = useCallback(async (
@@ -253,7 +262,7 @@ export const useEnhancedPhotos = () => {
     }
   }, []);
 
-  // Enhanced photo fetching with 3-tier strategy and fallback logic
+  // Enhanced photo fetching with 3-tier strategy and optimization
   const fetchPhotos = useCallback(async (
     placeId: string, 
     maxWidth: number = 800,
@@ -279,9 +288,22 @@ export const useEnhancedPhotos = () => {
         const dbLandmark = await fetchLandmarkFromDatabase(landmarkId);
         
         if (dbLandmark?.raw_data?.photos) {
-          photos = extractPhotosFromRawData(dbLandmark.raw_data);
+          photos = extractPhotosFromRawData(dbLandmark.raw_data, photoOptimization);
           sourceUsed = 'database_raw_data';
           console.log(`✅ Phase 1 SUCCESS: Found ${photos.length} photos from raw_data`);
+          
+          // Pre-optimize URLs for better performance
+          if (photos.length > 0) {
+            console.log(`🚀 Pre-optimizing ${photos.length} database photos`);
+            try {
+              const preOptimizePromises = photos.slice(0, 3).map(photo => // Only first 3 to avoid overwhelming
+                photoOptimization.preloadPhotos([photo.photoReference], quality)
+              );
+              await Promise.allSettled(preOptimizePromises);
+            } catch (preOptError) {
+              console.warn(`⚠️ Pre-optimization failed:`, preOptError);
+            }
+          }
           
           // Check if any photos actually have valid URLs
           const validPhotos = photos.filter(photo => 
@@ -327,7 +349,7 @@ export const useEnhancedPhotos = () => {
         }
 
         if (data?.photos && data.photos.length > 0) {
-          // Add source tracking to API photos
+          // Add source tracking to API photos and pre-optimize
           photos = data.photos.map((photo: PhotoData, index: number) => ({
             ...photo,
             photoSource: 'google_places_api' as const,
@@ -335,6 +357,19 @@ export const useEnhancedPhotos = () => {
           }));
           sourceUsed = 'google_places_api';
           console.log(`✅ Phase 3 SUCCESS: Found ${photos.length} photos from Google Places API`);
+          
+          // Pre-optimize API photos
+          if (photos.length > 0) {
+            console.log(`🚀 Pre-optimizing ${photos.length} API photos`);
+            try {
+              const apiPhotoRefs = photos.slice(0, 3).map(p => p.photoReference).filter(Boolean);
+              if (apiPhotoRefs.length > 0) {
+                await photoOptimization.preloadPhotos(apiPhotoRefs, quality);
+              }
+            } catch (preOptError) {
+              console.warn(`⚠️ API photo pre-optimization failed:`, preOptError);
+            }
+          }
         }
       }
 
@@ -347,6 +382,14 @@ export const useEnhancedPhotos = () => {
           high: photos.filter(p => (p.qualityScore || 0) > 50).length,
           medium: photos.filter(p => (p.qualityScore || 0) > 25 && (p.qualityScore || 0) <= 50).length,
           low: photos.filter(p => (p.qualityScore || 0) <= 25).length
+        });
+
+        // Log optimization stats
+        const optimizationStats = photoOptimization.getOptimizationStats();
+        console.log(`📈 Photo optimization stats:`, {
+          cacheHitRate: optimizationStats.cache.hitRate,
+          validationSuccessRate: optimizationStats.validation.successRate,
+          averageLoadTime: optimizationStats.metrics.averageLoadTime
         });
 
         return {
@@ -366,7 +409,7 @@ export const useEnhancedPhotos = () => {
     } finally {
       setLoading(false);
     }
-  }, [fetchLandmarkFromDatabase]);
+  }, [fetchLandmarkFromDatabase, photoOptimization]);
 
   const selectBestPhoto = useCallback((photos: PhotoData[]): PhotoData | null => {
     if (!photos || photos.length === 0) return null;
@@ -399,6 +442,11 @@ export const useEnhancedPhotos = () => {
     selectBestPhoto,
     fetchLandmarkFromDatabase,
     loading,
-    error
+    error,
+    
+    // Photo optimization features
+    photoOptimization,
+    getOptimizationStats: photoOptimization.getOptimizationStats,
+    cleanupOptimization: photoOptimization.cleanupOptimization
   };
 };
