@@ -82,6 +82,29 @@ const Map: React.FC<MapProps> = ({
     navigatePrevious 
   } = useStreetViewNavigation();
 
+  // Helper function to find tour landmark by feature properties
+  const findTourLandmarkByProperties = useCallback((properties: any): Landmark | null => {
+    if (!properties) return null;
+    
+    // Find by name first, then by coordinates as fallback
+    const tourLandmark = TOUR_LANDMARKS.find(landmark => 
+      landmark.name === properties.name ||
+      (Math.abs(landmark.coordinates[0] - properties.coordinates?.[0]) < 0.0001 &&
+       Math.abs(landmark.coordinates[1] - properties.coordinates?.[1]) < 0.0001)
+    );
+    
+    if (!tourLandmark) return null;
+    
+    // Convert to Landmark format
+    const landmarkIndex = TOUR_LANDMARKS.indexOf(tourLandmark);
+    return {
+      id: `tour-landmark-${landmarkIndex}`,
+      name: tourLandmark.name,
+      coordinates: tourLandmark.coordinates,
+      description: tourLandmark.description
+    };
+  }, []);
+
   // Utility function to update tour landmarks GeoJSON layer
   const updateTourLandmarksLayer = useCallback(() => {
     if (!map.current) return;
@@ -371,10 +394,48 @@ const Map: React.FC<MapProps> = ({
         
         console.log('🗺️ [Layer] Tour landmarks GeoJSON layer initialized');
         
-        // Add click handler for tour landmarks layer (prepare for future use)
+        // Enhanced click handler for tour landmarks layer
         map.current.on('click', TOUR_LANDMARKS_LAYER_ID, (e) => {
-          console.log('🗺️ [Layer] Tour landmark layer clicked:', e.features?.[0]?.properties);
-          // Click handling will be implemented in Phase 3
+          e.originalEvent.stopPropagation(); // Prevent map click event
+          
+          const feature = e.features?.[0];
+          if (!feature?.properties) {
+            console.warn('🗺️ [Layer] No feature properties found for tour landmark click');
+            return;
+          }
+          
+          console.log('🗺️ [Layer] Tour landmark layer clicked:', feature.properties);
+          
+          // Find the landmark in TOUR_LANDMARKS array
+          const landmark = findTourLandmarkByProperties(feature.properties);
+          if (!landmark) {
+            console.warn('🗺️ [Layer] Could not find tour landmark for properties:', feature.properties);
+            return;
+          }
+          
+          console.log('🗺️ [Layer] Found tour landmark:', landmark.name);
+          
+          // Same zoom logic as individual markers
+          const currentZoom = map.current?.getZoom() || 1.5;
+          if (currentZoom < 10) {
+            console.log('🗺️ [Layer] Zooming to tour landmark from layer click');
+            isZooming.current = true;
+            pendingPopupLandmark.current = landmark;
+            map.current?.flyTo({
+              center: landmark.coordinates,
+              zoom: 16,
+              speed: 0.3,
+              curve: 1,
+              easing: (t) => t,
+            });
+          } else {
+            // Show popup immediately for layer clicks when already zoomed
+            console.log('🗺️ [Layer] Showing popup immediately for tour landmark');
+            showLandmarkPopup(landmark);
+          }
+          
+          // Call the landmark selection handler to update the selected landmark
+          onSelectLandmark(landmark);
         });
         
         // Change cursor on hover
@@ -454,7 +515,7 @@ const Map: React.FC<MapProps> = ({
     } catch (error) {
       console.error('🗺️ [Map] Error during map initialization:', error);
     }
-  }, [mapboxToken, user, updateTourLandmarksLayer]);
+  }, [mapboxToken, user, updateTourLandmarksLayer, findTourLandmarkByProperties, onSelectLandmark]);
 
   // Update tour landmarks layer when tourLandmarks state changes
   useEffect(() => {
