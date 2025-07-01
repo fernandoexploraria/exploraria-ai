@@ -1,18 +1,20 @@
+
 import React, { useRef, useEffect, useState, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Landmark } from '@/data/landmarks';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
-import { FloatingProximityCard } from './FloatingProximityCard';
+import FloatingProximityCard from './FloatingProximityCard';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useStreetView } from '@/hooks/useStreetView';
-import { StreetViewModal } from './StreetViewModal';
-import { StreetViewThumbnailGrid } from './StreetViewThumbnailGrid';
+import StreetViewModal from './StreetViewModal';
+import StreetViewThumbnailGrid from './StreetViewThumbnailGrid';
 import { useEnhancedPhotos, PhotoData } from '@/hooks/useEnhancedPhotos';
 import { useLandmarkPhotos } from '@/hooks/useLandmarkPhotos';
-import { PhotoCarousel } from './photo-carousel/PhotoCarousel';
-import { EnhancedLandmarkInfo } from './EnhancedLandmarkInfo';
+import PhotoCarousel from './photo-carousel/PhotoCarousel';
+import EnhancedLandmarkInfo from './EnhancedLandmarkInfo';
 import { toast } from 'sonner';
 
 interface MapProps {
@@ -55,10 +57,10 @@ const Map: React.FC<MapProps> = ({
   const [isStreetViewGridOpen, setIsStreetViewGridOpen] = useState(false);
   const [selectedLandmark, setSelectedLandmark] = useState<Landmark | null>(null);
 
-  const { mapboxToken } = useMapboxToken();
-  const { startTracking, stopTracking, currentLocation, locationError } = useLocationTracking();
-  const { checkProximity } = useProximityAlerts();
-  const { fetchStreetViewImages } = useStreetView();
+  const mapboxToken = useMapboxToken();
+  const { startTracking, stopTracking, userLocation: currentLocation, error: locationError } = useLocationTracking();
+  const proximityAlertsHook = useProximityAlerts();
+  const { fetchStreetView } = useStreetView();
 
   const { fetchLandmarkPhotos: fetchLandmarkPhotosHook } = useLandmarkPhotos();
 
@@ -197,7 +199,7 @@ const Map: React.FC<MapProps> = ({
       el.style.cursor = 'pointer';
 
       const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
-        .setLngLat([landmark.longitude, landmark.latitude])
+        .setLngLat([landmark.coordinates[0], landmark.coordinates[1]])
         .addTo(map.current!);
 
       el.addEventListener('click', async () => {
@@ -205,7 +207,7 @@ const Map: React.FC<MapProps> = ({
           selectedPopup.current.remove();
         }
         const popup = await createLandmarkPopup(landmark);
-        popup.setLngLat([landmark.longitude, landmark.latitude]).addTo(map.current!);
+        popup.setLngLat([landmark.coordinates[0], landmark.coordinates[1]]).addTo(map.current!);
         selectedPopup.current = popup;
         setSelectedLandmark(landmark);
         onLandmarkSelect?.(landmark);
@@ -218,13 +220,49 @@ const Map: React.FC<MapProps> = ({
   const updateProximityAlerts = useCallback(() => {
     if (!currentLocation) return;
 
-    const newAlerts = checkProximity(landmarks, currentLocation, PROXIMITY_THRESHOLD);
+    // Create proximity alerts based on nearby landmarks
+    const newAlerts: ProximityAlert[] = landmarks
+      .filter(landmark => {
+        const distance = calculateDistance(
+          currentLocation.latitude,
+          currentLocation.longitude,
+          landmark.coordinates[1],
+          landmark.coordinates[0]
+        );
+        return distance <= PROXIMITY_THRESHOLD;
+      })
+      .map(landmark => ({
+        landmark,
+        distance: calculateDistance(
+          currentLocation.latitude,
+          currentLocation.longitude,
+          landmark.coordinates[1],
+          landmark.coordinates[0]
+        )
+      }));
+
     setProximityAlerts(newAlerts);
 
     newAlerts.forEach(alert => {
       toast(`You are near ${alert.landmark.name}!`, { duration: 3000 });
     });
-  }, [landmarks, currentLocation, checkProximity]);
+  }, [landmarks, currentLocation]);
+
+  // Helper function to calculate distance
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371e3; // Earth's radius in meters
+    const φ1 = lat1 * Math.PI/180;
+    const φ2 = lat2 * Math.PI/180;
+    const Δφ = (lat2 - lat1) * Math.PI/180;
+    const Δλ = (lon2 - lon1) * Math.PI/180;
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+    return R * c;
+  };
 
   useEffect(() => {
     if (mapboxToken) {
@@ -307,15 +345,12 @@ const Map: React.FC<MapProps> = ({
   useEffect(() => {
     if (selectedLandmarkForStreetView) {
       const fetchImages = async () => {
-        const images = await fetchStreetViewImages(
-          selectedLandmarkForStreetView.latitude,
-          selectedLandmarkForStreetView.longitude
-        );
-        setStreetViewImages(images);
+        const streetViewData = await fetchStreetView(selectedLandmarkForStreetView);
+        setStreetViewImages([streetViewData.imageUrl]);
       };
       fetchImages();
     }
-  }, [selectedLandmarkForStreetView, fetchStreetViewImages]);
+  }, [selectedLandmarkForStreetView, fetchStreetView]);
 
   const renderReactComponentToString = (reactComponent: React.ReactElement): string => {
     const div = document.createElement("div");
