@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { usePhotoOptimization } from './photo-optimization/usePhotoOptimization';
@@ -101,36 +102,12 @@ const constructPhotoUrlSecurely = async (photoUri: string, maxWidth: number = 80
   }
 };
 
-// Import the debug utility to trigger Gemini query
-import '@/utils/debugPhotoUrls';
-
 // Validate URL format (updated to remove MISSING_API_KEY check)
 const isValidUrl = (url: string): boolean => {
   try {
-    const urlObj = new URL(url);
-    console.log(`🔍 URL Validation Debug for: ${url}`);
-    console.log(`  - Protocol: ${urlObj.protocol}`);
-    console.log(`  - Host: ${urlObj.host}`);
-    console.log(`  - Pathname: ${urlObj.pathname}`);
-    console.log(`  - Search: ${urlObj.search}`);
-    
-    // More specific validation for Google Places API URLs
-    const isHttps = urlObj.protocol === 'https:';
-    const isGoogleApi = urlObj.host === 'places.googleapis.com';
-    const hasValidPath = urlObj.pathname.includes('/media') || urlObj.pathname.includes('/photos/');
-    const hasApiKey = urlObj.search.includes('key=');
-    
-    const isValid = isHttps && isGoogleApi && hasValidPath && hasApiKey;
-    
-    console.log(`  - HTTPS: ${isHttps}`);
-    console.log(`  - Google API: ${isGoogleApi}`);
-    console.log(`  - Valid Path: ${hasValidPath}`);
-    console.log(`  - Has API Key: ${hasApiKey}`);
-    console.log(`  - FINAL RESULT: ${isValid ? 'VALID' : 'INVALID'}`);
-    
-    return isValid;
-  } catch (error) {
-    console.log(`🔍 URL Validation Failed for: ${url} - Error: ${error}`);
+    new URL(url);
+    return url.includes('http');
+  } catch {
     return false;
   }
 };
