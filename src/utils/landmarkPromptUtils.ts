@@ -11,14 +11,7 @@ export const formEnhancedLandmarkPrompt = (landmark: Landmark): string => {
   // Add rating context if available
   if (landmark.rating && landmark.rating > 0) {
     const primaryType = landmark.types?.[0]?.replace(/_/g, ' ') || 'location';
-    prompt += ` This ${primaryType} has a ${landmark.rating} out of 5 star rating`;
-    
-    // Add user ratings context if available
-    if (landmark.user_ratings_total && landmark.user_ratings_total > 0) {
-      prompt += ` based on ${landmark.user_ratings_total} reviews`;
-    }
-    
-    prompt += '.';
+    prompt += ` This ${primaryType} has a ${landmark.rating} out of 5 star rating.`;
   }
   
   // Add location context if available

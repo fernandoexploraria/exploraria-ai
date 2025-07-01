@@ -654,6 +654,73 @@ const MapComponent: React.FC<MapProps> = ({
     }
   }, [proximitySettings?.is_enabled]);
 
+  const playAudioFromBase64 = async (base64Audio: string) => {
+    return new Promise<void>((resolve, reject) => {
+      try {
+        const audioBlob = new Blob(
+          [Uint8Array.from(atob(base64Audio), c => c.charCodeAt(0))],
+          { type: 'audio/mp3' }
+        );
+        const audioUrl = URL.createObjectURL(audioBlob);
+        
+        const audio = new Audio(audioUrl);
+        currentAudio.current = audio;
+        
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          currentAudio.current = null;
+          resolve();
+        };
+        
+        audio.onerror = () => {
+          URL.revokeObjectURL(audioUrl);
+          currentAudio.current = null;
+          reject(new Error('Audio playback failed'));
+        };
+        
+        audio.play().catch(reject);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  };
+
+  const fetchLandmarkPhotos = async (landmark: Landmark) => {
+    try {
+      return await fetchPhotosWithHook(landmark);
+    } catch (error) {
+      console.error('Error fetching photos:', error);
+      return [];
+    }
+  };
+
+  const handleTextToSpeechForInteraction = async (text: string) => {
+    if (!text) return;
+    
+    stopCurrentAudio();
+    
+    try {
+      console.log('Playing TTS for interaction text:', text.substring(0, 100) + '...');
+      
+      const { data, error } = await supabase.functions.invoke('gemini-tts', {
+        body: { text }
+      });
+
+      if (error) {
+        console.error('TTS error for interaction:', error);
+        return;
+      }
+
+      if (data?.audioContent && !data.fallbackToBrowser) {
+        console.log('Playing audio from Google Cloud TTS for interaction');
+        await playAudioFromBase64(data.audioContent);
+      }
+      
+    } catch (error) {
+      console.error('Error with TTS for interaction:', error);
+    }
+  };
+
   const handleTextToSpeech = async (landmark: Landmark) => {
     const landmarkId = landmark.id;
     
