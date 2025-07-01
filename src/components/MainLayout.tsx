@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Map from '@/components/Map';
 import TopControls from '@/components/TopControls';
@@ -153,17 +154,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     setAssistantState('not-started');
   };
 
-  // Don't render the map until we have a token
-  if (!mapboxToken) {
-    return (
-      <div className="w-screen h-screen relative">
-        <div className="absolute inset-0 bg-gray-900 flex items-center justify-center">
-          <div className="text-white">Loading map...</div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="w-screen h-screen relative">
       <TopControls
@@ -190,7 +180,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         onSelectLandmark={onSelectLandmark}
         selectedLandmark={selectedLandmark}
         plannedLandmarks={[...smartTourLandmarks]}
-        userLocation={userLocation}
       />
 
       {/* Debug Proximity Card - positioned above regular cards */}
