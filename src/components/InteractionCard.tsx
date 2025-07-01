@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,7 +27,7 @@ interface InteractionCardProps {
   isCurrentlyPlaying: boolean;
   onToggleFavorite: (interaction: Interaction) => void;
   onLocationClick: (coordinates: any) => void;
-  isVisible?: boolean; // For lazy loading
+  isVisible?: boolean;
 }
 
 const InteractionCard: React.FC<InteractionCardProps> = ({
@@ -39,14 +38,14 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
   onLocationClick,
   isVisible = true
 }) => {
-  const { playText, stop } = useTTSContext();
+  const { speak, stop } = useTTSContext();
 
   const handlePlayPause = () => {
     if (isCurrentlyPlaying) {
       stop();
     } else {
       const textToRead = `${interaction.destination}. ${interaction.assistant_response}`;
-      playText(textToRead, interaction.id);
+      speak(textToRead, interaction.id);
     }
   };
 
@@ -114,7 +113,7 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
             destination={interaction.destination}
             userInput={interaction.user_input}
             interaction={interaction}
-            isVisible={isVisible} // Pass visibility for lazy loading
+            isVisible={isVisible}
           />
         )}
 
