@@ -105,7 +105,7 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
     goToIndex
   } = usePhotoNavigation({
     photos,
-    initialIndex: 0
+    initialIndex: 0 // Ensure this is a number, not a string
   });
 
   // Stable photo loading function
