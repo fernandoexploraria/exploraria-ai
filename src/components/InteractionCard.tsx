@@ -1,24 +1,10 @@
-
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import InteractionCardHeader from './InteractionCardHeader';
 import InteractionCardContent from './InteractionCardContent';
 import InteractionCardActions from './InteractionCardActions';
 import InteractionCardImage from './InteractionCardImage';
-
-interface Interaction {
-  id: string;
-  destination: string;
-  user_input: string;
-  assistant_response: string;
-  interaction_type: string;
-  created_at: string;
-  landmark_coordinates: any;
-  full_transcript: any;
-  landmark_image_url: string | null;
-  is_favorite: boolean;
-  place_id?: string;
-}
+import { Interaction } from '@/types/interaction';
 
 interface InteractionCardProps {
   interaction: Interaction;

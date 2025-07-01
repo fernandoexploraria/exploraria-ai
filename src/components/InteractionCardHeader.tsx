@@ -3,20 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Star, StarOff, Calendar, Camera, Mic, MapPin } from 'lucide-react';
 import ShareButton from './ShareButton';
-
-interface Interaction {
-  id: string;
-  destination: string;
-  user_input: string;
-  assistant_response: string;
-  is_favorite: boolean;
-  created_at: string;
-  interaction_type: string;
-  full_transcript: any;
-  landmark_coordinates: any;
-  landmark_image_url: string | null;
-  similarity?: number;
-}
+import { Interaction } from '@/types/interaction';
 
 interface InteractionCardHeaderProps {
   interaction: Interaction;

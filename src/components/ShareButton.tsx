@@ -1,19 +1,7 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Share2 } from 'lucide-react';
-
-interface Interaction {
-  id: string;
-  destination: string;
-  user_input: string;
-  assistant_response: string;
-  interaction_type: string;
-  full_transcript: any;
-  conversation_summary?: string;
-  landmark_image_url?: string;
-  landmark_coordinates?: any; // Add this property to match the actual data structure
-}
+import { Interaction } from '@/types/interaction';
 
 interface ShareButtonProps {
   interaction: Interaction;

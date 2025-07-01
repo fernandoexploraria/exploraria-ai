@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -8,16 +7,7 @@ import { Search, Star, StarOff, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth }  from './AuthProvider';
-
-interface Interaction {
-  id: string;
-  destination: string;
-  user_input: string;
-  assistant_response: string;
-  is_favorite: boolean;
-  created_at: string;
-  similarity?: number;
-}
+import { Interaction } from '@/types/interaction';
 
 interface VoiceSearchDialogProps {
   open: boolean;

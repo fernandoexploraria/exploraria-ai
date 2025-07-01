@@ -2,24 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from './AuthProvider';
-
-interface Interaction {
-  id: string;
-  destination: string;
-  user_input: string;
-  assistant_response: string;
-  is_favorite: boolean;
-  created_at: string;
-  interaction_type: string;
-  landmark_coordinates: any;
-  landmark_image_url: string | null;
-  full_transcript: any;
-  conversation_id: string | null;
-  conversation_duration: number | null;
-  audio_url: string | null;
-  agent_id: string | null;
-  similarity?: number;
-}
+import { Interaction } from '@/types/interaction';
 
 export const useInteractionCarouselLogic = () => {
   const [searchQuery, setSearchQuery] = useState('');

@@ -1,18 +1,5 @@
-
 import React from 'react';
-
-interface Interaction {
-  id: string;
-  destination: string;
-  user_input: string;
-  assistant_response: string;
-  interaction_type: string;
-  landmark_coordinates: any;
-  full_transcript: any;
-  created_at: string;
-  is_favorite: boolean;
-  landmark_image_url: string | null; // Changed to nullable instead of optional
-}
+import { Interaction } from '@/types/interaction';
 
 interface InteractionCardActionsProps {
   interaction: Interaction;
