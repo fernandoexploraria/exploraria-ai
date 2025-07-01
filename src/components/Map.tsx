@@ -5,7 +5,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { Volume2, VolumeX, Eye, MapPin } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
-import { TOUR_LANDMARKS, setMapMarkersRef, TourLandmark } from '@/data/tourLandmarks';
+import { TOUR_LANDMARKS, TourLandmark } from '@/data/tourLandmarks';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
