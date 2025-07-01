@@ -687,7 +687,8 @@ const MapComponent: React.FC<MapProps> = ({
 
   const fetchLandmarkPhotos = async (landmark: Landmark) => {
     try {
-      return await fetchPhotosWithHook(landmark);
+      const result = await fetchPhotosWithHook(landmark);
+      return result.photos; // Extract the photos array from LandmarkPhotoResult
     } catch (error) {
       console.error('Error fetching photos:', error);
       return [];
