@@ -827,7 +827,7 @@ const Map: React.FC<MapProps> = ({
               
               <button
                 onClick={() => handleTextToSpeech(landmark)}
-                disabled={playingAudio[landmark.id] || false}
+                disabled={playingAudio[landmarkId] || false}
                 className="bg-black/90 hover:bg-blue-500/95 text-white border-2 border-white/90 rounded-full w-12 h-12 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg disabled:opacity-70"
                 title="Listen to description"
               >
@@ -943,20 +943,24 @@ const Map: React.FC<MapProps> = ({
       }
     });
 
-    // Add new markers
+    // Add new markers - EXCLUDE tour landmarks (they're handled by GeoJSON layer)
     allLandmarksWithTop.forEach((landmark) => {
+      // Skip tour landmarks - they're now handled by the GeoJSON layer
+      const isTourLandmark = landmark.id.startsWith('tour-landmark-');
+      if (isTourLandmark) {
+        console.log('🗺️ [Phase 2] Skipping individual marker for tour landmark:', landmark.name, '- handled by GeoJSON layer');
+        return;
+      }
+
       if (!markers.current[landmark.id]) {
         const el = document.createElement('div');
         
         // Different styling for different landmark types
         const isTopLandmark = landmark.id.startsWith('top-landmark-');
-        const isTourLandmark = landmark.id.startsWith('tour-landmark-');
         
         let markerColor;
         if (isTopLandmark) {
           markerColor = 'bg-yellow-400';
-        } else if (isTourLandmark) {
-          markerColor = 'bg-green-400';
         } else {
           markerColor = 'bg-cyan-400';
         }
