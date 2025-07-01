@@ -1,5 +1,4 @@
-
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Volume2 } from 'lucide-react';
 import { useTTSContext } from '@/contexts/TTSContext';
@@ -19,6 +18,12 @@ const CarouselControls: React.FC<CarouselControlsProps> = ({
   currentInteraction,
 }) => {
   const { speak, isPlaying } = useTTSContext();
+  const speakRef = useRef(speak);
+
+  // Keep the speak function reference up to date
+  useEffect(() => {
+    speakRef.current = speak;
+  }, [speak]);
 
   const handleSpeakerClick = useCallback(() => {
     if (!currentInteraction) return;
@@ -46,8 +51,14 @@ const CarouselControls: React.FC<CarouselControlsProps> = ({
       isMemoryNarration = false;
     }
 
-    speak(textToSpeak, isMemoryNarration, currentInteraction.id);
-  }, [currentInteraction, speak]);
+    // Use the ref to access the current speak function
+    speakRef.current(textToSpeak, isMemoryNarration, currentInteraction.id);
+  }, [currentInteraction]);
+
+  // Early return if no slides to prevent any hook issues
+  if (totalSlides === 0) {
+    return null;
+  }
 
   return (
     <div className="flex flex-col items-center gap-3 mt-6">
@@ -74,7 +85,7 @@ const CarouselControls: React.FC<CarouselControlsProps> = ({
         variant="ghost"
         size="sm"
         className="h-8 w-8 p-0 border-none bg-transparent hover:bg-white/10 text-white"
-        disabled={totalSlides === 0 || !currentInteraction}
+        disabled={!currentInteraction}
         onClick={handleSpeakerClick}
       >
         <Volume2 
