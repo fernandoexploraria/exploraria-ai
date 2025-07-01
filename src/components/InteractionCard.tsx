@@ -44,6 +44,19 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
       </div>
 
       <CardContent className="flex-1 flex flex-col p-3 pt-0">
+        {/* Image Section */}
+        <div className="mb-3">
+          <img
+            src="https://images.unsplash.com/photo-1747767763480-a5b4c7a82aef?q=80&w=2104&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+            alt="Travel destination"
+            className="w-full h-48 object-cover rounded-lg"
+            loading="lazy"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+        </div>
+
         {/* Main Content */}
         <div className="flex-1 mb-3">
           <InteractionCardContent interaction={interaction} />
