@@ -21,7 +21,7 @@ import { useLandmarkPhotos } from '@/hooks/useLandmarkPhotos';
 import { PhotoData } from '@/hooks/useEnhancedPhotos';
 
 interface MapProps {
-  mapboxToken?: string; // Add mapboxToken as optional prop
+  mapboxToken?: string;
   landmarks: Landmark[];
   userLocation: [number, number] | null;
   selectedLandmark: Landmark | null;
@@ -35,7 +35,7 @@ interface MapProps {
   onLocationUpdate?: (location: [number, number]) => void;
   proximityLandmarks?: Landmark[];
   smartTourLandmarks?: Landmark[];
-  plannedLandmarks?: Landmark[]; // Add this for compatibility
+  plannedLandmarks?: Landmark[];
 }
 
 interface ProximityInfo {
@@ -85,17 +85,16 @@ const Map: React.FC<MapProps> = ({
 
   // Enhanced photo fetching with database-first approach - Fix Map constructor usage
   const { fetchLandmarkPhotos } = useLandmarkPhotos();
-  const [landmarkPhotos, setLandmarkPhotos] = useState(new Map<string, PhotoData[]>());
-  const [photoLoadingStates, setPhotoLoadingStates] = useState(new Map<string, boolean>());
+  // Fix: Use native JavaScript Map constructor properly
+  const [landmarkPhotos, setLandmarkPhotos] = useState(() => new globalThis.Map<string, PhotoData[]>());
+  const [photoLoadingStates, setPhotoLoadingStates] = useState(() => new globalThis.Map<string, boolean>());
 
   // Use hook if no token provided via props
   const { mapboxToken: hookMapboxToken } = useMapboxToken();
-  const mapboxToken = propMapboxToken || hookMapboxToken;
+  const effectiveMapboxToken = propMapboxToken || hookMapboxToken;
 
-  // Fix hook destructuring
-  const streetViewHook = useEnhancedStreetView(
-    selectedLandmark?.coordinates || [0, 0]
-  );
+  // Fix hook destructuring - useEnhancedStreetView expects coordinates only
+  const streetViewHook = useEnhancedStreetView();
 
   // Enhanced photo fetching function with performance logging
   const handleFetchLandmarkPhotos = useCallback(async (landmark: Landmark | EnhancedLandmark) => {
@@ -109,7 +108,7 @@ const Map: React.FC<MapProps> = ({
     console.log(`🖼️ Phase 2: Fetching photos for landmark: ${landmark.name}`);
     console.log(`🔍 Landmark type: ${(landmark as any).tourId ? 'tour-generated' : 'regular'}`);
     
-    setPhotoLoadingStates(prev => new Map(prev).set(landmarkKey, true));
+    setPhotoLoadingStates(prev => new globalThis.Map(prev).set(landmarkKey, true));
 
     try {
       const startTime = Date.now();
@@ -131,7 +130,7 @@ const Map: React.FC<MapProps> = ({
       });
 
       if (result.photos.length > 0) {
-        setLandmarkPhotos(prev => new Map(prev).set(landmarkKey, result.photos));
+        setLandmarkPhotos(prev => new globalThis.Map(prev).set(landmarkKey, result.photos));
         
         // Log API call reduction achievement
         if (result.sourceUsed.startsWith('database')) {
@@ -146,7 +145,7 @@ const Map: React.FC<MapProps> = ({
       toast.error(`Failed to load photos for ${landmark.name}`);
     } finally {
       setPhotoLoadingStates(prev => {
-        const newMap = new Map(prev);
+        const newMap = new globalThis.Map(prev);
         newMap.delete(landmarkKey);
         return newMap;
       });
@@ -154,9 +153,9 @@ const Map: React.FC<MapProps> = ({
   }, [fetchLandmarkPhotos, photoLoadingStates, landmarkPhotos]);
 
   useEffect(() => {
-    if (!mapboxToken) return;
+    if (!effectiveMapboxToken) return;
 
-    mapboxgl.accessToken = mapboxToken;
+    mapboxgl.accessToken = effectiveMapboxToken;
 
     const initializeMap = () => {
       const newMap = new mapboxgl.Map({
@@ -205,7 +204,7 @@ const Map: React.FC<MapProps> = ({
       initializeMap();
     }
 
-  }, [mapboxToken, mapStyle, showControls, showUserLocation, zoom, onLocationUpdate, map]);
+  }, [effectiveMapboxToken, mapStyle, showControls, showUserLocation, zoom, onLocationUpdate, map]);
 
   // Update user coordinates if prop changes
   useEffect(() => {
@@ -443,7 +442,6 @@ const Map: React.FC<MapProps> = ({
           landmark: selectedLandmark,
           streetViewData: null
         }] : []}
-        landmarkName={selectedLandmark?.name || ''}
       />
     </div>
   );
