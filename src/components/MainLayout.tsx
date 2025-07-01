@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Map from '@/components/Map';
 import TopControls from '@/components/TopControls';
@@ -12,13 +11,13 @@ import DebugWindow from '@/components/DebugWindow';
 import { useDebugWindow } from '@/hooks/useDebugWindow';
 import { useProximityNotifications } from '@/hooks/useProximityNotifications';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
-import { useMapboxToken } from '@/hooks/useMapboxToken';
 import { Landmark } from '@/data/landmarks';
 import { User } from '@supabase/supabase-js';
 
 type AssistantState = 'not-started' | 'started' | 'listening' | 'recording' | 'playback';
 
 interface MainLayoutProps {
+  mapboxToken: string;
   allLandmarks: Landmark[];
   selectedLandmark: Landmark | null;
   smartTourLandmarks: Landmark[];
@@ -43,6 +42,7 @@ interface MainLayoutProps {
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({
+  mapboxToken,
   allLandmarks,
   selectedLandmark,
   smartTourLandmarks,
@@ -68,7 +68,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
   const { userLocation } = useLocationTracking();
   const { activeCards, closeProximityCard, showRouteToService } = useProximityNotifications();
-  const mapboxToken = useMapboxToken();
   
   // Debug state for test proximity card
   const [debugProximityCard, setDebugProximityCard] = useState<Landmark | null>(null);
