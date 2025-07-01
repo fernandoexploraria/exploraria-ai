@@ -252,8 +252,7 @@ const Map: React.FC<MapProps> = ({
 
       console.log('🗺️ [Map] Map instance created successfully');
 
-      // Set the markers reference for tour landmarks management
-      setMapMarkersRef(markers, photoPopups);
+      // Remove the setMapMarkersRef call - tour landmarks now use GeoJSON layer exclusively
 
       // Add location control for authenticated users
       if (user) {
