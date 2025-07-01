@@ -13,8 +13,10 @@ import { useStreetView } from '@/hooks/useStreetView';
 import { useStreetViewNavigation } from '@/hooks/useStreetViewNavigation';
 import { useEnhancedStreetView } from '@/hooks/useEnhancedStreetView';
 import EnhancedStreetViewModal from './EnhancedStreetViewModal';
-import { useEnhancedPhotos, PhotoData } from '@/hooks/useEnhancedPhotos';
+import { useLandmarkPhotos } from '@/hooks/useLandmarkPhotos';
+import { PhotoData } from '@/hooks/useEnhancedPhotos';
 import { PhotoCarousel } from './photo-carousel';
+import { useLocationTracking } from '@/hooks/useLocationTracking';
 
 interface MapProps {
   mapboxToken: string;
@@ -35,7 +37,7 @@ const TOP_LANDMARKS_LAYER_ID = 'top-landmarks-layer';
 const BASE_LANDMARKS_SOURCE_ID = 'base-landmarks-source';
 const BASE_LANDMARKS_LAYER_ID = 'base-landmarks-layer';
 
-const Map: React.FC<MapProps> = ({ 
+const MapComponent: React.FC<MapProps> = ({ 
   mapboxToken, 
   landmarks, 
   onSelectLandmark, 
@@ -68,7 +70,8 @@ const Map: React.FC<MapProps> = ({
   
   const { user } = useAuth();
   const { updateProximityEnabled, proximitySettings } = useProximityAlerts();
-  const { fetchPhotos } = useEnhancedPhotos();
+  const { fetchLandmarkPhotos: fetchPhotosWithHook } = useLandmarkPhotos();
+  const { locationState } = useLocationTracking();
   
   // Street View hooks for checking cached data and opening modal
   const { getCachedData } = useStreetView();
@@ -780,46 +783,69 @@ const Map: React.FC<MapProps> = ({
     });
   };
 
-  // Updated function to fetch enhanced landmark photos
+  // Enhanced function to fetch landmark photos using the useLandmarkPhotos hook
   const fetchLandmarkPhotos = async (landmark: Landmark): Promise<PhotoData[]> => {
+    const startTime = Date.now();
     const cacheKey = `${landmark.name}-${landmark.coordinates[0]}-${landmark.coordinates[1]}`;
     
+    // Check existing cache first (preserve current behavior)
     if (enhancedPhotosCache.current[cacheKey]) {
-      console.log('Using cached enhanced photos for:', landmark.name);
+      console.log(`🖼️ [CACHE HIT] Using cached photos for: ${landmark.name}`);
       return enhancedPhotosCache.current[cacheKey];
     }
 
     try {
-      console.log('🖼️ Fetching enhanced photos for:', landmark.name);
+      console.log(`🖼️ [FETCH START] Fetching photos for: ${landmark.name}`);
       
-      const { data: searchData, error: searchError } = await supabase.functions.invoke('google-places-search', {
-        body: { 
-          query: landmark.name,
-          coordinates: landmark.coordinates
-        }
+      // Use the useLandmarkPhotos hook for database-first approach
+      const result = await fetchPhotosWithHook(landmark, {
+        maxWidth: 800,
+        quality: 'medium'
       });
 
-      if (searchError || !searchData?.results?.[0]?.placeId) {
-        console.log('No place ID found for:', landmark.name);
-        return [];
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+
+      // Comprehensive performance logging
+      console.log(`🖼️ [PERFORMANCE] Photo fetch completed for: ${landmark.name}`, {
+        landmark: landmark.name,
+        source: result.sourceUsed,
+        photoCount: result.totalPhotos,
+        duration: `${duration}ms`,
+        qualityDistribution: result.qualityDistribution,
+        bestPhotoAvailable: !!result.bestPhoto,
+        timestamp: new Date().toISOString()
+      });
+
+      // API usage monitoring
+      if (result.sourceUsed === 'google_places_api') {
+        console.log(`📊 [API USAGE] Google Places API call made for: ${landmark.name}`);
+      } else {
+        console.log(`💾 [DATABASE SUCCESS] Database hit for: ${landmark.name} (API call avoided)`);
       }
 
-      const placeId = searchData.results[0].placeId;
-      console.log('Found place ID for', landmark.name, ':', placeId);
-
-      const photosResponse = await fetchPhotos(placeId, 800, 'medium');
-      
-      if (photosResponse?.photos && photosResponse.photos.length > 0) {
-        console.log(`✅ Got ${photosResponse.photos.length} enhanced photos for:`, landmark.name);
-        enhancedPhotosCache.current[cacheKey] = photosResponse.photos;
-        return photosResponse.photos;
+      // Extract photos from LandmarkPhotoResult and cache them
+      const photos = result.photos;
+      if (photos.length > 0) {
+        enhancedPhotosCache.current[cacheKey] = photos;
+        console.log(`✅ [SUCCESS] Cached ${photos.length} photos for: ${landmark.name}`);
+      } else {
+        console.log(`ℹ️ [NO PHOTOS] No photos available for: ${landmark.name}`);
       }
 
-      console.log('ℹ️ No enhanced photos available for:', landmark.name);
-      return [];
+      return photos;
       
     } catch (error) {
-      console.error('Error fetching enhanced photos for', landmark.name, error);
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      
+      console.error(`❌ [ERROR] Photo fetch failed for: ${landmark.name}`, {
+        landmark: landmark.name,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        duration: `${duration}ms`,
+        timestamp: new Date().toISOString()
+      });
+      
       return [];
     }
   };
@@ -1517,4 +1543,4 @@ const Map: React.FC<MapProps> = ({
   );
 };
 
-export default Map;
+export default MapComponent;
