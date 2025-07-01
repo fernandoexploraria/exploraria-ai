@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,7 +29,7 @@ interface InteractionCardImageProps {
   destination: string;
   userInput: string;
   interaction: Interaction;
-  isVisible?: boolean;
+  isVisible?: boolean; // For lazy loading
 }
 
 const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
@@ -56,7 +57,7 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
 
   // Memoize fallback photo to prevent infinite object creation
   const fallbackPhoto = useMemo((): PhotoData => ({
-    id: `fallback-${interaction.id}`,
+    id: 0,
     photoReference: 'fallback',
     urls: {
       thumb: imageUrl,
@@ -67,7 +68,7 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
     width: 800,
     height: 600,
     qualityScore: 50
-  }), [imageUrl, interaction.id]);
+  }), [imageUrl]);
 
   // Convert interaction coordinates to Landmark format
   const landmarkFromInteraction: Landmark | null = useMemo(() => {
@@ -101,11 +102,10 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
     hasPrevious,
     totalCount,
     goToNext,
-    goToPrevious,
-    goToIndex
+    goToPrevious
   } = usePhotoNavigation({
     photos,
-    initialIndex: 0 // Ensure this is a number, not a string
+    initialIndex: 0
   });
 
   // Stable photo loading function
@@ -117,26 +117,18 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
     if (interaction.place_id) {
       setIsLoadingPhotos(true);
       try {
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`🖼️ Loading photos for ${destination} (place_id: ${interaction.place_id})`);
-        }
+        console.log(`🖼️ Loading photos for ${destination} (place_id: ${interaction.place_id})`);
         const photosResponse = await fetchPhotos(interaction.place_id, 800, 'medium');
         
         if (photosResponse && photosResponse.photos.length > 0) {
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`✅ Loaded ${photosResponse.photos.length} photos for ${destination}`);
-          }
+          console.log(`✅ Loaded ${photosResponse.photos.length} photos for ${destination}`);
           setPhotos(photosResponse.photos);
         } else {
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`ℹ️ No photos found, using fallback for ${destination}`);
-          }
+          console.log(`ℹ️ No photos found, using fallback for ${destination}`);
           setPhotos([fallbackPhoto]);
         }
       } catch (error) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('❌ Error loading photos:', error);
-        }
+        console.error('❌ Error loading photos:', error);
         setPhotos([fallbackPhoto]);
       } finally {
         setIsLoadingPhotos(false);
@@ -166,9 +158,7 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
         }, 100);
       } catch (error) {
         setStreetViewStatus('unavailable');
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`❌ Failed to check Street View for ${landmarkFromInteraction.name}:`, error);
-        }
+        console.log(`❌ Failed to check Street View for ${landmarkFromInteraction.name}:`, error);
       }
     };
 
@@ -184,21 +174,15 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
     e.stopPropagation();
     
     if (!landmarkFromInteraction) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('❌ No valid landmark data for Street View');
-      }
+      console.log('❌ No valid landmark data for Street View');
       return;
     }
 
     try {
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`🔍 Opening enhanced Street View for ${landmarkFromInteraction.name}`);
-      }
+      console.log(`🔍 Opening enhanced Street View for ${landmarkFromInteraction.name}`);
       await openStreetViewModal([landmarkFromInteraction], landmarkFromInteraction);
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error(`❌ Error opening enhanced Street View for ${landmarkFromInteraction.name}:`, error);
-      }
+      console.error(`❌ Error opening enhanced Street View for ${landmarkFromInteraction.name}:`, error);
     }
   }, [landmarkFromInteraction, openStreetViewModal]);
 
@@ -230,17 +214,13 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
     
     try {
       if (Capacitor.isNativePlatform()) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Attempting native save...');
-        }
+        console.log('Attempting native save...');
         throw new Error('Native save not implemented yet, using fallback');
       } else {
         throw new Error('Not a native platform, using fallback');
       }
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Using standard download:', error);
-      }
+      console.log('Using standard download:', error);
       
       try {
         const response = await fetch(downloadUrl);
@@ -255,13 +235,9 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
         document.body.removeChild(link);
         
         window.URL.revokeObjectURL(url);
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Image downloaded successfully');
-        }
+        console.log('Image downloaded successfully');
       } catch (downloadError) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Download failed:', downloadError);
-        }
+        console.error('Download failed:', downloadError);
       }
     }
   }, [displayPhoto, destination, currentIndex]);
@@ -275,11 +251,6 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
     e.stopPropagation();
     goToNext();
   }, [goToNext]);
-
-  const handleThumbnailClick = useCallback((index: number, e: React.MouseEvent) => {
-    e.stopPropagation();
-    goToIndex(index);
-  }, [goToIndex]);
 
   const hasMultiplePhotos = photos.length > 1;
 
@@ -346,35 +317,6 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
             <Maximize2 className="w-6 h-6 text-white drop-shadow-lg" />
           </div>
         </div>
-        
-        {/* Thumbnail Strip */}
-        {hasMultiplePhotos && photos.length > 1 && (
-          <div className="mt-1 flex gap-1 justify-center">
-            {photos.slice(0, 4).map((photo, index) => (
-              <button
-                key={photo.id}
-                onClick={(e) => handleThumbnailClick(index, e)}
-                className={`w-6 h-6 rounded-sm overflow-hidden border-2 transition-all duration-200 ${
-                  index === currentIndex 
-                    ? 'border-blue-500 scale-110' 
-                    : 'border-gray-300 hover:border-gray-400'
-                }`}
-              >
-                <EnhancedProgressiveImage
-                  photo={photo}
-                  alt={`${destination} thumbnail ${index + 1}`}
-                  className="w-full h-full"
-                  showAttribution={false}
-                />
-              </button>
-            ))}
-            {photos.length > 4 && (
-              <div className="w-6 h-6 rounded-sm bg-gray-200 flex items-center justify-center border-2 border-gray-300">
-                <span className="text-xs text-gray-600">+{photos.length - 4}</span>
-              </div>
-            )}
-          </div>
-        )}
         
         {/* Status Badges */}
         <div className="absolute top-1 left-1 flex gap-1">
