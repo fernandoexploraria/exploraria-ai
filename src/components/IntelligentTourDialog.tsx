@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, Search, Clock, Star, MapPin } from 'lucide-react';
+import { Sparkles, Search, Clock, Star, MapPin, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/AuthProvider';
@@ -67,6 +67,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   const [isLoading, setIsLoading] = useState(initialState.isLoading);
   const [sessionToken, setSessionToken] = useState<string>(initialState.sessionToken);
   const [autocompleteError, setAutocompleteError] = useState<string>(initialState.autocompleteError);
+  const [isAutocompleteLoading, setIsAutocompleteLoading] = useState(false);
   
   const { toast } = useToast();
   const { isMarkersLoading, markersLoaded, startMarkerLoading, finishMarkerLoading, resetMarkerState } = useMarkerLoadingState(750);
@@ -90,6 +91,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       setIsLoading(newState.isLoading);
       setAutocompleteError(newState.autocompleteError);
       setSessionToken(newState.sessionToken);
+      setIsAutocompleteLoading(false);
       resetMarkerState();
       
       console.log('🎯 Enhanced cleanup completed with fresh session token:', newState.sessionToken.substring(0, 8));
@@ -108,6 +110,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
     setIsLoading(newState.isLoading);
     setAutocompleteError(newState.autocompleteError);
     setSessionToken(newState.sessionToken);
+    setIsAutocompleteLoading(false);
     resetMarkerState();
   };
 
@@ -124,11 +127,14 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
     if (query.length < 3) {
       setAutocompleteResults([]);
       setAutocompleteError('');
+      setIsAutocompleteLoading(false);
       return;
     }
 
     console.log('🔍 Autocomplete search - Browser context:', window.location.href);
     console.log('🔍 Session token:', sessionToken?.substring(0, 8) + '...');
+
+    setIsAutocompleteLoading(true);
 
     try {
       // Get user's current location for location bias (if available)
@@ -197,6 +203,8 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
         description: "Search is currently unavailable. You can still enter a destination manually.",
         variant: "destructive",
       });
+    } finally {
+      setIsAutocompleteLoading(false);
     }
   };
 
@@ -539,6 +547,9 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
                 }}
                 className="pl-10"
               />
+              {isAutocompleteLoading && (
+                <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />
+              )}
             </div>
             {autocompleteError && (
               <p className="text-sm text-muted-foreground mt-1 text-amber-600">
