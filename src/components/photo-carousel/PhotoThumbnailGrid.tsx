@@ -19,6 +19,8 @@ const PhotoThumbnailGrid: React.FC<PhotoThumbnailGridProps> = ({
   maxVisible = 8,
   className
 }) => {
+  console.log(`🔍 [PhotoThumbnailGrid] Rendered with currentIndex: ${currentIndex}, totalPhotos: ${photos.length}`);
+
   // Calculate which thumbnails to show based on current index
   const getVisiblePhotos = () => {
     if (photos.length <= maxVisible) {
@@ -67,7 +69,10 @@ const PhotoThumbnailGrid: React.FC<PhotoThumbnailGridProps> = ({
       {visiblePhotos.map(({ photo, originalIndex }) => (
         <button
           key={originalIndex}
-          onClick={() => onThumbnailClick(originalIndex)}
+          onClick={() => {
+            console.log(`🔍 [PhotoThumbnailGrid] Thumbnail ${originalIndex} clicked, calling onThumbnailClick`);
+            onThumbnailClick(originalIndex);
+          }}
           className={cn(
             'relative group flex-shrink-0 w-16 h-12 rounded overflow-hidden transition-all duration-200',
             'border-2 hover:scale-105',

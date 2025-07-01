@@ -45,6 +45,8 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
   const [photoLoadAttempted, setPhotoLoadAttempted] = useState(false);
   
+  console.log(`🔍 [InteractionCardImage] Component rendered for ${destination}`);
+  
   const { 
     isModalOpen, 
     streetViewItems, 
@@ -107,6 +109,8 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
     photos,
     initialIndex: 0
   });
+
+  console.log(`🔍 [InteractionCardImage] Main component navigation state - currentIndex: ${currentIndex}, totalPhotos: ${photos.length}`);
 
   // Stable photo loading function
   const loadPhotos = useCallback(async () => {
@@ -204,8 +208,9 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
   }, [landmarkFromInteraction]);
 
   const handleImageClick = useCallback(() => {
+    console.log(`🔍 [InteractionCardImage] Opening image viewer with currentIndex: ${currentIndex}`);
     setIsImageViewerOpen(true);
-  }, []);
+  }, [currentIndex]);
 
   const handleImageDownload = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -244,11 +249,13 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
 
   const goToPreviousPhoto = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
+    console.log(`🔍 [InteractionCardImage] Main component goToPrevious clicked`);
     goToPrevious();
   }, [goToPrevious]);
 
   const goToNextPhoto = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
+    console.log(`🔍 [InteractionCardImage] Main component goToNext clicked`);
     goToNext();
   }, [goToNext]);
 
@@ -277,8 +284,9 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
 
   // Callback to synchronize photo index when dialog navigation occurs
   const handleDialogIndexChange = useCallback((newIndex: number) => {
+    console.log(`🔍 [InteractionCardImage] Dialog callback triggered: ${currentIndex} → ${newIndex}`);
     goToIndex(newIndex);
-  }, [goToIndex]);
+  }, [goToIndex, currentIndex]);
 
   return (
     <>

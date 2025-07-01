@@ -34,6 +34,8 @@ const ImageViewerDialog: React.FC<ImageViewerDialogProps> = ({
   const [zoomLevel, setZoomLevel] = useState(1);
   const [showAttribution, setShowAttribution] = useState(false);
 
+  console.log(`🔍 [ImageViewerDialog] Rendered with initialIndex: ${initialIndex}, onIndexChange defined: ${!!onIndexChange}`);
+
   // Create photos array from props
   const photosList = photos || (photo ? [photo] : []);
   const hasMultiplePhotos = photosList.length > 1;
@@ -53,8 +55,13 @@ const ImageViewerDialog: React.FC<ImageViewerDialogProps> = ({
   } = usePhotoNavigation({
     photos: photosList,
     initialIndex,
-    onIndexChange
+    onIndexChange: (newIndex) => {
+      console.log(`🔍 [ImageViewerDialog] Internal navigation triggered: index ${newIndex}`);
+      onIndexChange?.(newIndex);
+    }
   });
+
+  console.log(`🔍 [ImageViewerDialog] Current state - currentIndex: ${currentIndex}, totalPhotos: ${photosList.length}`);
 
   const handleDownload = async () => {
     try {
@@ -251,7 +258,10 @@ const ImageViewerDialog: React.FC<ImageViewerDialogProps> = ({
                 <PhotoThumbnailGrid
                   photos={photosList}
                   currentIndex={currentIndex}
-                  onThumbnailClick={goToIndex}
+                  onThumbnailClick={(index) => {
+                    console.log(`🔍 [ImageViewerDialog] Thumbnail clicked in dialog, calling goToIndex: ${index}`);
+                    goToIndex(index);
+                  }}
                 />
               </div>
             )}
