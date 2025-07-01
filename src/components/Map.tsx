@@ -17,6 +17,7 @@ import { useLandmarkPhotos } from '@/hooks/useLandmarkPhotos';
 import { PhotoData } from '@/hooks/useEnhancedPhotos';
 import { PhotoCarousel } from './photo-carousel';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
+import SmartLandmarkInfo from '@/components/landmark/SmartLandmarkInfo';
 
 interface MapProps {
   mapboxToken: string;
@@ -866,7 +867,7 @@ const MapComponent: React.FC<MapProps> = ({
   // Create a new ref for storing React roots for popup cleanup
   const popupRoots = useRef<{ [key: string]: ReactDOM.Root }>({});
 
-  // Updated function to show landmark popup with PhotoCarousel
+  // Updated function to show landmark popup with SmartLandmarkInfo
   const showLandmarkPopup = async (landmark: Landmark) => {
     if (!map.current) return;
     
@@ -951,50 +952,95 @@ const MapComponent: React.FC<MapProps> = ({
               ×
             </button>
 
-            <div className="absolute top-0 left-0 right-0 z-40 bg-gradient-to-b from-black/70 to-transparent p-4">
-              <h3 className="text-white font-bold text-lg pr-8">{landmark.name}</h3>
-            </div>
-
-            <div className="absolute bottom-16 right-4 z-40 flex gap-2">
-              {hasStreetView && (
-                <button
-                  onClick={async () => {
-                    try {
-                      await openStreetViewModal([landmark], landmark);
-                    } catch (error) {
-                      console.error('❌ Error opening Street View:', error);
-                    }
-                  }}
-                  className="bg-blue-500/95 hover:bg-blue-600 text-white border-2 border-white/90 rounded-full w-12 h-12 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg"
-                  title="View Street View"
-                >
-                  <Eye className="w-5 h-5" />
-                </button>
-              )}
-              
-              <button
-                onClick={() => handleTextToSpeech(landmark)}
-                disabled={playingAudio[landmark.id] || false}
-                className="bg-black/90 hover:bg-blue-500/95 text-white border-2 border-white/90 rounded-full w-12 h-12 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg disabled:opacity-70"
-                title="Listen to description"
-              >
-                <Volume2 className="w-5 h-5" />
-              </button>
-            </div>
-
             {photos.length > 0 ? (
-              <PhotoCarousel
-                photos={photos}
-                initialIndex={0}
-                showThumbnails={photos.length > 1}
-                allowZoom={true}
-                className="w-full"
-              />
+              <div className="relative">
+                <div className="absolute top-0 left-0 right-0 z-40 bg-gradient-to-b from-black/70 to-transparent p-4">
+                  <h3 className="text-white font-bold text-lg pr-8">{landmark.name}</h3>
+                </div>
+
+                <div className="absolute bottom-16 right-4 z-40 flex gap-2">
+                  {hasStreetView && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          await openStreetViewModal([landmark], landmark);
+                        } catch (error) {
+                          console.error('❌ Error opening Street View:', error);
+                        }
+                      }}
+                      className="bg-blue-500/95 hover:bg-blue-600 text-white border-2 border-white/90 rounded-full w-12 h-12 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg"
+                      title="View Street View"
+                    >
+                      <Eye className="w-5 h-5" />
+                    </button>
+                  )}
+                  
+                  <button
+                    onClick={() => handleTextToSpeech(landmark)}
+                    disabled={playingAudio[landmark.id] || false}
+                    className="bg-black/90 hover:bg-blue-500/95 text-white border-2 border-white/90 rounded-full w-12 h-12 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg disabled:opacity-70"
+                    title="Listen to description"
+                  >
+                    <Volume2 className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <PhotoCarousel
+                  photos={photos}
+                  initialIndex={0}
+                  showThumbnails={photos.length > 1}
+                  allowZoom={true}
+                  className="w-full"
+                />
+
+                {/* Smart Landmark Info - positioned over the photo */}
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-4">
+                  <SmartLandmarkInfo 
+                    landmark={landmark} 
+                    className="text-white"
+                  />
+                </div>
+              </div>
             ) : (
-              <div className="w-full aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
-                <div className="text-center">
-                  <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500">No photos available</p>
+              <div className="relative">
+                <div className="p-4">
+                  <h3 className="text-lg font-bold mb-3 pr-8">{landmark.name}</h3>
+                  
+                  {/* Smart Landmark Info for no-photo case */}
+                  <SmartLandmarkInfo landmark={landmark} className="mb-3" />
+                  
+                  <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center mb-3 relative">
+                    <div className="text-center">
+                      <MapPin className="w-8 h-8 text-gray-400 mx-auto mb-1" />
+                      <p className="text-gray-500 text-sm">No image available</p>
+                    </div>
+                    
+                    <div className="absolute bottom-2 right-2 flex gap-2">
+                      {hasStreetView && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              await openStreetViewModal([landmark], landmark);
+                            } catch (error) {
+                              console.error('❌ Error opening Street View:', error);
+                            }
+                          }}
+                          className="bg-blue-500/95 hover:bg-blue-600 text-white border-2 border-white/90 rounded-full w-10 h-10 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg"
+                          title="View Street View"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      )}
+                      
+                      <button
+                        onClick={() => handleTextToSpeech(landmark)}
+                        className="bg-black/90 hover:bg-blue-500/95 text-white border-2 border-white/90 rounded-full w-10 h-10 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg"
+                        title="Listen to description"
+                      >
+                        <Volume2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -1024,6 +1070,10 @@ const MapComponent: React.FC<MapProps> = ({
 
             <div className="p-4">
               <h3 className="text-lg font-bold mb-3 pr-8">{landmark.name}</h3>
+              
+              {/* Smart Landmark Info for error case */}
+              <SmartLandmarkInfo landmark={landmark} className="mb-3" />
+              
               <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center mb-3 relative">
                 <div className="text-center">
                   <MapPin className="w-8 h-8 text-gray-400 mx-auto mb-1" />
