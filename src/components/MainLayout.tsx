@@ -12,13 +12,13 @@ import DebugWindow from '@/components/DebugWindow';
 import { useDebugWindow } from '@/hooks/useDebugWindow';
 import { useProximityNotifications } from '@/hooks/useProximityNotifications';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
+import { useMapboxToken } from '@/hooks/useMapboxToken';
 import { Landmark } from '@/data/landmarks';
 import { User } from '@supabase/supabase-js';
 
 type AssistantState = 'not-started' | 'started' | 'listening' | 'recording' | 'playback';
 
 interface MainLayoutProps {
-  mapboxToken: string;
   allLandmarks: Landmark[];
   selectedLandmark: Landmark | null;
   smartTourLandmarks: Landmark[];
@@ -43,7 +43,6 @@ interface MainLayoutProps {
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({
-  mapboxToken,
   allLandmarks,
   selectedLandmark,
   smartTourLandmarks,
@@ -69,6 +68,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
   const { userLocation } = useLocationTracking();
   const { activeCards, closeProximityCard, showRouteToService } = useProximityNotifications();
+  const mapboxToken = useMapboxToken();
   
   // Debug state for test proximity card
   const [debugProximityCard, setDebugProximityCard] = useState<Landmark | null>(null);
@@ -154,6 +154,17 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     setAssistantState('not-started');
   };
 
+  // Don't render the map until we have a token
+  if (!mapboxToken) {
+    return (
+      <div className="w-screen h-screen relative">
+        <div className="absolute inset-0 bg-gray-900 flex items-center justify-center">
+          <div className="text-white">Loading map...</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-screen h-screen relative">
       <TopControls
@@ -180,6 +191,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         onSelectLandmark={onSelectLandmark}
         selectedLandmark={selectedLandmark}
         plannedLandmarks={[...smartTourLandmarks]}
+        userLocation={userLocation}
       />
 
       {/* Debug Proximity Card - positioned above regular cards */}

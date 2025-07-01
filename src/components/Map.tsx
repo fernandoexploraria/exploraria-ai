@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -11,132 +12,38 @@ import EnhancedLandmarkInfo from './landmark/EnhancedLandmarkInfo';
 import { EnhancedLandmarkData } from '@/utils/landmarkDisplayUtils';
 
 interface MapProps {
+  mapboxToken: string;
   landmarks: Landmark[];
-  userLocation: { latitude: number; longitude: number } | null;
+  userLocation?: { latitude: number; longitude: number } | null;
   onLandmarkClick?: (landmark: Landmark) => void;
+  onSelectLandmark?: (landmark: Landmark) => void;
   onGetDirections?: (landmark: Landmark) => void;
   onShowStreetView?: (landmark: Landmark) => void;
   onPlayAudio?: (landmark: Landmark) => void;
   selectedLandmark?: Landmark | null;
+  plannedLandmarks?: Landmark[];
   className?: string;
   onProximityServiceClick?: (landmark: Landmark) => void;
 }
 
 const Map: React.FC<MapProps> = ({
+  mapboxToken,
   landmarks,
   userLocation,
   onLandmarkClick,
+  onSelectLandmark,
   onGetDirections,
   onShowStreetView,
   onPlayAudio,
   selectedLandmark,
+  plannedLandmarks = [],
   className = '',
   onProximityServiceClick
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [currentPopup, setCurrentPopup] = useState<mapboxgl.Popup | null>(null);
-  const { token, isLoading: tokenLoading, error: tokenError } = useMapboxToken();
   const { tourDetails } = useTourDetails(landmarks);
-
-  useEffect(() => {
-    if (token && !map.current) {
-      mapboxgl.accessToken = token;
-
-      const newMap = new mapboxgl.Map({
-        container: mapContainer.current!,
-        style: 'mapbox://styles/mapbox/dark-v11',
-        center: [-73.9857, 40.7589],
-        zoom: 12,
-      });
-
-      // Add navigation control (the +/- zoom buttons)
-      newMap.addControl(new mapboxgl.NavigationControl(), 'top-right');
-
-      // Add geolocate control to the map.
-      newMap.addControl(
-        new mapboxgl.GeolocateControl({
-          positionOptions: {
-            enableHighAccuracy: true
-          },
-          trackUserLocation: true,
-          showUserHeading: true
-        })
-      );
-
-      map.current = newMap;
-
-      newMap.on('load', () => {
-        // Load landmark markers
-        landmarks.forEach((landmark) => {
-          const el = document.createElement('div');
-          el.className = 'marker';
-          el.innerHTML = `
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 13.5C12.8284 13.5 13.5 12.8284 13.5 12C13.5 11.1716 12.8284 10.5 12 10.5C11.1716 10.5 10.5 11.1716 10.5 12C10.5 12.8284 11.1716 13.5 12 13.5Z" fill="#fff"/>
-              <path d="M12 2C7.58172 2 4 5.58172 4 9.5C4 15.3733 11.1267 21.6 11.2546 21.7111C11.6445 22.0544 12.2986 22.0544 12.6885 21.7111C12.8164 21.6 20 15.3733 20 9.5C20 5.58172 16.4183 2 12 2ZM12 15.5C10.067 15.5 8.5 13.933 8.5 12C8.5 10.067 10.067 8.5 12 8.5C13.933 8.5 15.5 10.067 15.5 12C15.5 13.933 13.933 15.5 12 15.5Z" fill="#fff"/>
-            </svg>
-          `;
-
-          el.addEventListener('click', (e) => {
-            e.stopPropagation();
-            createLandmarkPopup(landmark);
-            onLandmarkClick?.(landmark);
-          });
-
-          new mapboxgl.Marker(el)
-            .setLngLat([landmark.coordinates[0], landmark.coordinates[1]])
-            .addTo(newMap);
-        });
-
-        // Fly to the selected landmark if available
-        if (selectedLandmark) {
-          flyToLandmark(selectedLandmark);
-        }
-      });
-
-      newMap.on('click', () => {
-        if (currentPopup) {
-          currentPopup.remove();
-          setCurrentPopup(null);
-        }
-      });
-
-      // Clean up on unmount
-      return () => {
-        newMap.remove();
-        map.current = null;
-      };
-    } else if (tokenError) {
-      toast.error(tokenError);
-    }
-  }, [token, landmarks, onLandmarkClick, selectedLandmark, createLandmarkPopup, tokenError]);
-
-  useEffect(() => {
-    if (map.current && userLocation) {
-      map.current.flyTo({
-        center: [userLocation.longitude, userLocation.latitude],
-        zoom: 14,
-        duration: 3000,
-        essential: true
-      });
-    }
-  }, [userLocation]);
-
-  useEffect(() => {
-    if (map.current && selectedLandmark) {
-      flyToLandmark(selectedLandmark);
-    }
-  }, [selectedLandmark]);
-
-  const flyToLandmark = (landmark: Landmark) => {
-    map.current?.flyTo({
-      center: [landmark.coordinates[0], landmark.coordinates[1]],
-      zoom: 16,
-      duration: 2000,
-      essential: true
-    });
-  };
 
   const getEnhancedLandmarkData = useCallback((landmark: Landmark): EnhancedLandmarkData | undefined => {
     if (!tourDetails?.landmarksWithRawData) return undefined;
@@ -310,20 +217,106 @@ const Map: React.FC<MapProps> = ({
     return popup;
   }, [getEnhancedLandmarkData, onShowStreetView, onGetDirections, onPlayAudio, onProximityServiceClick, currentPopup]);
 
+  useEffect(() => {
+    if (mapboxToken && !map.current) {
+      mapboxgl.accessToken = mapboxToken;
+
+      const newMap = new mapboxgl.Map({
+        container: mapContainer.current!,
+        style: 'mapbox://styles/mapbox/dark-v11',
+        center: [-73.9857, 40.7589],
+        zoom: 12,
+      });
+
+      // Add navigation control (the +/- zoom buttons)
+      newMap.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+      // Add geolocate control to the map.
+      newMap.addControl(
+        new mapboxgl.GeolocateControl({
+          positionOptions: {
+            enableHighAccuracy: true
+          },
+          trackUserLocation: true,
+          showUserHeading: true
+        })
+      );
+
+      map.current = newMap;
+
+      newMap.on('load', () => {
+        // Load landmark markers
+        landmarks.forEach((landmark) => {
+          const el = document.createElement('div');
+          el.className = 'marker';
+          el.innerHTML = `
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 13.5C12.8284 13.5 13.5 12.8284 13.5 12C13.5 11.1716 12.8284 10.5 12 10.5C11.1716 10.5 10.5 11.1716 10.5 12C10.5 12.8284 11.1716 13.5 12 13.5Z" fill="#fff"/>
+              <path d="M12 2C7.58172 2 4 5.58172 4 9.5C4 15.3733 11.1267 21.6 11.2546 21.7111C11.6445 22.0544 12.2986 22.0544 12.6885 21.7111C12.8164 21.6 20 15.3733 20 9.5C20 5.58172 16.4183 2 12 2ZM12 15.5C10.067 15.5 8.5 13.933 8.5 12C8.5 10.067 10.067 8.5 12 8.5C13.933 8.5 15.5 10.067 15.5 12C15.5 13.933 13.933 15.5 12 15.5Z" fill="#fff"/>
+            </svg>
+          `;
+
+          el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            createLandmarkPopup(landmark);
+            onLandmarkClick?.(landmark);
+            onSelectLandmark?.(landmark);
+          });
+
+          new mapboxgl.Marker(el)
+            .setLngLat([landmark.coordinates[0], landmark.coordinates[1]])
+            .addTo(newMap);
+        });
+
+        // Fly to the selected landmark if available
+        if (selectedLandmark) {
+          flyToLandmark(selectedLandmark);
+        }
+      });
+
+      newMap.on('click', () => {
+        if (currentPopup) {
+          currentPopup.remove();
+          setCurrentPopup(null);
+        }
+      });
+
+      // Clean up on unmount
+      return () => {
+        newMap.remove();
+        map.current = null;
+      };
+    }
+  }, [mapboxToken, landmarks, onLandmarkClick, onSelectLandmark, selectedLandmark, createLandmarkPopup]);
+
+  useEffect(() => {
+    if (map.current && userLocation) {
+      map.current.flyTo({
+        center: [userLocation.longitude, userLocation.latitude],
+        zoom: 14,
+        duration: 3000,
+        essential: true
+      });
+    }
+  }, [userLocation]);
+
+  useEffect(() => {
+    if (map.current && selectedLandmark) {
+      flyToLandmark(selectedLandmark);
+    }
+  }, [selectedLandmark]);
+
+  const flyToLandmark = (landmark: Landmark) => {
+    map.current?.flyTo({
+      center: [landmark.coordinates[0], landmark.coordinates[1]],
+      zoom: 16,
+      duration: 2000,
+      essential: true
+    });
+  };
+
   return (
     <div className={`relative w-full h-full ${className}`}>
-      {tokenLoading && (
-        <div className="absolute inset-0 bg-gray-900 flex items-center justify-center z-10">
-          <div className="text-white">Loading map...</div>
-        </div>
-      )}
-      
-      {tokenError && (
-        <div className="absolute inset-0 bg-gray-900 flex items-center justify-center z-10">
-          <div className="text-red-400">{tokenError}</div>
-        </div>
-      )}
-      
       <div ref={mapContainer} className="w-full h-full" />
     </div>
   );
