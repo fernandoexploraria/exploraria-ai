@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Volume2 } from 'lucide-react';
 import { useTTSContext } from '@/contexts/TTSContext';
@@ -20,7 +20,7 @@ const CarouselControls: React.FC<CarouselControlsProps> = ({
 }) => {
   const { speak, isPlaying } = useTTSContext();
 
-  const handleSpeakerClick = () => {
+  const handleSpeakerClick = useCallback(() => {
     if (!currentInteraction) return;
 
     let textToSpeak = '';
@@ -47,7 +47,7 @@ const CarouselControls: React.FC<CarouselControlsProps> = ({
     }
 
     speak(textToSpeak, isMemoryNarration, currentInteraction.id);
-  };
+  }, [currentInteraction, speak]);
 
   return (
     <div className="flex flex-col items-center gap-3 mt-6">
