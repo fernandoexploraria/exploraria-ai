@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { PhotoData } from './useEnhancedPhotos';
 
 interface UsePhotoNavigationProps {
@@ -15,6 +15,11 @@ export const usePhotoNavigation = ({
 }: UsePhotoNavigationProps) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Sync internal state when initialIndex changes
+  useEffect(() => {
+    setCurrentIndex(initialIndex);
+  }, [initialIndex]);
 
   const handleIndexChange = useCallback((newIndex: number) => {
     setCurrentIndex(newIndex);
