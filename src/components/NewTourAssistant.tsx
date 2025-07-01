@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Loader2 } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Landmark } from '@/data/landmarks';
 import { useConversation } from '@11labs/react';
@@ -15,6 +15,7 @@ interface NewTourAssistantProps {
   destination: string;
   landmarks: Landmark[];
   systemPrompt?: string;
+  onSessionStateChange?: (isActive: boolean, state: AssistantState) => void;
 }
 
 type AssistantState = 'not-started' | 'started' | 'listening' | 'recording' | 'playback';
@@ -24,7 +25,8 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   onOpenChange, 
   destination: fallbackDestination, 
   landmarks,
-  systemPrompt: fallbackSystemPrompt 
+  systemPrompt: fallbackSystemPrompt,
+  onSessionStateChange
 }) => {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -32,9 +34,17 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const [assistantState, setAssistantState] = useState<AssistantState>('not-started');
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [isSessionActive, setIsSessionActive] = useState(false);
 
   // 🔥 NEW: Fetch tour details from database
   const { tourDetails, isLoading: isFetchingTourDetails, error: tourDetailsError } = useTourDetails(landmarks);
+
+  // Notify parent of session state changes
+  useEffect(() => {
+    if (onSessionStateChange) {
+      onSessionStateChange(isSessionActive, assistantState);
+    }
+  }, [isSessionActive, assistantState, onSessionStateChange]);
 
   // Fetch ElevenLabs configuration from Supabase on mount
   useEffect(() => {
@@ -71,10 +81,10 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       }
     };
 
-    if (open) {
+    if (open || isSessionActive) {
       fetchConfig();
     }
-  }, [open]);
+  }, [open, isSessionActive]);
 
   // 🔥 NEW: Get effective destination and system prompt from database or fallback
   const getEffectiveDestination = () => {
@@ -143,6 +153,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     onConnect: () => {
       console.log('Successfully connected to ElevenLabs agent');
       setAssistantState('started');
+      setIsSessionActive(true);
       setConnectionError(null);
       toast({
         title: "Connected",
@@ -152,6 +163,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     onDisconnect: () => {
       console.log('Disconnected from ElevenLabs agent');
       setAssistantState('not-started');
+      setIsSessionActive(false);
       toast({
         title: "Conversation Ended",
         description: "Your tour conversation has been saved.",
@@ -174,6 +186,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
         variant: "destructive"
       });
       setAssistantState('not-started');
+      setIsSessionActive(false);
     }
   });
 
@@ -191,88 +204,91 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       setAssistantState('started');
     } else if (conversation.status === 'disconnected' && assistantState !== 'not-started') {
       setAssistantState('not-started');
+      setIsSessionActive(false);
     }
   }, [conversation.status, conversation.isSpeaking, assistantState]);
 
-  const handleMainAction = async () => {
-    if (assistantState === 'not-started') {
-      // Start the conversation
-      if (!elevenLabsConfig) {
-        toast({
-          title: "Configuration Error",
-          description: "ElevenLabs configuration not available.",
-          variant: "destructive"
-        });
-        return;
-      }
+  const handleStartSession = async () => {
+    if (!elevenLabsConfig) {
+      toast({
+        title: "Configuration Error",
+        description: "ElevenLabs configuration not available.",
+        variant: "destructive"
+      });
+      return;
+    }
 
-      if (!user) {
-        toast({
-          title: "Authentication Required",
-          description: "Please sign in to use the tour guide.",
-          variant: "destructive"
-        });
-        return;
-      }
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to use the tour guide.",
+        variant: "destructive"
+      });
+      return;
+    }
 
-      try {
-        setConnectionError(null);
-        console.log('Starting ElevenLabs conversation with agent:', elevenLabsConfig.agentId);
-        
-        // Prepare dynamic variables for this conversation
-        const dynamicVariables = prepareDynamicVariables();
-        
-        // Request microphone permission first
-        console.log('Requesting microphone permission...');
-        await navigator.mediaDevices.getUserMedia({ audio: true });
-        console.log('Microphone permission granted');
-        
-        // Start the conversation using the agent ID approach with dynamic variables
-        console.log('Starting session with dynamic variables...');
-        const conversationId = await conversation.startSession({ 
-          agentId: elevenLabsConfig.agentId,
-          dynamicVariables: dynamicVariables
-        });
-        
-        console.log('ElevenLabs session started successfully:', conversationId);
-        
-      } catch (error) {
-        console.error('Error starting tour:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        setConnectionError(errorMessage);
-        
-        // Provide specific error messages based on error type
-        let userMessage = "Failed to start tour guide.";
-        if (errorMessage.includes('Permission denied')) {
-          userMessage = "Microphone permission is required to use the tour guide.";
-        } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
-          userMessage = "Network connection issue. Please check your internet and try again.";
-        } else if (errorMessage.includes('agent')) {
-          userMessage = "Tour guide service is temporarily unavailable.";
-        }
-        
-        toast({
-          title: "Error",
-          description: userMessage,
-          variant: "destructive"
-        });
+    try {
+      setConnectionError(null);
+      console.log('Starting ElevenLabs conversation with agent:', elevenLabsConfig.agentId);
+      
+      const dynamicVariables = prepareDynamicVariables();
+      
+      console.log('Requesting microphone permission...');
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('Microphone permission granted');
+      
+      console.log('Starting session with dynamic variables...');
+      const conversationId = await conversation.startSession({ 
+        agentId: elevenLabsConfig.agentId,
+        dynamicVariables: dynamicVariables
+      });
+      
+      console.log('ElevenLabs session started successfully:', conversationId);
+      
+    } catch (error) {
+      console.error('Error starting tour:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setConnectionError(errorMessage);
+      
+      let userMessage = "Failed to start tour guide.";
+      if (errorMessage.includes('Permission denied')) {
+        userMessage = "Microphone permission is required to use the tour guide.";
+      } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+        userMessage = "Network connection issue. Please check your internet and try again.";
+      } else if (errorMessage.includes('agent')) {
+        userMessage = "Tour guide service is temporarily unavailable.";
       }
-    } else {
-      // Double-click to end tour when active
-      try {
-        console.log('Ending ElevenLabs session...');
-        await conversation.endSession();
-        setAssistantState('not-started');
-        setConnectionError(null);
-      } catch (error) {
-        console.error('Error ending tour:', error);
-      }
+      
+      toast({
+        title: "Error",
+        description: userMessage,
+        variant: "destructive"
+      });
     }
   };
 
-  const handleClose = () => {
-    if (assistantState !== 'not-started') {
-      handleMainAction(); // End session
+  const handleEndSession = async () => {
+    try {
+      console.log('Ending ElevenLabs session...');
+      await conversation.endSession();
+      setAssistantState('not-started');
+      setIsSessionActive(false);
+      setConnectionError(null);
+    } catch (error) {
+      console.error('Error ending tour:', error);
+    }
+  };
+
+  // Handle dialog close (keep session active)
+  const handleDialogClose = () => {
+    console.log('Dialog closing - session remains active:', isSessionActive);
+    onOpenChange(false);
+  };
+
+  // Handle full close (end session and close dialog)
+  const handleFullClose = () => {
+    if (isSessionActive) {
+      handleEndSession();
     }
     onOpenChange(false);
   };
@@ -316,7 +332,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   // Show loading if configuration is being fetched or tour details are loading
   if (isLoadingConfig || isFetchingTourDetails) {
     return (
-      <Dialog open={open} onOpenChange={handleClose}>
+      <Dialog open={open} onOpenChange={handleDialogClose}>
         <DialogContent className="sm:max-w-xs p-8 bg-transparent border-none shadow-none">
           <div className="bg-background rounded-lg p-6 border shadow-lg">
             <DialogHeader>
@@ -339,7 +355,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   // Show error if configuration couldn't be loaded or there's a connection error
   if (!elevenLabsConfig || connectionError || tourDetailsError) {
     return (
-      <Dialog open={open} onOpenChange={handleClose}>
+      <Dialog open={open} onOpenChange={handleDialogClose}>
         <DialogContent className="sm:max-w-xs p-8 bg-transparent border-none shadow-none">
           <div className="bg-background rounded-lg p-6 border shadow-lg">
             <DialogHeader>
@@ -353,7 +369,6 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
                 onClick={() => {
                   setIsLoadingConfig(true);
                   setConnectionError(null);
-                  // Retry configuration fetch
                   const fetchConfig = async () => {
                     try {
                       const { data: session } = await supabase.auth.getSession();
@@ -402,13 +417,22 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={handleDialogClose}>
       <DialogContent className="sm:max-w-xs p-8 bg-transparent border-none shadow-none">
+        {/* Close button - only end session if explicitly clicked */}
+        <button
+          onClick={handleFullClose}
+          className="absolute top-4 right-4 z-50 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors"
+          aria-label="End session and close"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
         <div className="flex items-center justify-center">
           <div className="relative flex items-center justify-center">
             <div className={`w-48 h-48 rounded-full border-4 flex items-center justify-center transition-all duration-300 ${getCircleColor()}`}>
               <Button
-                onClick={handleMainAction}
+                onClick={assistantState === 'not-started' ? handleStartSession : () => {}}
                 disabled={conversation.status === 'connecting' || assistantState === 'listening' || assistantState === 'recording'}
                 variant="outline"
                 className="text-lg font-semibold px-6 py-3 h-auto whitespace-normal text-center bg-background text-foreground border-border hover:bg-accent hover:text-accent-foreground"
@@ -439,6 +463,20 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
             )}
           </div>
         </div>
+
+        {/* End Session Button - only show when session is active */}
+        {isSessionActive && (
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+            <Button
+              onClick={handleEndSession}
+              variant="destructive"
+              size="sm"
+              className="bg-red-500/80 hover:bg-red-600/80 text-white"
+            >
+              End Session
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

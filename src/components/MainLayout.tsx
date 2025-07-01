@@ -1,9 +1,11 @@
+
 import React, { useState } from 'react';
 import Map from '@/components/Map';
 import TopControls from '@/components/TopControls';
 import UserControls from '@/components/UserControls';
 import DialogManager from '@/components/DialogManager';
 import NewTourAssistant from '@/components/NewTourAssistant';
+import FloatingTourGuideFAB from '@/components/FloatingTourGuideFAB';
 import ProximityControlPanel from '@/components/ProximityControlPanel';
 import FloatingProximityCard from '@/components/FloatingProximityCard';
 import DebugWindow from '@/components/DebugWindow';
@@ -12,6 +14,8 @@ import { useProximityNotifications } from '@/hooks/useProximityNotifications';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { Landmark } from '@/data/landmarks';
 import { User } from '@supabase/supabase-js';
+
+type AssistantState = 'not-started' | 'started' | 'listening' | 'recording' | 'playback';
 
 interface MainLayoutProps {
   mapboxToken: string;
@@ -68,6 +72,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   
   // Debug state for test proximity card
   const [debugProximityCard, setDebugProximityCard] = useState<Landmark | null>(null);
+  
+  // New state for FAB management
+  const [isSessionActive, setIsSessionActive] = useState(false);
+  const [assistantState, setAssistantState] = useState<AssistantState>('not-started');
 
   const handleLocationSelect = () => {
     console.log('Location select called but no action taken');
@@ -122,6 +130,28 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       return voiceTourData.destination;
     }
     return getFallbackDestination();
+  };
+
+  // Handle session state change from NewTourAssistant
+  const handleSessionStateChange = (isActive: boolean, state: AssistantState) => {
+    console.log('Session state changed:', { isActive, state });
+    setIsSessionActive(isActive);
+    setAssistantState(state);
+  };
+
+  // Handle FAB click - reopen the tour assistant dialog
+  const handleFABClick = () => {
+    console.log('FAB clicked - reopening tour assistant');
+    onNewTourAssistantOpenChange(true);
+  };
+
+  // Handle FAB long press - end session
+  const handleFABLongPress = () => {
+    console.log('FAB long pressed - ending session');
+    // The session will be ended by the NewTourAssistant component
+    // We just need to trigger the appropriate action
+    setIsSessionActive(false);
+    setAssistantState('not-started');
   };
 
   return (
@@ -191,6 +221,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         </div>
       ))}
 
+      {/* Floating Tour Guide FAB - shows when session is active but dialog is closed */}
+      <FloatingTourGuideFAB
+        isVisible={isSessionActive && !isNewTourAssistantOpen}
+        assistantState={assistantState}
+        onClick={handleFABClick}
+        onLongPress={handleFABLongPress}
+      />
+
       <DialogManager
         isVoiceSearchOpen={isVoiceSearchOpen}
         onVoiceSearchOpenChange={onVoiceSearchOpenChange}
@@ -210,6 +248,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         destination="" // 🔥 SIMPLIFIED: NewTourAssistant will fetch from database
         landmarks={voiceTourData?.landmarks || smartTourLandmarks}
         systemPrompt="" // 🔥 SIMPLIFIED: NewTourAssistant will fetch from database
+        onSessionStateChange={handleSessionStateChange}
       />
 
       <DebugWindow
