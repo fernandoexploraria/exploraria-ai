@@ -30,8 +30,8 @@ export const performComprehensiveTourReset = (
 ) => {
   console.log('🧹 Starting comprehensive tour reset...');
   
-  // Phase 1: Clear core data structures
-  console.log('🧹 Phase 1: Clearing core data structures');
+  // Phase 1: Clear core data structures (now only handles GeoJSON layer)
+  console.log('🧹 Phase 1: Clearing tour landmarks data');
   clearTourMarkers();
   
   // Phase 2: Reset page-level states

@@ -8,69 +8,23 @@ export interface TourLandmark {
 // Mutable array that gets cleared and repopulated for each new tour
 export const TOUR_LANDMARKS: TourLandmark[] = [];
 
-// Reference to the map markers - will be set by Map component
-let mapMarkersRef: { current: { [key: string]: any } } | null = null;
-let photoPopupsRef: { current: { [key: string]: any } } | null = null;
-
-// Function to set the markers reference from Map component
-export const setMapMarkersRef = (markersRef: { current: { [key: string]: any } }, popupsRef: { current: { [key: string]: any } }) => {
-  mapMarkersRef = markersRef;
-  photoPopupsRef = popupsRef;
-};
-
-// Enhanced function to clear tour markers from map and array
+// Enhanced function to clear tour landmarks - now only handles GeoJSON layer cleanup
 export const clearTourMarkers = () => {
-  console.log('🧹 Enhanced clearing of tour markers from map...');
-  
-  let markersRemoved = 0;
-  let popupsRemoved = 0;
-  
-  if (mapMarkersRef?.current) {
-    // Find and remove all tour landmarks from the map
-    Object.keys(mapMarkersRef.current).forEach(markerId => {
-      if (markerId.startsWith('tour-landmark-')) {
-        console.log('🗑️ Removing map marker:', markerId);
-        try {
-          // Remove marker from map
-          mapMarkersRef.current[markerId].remove();
-          // Delete from markers ref
-          delete mapMarkersRef.current[markerId];
-          markersRemoved++;
-        } catch (error) {
-          console.warn('⚠️ Error removing marker:', markerId, error);
-        }
-      }
-    });
-  }
-  
-  if (photoPopupsRef?.current) {
-    // Close any open popups for tour landmarks
-    Object.keys(photoPopupsRef.current).forEach(popupId => {
-      if (popupId.startsWith('tour-landmark-')) {
-        console.log('🗑️ Removing popup:', popupId);
-        try {
-          photoPopupsRef.current[popupId].remove();
-          delete photoPopupsRef.current[popupId];
-          popupsRemoved++;
-        } catch (error) {
-          console.warn('⚠️ Error removing popup:', popupId, error);
-        }
-      }
-    });
-  }
+  console.log('🧹 Enhanced clearing of tour landmarks...');
   
   // Clear the landmarks array
   const landmarksCleared = TOUR_LANDMARKS.length;
   TOUR_LANDMARKS.length = 0;
   
-  console.log(`🧹 Enhanced cleanup completed: ${markersRemoved} markers, ${popupsRemoved} popups, ${landmarksCleared} landmarks cleared`);
+  console.log(`🧹 Enhanced cleanup completed: ${landmarksCleared} landmarks cleared from array`);
+  console.log('🧹 Note: Tour landmarks are now handled by GeoJSON layer, no individual markers to clean');
 };
 
 // Enhanced function to clear and set new tour landmarks
 export const setTourLandmarks = (landmarks: TourLandmark[]) => {
   console.log('📍 Enhanced setTourLandmarks called with:', landmarks.length, 'landmarks');
   
-  // Clear existing landmarks and markers first with verification
+  // Clear existing landmarks first
   clearTourMarkers();
   
   // Verify cleanup completed

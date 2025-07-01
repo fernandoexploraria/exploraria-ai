@@ -156,7 +156,7 @@ const Map: React.FC<MapProps> = ({
     return () => clearInterval(interval);
   }, [tourLandmarks.length]);
 
-  // Convert top landmarks and tour landmarks to Landmark format with proper state dependency
+  // Convert top landmarks to Landmark format - tour landmarks handled separately by GeoJSON layer
   const allLandmarksWithTop = React.useMemo(() => {
     console.log('🗺️ Rebuilding landmarks list:', {
       baseLandmarks: landmarks.length,
@@ -171,17 +171,12 @@ const Map: React.FC<MapProps> = ({
       description: topLandmark.description
     }));
     
-    const tourLandmarksConverted: Landmark[] = tourLandmarks.map((tourLandmark, index) => ({
-      id: `tour-landmark-${index}`,
-      name: tourLandmark.name,
-      coordinates: tourLandmark.coordinates,
-      description: tourLandmark.description
-    }));
-    
-    const result = [...landmarks, ...topLandmarksConverted, ...tourLandmarksConverted];
+    // Tour landmarks are now handled exclusively by the GeoJSON layer
+    const result = [...landmarks, ...topLandmarksConverted];
     console.log('🗺️ Total landmarks for map:', result.length);
+    console.log('🗺️ Tour landmarks handled by GeoJSON layer:', tourLandmarks.length);
     return result;
-  }, [landmarks, tourLandmarks]); // Now properly depends on tourLandmarks state
+  }, [landmarks, tourLandmarks]); // Still track tourLandmarks for logging
 
   // Function to store map marker interaction
   const storeMapMarkerInteraction = async (landmark: Landmark, imageUrl?: string) => {
@@ -982,15 +977,18 @@ const Map: React.FC<MapProps> = ({
     }
   };
 
-  // Update markers when landmarks change
+  // Update markers when landmarks change - now only for non-tour landmarks
   useEffect(() => {
     if (!map.current) return;
 
+    // Only process landmarks that are NOT tour landmarks (which are handled by GeoJSON layer)
     const landmarkIds = new Set(allLandmarksWithTop.map(l => l.id));
 
-    // Remove markers that are no longer in the landmarks list
+    // Remove markers that are no longer in the landmarks list - exclude any tour landmarks from cleanup
     Object.keys(markers.current).forEach(markerId => {
-      if (!landmarkIds.has(markerId)) {
+      // Never try to clean up tour landmarks - they're handled by the GeoJSON layer
+      if (!markerId.startsWith('tour-landmark-') && !landmarkIds.has(markerId)) {
+        console.log('🗺️ Removing obsolete individual marker:', markerId);
         markers.current[markerId].remove();
         delete markers.current[markerId];
         if (photoPopups.current[markerId]) {
@@ -1004,16 +1002,10 @@ const Map: React.FC<MapProps> = ({
       }
     });
 
-    // Add new markers - EXCLUDE tour landmarks (they're handled by GeoJSON layer)
+    // Add new individual markers - ONLY for non-tour landmarks
     allLandmarksWithTop.forEach((landmark) => {
-      // Skip tour landmarks - they're now handled by the GeoJSON layer
-      const isTourLandmark = landmark.id.startsWith('tour-landmark-');
-      if (isTourLandmark) {
-        console.log('🗺️ [Phase 2] Skipping individual marker for tour landmark:', landmark.name, '- handled by GeoJSON layer');
-        return;
-      }
-
       if (!markers.current[landmark.id]) {
+        console.log('🗺️ Creating individual marker for:', landmark.name, landmark.id);
         const el = document.createElement('div');
         
         // Different styling for different landmark types
@@ -1036,7 +1028,7 @@ const Map: React.FC<MapProps> = ({
         marker.getElement().addEventListener('click', async (e) => {
           e.stopPropagation(); // Prevent map click event
           
-          console.log('Marker clicked:', landmark.name);
+          console.log('Individual marker clicked:', landmark.name);
           
           // Check current zoom level and zoom in if needed
           const currentZoom = map.current?.getZoom() || 1.5;
@@ -1102,11 +1094,16 @@ const Map: React.FC<MapProps> = ({
       }
     }
 
+    // Update marker styles - only for individual markers (not tour landmarks)
     Object.entries(markers.current).forEach(([id, marker]) => {
+      // Skip tour landmarks - they don't have individual markers
+      if (id.startsWith('tour-landmark-')) {
+        return;
+      }
+      
       const element = marker.getElement();
       const isSelected = id === selectedLandmark?.id;
       const isTopLandmark = id.startsWith('top-landmark-');
-      const isTourLandmark = id.startsWith('tour-landmark-');
       
       if (isSelected) {
         element.style.backgroundColor = '#f87171'; // red-400
@@ -1114,8 +1111,6 @@ const Map: React.FC<MapProps> = ({
       } else {
         if (isTopLandmark) {
           element.style.backgroundColor = '#facc15'; // yellow-400
-        } else if (isTourLandmark) {
-          element.style.backgroundColor = '#4ade80'; // green-400
         } else {
           element.style.backgroundColor = '#22d3ee'; // cyan-400
         }
