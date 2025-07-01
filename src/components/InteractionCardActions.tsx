@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface Interaction {
@@ -9,7 +10,8 @@ interface Interaction {
   landmark_coordinates: any;
   full_transcript: any;
   created_at: string;
-  is_favorite: boolean; // Changed from optional to required
+  is_favorite: boolean;
+  landmark_image_url: string | null; // Changed to nullable instead of optional
 }
 
 interface InteractionCardActionsProps {

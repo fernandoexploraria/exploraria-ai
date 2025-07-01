@@ -27,9 +27,9 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
 }) => {
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [visibleIndexes, setVisibleIndexes] = useState<Set<number>>(new Set([0, 1, 2])); // Track visible items
+  const [visibleIndexes, setVisibleIndexes] = useState<Set<number>>(new Set([0, 1, 2]));
   const { stop, isPlaying, currentPlayingId } = useTTSContext();
-  const observerRef = useRef<IntersectionObserver>();
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
   // Handle carousel slide changes - stop audio when card moves
   useEffect(() => {
@@ -71,18 +71,24 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
     };
   }, [carouselApi, stop, isPlaying, currentInteractions.length]);
 
-  // Set up intersection observer for additional lazy loading
+  // Set up intersection observer for additional lazy loading with improved cleanup
   useEffect(() => {
+    // Clean up previous observer
     if (observerRef.current) {
       observerRef.current.disconnect();
+      observerRef.current = null;
     }
 
+    // Create new observer
     observerRef.current = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          const index = parseInt(entry.target.getAttribute('data-index') || '0');
-          if (entry.isIntersecting) {
-            setVisibleIndexes(prev => new Set([...prev, index]));
+          const indexAttr = entry.target.getAttribute('data-index');
+          if (indexAttr) {
+            const index = parseInt(indexAttr, 10);
+            if (!isNaN(index) && entry.isIntersecting) {
+              setVisibleIndexes(prev => new Set([...prev, index]));
+            }
           }
         });
       },
@@ -95,6 +101,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
     return () => {
       if (observerRef.current) {
         observerRef.current.disconnect();
+        observerRef.current = null;
       }
     };
   }, []);
@@ -103,6 +110,17 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
     if (carouselApi) {
       console.log('Manually scrolling to slide:', index);
       carouselApi.scrollTo(index);
+    }
+  };
+
+  // Improved ref callback to prevent errors
+  const setObserverRef = (el: HTMLDivElement | null, index: number) => {
+    if (el && observerRef.current) {
+      try {
+        observerRef.current.observe(el);
+      } catch (error) {
+        console.warn('Failed to observe element:', error);
+      }
     }
   };
 
@@ -167,11 +185,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
                 key={interaction.id} 
                 className="pl-2 md:pl-4 basis-4/5 md:basis-3/5 lg:basis-2/5"
                 data-index={index}
-                ref={(el) => {
-                  if (el && observerRef.current) {
-                    observerRef.current.observe(el);
-                  }
-                }}
+                ref={(el) => setObserverRef(el, index)}
               >
                 <InteractionCard
                   interaction={interaction}
@@ -179,7 +193,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
                   isCurrentlyPlaying={currentPlayingId === interaction.id}
                   onToggleFavorite={onToggleFavorite}
                   onLocationClick={onLocationClick}
-                  isVisible={visibleIndexes.has(index)} // Pass visibility for lazy loading
+                  isVisible={visibleIndexes.has(index)}
                 />
               </CarouselItem>
             ))}

@@ -15,8 +15,8 @@ interface Interaction {
   created_at: string;
   landmark_coordinates: any;
   full_transcript: any;
-  landmark_image_url?: string; // Changed from image_url to landmark_image_url
-  is_favorite: boolean; // Changed from optional to required
+  landmark_image_url: string | null; // Changed to nullable instead of optional
+  is_favorite: boolean;
   place_id?: string;
 }
 
@@ -26,7 +26,7 @@ interface InteractionCardProps {
   isCurrentlyPlaying: boolean;
   onToggleFavorite: (interaction: Interaction) => void;
   onLocationClick: (coordinates: any) => void;
-  isVisible?: boolean; // For lazy loading
+  isVisible?: boolean;
 }
 
 const InteractionCard: React.FC<InteractionCardProps> = ({
@@ -53,7 +53,7 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
       </div>
 
       <CardContent className="flex-1 flex flex-col p-3 pt-0">
-        {/* Image Section */}
+        {/* Image Section - Add null check */}
         {interaction.landmark_image_url && (
           <div className="mb-3">
             <InteractionCardImage
