@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -20,6 +21,7 @@ import { useLandmarkPhotos } from '@/hooks/useLandmarkPhotos';
 import { PhotoData } from '@/hooks/useEnhancedPhotos';
 
 interface MapProps {
+  mapboxToken?: string; // Add mapboxToken as optional prop
   landmarks: Landmark[];
   userLocation: [number, number] | null;
   selectedLandmark: Landmark | null;
@@ -33,6 +35,7 @@ interface MapProps {
   onLocationUpdate?: (location: [number, number]) => void;
   proximityLandmarks?: Landmark[];
   smartTourLandmarks?: Landmark[];
+  plannedLandmarks?: Landmark[]; // Add this for compatibility
 }
 
 interface ProximityInfo {
@@ -59,6 +62,7 @@ const calculateDistance = (coord1: [number, number], coord2: [number, number]): 
 };
 
 const Map: React.FC<MapProps> = ({ 
+  mapboxToken: propMapboxToken,
   landmarks, 
   userLocation, 
   selectedLandmark, 
@@ -79,13 +83,17 @@ const Map: React.FC<MapProps> = ({
   const mapContainer = useRef(null);
   const [proximityInfo, setProximityInfo] = useState<ProximityInfo[]>([]);
 
-  // Enhanced photo fetching with database-first approach
+  // Enhanced photo fetching with database-first approach - Fix Map constructor usage
   const { fetchLandmarkPhotos } = useLandmarkPhotos();
-  const [landmarkPhotos, setLandmarkPhotos] = useState<Map<string, PhotoData[]>>(new Map());
-  const [photoLoadingStates, setPhotoLoadingStates] = useState<Map<string, boolean>>(new Map());
+  const [landmarkPhotos, setLandmarkPhotos] = useState(new Map<string, PhotoData[]>());
+  const [photoLoadingStates, setPhotoLoadingStates] = useState(new Map<string, boolean>());
 
-  const { mapboxToken } = useMapboxToken();
-  const { isStreetViewAvailable } = useEnhancedStreetView(
+  // Use hook if no token provided via props
+  const { mapboxToken: hookMapboxToken } = useMapboxToken();
+  const mapboxToken = propMapboxToken || hookMapboxToken;
+
+  // Fix hook destructuring
+  const streetViewHook = useEnhancedStreetView(
     selectedLandmark?.coordinates || [0, 0]
   );
 
@@ -178,8 +186,8 @@ const Map: React.FC<MapProps> = ({
           });
           newMap.addControl(geolocateControl, 'top-left');
 
-          // Listen for the 'geolocate' event
-          newMap.on('geolocate', (e) => {
+          // Listen for the 'geolocate' event - Fix event handler type
+          geolocateControl.on('geolocate', (e: any) => {
             const lon = e.coords.longitude;
             const lat = e.coords.latitude;
             const newCoordinates: [number, number] = [lon, lat];
@@ -394,7 +402,7 @@ const Map: React.FC<MapProps> = ({
                   </div>
                 )}
 
-                {/* Street View Section */}
+                {/* Street View Section - Fix component props */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <Navigation className="h-4 w-4" />
@@ -402,9 +410,9 @@ const Map: React.FC<MapProps> = ({
                   </div>
                   
                   <StreetViewThumbnail
-                    coordinates={selectedLandmark.coordinates}
-                    landmarkName={selectedLandmark.name}
-                    onViewStreetView={() => setIsStreetViewOpen(true)}
+                    landmark={selectedLandmark}
+                    streetViewData={null}
+                    onClick={() => setIsStreetViewOpen(true)}
                     className="h-32"
                   />
                 </div>
@@ -427,11 +435,14 @@ const Map: React.FC<MapProps> = ({
         </Card>
       )}
 
-      {/* Enhanced Street View Modal */}
+      {/* Enhanced Street View Modal - Fix component props */}
       <EnhancedStreetViewModal
         isOpen={isStreetViewOpen}
         onClose={() => setIsStreetViewOpen(false)}
-        coordinates={selectedLandmark?.coordinates || [0, 0]}
+        streetViewItems={selectedLandmark ? [{
+          landmark: selectedLandmark,
+          streetViewData: null
+        }] : []}
         landmarkName={selectedLandmark?.name || ''}
       />
     </div>
