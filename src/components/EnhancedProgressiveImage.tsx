@@ -47,21 +47,21 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
       
       if (networkQuality === 'high') {
         urlsToTry = [
-          { url: photo.urls.large, size: 'large' },
-          { url: photo.urls.medium, size: 'medium' },
-          { url: photo.urls.thumb, size: 'thumb' }
+          { url: photo.urls.large, size: 'large' as const },
+          { url: photo.urls.medium, size: 'medium' as const },
+          { url: photo.urls.thumb, size: 'thumb' as const }
         ].filter(item => item.url);
       } else if (networkQuality === 'medium') {
         urlsToTry = [
-          { url: photo.urls.medium, size: 'medium' },
-          { url: photo.urls.thumb, size: 'thumb' },
-          { url: photo.urls.large, size: 'large' }
+          { url: photo.urls.medium, size: 'medium' as const },
+          { url: photo.urls.thumb, size: 'thumb' as const },
+          { url: photo.urls.large, size: 'large' as const }
         ].filter(item => item.url);
       } else {
         urlsToTry = [
-          { url: photo.urls.thumb, size: 'thumb' },
-          { url: photo.urls.medium, size: 'medium' },
-          { url: photo.urls.large, size: 'large' }
+          { url: photo.urls.thumb, size: 'thumb' as const },
+          { url: photo.urls.medium, size: 'medium' as const },
+          { url: photo.urls.large, size: 'large' as const }
         ].filter(item => item.url);
       }
       
@@ -74,7 +74,7 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
             networkQuality === 'low' ? 'thumb' : networkQuality === 'high' ? 'large' : 'medium'
           );
           
-          urlsToTry = [{ url: optimizedResult.url, size: 'medium' }];
+          urlsToTry = [{ url: optimizedResult.url, size: 'medium' as const }];
           setOptimizationInfo(`Optimized (${optimizedResult.source})`);
           
           if (optimizedResult.isPreValidated) {
