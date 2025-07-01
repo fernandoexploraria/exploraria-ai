@@ -5,7 +5,20 @@ import InteractionCardHeader from './InteractionCardHeader';
 import InteractionCardContent from './InteractionCardContent';
 import InteractionCardActions from './InteractionCardActions';
 import InteractionCardImage from './InteractionCardImage';
-import { Interaction } from './InteractionCarouselLogic';
+
+interface Interaction {
+  id: string;
+  destination: string;
+  user_input: string;
+  assistant_response: string;
+  interaction_type: string;
+  created_at: string;
+  landmark_coordinates: any;
+  full_transcript: any;
+  image_url?: string;
+  is_favorite: boolean; // Changed from optional to required
+  place_id?: string;
+}
 
 interface InteractionCardProps {
   interaction: Interaction;
@@ -41,10 +54,10 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
 
       <CardContent className="flex-1 flex flex-col p-3 pt-0">
         {/* Image Section */}
-        {interaction.landmark_image_url && (
+        {interaction.image_url && (
           <div className="mb-3">
             <InteractionCardImage
-              imageUrl={interaction.landmark_image_url}
+              imageUrl={interaction.image_url}
               destination={interaction.destination}
               userInput={interaction.user_input}
               interaction={interaction}

@@ -1,6 +1,17 @@
 
 import React from 'react';
-import { Interaction } from './InteractionCarouselLogic';
+
+interface Interaction {
+  id: string;
+  destination: string;
+  user_input: string;
+  assistant_response: string;
+  interaction_type: string;
+  landmark_coordinates: any;
+  full_transcript: any;
+  created_at: string;
+  is_favorite: boolean; // Added to match main interface
+}
 
 interface InteractionCardActionsProps {
   interaction: Interaction;
