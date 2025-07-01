@@ -28,6 +28,10 @@ interface MapProps {
 // Google API key
 const GOOGLE_API_KEY = 'AIzaSyCjQKg2W9uIrIx4EmRnyf3WCkO4eeEvpyg';
 
+// Constants for tour landmarks GeoJSON layer management
+const TOUR_LANDMARKS_SOURCE_ID = 'tour-landmarks-source';
+const TOUR_LANDMARKS_LAYER_ID = 'tour-landmarks-layer';
+
 const Map: React.FC<MapProps> = ({ 
   mapboxToken, 
   landmarks, 
@@ -77,6 +81,39 @@ const Map: React.FC<MapProps> = ({
     navigateNext,
     navigatePrevious 
   } = useStreetViewNavigation();
+
+  // Utility function to update tour landmarks GeoJSON layer
+  const updateTourLandmarksLayer = useCallback(() => {
+    if (!map.current) return;
+    
+    console.log('🗺️ [Layer] Updating tour landmarks GeoJSON layer with', tourLandmarks.length, 'landmarks');
+    
+    // Create GeoJSON features from tour landmarks
+    const features = tourLandmarks.map((landmark, index) => ({
+      type: 'Feature' as const,
+      geometry: {
+        type: 'Point' as const,
+        coordinates: landmark.coordinates
+      },
+      properties: {
+        id: `tour-landmark-${index}`,
+        name: landmark.name,
+        description: landmark.description
+      }
+    }));
+    
+    const geojsonData = {
+      type: 'FeatureCollection' as const,
+      features
+    };
+    
+    // Update the source data
+    const source = map.current.getSource(TOUR_LANDMARKS_SOURCE_ID) as mapboxgl.GeoJSONSource;
+    if (source) {
+      source.setData(geojsonData);
+      console.log('🗺️ [Layer] Tour landmarks layer updated with', features.length, 'features');
+    }
+  }, [tourLandmarks]);
 
   // Effect to sync tour landmarks state with the global TOUR_LANDMARKS array
   useEffect(() => {
@@ -299,6 +336,64 @@ const Map: React.FC<MapProps> = ({
         map.current?.setFog({}); // Add a sky layer and atmosphere
       });
 
+      // Initialize tour landmarks GeoJSON layer when map loads
+      map.current.on('load', () => {
+        console.log('🗺️ [Layer] Map loaded, initializing tour landmarks GeoJSON layer...');
+        
+        if (!map.current) return;
+        
+        // Add empty GeoJSON source for tour landmarks
+        map.current.addSource(TOUR_LANDMARKS_SOURCE_ID, {
+          type: 'geojson',
+          data: {
+            type: 'FeatureCollection',
+            features: []
+          }
+        });
+        
+        // Add symbol layer for tour landmarks with green styling
+        map.current.addLayer({
+          id: TOUR_LANDMARKS_LAYER_ID,
+          type: 'symbol',
+          source: TOUR_LANDMARKS_SOURCE_ID,
+          layout: {
+            'icon-image': 'circle-15',
+            'icon-size': 1.2,
+            'icon-allow-overlap': true,
+            'icon-ignore-placement': true
+          },
+          paint: {
+            'icon-color': '#4ade80', // green-400 to match current tour marker styling
+            'icon-halo-color': '#ffffff',
+            'icon-halo-width': 2
+          }
+        });
+        
+        console.log('🗺️ [Layer] Tour landmarks GeoJSON layer initialized');
+        
+        // Add click handler for tour landmarks layer (prepare for future use)
+        map.current.on('click', TOUR_LANDMARKS_LAYER_ID, (e) => {
+          console.log('🗺️ [Layer] Tour landmark layer clicked:', e.features?.[0]?.properties);
+          // Click handling will be implemented in Phase 3
+        });
+        
+        // Change cursor on hover
+        map.current.on('mouseenter', TOUR_LANDMARKS_LAYER_ID, () => {
+          if (map.current) {
+            map.current.getCanvas().style.cursor = 'pointer';
+          }
+        });
+        
+        map.current.on('mouseleave', TOUR_LANDMARKS_LAYER_ID, () => {
+          if (map.current) {
+            map.current.getCanvas().style.cursor = '';
+          }
+        });
+        
+        // Update layer with any existing tour landmarks
+        updateTourLandmarksLayer();
+      });
+
       // Close all popups when clicking on the map
       map.current.on('click', (e) => {
         // Check if the click was on a marker by looking for our marker class
@@ -359,7 +454,12 @@ const Map: React.FC<MapProps> = ({
     } catch (error) {
       console.error('🗺️ [Map] Error during map initialization:', error);
     }
-  }, [mapboxToken, user]);
+  }, [mapboxToken, user, updateTourLandmarksLayer]);
+
+  // Update tour landmarks layer when tourLandmarks state changes
+  useEffect(() => {
+    updateTourLandmarksLayer();
+  }, [updateTourLandmarksLayer]);
 
   // Effect to handle proximity settings changes and sync with GeolocateControl
   useEffect(() => {
