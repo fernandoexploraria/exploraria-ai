@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -74,7 +73,39 @@ const calculatePhotoScore = (photo: PhotoData, index: number): number => {
   return score;
 };
 
-// Extract photos from database raw_data with full metadata preservation
+// Helper function to validate and construct photo URLs
+const constructPhotoUrl = (photoUri: string, maxWidth: number = 800): string => {
+  // Check if it's already a complete URL
+  if (photoUri.startsWith('http://') || photoUri.startsWith('https://')) {
+    console.log(`📷 Using complete URL: ${photoUri}`);
+    return photoUri;
+  }
+  
+  // If it's a photo reference, construct Google Places API URL
+  if (photoUri.startsWith('places/') || photoUri.includes('photo')) {
+    // Extract photo reference from the URI
+    const photoRef = photoUri.replace('places/', '').replace('/media', '');
+    const constructedUrl = `https://places.googleapis.com/v1/${photoRef}/media?maxWidthPx=${maxWidth}&key=${import.meta.env.VITE_GOOGLE_API_KEY || 'MISSING_API_KEY'}`;
+    console.log(`🔧 Constructed URL from reference: ${photoRef} -> ${constructedUrl}`);
+    return constructedUrl;
+  }
+  
+  // Fallback: treat as photo reference and construct URL
+  console.log(`⚠️ Treating unknown format as photo reference: ${photoUri}`);
+  return `https://places.googleapis.com/v1/${photoUri}/media?maxWidthPx=${maxWidth}&key=${import.meta.env.VITE_GOOGLE_API_KEY || 'MISSING_API_KEY'}`;
+};
+
+// Validate URL format
+const isValidUrl = (url: string): boolean => {
+  try {
+    new URL(url);
+    return url.includes('http') && !url.includes('MISSING_API_KEY');
+  } catch {
+    return false;
+  }
+};
+
+// Extract photos from database raw_data with improved URL construction
 const extractPhotosFromRawData = (rawData: any): PhotoData[] => {
   if (!rawData?.photos || !Array.isArray(rawData.photos)) {
     return [];
@@ -83,13 +114,34 @@ const extractPhotosFromRawData = (rawData: any): PhotoData[] => {
   console.log(`🔍 Extracting photos from raw_data: found ${rawData.photos.length} photos`);
   
   return rawData.photos.map((photo: any, index: number) => {
+    const originalPhotoUri = photo.photoUri || '';
+    
+    // Construct URLs for different sizes
+    const thumbUrl = constructPhotoUrl(originalPhotoUri, 400);
+    const mediumUrl = constructPhotoUrl(originalPhotoUri, 800);
+    const largeUrl = constructPhotoUrl(originalPhotoUri, 1600);
+    
+    // Validate constructed URLs
+    const validThumb = isValidUrl(thumbUrl);
+    const validMedium = isValidUrl(mediumUrl);
+    const validLarge = isValidUrl(largeUrl);
+    
+    if (!validThumb && !validMedium && !validLarge) {
+      console.warn(`⚠️ All constructed URLs are invalid for photo ${index}:`, {
+        original: originalPhotoUri,
+        thumb: thumbUrl,
+        medium: mediumUrl,
+        large: largeUrl
+      });
+    }
+    
     const photoData: PhotoData = {
       id: index + 1,
-      photoReference: photo.name || `raw_data_${index}`,
+      photoReference: photo.name || originalPhotoUri || `raw_data_${index}`,
       urls: {
-        thumb: photo.photoUri || '',
-        medium: photo.photoUri || '',
-        large: photo.photoUri || ''
+        thumb: validThumb ? thumbUrl : '',
+        medium: validMedium ? mediumUrl : '',
+        large: validLarge ? largeUrl : ''
       },
       attributions: photo.authorAttributions || [],
       width: photo.widthPx || 800,
@@ -99,7 +151,10 @@ const extractPhotosFromRawData = (rawData: any): PhotoData[] => {
     
     photoData.qualityScore = calculatePhotoScore(photoData, index);
     return photoData;
-  });
+  }).filter(photo => 
+    // Filter out photos with no valid URLs
+    photo.urls.thumb || photo.urls.medium || photo.urls.large
+  );
 };
 
 // Extract photos from database photos field
@@ -198,7 +253,7 @@ export const useEnhancedPhotos = () => {
     }
   }, []);
 
-  // Enhanced photo fetching with 3-tier strategy
+  // Enhanced photo fetching with 3-tier strategy and fallback logic
   const fetchPhotos = useCallback(async (
     placeId: string, 
     maxWidth: number = 800,
@@ -216,6 +271,7 @@ export const useEnhancedPhotos = () => {
     try {
       let photos: PhotoData[] = [];
       let sourceUsed = '';
+      let shouldFallbackToAPI = false;
 
       // TIER 1: Check database for tour landmarks with raw_data
       if (landmarkId) {
@@ -226,17 +282,34 @@ export const useEnhancedPhotos = () => {
           photos = extractPhotosFromRawData(dbLandmark.raw_data);
           sourceUsed = 'database_raw_data';
           console.log(`✅ Phase 1 SUCCESS: Found ${photos.length} photos from raw_data`);
+          
+          // Check if any photos actually have valid URLs
+          const validPhotos = photos.filter(photo => 
+            photo.urls.thumb || photo.urls.medium || photo.urls.large
+          );
+          
+          if (validPhotos.length === 0) {
+            console.log(`⚠️ Phase 1: No valid URLs found, will fallback to API`);
+            shouldFallbackToAPI = true;
+            photos = [];
+          } else {
+            photos = validPhotos;
+          }
         }
         // TIER 2: Fallback to photos field from database
         else if (dbLandmark?.photos) {
           photos = extractPhotosFromPhotosField(dbLandmark.photos);
           sourceUsed = 'database_photos_field';
           console.log(`✅ Phase 2 SUCCESS: Found ${photos.length} photos from photos field`);
+        } else {
+          shouldFallbackToAPI = true;
         }
+      } else {
+        shouldFallbackToAPI = true;
       }
 
       // TIER 3: Fallback to Google Places API
-      if (photos.length === 0 && placeId) {
+      if ((photos.length === 0 || shouldFallbackToAPI) && placeId) {
         console.log(`🔍 Phase 3: Fetching from Google Places API for place: ${placeId}`);
         
         const { data, error: apiError } = await supabase.functions.invoke('google-places-photos-v2', {
