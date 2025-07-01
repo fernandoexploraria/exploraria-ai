@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Loader2, X } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Landmark } from '@/data/landmarks';
 import { useConversation } from '@11labs/react';
@@ -267,29 +268,9 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     }
   };
 
-  const handleEndSession = async () => {
-    try {
-      console.log('Ending ElevenLabs session...');
-      await conversation.endSession();
-      setAssistantState('not-started');
-      setIsSessionActive(false);
-      setConnectionError(null);
-    } catch (error) {
-      console.error('Error ending tour:', error);
-    }
-  };
-
-  // Handle dialog close (keep session active)
+  // Simplified dialog close handler - just closes the dialog, session continues
   const handleDialogClose = () => {
     console.log('Dialog closing - session remains active:', isSessionActive);
-    onOpenChange(false);
-  };
-
-  // Handle full close (end session and close dialog)
-  const handleFullClose = () => {
-    if (isSessionActive) {
-      handleEndSession();
-    }
     onOpenChange(false);
   };
 
@@ -419,15 +400,6 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   return (
     <Dialog open={open} onOpenChange={handleDialogClose}>
       <DialogContent className="sm:max-w-xs p-8 bg-transparent border-none shadow-none">
-        {/* Close button - only end session if explicitly clicked */}
-        <button
-          onClick={handleFullClose}
-          className="absolute top-4 right-4 z-50 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors"
-          aria-label="End session and close"
-        >
-          <X className="w-4 h-4" />
-        </button>
-
         <div className="flex items-center justify-center">
           <div className="relative flex items-center justify-center">
             <div className={`w-48 h-48 rounded-full border-4 flex items-center justify-center transition-all duration-300 ${getCircleColor()}`}>
@@ -463,20 +435,6 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
             )}
           </div>
         </div>
-
-        {/* End Session Button - only show when session is active */}
-        {isSessionActive && (
-          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
-            <Button
-              onClick={handleEndSession}
-              variant="destructive"
-              size="sm"
-              className="bg-red-500/80 hover:bg-red-600/80 text-white"
-            >
-              End Session
-            </Button>
-          </div>
-        )}
       </DialogContent>
     </Dialog>
   );
