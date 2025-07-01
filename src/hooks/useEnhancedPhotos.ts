@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { usePhotoOptimization } from './photo-optimization/usePhotoOptimization';
@@ -120,13 +121,22 @@ const extractPhotosFromRawData = async (rawData: any, photoOptimization?: any): 
   console.log(`🔍 Extracting photos from raw_data: found ${rawData.photos.length} photos`);
   
   const photoPromises = rawData.photos.map(async (photo: any, index: number) => {
-    const originalPhotoUri = photo.photoUri || '';
+    // Use the correct field name from database: photo.name (not photo.photoUri)
+    const originalPhotoReference = photo.name || '';
+    
+    // Skip photos with empty or missing references
+    if (!originalPhotoReference || originalPhotoReference.trim() === '') {
+      console.warn(`⚠️ Skipping photo ${index}: empty photo reference`);
+      return null;
+    }
     
     try {
+      console.log(`🔧 Processing photo ${index} with reference: ${originalPhotoReference}`);
+      
       // Use edge function for URL construction
-      const thumbUrl = await constructPhotoUrlSecurely(originalPhotoUri, 400);
-      const mediumUrl = await constructPhotoUrlSecurely(originalPhotoUri, 800);
-      const largeUrl = await constructPhotoUrlSecurely(originalPhotoUri, 1600);
+      const thumbUrl = await constructPhotoUrlSecurely(originalPhotoReference, 400);
+      const mediumUrl = await constructPhotoUrlSecurely(originalPhotoReference, 800);
+      const largeUrl = await constructPhotoUrlSecurely(originalPhotoReference, 1600);
       
       // Validate constructed URLs
       const validThumb = isValidUrl(thumbUrl);
@@ -135,7 +145,7 @@ const extractPhotosFromRawData = async (rawData: any, photoOptimization?: any): 
       
       if (!validThumb && !validMedium && !validLarge) {
         console.warn(`⚠️ All constructed URLs are invalid for photo ${index}:`, {
-          original: originalPhotoUri,
+          original: originalPhotoReference,
           thumb: thumbUrl,
           medium: mediumUrl,
           large: largeUrl
@@ -145,7 +155,7 @@ const extractPhotosFromRawData = async (rawData: any, photoOptimization?: any): 
       
       const photoData: PhotoData = {
         id: index + 1,
-        photoReference: photo.name || originalPhotoUri || `raw_data_${index}`,
+        photoReference: originalPhotoReference, // Use the correct field name
         urls: {
           thumb: validThumb ? thumbUrl : '',
           medium: validMedium ? mediumUrl : '',
@@ -160,7 +170,7 @@ const extractPhotosFromRawData = async (rawData: any, photoOptimization?: any): 
       photoData.qualityScore = calculatePhotoScore(photoData, index);
       return photoData;
     } catch (error) {
-      console.warn(`⚠️ Failed to construct URLs for photo ${index}:`, error);
+      console.warn(`⚠️ Failed to construct URLs for photo ${index} with reference "${originalPhotoReference}":`, error);
       return null; // Skip this photo
     }
   });
@@ -299,9 +309,10 @@ export const useEnhancedPhotos = () => {
         const dbLandmark = await fetchLandmarkFromDatabase(landmarkId);
         
         if (dbLandmark?.raw_data?.photos) {
+          console.log(`🔍 Found ${dbLandmark.raw_data.photos.length} photos in raw_data, processing...`);
           photos = await extractPhotosFromRawData(dbLandmark.raw_data, photoOptimization);
           sourceUsed = 'database_raw_data';
-          console.log(`✅ Phase 1 SUCCESS: Found ${photos.length} photos from raw_data`);
+          console.log(`✅ Phase 1 SUCCESS: Found ${photos.length} valid photos from raw_data`);
           
           // Pre-optimize URLs for better performance
           if (photos.length > 0) {
