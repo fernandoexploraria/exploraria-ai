@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 import { AuthProvider } from '@/components/AuthProvider';
+import { TTSProvider } from '@/contexts/TTSContext';
 import Index from '@/pages/Index';
 import LandmarkInfoPage from '@/pages/LandmarkInfo';
 
@@ -14,13 +15,15 @@ function App() {
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <div className="min-h-screen bg-background font-sans antialiased">
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/landmark-info" element={<LandmarkInfoPage />} />
-            </Routes>
-            <Toaster />
-          </div>
+          <TTSProvider>
+            <div className="min-h-screen bg-background font-sans antialiased">
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/landmark-info" element={<LandmarkInfoPage />} />
+              </Routes>
+              <Toaster />
+            </div>
+          </TTSProvider>
         </AuthProvider>
       </QueryClientProvider>
     </BrowserRouter>
