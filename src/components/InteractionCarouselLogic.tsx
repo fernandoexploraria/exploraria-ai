@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -13,7 +12,7 @@ interface Interaction {
   created_at: string;
   interaction_type: string;
   landmark_coordinates: any;
-  image_url: string | null; // Changed from landmark_image_url to image_url
+  landmark_image_url: string | null;
   full_transcript: any;
   conversation_id: string | null;
   conversation_duration: number | null;
@@ -35,13 +34,6 @@ export const useInteractionCarouselLogic = () => {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const transformInteractionData = (data: any[]): Interaction[] => {
-    return data.map(item => ({
-      ...item,
-      image_url: item.landmark_image_url // Transform landmark_image_url to image_url
-    }));
-  };
-
   const loadAllInteractions = async (limit: number = currentLimit) => {
     setIsLoading(true);
     try {
@@ -61,8 +53,7 @@ export const useInteractionCarouselLogic = () => {
         return;
       }
 
-      const transformedData = transformInteractionData(data || []);
-      setInteractions(transformedData);
+      setInteractions(data || []);
     } catch (error) {
       console.error('Error loading interactions:', error);
     } finally {
@@ -91,8 +82,7 @@ export const useInteractionCarouselLogic = () => {
         return;
       }
 
-      const transformedData = transformInteractionData(data || []);
-      setInteractions(transformedData);
+      setInteractions(data || []);
       setCurrentLimit(nextLimit);
     } catch (error) {
       console.error('Error loading more interactions:', error);
@@ -130,11 +120,10 @@ export const useInteractionCarouselLogic = () => {
 
         if (data && data.results) {
           console.log('Vector search results:', data.results);
-          const transformedResults = transformInteractionData(data.results);
-          setSearchResults(transformedResults);
+          setSearchResults(data.results);
           setShowingSearchResults(true);
           
-          if (transformedResults.length === 0) {
+          if (data.results.length === 0) {
             toast({
               title: "No results found",
               description: "Try searching with different keywords.",
@@ -165,8 +154,7 @@ export const useInteractionCarouselLogic = () => {
       }
 
       console.log('Text search results:', textResults);
-      const transformedResults = transformInteractionData(textResults || []);
-      setSearchResults(transformedResults);
+      setSearchResults(textResults || []);
       setShowingSearchResults(true);
       
       if (!textResults || textResults.length === 0) {
