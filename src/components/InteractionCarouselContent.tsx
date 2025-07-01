@@ -1,12 +1,11 @@
 
-import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselApi } from '@/components/ui/carousel';
 import { Search, Star } from 'lucide-react';
 import InteractionCard from './InteractionCard';
 import CarouselControls from './CarouselControls';
-import CarouselErrorBoundary from './CarouselErrorBoundary';
 import SkeletonLoader from './ui/skeleton-loader';
-import { Interaction } from '@/types/interaction';
+import { Interaction } from './InteractionCarouselLogic';
 import { useTTSContext } from '@/contexts/TTSContext';
 
 interface InteractionCarouselContentProps {
@@ -28,42 +27,12 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
 }) => {
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [visibleIndexes, setVisibleIndexes] = useState<Set<number>>(new Set([0, 1, 2]));
+  const [visibleIndexes, setVisibleIndexes] = useState<Set<number>>(new Set([0, 1, 2])); // Track visible items
   const { stop, isPlaying, currentPlayingId } = useTTSContext();
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const elementsRef = useRef<Map<number, HTMLDivElement>>(new Map());
+  const observerRef = useRef<IntersectionObserver>();
 
-  // Stable observer callback
-  const observerCallback = useCallback((entries: IntersectionObserverEntry[]) => {
-    entries.forEach((entry) => {
-      const indexAttr = entry.target.getAttribute('data-index');
-      if (indexAttr) {
-        const index = parseInt(indexAttr, 10);
-        if (!isNaN(index) && entry.isIntersecting) {
-          setVisibleIndexes(prev => new Set([...prev, index]));
-        }
-      }
-    });
-  }, []);
-
-  // Stable ref callback for carousel items
-  const setElementRef = useCallback((element: HTMLDivElement | null, index: number) => {
-    if (element) {
-      elementsRef.current.set(index, element);
-      if (observerRef.current) {
-        try {
-          observerRef.current.observe(element);
-        } catch (error) {
-          console.warn('Failed to observe element:', error);
-        }
-      }
-    } else {
-      elementsRef.current.delete(index);
-    }
-  }, []);
-
-  // Handle carousel slide changes - use useLayoutEffect to prevent timing issues
-  useLayoutEffect(() => {
+  // Handle carousel slide changes - stop audio when card moves
+  useEffect(() => {
     if (!carouselApi) return;
 
     const handleSlideChange = () => {
@@ -98,53 +67,44 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
     setVisibleIndexes(initialVisibleIndexes);
 
     return () => {
-      try {
-        carouselApi.off("select", handleSlideChange);
-      } catch (error) {
-        console.warn('Error removing carousel listener:', error);
-      }
+      carouselApi.off("select", handleSlideChange);
     };
   }, [carouselApi, stop, isPlaying, currentInteractions.length]);
 
-  // Set up intersection observer with stable dependencies
+  // Set up intersection observer for additional lazy loading
   useEffect(() => {
-    // Clean up previous observer
     if (observerRef.current) {
       observerRef.current.disconnect();
-      observerRef.current = null;
     }
 
-    // Create new observer with stable callback
-    observerRef.current = new IntersectionObserver(observerCallback, {
-      rootMargin: '50px',
-      threshold: 0.1
-    });
-
-    // Observe existing elements
-    elementsRef.current.forEach((element) => {
-      if (observerRef.current) {
-        try {
-          observerRef.current.observe(element);
-        } catch (error) {
-          console.warn('Failed to observe existing element:', error);
-        }
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const index = parseInt(entry.target.getAttribute('data-index') || '0');
+          if (entry.isIntersecting) {
+            setVisibleIndexes(prev => new Set([...prev, index]));
+          }
+        });
+      },
+      {
+        rootMargin: '50px',
+        threshold: 0.1
       }
-    });
+    );
 
     return () => {
       if (observerRef.current) {
         observerRef.current.disconnect();
-        observerRef.current = null;
       }
     };
-  }, [observerCallback]);
+  }, []);
 
-  const scrollToSlide = useCallback((index: number) => {
+  const scrollToSlide = (index: number) => {
     if (carouselApi) {
       console.log('Manually scrolling to slide:', index);
       carouselApi.scrollTo(index);
     }
-  }, [carouselApi]);
+  };
 
   if (isLoading) {
     return (
@@ -191,49 +151,51 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
   const currentInteraction = currentInteractions[currentSlide];
 
   return (
-    <CarouselErrorBoundary>
-      <div className="flex-1 flex flex-col items-center justify-center p-2">
-        <div className="w-full max-w-6xl flex flex-col items-center">
-          <Carousel 
-            className="w-full"
-            setApi={setCarouselApi}
-            opts={{
-              align: "center",
-              loop: false,
-            }}
-          >
-            <CarouselContent className="-ml-2 md:-ml-4">
-              {currentInteractions.map((interaction, index) => (
-                <CarouselItem 
-                  key={interaction.id} 
-                  className="pl-2 md:pl-4 basis-4/5 md:basis-3/5 lg:basis-2/5"
-                  data-index={index}
-                  ref={(el) => setElementRef(el, index)}
-                >
-                  <InteractionCard
-                    interaction={interaction}
-                    index={index}
-                    isCurrentlyPlaying={currentPlayingId === interaction.id}
-                    onToggleFavorite={onToggleFavorite}
-                    onLocationClick={onLocationClick}
-                    isVisible={visibleIndexes.has(index)}
-                  />
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-            <CarouselPrevious className="hidden md:flex" />
-            <CarouselNext className="hidden md:flex" />
-          </Carousel>
-          
-          <CarouselControls
-            currentSlide={currentSlide}
-            totalSlides={currentInteractions.length}
-            onSlideSelect={scrollToSlide}
-            currentInteraction={currentInteraction}
-          />
-        </div>
+    <div className="flex-1 flex flex-col items-center justify-center p-2">
+      <div className="w-full max-w-6xl flex flex-col items-center">
+        <Carousel 
+          className="w-full"
+          setApi={setCarouselApi}
+          opts={{
+            align: "center",
+            loop: false,
+          }}
+        >
+          <CarouselContent className="-ml-2 md:-ml-4">
+            {currentInteractions.map((interaction, index) => (
+              <CarouselItem 
+                key={interaction.id} 
+                className="pl-2 md:pl-4 basis-4/5 md:basis-3/5 lg:basis-2/5"
+                data-index={index}
+                ref={(el) => {
+                  if (el && observerRef.current) {
+                    observerRef.current.observe(el);
+                  }
+                }}
+              >
+                <InteractionCard
+                  interaction={interaction}
+                  index={index}
+                  isCurrentlyPlaying={currentPlayingId === interaction.id}
+                  onToggleFavorite={onToggleFavorite}
+                  onLocationClick={onLocationClick}
+                  isVisible={visibleIndexes.has(index)} // Pass visibility for lazy loading
+                />
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          <CarouselPrevious className="hidden md:flex" />
+          <CarouselNext className="hidden md:flex" />
+        </Carousel>
+        
+        <CarouselControls
+          currentSlide={currentSlide}
+          totalSlides={currentInteractions.length}
+          onSlideSelect={scrollToSlide}
+          currentInteraction={currentInteraction}
+        />
       </div>
-    </CarouselErrorBoundary>
+    </div>
   );
 };
 

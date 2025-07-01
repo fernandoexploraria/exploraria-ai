@@ -1,6 +1,17 @@
 import React from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Interaction } from '@/types/interaction';
+
+interface Interaction {
+  id: string;
+  destination: string;
+  user_input: string;
+  assistant_response: string;
+  interaction_type: string;
+  full_transcript: any;
+  landmark_coordinates: any;
+  created_at: string;
+  is_favorite: boolean; // Changed from optional to required
+}
 
 interface InteractionCardContentProps {
   interaction: Interaction;

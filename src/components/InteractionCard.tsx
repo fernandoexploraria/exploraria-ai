@@ -1,10 +1,24 @@
+
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import InteractionCardHeader from './InteractionCardHeader';
 import InteractionCardContent from './InteractionCardContent';
 import InteractionCardActions from './InteractionCardActions';
 import InteractionCardImage from './InteractionCardImage';
-import { Interaction } from '@/types/interaction';
+
+interface Interaction {
+  id: string;
+  destination: string;
+  user_input: string;
+  assistant_response: string;
+  interaction_type: string;
+  created_at: string;
+  landmark_coordinates: any;
+  full_transcript: any;
+  landmark_image_url?: string; // Changed from image_url to landmark_image_url
+  is_favorite: boolean; // Changed from optional to required
+  place_id?: string;
+}
 
 interface InteractionCardProps {
   interaction: Interaction;
@@ -12,10 +26,10 @@ interface InteractionCardProps {
   isCurrentlyPlaying: boolean;
   onToggleFavorite: (interaction: Interaction) => void;
   onLocationClick: (coordinates: any) => void;
-  isVisible?: boolean;
+  isVisible?: boolean; // For lazy loading
 }
 
-const InteractionCard: React.FC<InteractionCardProps> = React.memo(({
+const InteractionCard: React.FC<InteractionCardProps> = ({
   interaction,
   index,
   isCurrentlyPlaying,
@@ -39,7 +53,7 @@ const InteractionCard: React.FC<InteractionCardProps> = React.memo(({
       </div>
 
       <CardContent className="flex-1 flex flex-col p-3 pt-0">
-        {/* Image Section - Add null check */}
+        {/* Image Section */}
         {interaction.landmark_image_url && (
           <div className="mb-3">
             <InteractionCardImage
@@ -62,8 +76,6 @@ const InteractionCard: React.FC<InteractionCardProps> = React.memo(({
       </CardContent>
     </Card>
   );
-});
-
-InteractionCard.displayName = 'InteractionCard';
+};
 
 export default InteractionCard;

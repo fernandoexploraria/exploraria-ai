@@ -11,7 +11,17 @@ import EnhancedProgressiveImage from './EnhancedProgressiveImage';
 import PhotoAttribution from './photo-carousel/PhotoAttribution';
 import ImageViewerDialog from './ImageViewerDialog';
 import { Landmark } from '@/data/landmarks';
-import { Interaction } from '@/types/interaction';
+
+interface Interaction {
+  id: string;
+  destination: string;
+  user_input: string;
+  assistant_response: string;
+  interaction_type: string;
+  landmark_coordinates: any;
+  full_transcript: any;
+  place_id?: string;
+}
 
 interface InteractionCardImageProps {
   imageUrl: string;

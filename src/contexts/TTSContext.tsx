@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useRef, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useRef, ReactNode } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -30,32 +30,7 @@ export const TTSProvider: React.FC<TTSProviderProps> = ({ children }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-  const fallbackToWebSpeech = useCallback((text: string) => {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.9;
-    utterance.pitch = 1;
-    utterance.volume = 1;
-    
-    utterance.onend = () => {
-      setIsPlaying(false);
-      setCurrentPlayingId(null);
-      utteranceRef.current = null;
-    };
-    utterance.onerror = () => {
-      setIsPlaying(false);
-      setCurrentPlayingId(null);
-      utteranceRef.current = null;
-      toast.error('Failed to play audio');
-    };
-    utterance.onstart = () => {
-      setIsPlaying(true);
-    };
-    
-    utteranceRef.current = utterance;
-    speechSynthesis.speak(utterance);
-  }, []);
-
-  const speak = useCallback(async (text: string, isMemoryNarration: boolean = false, interactionId?: string) => {
+  const speak = async (text: string, isMemoryNarration: boolean = false, interactionId?: string) => {
     if (isPlaying) {
       stop();
       return;
@@ -119,9 +94,34 @@ export const TTSProvider: React.FC<TTSProviderProps> = ({ children }) => {
       setIsPlaying(false);
       setCurrentPlayingId(null);
     }
-  }, [isPlaying, fallbackToWebSpeech]);
+  };
 
-  const stop = useCallback(() => {
+  const fallbackToWebSpeech = (text: string) => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.9;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    
+    utterance.onend = () => {
+      setIsPlaying(false);
+      setCurrentPlayingId(null);
+      utteranceRef.current = null;
+    };
+    utterance.onerror = () => {
+      setIsPlaying(false);
+      setCurrentPlayingId(null);
+      utteranceRef.current = null;
+      toast.error('Failed to play audio');
+    };
+    utterance.onstart = () => {
+      setIsPlaying(true);
+    };
+    
+    utteranceRef.current = utterance;
+    speechSynthesis.speak(utterance);
+  };
+
+  const stop = () => {
     console.log('Stop called - cleaning up all audio sources');
     
     // Stop HTML5 audio
@@ -143,17 +143,10 @@ export const TTSProvider: React.FC<TTSProviderProps> = ({ children }) => {
     // Update state
     setIsPlaying(false);
     setCurrentPlayingId(null);
-  }, []);
-
-  const contextValue = useCallback(() => ({
-    speak,
-    stop,
-    isPlaying,
-    currentPlayingId
-  }), [speak, stop, isPlaying, currentPlayingId]);
+  };
 
   return (
-    <TTSContext.Provider value={contextValue()}>
+    <TTSContext.Provider value={{ speak, stop, isPlaying, currentPlayingId }}>
       {children}
     </TTSContext.Provider>
   );

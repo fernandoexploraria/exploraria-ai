@@ -1,9 +1,22 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Star, StarOff, Calendar, Camera, Mic, MapPin } from 'lucide-react';
 import ShareButton from './ShareButton';
-import { Interaction } from '@/types/interaction';
+
+interface Interaction {
+  id: string;
+  destination: string;
+  user_input: string;
+  assistant_response: string;
+  is_favorite: boolean; // Changed from optional to required
+  created_at: string;
+  interaction_type: string;
+  full_transcript: any;
+  landmark_coordinates: any;
+  similarity?: number;
+}
 
 interface InteractionCardHeaderProps {
   interaction: Interaction;
