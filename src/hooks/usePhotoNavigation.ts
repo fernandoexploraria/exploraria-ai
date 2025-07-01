@@ -21,13 +21,17 @@ export const usePhotoNavigation = ({
   // Declare currentPhoto before using it
   const currentPhoto = photos[currentIndex];
 
-  // Only update currentIndex if initialIndex changes and it's different from current
+  // Only update currentIndex when initialIndex changes AND we haven't been manually navigated
   useEffect(() => {
-    if (initialIndex !== currentIndex && initialIndex >= 0 && initialIndex < photos.length) {
-      console.log(`🔍 [usePhotoNavigation] Updating currentIndex due to initialIndex change: ${currentIndex} → ${initialIndex}`);
+    // Only reset to initialIndex if it's a significant change and we're not in the middle of navigation
+    const isSignificantChange = Math.abs(initialIndex - currentIndex) > 0;
+    const isValidIndex = initialIndex >= 0 && initialIndex < photos.length;
+    
+    if (isSignificantChange && isValidIndex) {
+      console.log(`🔍 [usePhotoNavigation] Setting currentIndex to initialIndex: ${currentIndex} → ${initialIndex}`);
       setCurrentIndex(initialIndex);
     }
-  }, [initialIndex, photos.length, currentIndex]);
+  }, [initialIndex, photos.length]); // Remove currentIndex from dependencies to prevent reset loop
 
   const handleIndexChange = useCallback((newIndex: number) => {
     console.log(`🔍 [usePhotoNavigation] handleIndexChange called: ${currentIndex} → ${newIndex}`);
