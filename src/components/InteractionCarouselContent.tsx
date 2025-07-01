@@ -25,10 +25,9 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
   onLocationClick,
   showFavoritesOnly = false,
 }) => {
-  // All hooks must be called at the top level - no conditional hooks
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [visibleIndexes, setVisibleIndexes] = useState<Set<number>>(new Set([0, 1, 2]));
+  const [visibleIndexes, setVisibleIndexes] = useState<Set<number>>(new Set([0, 1, 2])); // Track visible items
   const { stop, isPlaying, currentPlayingId } = useTTSContext();
   const observerRef = useRef<IntersectionObserver>();
 
@@ -180,7 +179,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
                   isCurrentlyPlaying={currentPlayingId === interaction.id}
                   onToggleFavorite={onToggleFavorite}
                   onLocationClick={onLocationClick}
-                  isVisible={visibleIndexes.has(index)}
+                  isVisible={visibleIndexes.has(index)} // Pass visibility for lazy loading
                 />
               </CarouselItem>
             ))}

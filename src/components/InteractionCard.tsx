@@ -15,7 +15,7 @@ interface Interaction {
   created_at: string;
   landmark_coordinates: any;
   full_transcript: any;
-  landmark_image_url?: string; // Changed from image_url to landmark_image_url
+  image_url?: string;
   is_favorite: boolean; // Changed from optional to required
   place_id?: string;
 }
@@ -54,10 +54,10 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
 
       <CardContent className="flex-1 flex flex-col p-3 pt-0">
         {/* Image Section */}
-        {interaction.landmark_image_url && (
+        {interaction.image_url && (
           <div className="mb-3">
             <InteractionCardImage
-              imageUrl={interaction.landmark_image_url}
+              imageUrl={interaction.image_url}
               destination={interaction.destination}
               userInput={interaction.user_input}
               interaction={interaction}
