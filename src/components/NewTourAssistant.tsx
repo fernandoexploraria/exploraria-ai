@@ -317,18 +317,20 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   if (isLoadingConfig || isFetchingTourDetails) {
     return (
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-xs p-8">
-          <DialogHeader>
-            <DialogTitle>Loading Tour Guide</DialogTitle>
-          </DialogHeader>
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-          </div>
-          {isFetchingTourDetails && (
-            <div className="text-center text-sm text-muted-foreground">
-              Fetching tour details from database...
+        <DialogContent className="sm:max-w-xs p-8 bg-transparent border-none shadow-none">
+          <div className="bg-background rounded-lg p-6 border shadow-lg">
+            <DialogHeader>
+              <DialogTitle>Loading Tour Guide</DialogTitle>
+            </DialogHeader>
+            <div className="flex items-center justify-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
             </div>
-          )}
+            {isFetchingTourDetails && (
+              <div className="text-center text-sm text-muted-foreground">
+                Fetching tour details from database...
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     );
@@ -338,59 +340,61 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   if (!elevenLabsConfig || connectionError || tourDetailsError) {
     return (
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-xs p-8">
-          <DialogHeader>
-            <DialogTitle>Connection Error</DialogTitle>
-          </DialogHeader>
-          <div className="text-center space-y-4">
-            <div className="text-red-500 text-sm">
-              {tourDetailsError ? `Tour Details Error: ${tourDetailsError}` : 'Connection Error'}
+        <DialogContent className="sm:max-w-xs p-8 bg-transparent border-none shadow-none">
+          <div className="bg-background rounded-lg p-6 border shadow-lg">
+            <DialogHeader>
+              <DialogTitle>Connection Error</DialogTitle>
+            </DialogHeader>
+            <div className="text-center space-y-4">
+              <div className="text-red-500 text-sm">
+                {tourDetailsError ? `Tour Details Error: ${tourDetailsError}` : 'Connection Error'}
+              </div>
+              <Button
+                onClick={() => {
+                  setIsLoadingConfig(true);
+                  setConnectionError(null);
+                  // Retry configuration fetch
+                  const fetchConfig = async () => {
+                    try {
+                      const { data: session } = await supabase.auth.getSession();
+                      if (!session.session) {
+                        setConnectionError("Please sign in to use the tour guide.");
+                        return;
+                      }
+
+                      const { data, error } = await supabase.functions.invoke('get-elevenlabs-config', {
+                        headers: {
+                          Authorization: `Bearer ${session.session.access_token}`,
+                        },
+                      });
+
+                      if (error) {
+                        setConnectionError("Failed to load tour guide configuration.");
+                      } else {
+                        setElevenLabsConfig(data);
+                        setConnectionError(null);
+                      }
+                    } catch (error) {
+                      setConnectionError("Failed to connect to tour guide service.");
+                    } finally {
+                      setIsLoadingConfig(false);
+                    }
+                  };
+                  fetchConfig();
+                }}
+                disabled={isLoadingConfig}
+                size="sm"
+              >
+                {isLoadingConfig ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Retry
+                  </>
+                ) : (
+                  "Retry"
+                )}
+              </Button>
             </div>
-            <Button
-              onClick={() => {
-                setIsLoadingConfig(true);
-                setConnectionError(null);
-                // Retry configuration fetch
-                const fetchConfig = async () => {
-                  try {
-                    const { data: session } = await supabase.auth.getSession();
-                    if (!session.session) {
-                      setConnectionError("Please sign in to use the tour guide.");
-                      return;
-                    }
-
-                    const { data, error } = await supabase.functions.invoke('get-elevenlabs-config', {
-                      headers: {
-                        Authorization: `Bearer ${session.session.access_token}`,
-                      },
-                    });
-
-                    if (error) {
-                      setConnectionError("Failed to load tour guide configuration.");
-                    } else {
-                      setElevenLabsConfig(data);
-                      setConnectionError(null);
-                    }
-                  } catch (error) {
-                    setConnectionError("Failed to connect to tour guide service.");
-                  } finally {
-                    setIsLoadingConfig(false);
-                  }
-                };
-                fetchConfig();
-              }}
-              disabled={isLoadingConfig}
-              size="sm"
-            >
-              {isLoadingConfig ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Retry
-                </>
-              ) : (
-                "Retry"
-              )}
-            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -399,10 +403,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-xs p-8">
-        <DialogHeader>
-          <DialogTitle>Tour Guide Assistant</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-xs p-8 bg-transparent border-none shadow-none">
         <div className="flex items-center justify-center">
           <div className="relative flex items-center justify-center">
             <div className={`w-48 h-48 rounded-full border-4 flex items-center justify-center transition-all duration-300 ${getCircleColor()}`}>
