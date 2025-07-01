@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Landmark } from "@/data/landmarks"
 import { TOP_LANDMARKS } from "@/data/topLandmarks"
 import { ArrowRight } from "lucide-react"
+import LandmarkEnrichmentTest from "./LandmarkEnrichmentTest"
 
 interface SearchControlProps {
   landmarks: Landmark[]
@@ -19,6 +20,7 @@ interface SearchControlProps {
 
 const SearchControl: React.FC<SearchControlProps> = ({ landmarks, onSelectLandmark }) => {
   const [open, setOpen] = React.useState(false)
+  const [showEnrichmentTest, setShowEnrichmentTest] = React.useState(false)
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -53,17 +55,37 @@ const SearchControl: React.FC<SearchControlProps> = ({ landmarks, onSelectLandma
 
   return (
     <>
-      <Button
-        variant="outline"
-        className="bg-background/80 backdrop-blur-sm shadow-lg"
-        onClick={() => setOpen(true)}
-      >
-        <span className="mr-2 hidden sm:inline">Search destination...</span>
-        <span className="mr-2 sm:hidden">Search...</span>
-        <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-          <span className="text-xs">⌘</span>K
-        </kbd>
-      </Button>
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          className="bg-background/80 backdrop-blur-sm shadow-lg"
+          onClick={() => setOpen(true)}
+        >
+          <span className="mr-2 hidden sm:inline">Search destination...</span>
+          <span className="mr-2 sm:hidden">Search...</span>
+          <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+            <span className="text-xs">⌘</span>K
+          </kbd>
+        </Button>
+        
+        {/* Temporary test button for Phase 1 */}
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setShowEnrichmentTest(!showEnrichmentTest)}
+          className="text-xs"
+        >
+          {showEnrichmentTest ? 'Hide' : 'Test'} Enrichment
+        </Button>
+      </div>
+
+      {/* Temporary enrichment test component */}
+      {showEnrichmentTest && (
+        <div className="absolute top-full left-0 right-0 z-50 mt-2">
+          <LandmarkEnrichmentTest />
+        </div>
+      )}
+
       <CommandDialog open={open} onOpenChange={setOpen}>
         <CommandInput placeholder="Where to?" />
         <CommandList>

@@ -3,6 +3,7 @@ export interface TopLandmark {
   name: string;
   coordinates: [number, number];
   description: string;
+  place_id?: string; // Add optional place_id field for Google Places API integration
 }
 
 // Top 100 most visited landmarks around the world with approximate coordinates
