@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { PhotoData } from '@/hooks/useEnhancedPhotos';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -32,6 +32,21 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
   
   const { getOptimalImageQuality } = useNetworkStatus();
   const photoOptimization = usePhotoOptimization();
+  
+  // Add ref to track if component is mounted
+  const isMountedRef = useRef(true);
+  
+  // Extract stable references to prevent infinite loops
+  const getOptimizedPhotoUrl = photoOptimization.getOptimizedPhotoUrl;
+  const recordPhotoLoad = photoOptimization.metrics.recordPhotoLoad;
+  const startPhotoLoadTimer = photoOptimization.metrics.startPhotoLoadTimer;
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     // Reset state when photo changes
@@ -43,6 +58,9 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
     
     // Enhanced progressive loading with robust validation
     const loadImageWithOptimization = async () => {
+      // Check if component is still mounted
+      if (!isMountedRef.current) return;
+      
       const networkQuality = getOptimalImageQuality();
       
       // Determine URL priority based on network quality and availability
@@ -74,7 +92,9 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
           const validation = isValidGooglePlacesPhotoUrl(url);
           if (!validation.isValid) {
             console.warn(`📸 Pre-validation failed for ${url}: ${validation.error}`);
-            setValidationError(validation.error || 'Unknown validation error');
+            if (isMountedRef.current) {
+              setValidationError(validation.error || 'Unknown validation error');
+            }
             return false;
           }
         }
@@ -85,35 +105,44 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
       if (validatedUrls.length === 0 && photo.photoReference) {
         console.log(`📸 No valid URLs available, trying optimization for: ${photo.photoReference}`);
         try {
-          const optimizedResult = await photoOptimization.getOptimizedPhotoUrl(
+          const optimizedResult = await getOptimizedPhotoUrl(
             photo.photoReference,
             networkQuality === 'low' ? 'thumb' : networkQuality === 'high' ? 'large' : 'medium'
           );
           
           validatedUrls.push({ url: optimizedResult.url, size: 'medium' as const });
-          setOptimizationInfo(`Optimized (${optimizedResult.source})`);
+          if (isMountedRef.current) {
+            setOptimizationInfo(`Optimized (${optimizedResult.source})`);
+          }
           
           if (optimizedResult.isPreValidated) {
             console.log(`✅ Using pre-validated optimized URL`);
           }
         } catch (error) {
           console.error(`❌ Photo optimization failed:`, error);
-          setHasError(true);
-          onError?.();
+          if (isMountedRef.current) {
+            setHasError(true);
+            onError?.();
+          }
           return;
         }
       }
       
       if (validatedUrls.length === 0) {
         console.error('❌ No valid URLs available for photo:', photo);
-        setHasError(true);
-        setValidationError('No valid URLs passed validation');
-        onError?.();
+        if (isMountedRef.current) {
+          setHasError(true);
+          setValidationError('No valid URLs passed validation');
+          onError?.();
+        }
         return;
       }
       
       // Try each validated URL in order with enhanced error handling
       for (let i = 0; i < validatedUrls.length; i++) {
+        // Check if component is still mounted before each attempt
+        if (!isMountedRef.current) return;
+        
         const { url, size } = validatedUrls[i];
         setLoadAttempts(i + 1);
         
@@ -121,13 +150,16 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
           console.log(`📷 Attempting to load photo (attempt ${i + 1}/${validatedUrls.length}):`, { url, size });
           
           // Record the attempt for metrics
-          const startTimer = photoOptimization.metrics.startPhotoLoadTimer(photo.id.toString());
+          const startTimer = startPhotoLoadTimer(photo.id.toString());
           
           await loadImagePromise(url);
           
+          // Check if component is still mounted before updating state
+          if (!isMountedRef.current) return;
+          
           // Record successful load
           const loadTime = startTimer();
-          photoOptimization.metrics.recordPhotoLoad({
+          recordPhotoLoad({
             photoId: photo.id.toString(),
             url,
             source: photo.photoSource || 'google_places_api',
@@ -146,9 +178,12 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
         } catch (error) {
           console.warn(`⚠️ Failed to load photo (attempt ${i + 1}):`, { url, size, error });
           
+          // Check if component is still mounted before recording metrics
+          if (!isMountedRef.current) return;
+          
           // Record failed load
-          const loadTime = photoOptimization.metrics.startPhotoLoadTimer(photo.id.toString())();
-          photoOptimization.metrics.recordPhotoLoad({
+          const loadTime = startPhotoLoadTimer(photo.id.toString())();
+          recordPhotoLoad({
             photoId: photo.id.toString(),
             url,
             source: photo.photoSource || 'google_places_api',
@@ -162,15 +197,31 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
           // If this was the last attempt, show error
           if (i === validatedUrls.length - 1) {
             console.error('❌ All validated photo URLs failed to load for:', photo);
-            setHasError(true);
-            onError?.();
+            if (isMountedRef.current) {
+              setHasError(true);
+              onError?.();
+            }
           }
         }
       }
     };
 
     loadImageWithOptimization();
-  }, [photo, getOptimalImageQuality, onLoad, onError, photoOptimization]);
+  }, [
+    photo.id,
+    photo.photoReference,
+    photo.urls.thumb,
+    photo.urls.medium,
+    photo.urls.large,
+    photo.photoSource,
+    photo.qualityScore,
+    getOptimalImageQuality,
+    getOptimizedPhotoUrl,
+    recordPhotoLoad,
+    startPhotoLoadTimer,
+    onLoad,
+    onError
+  ]);
 
   const loadImagePromise = (src: string): Promise<void> => {
     return new Promise((resolve, reject) => {

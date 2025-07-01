@@ -1,5 +1,5 @@
 
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { usePhotoUrlCache } from './usePhotoUrlCache';
 import { usePhotoValidation } from './usePhotoValidation';
 import { usePhotoMetrics } from './usePhotoMetrics';
@@ -27,7 +27,7 @@ const DEFAULT_CONFIG: PhotoOptimizationConfig = {
 };
 
 export const usePhotoOptimization = (config: Partial<PhotoOptimizationConfig> = {}) => {
-  const optimizationConfig = { ...DEFAULT_CONFIG, ...config };
+  const optimizationConfig = useMemo(() => ({ ...DEFAULT_CONFIG, ...config }), [config]);
   const { effectiveType, isSlowConnection } = useNetworkStatus();
   
   const urlCache = usePhotoUrlCache();
@@ -236,7 +236,8 @@ export const usePhotoOptimization = (config: Partial<PhotoOptimizationConfig> = 
     console.log(`🧹 Photo optimization cleanup completed`);
   }, [urlCache, validation, metrics]);
 
-  return {
+  // Return a stable object reference using useMemo
+  return useMemo(() => ({
     getOptimizedPhotoUrl,
     batchOptimizePhotos,
     preloadPhotos,
@@ -247,5 +248,14 @@ export const usePhotoOptimization = (config: Partial<PhotoOptimizationConfig> = 
     urlCache,
     validation,
     metrics
-  };
+  }), [
+    getOptimizedPhotoUrl,
+    batchOptimizePhotos,
+    preloadPhotos,
+    getOptimizationStats,
+    cleanupOptimization,
+    urlCache,
+    validation,
+    metrics
+  ]);
 };
