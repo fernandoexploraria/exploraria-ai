@@ -22,7 +22,7 @@ export const usePhotoNavigation = ({
     console.log(`🔍 [usePhotoNavigation] handleIndexChange called: ${currentIndex} → ${newIndex}`);
     setCurrentIndex(newIndex);
     onIndexChange?.(newIndex);
-  }, [currentIndex, onIndexChange]);
+  }, [onIndexChange]); // Removed currentIndex from dependency array
 
   const goToNext = useCallback(() => {
     const nextIndex = currentIndex < photos.length - 1 ? currentIndex + 1 : 0;
@@ -39,13 +39,13 @@ export const usePhotoNavigation = ({
   const goToFirst = useCallback(() => {
     console.log(`🔍 [usePhotoNavigation] goToFirst: ${currentIndex} → 0`);
     handleIndexChange(0);
-  }, [handleIndexChange, currentIndex]);
+  }, [handleIndexChange]);
 
   const goToLast = useCallback(() => {
     const lastIndex = photos.length - 1;
     console.log(`🔍 [usePhotoNavigation] goToLast: ${currentIndex} → ${lastIndex}`);
     handleIndexChange(lastIndex);
-  }, [photos.length, handleIndexChange, currentIndex]);
+  }, [photos.length, handleIndexChange]);
 
   const openFullscreen = useCallback(() => {
     setIsFullscreen(true);
