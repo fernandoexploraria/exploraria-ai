@@ -18,13 +18,16 @@ export const usePhotoNavigation = ({
 
   console.log(`🔍 [usePhotoNavigation] Hook initialized - photos: ${photos.length}, initialIndex: ${initialIndex}, currentIndex: ${currentIndex}`);
 
+  // Declare currentPhoto before using it
+  const currentPhoto = photos[currentIndex];
+
   // Only update currentIndex if initialIndex changes and it's different from current
   useEffect(() => {
     if (initialIndex !== currentIndex && initialIndex >= 0 && initialIndex < photos.length) {
       console.log(`🔍 [usePhotoNavigation] Updating currentIndex due to initialIndex change: ${currentIndex} → ${initialIndex}`);
       setCurrentIndex(initialIndex);
     }
-  }, [initialIndex, photos.length]);
+  }, [initialIndex, photos.length, currentIndex]);
 
   const handleIndexChange = useCallback((newIndex: number) => {
     console.log(`🔍 [usePhotoNavigation] handleIndexChange called: ${currentIndex} → ${newIndex}`);
@@ -64,8 +67,6 @@ export const usePhotoNavigation = ({
   }, []);
 
   console.log(`🔍 [usePhotoNavigation] Returning state - currentIndex: ${currentIndex}, currentPhoto: ${currentPhoto?.id || 'none'}`);
-
-  const currentPhoto = photos[currentIndex];
 
   return {
     currentIndex,
