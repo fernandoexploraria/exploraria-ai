@@ -8,7 +8,8 @@ import { supabase } from '@/integrations/supabase/client';
 import CameraCapture from './CameraCapture';
 import { Landmark } from '@/data/landmarks';
 import { useAuth } from '@/components/AuthProvider';
-import { useEnhancedPhotos, PhotoData } from '@/hooks/useEnhancedPhotos';
+import { useLandmarkPhotos } from '@/hooks/useLandmarkPhotos';
+import { PhotoData } from '@/hooks/useEnhancedPhotos';
 import EnhancedProgressiveImage from './EnhancedProgressiveImage';
 import PhotoCarousel from './photo-carousel/PhotoCarousel';
 
@@ -38,7 +39,9 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ smartTourLandmarks }) => 
   const [currentLocation, setCurrentLocation] = useState<[number, number] | null>(null);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
   const { user } = useAuth();
-  const { fetchPhotos } = useEnhancedPhotos();
+
+  // Enhanced photo fetching with database-first approach
+  const { fetchLandmarkPhotos } = useLandmarkPhotos();
 
   // Don't render the button if there are no smart tour landmarks
   if (smartTourLandmarks.length === 0) {
@@ -87,30 +90,6 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ smartTourLandmarks }) => 
         }
       );
     });
-  };
-
-  // Function to fetch enhanced photos for recognized landmark
-  const fetchLandmarkPhotos = async (placeId: string) => {
-    if (!placeId) return;
-    
-    setIsLoadingPhotos(true);
-    try {
-      console.log(`🖼️ Fetching enhanced photos for recognized landmark: ${placeId}`);
-      const photosResponse = await fetchPhotos(placeId, 800, 'medium');
-      
-      if (photosResponse && photosResponse.photos.length > 0) {
-        console.log(`✅ Found ${photosResponse.photos.length} photos for recognized landmark`);
-        setLandmarkPhotos(photosResponse.photos);
-      } else {
-        console.log('ℹ️ No additional photos found for recognized landmark');
-        setLandmarkPhotos([]);
-      }
-    } catch (error) {
-      console.error('❌ Error fetching landmark photos:', error);
-      setLandmarkPhotos([]);
-    } finally {
-      setIsLoadingPhotos(false);
-    }
   };
 
   // Function to store image recognition interaction
@@ -246,6 +225,62 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ smartTourLandmarks }) => 
     });
   };
 
+  // Enhanced photo fetching function with performance logging
+  const fetchRecognizedLandmarkPhotos = async (placeId: string, landmarkName: string) => {
+    if (!placeId) return;
+    
+    setIsLoadingPhotos(true);
+    try {
+      console.log(`🖼️ Phase 2: Fetching enhanced photos for recognized landmark: ${landmarkName}`);
+      console.log(`🔍 Using place_id: ${placeId}`);
+      
+      const startTime = Date.now();
+      
+      // Create a minimal landmark object for the database-first fetching
+      const landmarkForFetching = {
+        id: `recognized_${Date.now()}`,
+        name: landmarkName,
+        placeId: placeId,
+        place_id: placeId, // Database format
+        coordinates: currentLocation || [0, 0],
+        description: `Recognized landmark: ${landmarkName}`
+      };
+
+      const result = await fetchLandmarkPhotos(landmarkForFetching, {
+        maxWidth: 800,
+        quality: 'medium',
+        preferredSource: 'database'
+      });
+
+      const processingTime = Date.now() - startTime;
+      
+      console.log(`✅ Phase 2 Photo fetching complete for recognized landmark:`, {
+        landmarkName,
+        photosFound: result.totalPhotos,
+        sourceUsed: result.sourceUsed,
+        processingTimeMs: processingTime,
+        qualityDistribution: result.qualityDistribution
+      });
+
+      if (result.photos.length > 0) {
+        setLandmarkPhotos(result.photos);
+        
+        // Log API call reduction achievement
+        if (result.sourceUsed.startsWith('database')) {
+          console.log(`🎯 API Call Avoided! Used ${result.sourceUsed} instead of Google Places API for image recognition`);
+        }
+      } else {
+        console.log(`ℹ️ No additional photos found for recognized landmark: ${landmarkName}`);
+        setLandmarkPhotos([]);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching landmark photos for image recognition:', error);
+      setLandmarkPhotos([]);
+    } finally {
+      setIsLoadingPhotos(false);
+    }
+  };
+
   const handleCapture = async (imageData: string) => {
     setCapturedImage(imageData);
     setCapturedImagePhoto(createPhotoFromImage(imageData));
@@ -280,9 +315,9 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ smartTourLandmarks }) => 
         setAnalysisResult(data);
         setIsResultOpen(true);
         
-        // Fetch additional photos if place_id is available
+        // Enhanced photo fetching with database-first approach
         if (data.place_id) {
-          await fetchLandmarkPhotos(data.place_id);
+          await fetchRecognizedLandmarkPhotos(data.place_id, data.landmark_name);
         }
         
         await storeImageRecognitionInteraction(data, imageData, coordinates);
@@ -433,7 +468,7 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ smartTourLandmarks }) => 
                 )}
               </div>
 
-              {/* Enhanced Photos from Places API */}
+              {/* Enhanced Photos from Database-First Approach */}
               {isLoadingPhotos && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
