@@ -1,9 +1,8 @@
-
 import React, { useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Volume2 } from 'lucide-react';
 import { useTTSContext } from '@/contexts/TTSContext';
-import { Interaction } from './InteractionCarouselLogic';
+import { Interaction } from '@/types/interaction';
 
 interface CarouselControlsProps {
   currentSlide: number;

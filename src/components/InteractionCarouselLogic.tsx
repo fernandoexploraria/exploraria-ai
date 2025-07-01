@@ -232,5 +232,3 @@ export const useInteractionCarouselLogic = () => {
     toggleFavorite
   };
 };
-
-export type { Interaction };

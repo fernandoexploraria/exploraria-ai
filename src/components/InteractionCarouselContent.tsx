@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselApi } from '@/components/ui/carousel';
 import { Search, Star } from 'lucide-react';
 import InteractionCard from './InteractionCard';
 import CarouselControls from './CarouselControls';
 import SkeletonLoader from './ui/skeleton-loader';
-import { Interaction } from './InteractionCarouselLogic';
+import { Interaction } from '@/types/interaction';
 import { useTTSContext } from '@/contexts/TTSContext';
 
 interface InteractionCarouselContentProps {
