@@ -45,7 +45,7 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
       stop();
     } else {
       const textToRead = `${interaction.destination}. ${interaction.assistant_response}`;
-      speak(textToRead, interaction.id);
+      speak(textToRead);
     }
   };
 
