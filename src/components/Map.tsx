@@ -17,6 +17,7 @@ import { useLandmarkPhotos } from '@/hooks/useLandmarkPhotos';
 import { PhotoData } from '@/hooks/useEnhancedPhotos';
 import { PhotoCarousel } from './photo-carousel';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
+import { getEnhancedLandmarkText } from '@/utils/landmarkPromptUtils';
 
 interface MapProps {
   mapboxToken: string;
@@ -26,10 +27,6 @@ interface MapProps {
   plannedLandmarks: Landmark[];
 }
 
-// Google API key
-const GOOGLE_API_KEY = 'AIzaSyCjQKg2W9uIrIx4EmRnyf3WCkO4eeEvpyg';
-
-// Constants for GeoJSON layer management
 const TOUR_LANDMARKS_SOURCE_ID = 'tour-landmarks-source';
 const TOUR_LANDMARKS_LAYER_ID = 'tour-landmarks-layer';
 const TOP_LANDMARKS_SOURCE_ID = 'top-landmarks-source';
@@ -56,16 +53,12 @@ const MapComponent: React.FC<MapProps> = ({
   const navigationMarkers = useRef<{ marker: mapboxgl.Marker; interaction: any }[]>([]);
   const currentRouteLayer = useRef<string | null>(null);
   
-  // Add state to track tour landmarks so useMemo can react to changes
   const [tourLandmarks, setTourLandmarks] = useState<TourLandmark[]>([]);
   
-  // New refs for GeolocateControl management
   const geolocateControl = useRef<mapboxgl.GeolocateControl | null>(null);
   const isUpdatingFromProximitySettings = useRef<boolean>(false);
   const userInitiatedLocationRequest = useRef<boolean>(false);
   const lastLocationEventTime = useRef<number>(0);
-  
-  // New ref to track processed planned landmarks to prevent repeated fly-to operations
   const processedPlannedLandmarks = useRef<string[]>([]);
   
   const { user } = useAuth();
@@ -73,7 +66,6 @@ const MapComponent: React.FC<MapProps> = ({
   const { fetchLandmarkPhotos: fetchPhotosWithHook } = useLandmarkPhotos();
   const { locationState } = useLocationTracking();
   
-  // Street View hooks for checking cached data and opening modal
   const { getCachedData } = useStreetView();
   const { getStreetViewWithOfflineSupport } = useEnhancedStreetView();
   const { 
@@ -87,7 +79,6 @@ const MapComponent: React.FC<MapProps> = ({
     navigatePrevious 
   } = useStreetViewNavigation();
 
-  // Helper function to find landmark by feature properties from any layer
   const findLandmarkByFeatureProperties = useCallback((properties: any, layerType: 'tour' | 'top' | 'base'): Landmark | null => {
     if (!properties) return null;
     
@@ -136,7 +127,6 @@ const MapComponent: React.FC<MapProps> = ({
     }
   }, [landmarks]);
 
-  // Utility function to update tour landmarks GeoJSON layer
   const updateTourLandmarksLayer = useCallback(() => {
     if (!map.current) return;
     
@@ -167,7 +157,6 @@ const MapComponent: React.FC<MapProps> = ({
     }
   }, [tourLandmarks]);
 
-  // Utility function to update top landmarks GeoJSON layer
   const updateTopLandmarksLayer = useCallback(() => {
     if (!map.current) return;
     
@@ -198,7 +187,6 @@ const MapComponent: React.FC<MapProps> = ({
     }
   }, []);
 
-  // Utility function to update base landmarks GeoJSON layer
   const updateBaseLandmarksLayer = useCallback(() => {
     if (!map.current) return;
     
@@ -229,13 +217,11 @@ const MapComponent: React.FC<MapProps> = ({
     }
   }, [landmarks]);
 
-  // Effect to sync tour landmarks state with the global TOUR_LANDMARKS array
   useEffect(() => {
     console.log('🔄 Syncing tour landmarks state:', TOUR_LANDMARKS.length);
     setTourLandmarks([...TOUR_LANDMARKS]);
   }, [TOUR_LANDMARKS.length]);
 
-  // Also poll for changes every second to catch updates
   useEffect(() => {
     const interval = setInterval(() => {
       if (TOUR_LANDMARKS.length !== tourLandmarks.length) {
@@ -247,7 +233,6 @@ const MapComponent: React.FC<MapProps> = ({
     return () => clearInterval(interval);
   }, [tourLandmarks.length]);
 
-  // Function to store map marker interaction
   const storeMapMarkerInteraction = async (landmark: Landmark, imageUrl?: string) => {
     if (!user) {
       console.log('User not authenticated, skipping interaction storage');
@@ -278,7 +263,6 @@ const MapComponent: React.FC<MapProps> = ({
     }
   };
 
-  // Function to stop current audio playback
   const stopCurrentAudio = () => {
     if (currentAudio.current) {
       currentAudio.current.pause();
@@ -288,7 +272,6 @@ const MapComponent: React.FC<MapProps> = ({
     setPlayingAudio({});
   };
 
-  // Initialize map (runs once)
   useEffect(() => {
     console.log('🗺️ [Map] useEffect triggered with token:', mapboxToken ? 'TOKEN_PRESENT' : 'TOKEN_EMPTY');
     
@@ -321,11 +304,9 @@ const MapComponent: React.FC<MapProps> = ({
 
       console.log('🗺️ [Map] Map instance created successfully');
 
-      // Add location control for authenticated users
       if (user) {
         console.log('🗺️ [Map] Adding GeolocateControl for authenticated user');
         
-        // Create GeolocateControl with comprehensive options
         const geoControl = new mapboxgl.GeolocateControl({
           positionOptions: {
             enableHighAccuracy: true,
@@ -340,10 +321,8 @@ const MapComponent: React.FC<MapProps> = ({
           }
         });
         
-        // Store reference to the control
         geolocateControl.current = geoControl;
         
-        // Monitor button clicks to detect user-initiated requests
         const controlElement = geoControl._container;
         if (controlElement) {
           controlElement.addEventListener('click', () => {
@@ -355,7 +334,6 @@ const MapComponent: React.FC<MapProps> = ({
           });
         }
         
-        // Add comprehensive event listeners with detailed state monitoring
         geoControl.on('geolocate', (e) => {
           const currentState = (geoControl as any)._watchState;
           console.log('🌍 GeolocateControl: Location found', { 
@@ -366,7 +344,6 @@ const MapComponent: React.FC<MapProps> = ({
           
           lastLocationEventTime.current = Date.now();
           
-          // Only update proximity settings if this wasn't triggered by our own update
           if (!isUpdatingFromProximitySettings.current) {
             console.log('🌍 GeolocateControl: Enabling proximity (user initiated location)');
             updateProximityEnabled(true);
@@ -377,7 +354,6 @@ const MapComponent: React.FC<MapProps> = ({
           console.log('🌍 GeolocateControl: Started tracking user location (ACTIVE state)');
           lastLocationEventTime.current = Date.now();
           
-          // Only update proximity settings if this wasn't triggered by our own update
           if (!isUpdatingFromProximitySettings.current) {
             console.log('🌍 GeolocateControl: Enabling proximity (tracking started)');
             updateProximityEnabled(true);
@@ -386,7 +362,6 @@ const MapComponent: React.FC<MapProps> = ({
         
         geoControl.on('trackuserlocationend', () => {
           console.log('🌍 GeolocateControl: Stopped tracking user location (PASSIVE/INACTIVE state)');
-          // Only update proximity settings if this wasn't triggered by our own update
           if (!isUpdatingFromProximitySettings.current) {
             console.log('🌍 GeolocateControl: Disabling proximity (tracking ended)');
             updateProximityEnabled(false);
@@ -396,17 +371,14 @@ const MapComponent: React.FC<MapProps> = ({
         geoControl.on('error', (e) => {
           console.error('🌍 GeolocateControl: Error occurred', e);
           userInitiatedLocationRequest.current = false;
-          // Only update proximity settings if this wasn't triggered by our own update
           if (!isUpdatingFromProximitySettings.current) {
             console.log('🌍 GeolocateControl: Disabling proximity (error occurred)');
             updateProximityEnabled(false);
           }
         });
         
-        // Add the control to the map
         map.current.addControl(geoControl, 'top-right');
 
-        // Add custom CSS to position the control 10px from top
         setTimeout(() => {
           const controlContainer = document.querySelector('.mapboxgl-ctrl-top-right');
           if (controlContainer) {
@@ -417,16 +389,14 @@ const MapComponent: React.FC<MapProps> = ({
 
       map.current.on('style.load', () => {
         console.log('🗺️ [Map] Map style loaded, adding fog...');
-        map.current?.setFog({}); // Add a sky layer and atmosphere
+        map.current?.setFog({});
       });
 
-      // Initialize all GeoJSON layers when map loads
       map.current.on('load', () => {
         console.log('🗺️ [Layers] Map loaded, initializing all GeoJSON layers...');
         
         if (!map.current) return;
         
-        // Add tour landmarks GeoJSON source and layer
         map.current.addSource(TOUR_LANDMARKS_SOURCE_ID, {
           type: 'geojson',
           data: { type: 'FeatureCollection', features: [] }
@@ -438,13 +408,12 @@ const MapComponent: React.FC<MapProps> = ({
           source: TOUR_LANDMARKS_SOURCE_ID,
           paint: {
             'circle-radius': 8,
-            'circle-color': '#4ade80', // green-400 for tour landmarks
+            'circle-color': '#4ade80',
             'circle-stroke-color': '#ffffff',
             'circle-stroke-width': 2
           }
         });
         
-        // Add top landmarks GeoJSON source and layer
         map.current.addSource(TOP_LANDMARKS_SOURCE_ID, {
           type: 'geojson',
           data: { type: 'FeatureCollection', features: [] }
@@ -456,13 +425,12 @@ const MapComponent: React.FC<MapProps> = ({
           source: TOP_LANDMARKS_SOURCE_ID,
           paint: {
             'circle-radius': 6,
-            'circle-color': '#facc15', // yellow-400 for top landmarks
+            'circle-color': '#facc15',
             'circle-stroke-color': '#ffffff',
             'circle-stroke-width': 2
           }
         });
         
-        // Add base landmarks GeoJSON source and layer
         map.current.addSource(BASE_LANDMARKS_SOURCE_ID, {
           type: 'geojson',
           data: { type: 'FeatureCollection', features: [] }
@@ -474,7 +442,7 @@ const MapComponent: React.FC<MapProps> = ({
           source: BASE_LANDMARKS_SOURCE_ID,
           paint: {
             'circle-radius': 6,
-            'circle-color': '#22d3ee', // cyan-400 for base landmarks
+            'circle-color': '#22d3ee',
             'circle-stroke-color': '#ffffff',
             'circle-stroke-width': 2
           }
@@ -482,7 +450,6 @@ const MapComponent: React.FC<MapProps> = ({
         
         console.log('🗺️ [Layers] All GeoJSON layers initialized');
         
-        // Add click handlers for all layers
         const addLayerClickHandler = (layerId: string, layerType: 'tour' | 'top' | 'base') => {
           map.current!.on('click', layerId, (e) => {
             e.originalEvent.stopPropagation();
@@ -517,7 +484,6 @@ const MapComponent: React.FC<MapProps> = ({
             onSelectLandmark(landmark);
           });
           
-          // Add hover effects
           map.current!.on('mouseenter', layerId, () => {
             if (map.current) {
               map.current.getCanvas().style.cursor = 'pointer';
@@ -531,18 +497,15 @@ const MapComponent: React.FC<MapProps> = ({
           });
         };
         
-        // Add click handlers for all layer types
         addLayerClickHandler(TOUR_LANDMARKS_LAYER_ID, 'tour');
         addLayerClickHandler(TOP_LANDMARKS_LAYER_ID, 'top');
         addLayerClickHandler(BASE_LANDMARKS_LAYER_ID, 'base');
         
-        // Update all layers with initial data
         updateTourLandmarksLayer();
         updateTopLandmarksLayer();
         updateBaseLandmarksLayer();
       });
 
-      // Close all popups when clicking on the map
       map.current.on('click', (e) => {
         const clickedElement = e.originalEvent.target as HTMLElement;
         const isMarkerClick = clickedElement.closest('.w-4.h-4.rounded-full') || clickedElement.closest('.w-6.h-6.rounded-full');
@@ -550,7 +513,6 @@ const MapComponent: React.FC<MapProps> = ({
         if (!isMarkerClick) {
           stopCurrentAudio();
           
-          // Clear route if it exists
           if (currentRouteLayer.current && map.current) {
             if (map.current.getLayer(currentRouteLayer.current)) {
               map.current.removeLayer(currentRouteLayer.current);
@@ -562,7 +524,6 @@ const MapComponent: React.FC<MapProps> = ({
             console.log('🗺️ Route cleared');
           }
           
-          // Close all photo popups
           Object.values(photoPopups.current).forEach(popup => {
             popup.remove();
           });
@@ -575,7 +536,6 @@ const MapComponent: React.FC<MapProps> = ({
         }
       });
 
-      // Handle moveend event to show popup after zoom completes
       map.current.on('moveend', () => {
         if (pendingPopupLandmark.current && isZooming.current) {
           const landmark = pendingPopupLandmark.current;
@@ -600,7 +560,6 @@ const MapComponent: React.FC<MapProps> = ({
     }
   }, [mapboxToken, user, updateTourLandmarksLayer, updateTopLandmarksLayer, updateBaseLandmarksLayer, findLandmarkByFeatureProperties, onSelectLandmark]);
 
-  // Update layers when data changes
   useEffect(() => {
     updateTourLandmarksLayer();
   }, [updateTourLandmarksLayer]);
@@ -613,7 +572,6 @@ const MapComponent: React.FC<MapProps> = ({
     updateBaseLandmarksLayer();
   }, [updateBaseLandmarksLayer]);
 
-  // Effect to handle proximity settings changes and sync with GeolocateControl
   useEffect(() => {
     if (!geolocateControl.current || !proximitySettings) {
       return;
@@ -696,7 +654,6 @@ const MapComponent: React.FC<MapProps> = ({
     }
   }, [proximitySettings?.is_enabled]);
 
-  // Function to handle text-to-speech using Google Cloud TTS via edge function
   const handleTextToSpeech = async (landmark: Landmark) => {
     const landmarkId = landmark.id;
     
@@ -708,9 +665,18 @@ const MapComponent: React.FC<MapProps> = ({
 
     try {
       setPlayingAudio(prev => ({ ...prev, [landmarkId]: true }));
-      const text = `${landmark.name}. ${landmark.description}`;
       
-      console.log('Calling Google Cloud TTS via edge function for map marker:', text.substring(0, 50) + '...');
+      let landmarkSource: 'tour' | 'top' | 'base' = 'base';
+      
+      if (landmarkId.startsWith('tour-landmark-')) {
+        landmarkSource = 'tour';
+      } else if (landmarkId.startsWith('top-landmark-')) {
+        landmarkSource = 'top';
+      }
+      
+      const text = getEnhancedLandmarkText(landmark, landmarkSource);
+      
+      console.log('Calling Google Cloud TTS via edge function for map marker with enhanced prompt:', text.substring(0, 100) + '...');
       
       const { data, error } = await supabase.functions.invoke('gemini-tts', {
         body: { text }
@@ -735,138 +701,6 @@ const MapComponent: React.FC<MapProps> = ({
     }
   };
 
-  // Function to play audio from base64
-  const playAudioFromBase64 = async (base64Audio: string) => {
-    return new Promise<void>((resolve, reject) => {
-      try {
-        console.log('Converting base64 to audio blob for map marker');
-        
-        const binaryString = atob(base64Audio);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        
-        const blob = new Blob([bytes], { type: 'audio/mp3' });
-        const audioUrl = URL.createObjectURL(blob);
-        const audio = new Audio(audioUrl);
-        
-        currentAudio.current = audio;
-        
-        audio.onended = () => {
-          console.log('Map marker audio playback ended');
-          URL.revokeObjectURL(audioUrl);
-          currentAudio.current = null;
-          resolve();
-        };
-        
-        audio.onerror = (error) => {
-          console.error('Map marker audio playback error:', error);
-          URL.revokeObjectURL(audioUrl);
-          currentAudio.current = null;
-          reject(error);
-        };
-        
-        audio.play().then(() => {
-          console.log('Map marker audio playing successfully');
-        }).catch(error => {
-          console.error('Failed to play map marker audio:', error);
-          URL.revokeObjectURL(audioUrl);
-          currentAudio.current = null;
-          reject(error);
-        });
-        
-      } catch (error) {
-        console.error('Error creating audio from base64 for map marker:', error);
-        reject(error);
-      }
-    });
-  };
-
-  // Enhanced function to fetch landmark photos using the useLandmarkPhotos hook
-  const fetchLandmarkPhotos = async (landmark: Landmark): Promise<PhotoData[]> => {
-    const startTime = Date.now();
-    const cacheKey = `${landmark.name}-${landmark.coordinates[0]}-${landmark.coordinates[1]}`;
-    
-    // Check existing cache first (preserve current behavior)
-    if (enhancedPhotosCache.current[cacheKey]) {
-      console.log(`🖼️ [CACHE HIT] Using cached photos for: ${landmark.name}`);
-      return enhancedPhotosCache.current[cacheKey];
-    }
-
-    try {
-      console.log(`🖼️ [FETCH START] Fetching photos for: ${landmark.name}`);
-      
-      // Use the useLandmarkPhotos hook for database-first approach
-      const result = await fetchPhotosWithHook(landmark, {
-        maxWidth: 800,
-        quality: 'medium'
-      });
-
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-
-      // Comprehensive performance logging
-      console.log(`🖼️ [PERFORMANCE] Photo fetch completed for: ${landmark.name}`, {
-        landmark: landmark.name,
-        source: result.sourceUsed,
-        photoCount: result.totalPhotos,
-        duration: `${duration}ms`,
-        qualityDistribution: result.qualityDistribution,
-        bestPhotoAvailable: !!result.bestPhoto,
-        timestamp: new Date().toISOString()
-      });
-
-      // API usage monitoring
-      if (result.sourceUsed === 'google_places_api') {
-        console.log(`📊 [API USAGE] Google Places API call made for: ${landmark.name}`);
-      } else {
-        console.log(`💾 [DATABASE SUCCESS] Database hit for: ${landmark.name} (API call avoided)`);
-      }
-
-      // Extract photos from LandmarkPhotoResult and cache them
-      const photos = result.photos;
-      if (photos.length > 0) {
-        enhancedPhotosCache.current[cacheKey] = photos;
-        console.log(`✅ [SUCCESS] Cached ${photos.length} photos for: ${landmark.name}`);
-      } else {
-        console.log(`ℹ️ [NO PHOTOS] No photos available for: ${landmark.name}`);
-      }
-
-      return photos;
-      
-    } catch (error) {
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-      
-      console.error(`❌ [ERROR] Photo fetch failed for: ${landmark.name}`, {
-        landmark: landmark.name,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        duration: `${duration}ms`,
-        timestamp: new Date().toISOString()
-      });
-      
-      return [];
-    }
-  };
-
-  // Fallback function for simple image URL (kept for compatibility)
-  const fetchLandmarkImage = async (landmark: Landmark): Promise<string> => {
-    const photos = await fetchLandmarkPhotos(landmark);
-    
-    if (photos.length > 0) {
-      return photos[0].urls.medium;
-    }
-    
-    console.log('Using local fallback image for:', landmark.name);
-    const seed = landmark.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-    return `https://picsum.photos/seed/${seed}/400/300`;
-  };
-
-  // Create a new ref for storing React roots for popup cleanup
-  const popupRoots = useRef<{ [key: string]: ReactDOM.Root }>({});
-
-  // Updated function to show landmark popup with PhotoCarousel
   const showLandmarkPopup = async (landmark: Landmark) => {
     if (!map.current) return;
     
@@ -875,18 +709,10 @@ const MapComponent: React.FC<MapProps> = ({
     stopCurrentAudio();
     
     if (photoPopups.current[landmark.id]) {
-      if (popupRoots.current[landmark.id]) {
-        popupRoots.current[landmark.id].unmount();
-        delete popupRoots.current[landmark.id];
-      }
       photoPopups.current[landmark.id].remove();
     }
     
-    Object.entries(photoPopups.current).forEach(([id, popup]) => {
-      if (popupRoots.current[id]) {
-        popupRoots.current[id].unmount();
-        delete popupRoots.current[id];
-      }
+    Object.values(photoPopups.current).forEach(popup => {
       popup.remove();
     });
     photoPopups.current = {};
@@ -922,10 +748,6 @@ const MapComponent: React.FC<MapProps> = ({
 
     photoPopup.on('close', () => {
       stopCurrentAudio();
-      if (popupRoots.current[landmark.id]) {
-        popupRoots.current[landmark.id].unmount();
-        delete popupRoots.current[landmark.id];
-      }
       delete photoPopups.current[landmark.id];
     });
 
@@ -936,7 +758,6 @@ const MapComponent: React.FC<MapProps> = ({
       await storeMapMarkerInteraction(landmark, firstPhotoUrl);
 
       const root = ReactDOM.createRoot(popupContainer);
-      popupRoots.current[landmark.id] = root;
 
       const PopupContent = () => {
         return (
@@ -1010,7 +831,6 @@ const MapComponent: React.FC<MapProps> = ({
       await storeMapMarkerInteraction(landmark);
       
       const root = ReactDOM.createRoot(popupContainer);
-      popupRoots.current[landmark.id] = root;
 
       const FallbackContent = () => {
         return (
@@ -1065,7 +885,6 @@ const MapComponent: React.FC<MapProps> = ({
     }
   };
 
-  // Fly to selected landmark and update marker styles
   useEffect(() => {
     if (map.current && selectedLandmark) {
       console.log('Selected landmark changed:', selectedLandmark.name);
@@ -1098,12 +917,8 @@ const MapComponent: React.FC<MapProps> = ({
         }, 500);
       }
     }
-
-    // Note: Selected landmark highlighting is now handled by Mapbox layer selection
-    // Individual marker styling is no longer needed since we use GeoJSON layers
   }, [selectedLandmark]);
 
-  // Zooms to fit planned landmarks when a new tour is generated
   useEffect(() => {
     if (!map.current || !plannedLandmarks || plannedLandmarks.length === 0) {
       return;
@@ -1144,7 +959,6 @@ const MapComponent: React.FC<MapProps> = ({
     }
   }, [plannedLandmarks]);
 
-  // New function specifically for "Show on Map" button
   const navigateToCoordinates = (coordinates: [number, number], interaction?: any) => {
     console.log('=== Map Navigate Debug ===');
     console.log('navigateToCoordinates called with:', coordinates);
@@ -1190,7 +1004,6 @@ const MapComponent: React.FC<MapProps> = ({
     console.log('=== End Map Debug ===');
   };
 
-  // Function to show route on map
   const showRouteOnMap = useCallback((route: any, landmark: Landmark) => {
     if (!map.current) return;
 
@@ -1244,7 +1057,6 @@ const MapComponent: React.FC<MapProps> = ({
     console.log(`🛣️ Route displayed: ${Math.round(route.distance)}m, ${Math.round(route.duration / 60)}min walk`);
   }, []);
 
-  // Function to show interaction popup
   const showInteractionPopup = (coordinates: [number, number], interaction: any) => {
     if (!map.current) return;
     
@@ -1361,35 +1173,6 @@ const MapComponent: React.FC<MapProps> = ({
     });
   };
 
-  // Function to handle text-to-speech for interactions
-  const handleTextToSpeechForInteraction = async (assistantResponse: string) => {
-    stopCurrentAudio();
-
-    try {
-      console.log('Calling Google Cloud TTS via edge function for interaction:', assistantResponse.substring(0, 50) + '...');
-      
-      const { data, error } = await supabase.functions.invoke('gemini-tts', {
-        body: { text: assistantResponse }
-      });
-
-      if (error) {
-        console.error('Google Cloud TTS error:', error);
-        return;
-      }
-
-      if (data?.audioContent && !data.fallbackToBrowser) {
-        console.log('Playing audio from Google Cloud TTS for interaction');
-        await playAudioFromBase64(data.audioContent);
-      } else {
-        console.log('No audio content received for interaction');
-      }
-      
-    } catch (error) {
-      console.error('Error with Google Cloud TTS for interaction:', error);
-    }
-  };
-
-  // Clear route when map is clicked (not on markers)
   useEffect(() => {
     if (!map.current) return;
 
@@ -1432,7 +1215,6 @@ const MapComponent: React.FC<MapProps> = ({
     };
   }, []);
 
-  // Expose the functions globally
   React.useEffect(() => {
     console.log('Setting up global map functions');
     (window as any).navigateToMapCoordinates = navigateToCoordinates;
@@ -1446,17 +1228,13 @@ const MapComponent: React.FC<MapProps> = ({
       }
     };
 
-    // Remove individual landmark-based Street View handlers since they're now layer-based
     (window as any).handleStreetViewOpen = async (landmarkId: string) => {
       console.log('🔍 handleStreetViewOpen called with landmark ID:', landmarkId);
       
-      // Find landmark from all sources (base, top, tour)
       let targetLandmark: Landmark | null = null;
       
-      // Check base landmarks
       targetLandmark = landmarks.find(l => l.id === landmarkId) || null;
       
-      // Check top landmarks
       if (!targetLandmark) {
         const topIndex = TOP_LANDMARKS.findIndex((_, index) => `top-landmark-${index}` === landmarkId);
         if (topIndex !== -1) {
@@ -1470,7 +1248,6 @@ const MapComponent: React.FC<MapProps> = ({
         }
       }
       
-      // Check tour landmarks
       if (!targetLandmark) {
         const tourIndex = TOUR_LANDMARKS.findIndex((_, index) => `tour-landmark-${index}` === landmarkId);
         if (tourIndex !== -1) {
@@ -1499,21 +1276,6 @@ const MapComponent: React.FC<MapProps> = ({
       }
     };
 
-    (window as any).testStreetViewModal = async () => {
-      console.log('🧪 Testing Street View modal with first available landmark...');
-      const testLandmark = landmarks[0] || (TOP_LANDMARKS.length > 0 ? {
-        id: 'top-landmark-0',
-        name: TOP_LANDMARKS[0].name,
-        coordinates: TOP_LANDMARKS[0].coordinates,
-        description: TOP_LANDMARKS[0].description
-      } : null);
-      
-      if (testLandmark) {
-        console.log('🧪 Test landmark:', testLandmark.name);
-        await openStreetViewModal([testLandmark], testLandmark);
-      }
-    };
-    
     return () => {
       console.log('Cleaning up global map functions');
       delete (window as any).navigateToMapCoordinates;
@@ -1521,7 +1283,6 @@ const MapComponent: React.FC<MapProps> = ({
       delete (window as any).stopCurrentAudio;
       delete (window as any).showRouteOnMap;
       delete (window as any).handleStreetViewOpen;
-      delete (window as any).testStreetViewModal;
     };
   }, [showRouteOnMap, navigateToCoordinates, openStreetViewModal, landmarks]);
 
