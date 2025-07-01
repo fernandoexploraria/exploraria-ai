@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -198,7 +197,7 @@ serve(async (req) => {
     }
 
     if (landmarkImageUrl) {
-      insertData.landmark_image_url = landmarkImageUrl
+      insertData.image_url = landmarkImageUrl
     }
 
     // Store the interaction in the database
