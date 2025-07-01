@@ -34,7 +34,7 @@ export const usePhotoOptimization = (config: Partial<PhotoOptimizationConfig> = 
   const validation = usePhotoValidation();
   const metrics = usePhotoMetrics();
 
-  // Smart URL construction with caching and validation
+  // Stable URL construction with caching and validation
   const getOptimizedPhotoUrl = useCallback(async (
     photoRef: string,
     size: 'thumb' | 'medium' | 'large',
@@ -47,18 +47,23 @@ export const usePhotoOptimization = (config: Partial<PhotoOptimizationConfig> = 
       if (optimizationConfig.enableUrlCaching) {
         const cachedUrl = urlCache.getCachedUrl(photoRef, size);
         if (cachedUrl) {
-          console.log(`🚀 Using cached URL for ${photoRef}:${size}`);
+          // Reduce cache hit logging in production
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`🚀 Using cached URL for ${photoRef}:${size}`);
+          }
           return {
             url: cachedUrl,
             source: 'cache',
             isPreValidated: true,
-            estimatedLoadTime: 200 // Estimated fast load from cache
+            estimatedLoadTime: 200
           };
         }
 
         // Check if known to be invalid
         if (urlCache.isKnownInvalid(photoRef, size)) {
-          console.log(`🚫 Photo known to be invalid: ${photoRef}:${size}`);
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`🚫 Photo known to be invalid: ${photoRef}:${size}`);
+          }
           throw new Error('Photo known to be invalid');
         }
       }
@@ -81,11 +86,15 @@ export const usePhotoOptimization = (config: Partial<PhotoOptimizationConfig> = 
         const shouldValidate = optimizationConfig.preValidateOnSlowConnection || !isSlowConnection;
         
         if (shouldValidate) {
-          console.log(`🔍 Pre-validating URL: ${constructedUrl}`);
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`🔍 Pre-validating URL: ${constructedUrl}`);
+          }
           isPreValidated = await validation.smartValidate(constructedUrl);
           
           if (!isPreValidated) {
-            console.log(`❌ Pre-validation failed for: ${constructedUrl}`);
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`❌ Pre-validation failed for: ${constructedUrl}`);
+            }
             // Cache the negative result
             if (optimizationConfig.enableUrlCaching) {
               urlCache.setCachedUrl(photoRef, size, constructedUrl, false);
@@ -106,7 +115,7 @@ export const usePhotoOptimization = (config: Partial<PhotoOptimizationConfig> = 
         metrics.recordPhotoLoad({
           photoId: photoRef,
           url: constructedUrl,
-          source: 'google_places_api', // Assuming constructed URLs are from API
+          source: 'google_places_api',
           size,
           loadTime,
           success: true,
@@ -114,7 +123,9 @@ export const usePhotoOptimization = (config: Partial<PhotoOptimizationConfig> = 
         });
       }
 
-      console.log(`✅ Optimized photo URL ready: ${photoRef}:${size}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`✅ Optimized photo URL ready: ${photoRef}:${size}`);
+      }
       
       return {
         url: constructedUrl,
@@ -139,7 +150,9 @@ export const usePhotoOptimization = (config: Partial<PhotoOptimizationConfig> = 
         });
       }
 
-      console.error(`❌ Photo optimization failed for ${photoRef}:${size}`, error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`❌ Photo optimization failed for ${photoRef}:${size}`, error);
+      }
       throw error;
     }
   }, [
@@ -158,7 +171,9 @@ export const usePhotoOptimization = (config: Partial<PhotoOptimizationConfig> = 
   ): Promise<Map<string, OptimizedPhotoResult>> => {
     const results = new Map<string, OptimizedPhotoResult>();
     
-    console.log(`🚀 Batch optimizing ${photos.length} photos`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🚀 Batch optimizing ${photos.length} photos`);
+    }
     
     // Process in batches
     for (let i = 0; i < photos.length; i += maxConcurrent) {
@@ -169,7 +184,9 @@ export const usePhotoOptimization = (config: Partial<PhotoOptimizationConfig> = 
           const result = await getOptimizedPhotoUrl(photo.photoRef, photo.size, photo.maxWidth);
           return { key: `${photo.photoRef}:${photo.size}`, result };
         } catch (error) {
-          console.warn(`⚠️ Failed to optimize photo: ${photo.photoRef}:${photo.size}`, error);
+          if (process.env.NODE_ENV === 'development') {
+            console.warn(`⚠️ Failed to optimize photo: ${photo.photoRef}:${photo.size}`, error);
+          }
           return null;
         }
       });
@@ -188,7 +205,9 @@ export const usePhotoOptimization = (config: Partial<PhotoOptimizationConfig> = 
       }
     }
     
-    console.log(`✅ Batch optimization complete: ${results.size}/${photos.length} successful`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ Batch optimization complete: ${results.size}/${photos.length} successful`);
+    }
     return results;
   }, [getOptimizedPhotoUrl]);
 
@@ -198,23 +217,33 @@ export const usePhotoOptimization = (config: Partial<PhotoOptimizationConfig> = 
     prioritySize: 'thumb' | 'medium' | 'large' = 'medium'
   ): Promise<void> => {
     if (isSlowConnection) {
-      console.log(`🐌 Skipping preload on slow connection`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🐌 Skipping preload on slow connection`);
+      }
       return;
     }
 
-    console.log(`🔄 Preloading ${photoRefs.length} photos (${prioritySize} size)`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔄 Preloading ${photoRefs.length} photos (${prioritySize} size)`);
+    }
     
     const preloadPromises = photoRefs.map(async (photoRef) => {
       try {
         await getOptimizedPhotoUrl(photoRef, prioritySize);
-        console.log(`⚡ Preloaded: ${photoRef}`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`⚡ Preloaded: ${photoRef}`);
+        }
       } catch (error) {
-        console.warn(`⚠️ Preload failed: ${photoRef}`, error);
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`⚠️ Preload failed: ${photoRef}`, error);
+        }
       }
     });
 
     await Promise.allSettled(preloadPromises);
-    console.log(`✅ Preload completed for ${photoRefs.length} photos`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ Preload completed for ${photoRefs.length} photos`);
+    }
   }, [getOptimizedPhotoUrl, isSlowConnection]);
 
   // Get comprehensive optimization stats
@@ -233,7 +262,9 @@ export const usePhotoOptimization = (config: Partial<PhotoOptimizationConfig> = 
     urlCache.clearCache();
     validation.clearValidationCache();
     metrics.clearMetrics();
-    console.log(`🧹 Photo optimization cleanup completed`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🧹 Photo optimization cleanup completed`);
+    }
   }, [urlCache, validation, metrics]);
 
   // Return a stable object reference using useMemo

@@ -29,6 +29,7 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
   const [loadAttempts, setLoadAttempts] = useState(0);
   const [optimizationInfo, setOptimizationInfo] = useState<string>('');
   const [validationError, setValidationError] = useState<string>('');
+  const [photoLoadAttempted, setPhotoLoadAttempted] = useState(false);
   
   const { getOptimalImageQuality } = useNetworkStatus();
   const photoOptimization = usePhotoOptimization();
@@ -36,7 +37,7 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
   // Add ref to track if component is mounted
   const isMountedRef = useRef(true);
   
-  // Extract stable references to prevent infinite loops
+  // Stable references to prevent infinite loops
   const getOptimizedPhotoUrl = photoOptimization.getOptimizedPhotoUrl;
   const recordPhotoLoad = photoOptimization.metrics.recordPhotoLoad;
   const startPhotoLoadTimer = photoOptimization.metrics.startPhotoLoadTimer;
@@ -49,12 +50,16 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
   }, []);
 
   useEffect(() => {
+    // Prevent multiple load attempts for the same photo
+    if (photoLoadAttempted) return;
+    
     // Reset state when photo changes
     setIsLoaded(false);
     setHasError(false);
     setLoadAttempts(0);
     setOptimizationInfo('');
     setValidationError('');
+    setPhotoLoadAttempted(true);
     
     // Enhanced progressive loading with robust validation
     const loadImageWithOptimization = async () => {
@@ -91,7 +96,9 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
         if (url.includes('places.googleapis.com')) {
           const validation = isValidGooglePlacesPhotoUrl(url);
           if (!validation.isValid) {
-            console.warn(`📸 Pre-validation failed for ${url}: ${validation.error}`);
+            if (process.env.NODE_ENV === 'development') {
+              console.warn(`📸 Pre-validation failed for ${url}: ${validation.error}`);
+            }
             if (isMountedRef.current) {
               setValidationError(validation.error || 'Unknown validation error');
             }
@@ -103,7 +110,9 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
 
       // If no valid URLs available, try optimization on photo reference
       if (validatedUrls.length === 0 && photo.photoReference) {
-        console.log(`📸 No valid URLs available, trying optimization for: ${photo.photoReference}`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`📸 No valid URLs available, trying optimization for: ${photo.photoReference}`);
+        }
         try {
           const optimizedResult = await getOptimizedPhotoUrl(
             photo.photoReference,
@@ -115,11 +124,13 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
             setOptimizationInfo(`Optimized (${optimizedResult.source})`);
           }
           
-          if (optimizedResult.isPreValidated) {
+          if (optimizedResult.isPreValidated && process.env.NODE_ENV === 'development') {
             console.log(`✅ Using pre-validated optimized URL`);
           }
         } catch (error) {
-          console.error(`❌ Photo optimization failed:`, error);
+          if (process.env.NODE_ENV === 'development') {
+            console.error(`❌ Photo optimization failed:`, error);
+          }
           if (isMountedRef.current) {
             setHasError(true);
             onError?.();
@@ -129,7 +140,9 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
       }
       
       if (validatedUrls.length === 0) {
-        console.error('❌ No valid URLs available for photo:', photo);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('❌ No valid URLs available for photo:', photo);
+        }
         if (isMountedRef.current) {
           setHasError(true);
           setValidationError('No valid URLs passed validation');
@@ -147,7 +160,9 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
         setLoadAttempts(i + 1);
         
         try {
-          console.log(`📷 Attempting to load photo (attempt ${i + 1}/${validatedUrls.length}):`, { url, size });
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`📷 Attempting to load photo (attempt ${i + 1}/${validatedUrls.length}):`, { url, size });
+          }
           
           // Record the attempt for metrics
           const startTimer = startPhotoLoadTimer(photo.id.toString());
@@ -169,14 +184,18 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
             qualityScore: photo.qualityScore
           });
           
-          console.log(`✅ Successfully loaded photo:`, { url, size, loadTime });
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`✅ Successfully loaded photo:`, { url, size, loadTime });
+          }
           setCurrentSrc(url);
           setIsLoaded(true);
           onLoad?.();
           return; // Success, exit the loop
           
         } catch (error) {
-          console.warn(`⚠️ Failed to load photo (attempt ${i + 1}):`, { url, size, error });
+          if (process.env.NODE_ENV === 'development') {
+            console.warn(`⚠️ Failed to load photo (attempt ${i + 1}):`, { url, size, error });
+          }
           
           // Check if component is still mounted before recording metrics
           if (!isMountedRef.current) return;
@@ -196,7 +215,9 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
           
           // If this was the last attempt, show error
           if (i === validatedUrls.length - 1) {
-            console.error('❌ All validated photo URLs failed to load for:', photo);
+            if (process.env.NODE_ENV === 'development') {
+              console.error('❌ All validated photo URLs failed to load for:', photo);
+            }
             if (isMountedRef.current) {
               setHasError(true);
               onError?.();
@@ -220,7 +241,8 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
     recordPhotoLoad,
     startPhotoLoadTimer,
     onLoad,
-    onError
+    onError,
+    photoLoadAttempted
   ]);
 
   const loadImagePromise = (src: string): Promise<void> => {
@@ -228,7 +250,9 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
       const img = new Image();
       img.onload = () => resolve();
       img.onerror = (error) => {
-        console.log('Error loading photo:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Error loading photo:', error);
+        }
         reject(error);
       };
       img.src = src;

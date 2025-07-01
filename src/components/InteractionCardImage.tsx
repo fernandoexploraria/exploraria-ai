@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Download, Eye, EyeOff, Satellite, Link, ChevronLeft, ChevronRight, Camera, Maximize2 } from 'lucide-react';
@@ -28,6 +29,7 @@ interface InteractionCardImageProps {
   destination: string;
   userInput: string;
   interaction: Interaction;
+  isVisible?: boolean; // For lazy loading
 }
 
 const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
@@ -35,12 +37,14 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
   destination,
   userInput,
   interaction,
+  isVisible = true
 }) => {
   const [streetViewStatus, setStreetViewStatus] = useState<'unknown' | 'available' | 'unavailable'>('unknown');
   const [photos, setPhotos] = useState<PhotoData[]>([]);
   const [showAttribution, setShowAttribution] = useState(false);
   const [isLoadingPhotos, setIsLoadingPhotos] = useState(false);
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
+  const [photoLoadAttempted, setPhotoLoadAttempted] = useState(false);
   
   const { 
     isModalOpen, 
@@ -49,27 +53,27 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
     closeStreetViewModal 
   } = useStreetViewNavigation();
   
-  const { fetchPhotos, getBestPhoto } = useEnhancedPhotos();
+  const { fetchPhotos } = useEnhancedPhotos();
 
-  // Photo navigation for multiple photos
-  const {
-    currentIndex,
-    currentPhoto,
-    hasNext,
-    hasPrevious,
-    totalCount,
-    goToNext,
-    goToPrevious
-  } = usePhotoNavigation({
-    photos,
-    initialIndex: 0
-  });
+  // Memoize fallback photo to prevent infinite object creation
+  const fallbackPhoto = useMemo((): PhotoData => ({
+    id: 0,
+    photoReference: 'fallback',
+    urls: {
+      thumb: imageUrl,
+      medium: imageUrl,
+      large: imageUrl
+    },
+    attributions: [],
+    width: 800,
+    height: 600,
+    qualityScore: 50
+  }), [imageUrl]);
 
   // Convert interaction coordinates to Landmark format
-  const landmarkFromInteraction: Landmark | null = React.useMemo(() => {
+  const landmarkFromInteraction: Landmark | null = useMemo(() => {
     if (!interaction.landmark_coordinates) return null;
     
-    // Handle different coordinate formats
     let coordinates: [number, number];
     
     if (Array.isArray(interaction.landmark_coordinates)) {
@@ -88,62 +92,61 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
       coordinates,
       description: interaction.user_input || `Street View for ${interaction.destination}`
     };
-  }, [interaction]);
+  }, [interaction.landmark_coordinates, interaction.destination, interaction.user_input, interaction.id]);
 
-  // Create fallback photo from existing image URL
-  const createFallbackPhoto = (url: string): PhotoData => ({
-    id: 0,
-    photoReference: 'fallback',
-    urls: {
-      thumb: url,
-      medium: url,
-      large: url
-    },
-    attributions: [],
-    width: 800,
-    height: 600,
-    qualityScore: 50
+  // Photo navigation for multiple photos
+  const {
+    currentIndex,
+    currentPhoto,
+    hasNext,
+    hasPrevious,
+    totalCount,
+    goToNext,
+    goToPrevious
+  } = usePhotoNavigation({
+    photos,
+    initialIndex: 0
   });
 
-  // Fetch enhanced photos if place_id is available
-  useEffect(() => {
-    const loadPhotos = async () => {
-      if (interaction.place_id) {
-        setIsLoadingPhotos(true);
-        try {
-          console.log(`🖼️ Fetching photos for place_id: ${interaction.place_id}`);
-          const photosResponse = await fetchPhotos(interaction.place_id, 800, 'medium');
-          
-          if (photosResponse && photosResponse.photos.length > 0) {
-            console.log(`✅ Found ${photosResponse.photos.length} photos for ${destination}`);
-            setPhotos(photosResponse.photos);
-          } else {
-            // Fallback to existing image URL
-            console.log(`ℹ️ No photos found, using fallback image for ${destination}`);
-            setPhotos([createFallbackPhoto(imageUrl)]);
-          }
-        } catch (error) {
-          console.error('❌ Error fetching photos:', error);
-          setPhotos([createFallbackPhoto(imageUrl)]);
-        } finally {
-          setIsLoadingPhotos(false);
+  // Stable photo loading function
+  const loadPhotos = useCallback(async () => {
+    if (!isVisible || photoLoadAttempted || isLoadingPhotos) return;
+    
+    setPhotoLoadAttempted(true);
+    
+    if (interaction.place_id) {
+      setIsLoadingPhotos(true);
+      try {
+        console.log(`🖼️ Loading photos for ${destination} (place_id: ${interaction.place_id})`);
+        const photosResponse = await fetchPhotos(interaction.place_id, 800, 'medium');
+        
+        if (photosResponse && photosResponse.photos.length > 0) {
+          console.log(`✅ Loaded ${photosResponse.photos.length} photos for ${destination}`);
+          setPhotos(photosResponse.photos);
+        } else {
+          console.log(`ℹ️ No photos found, using fallback for ${destination}`);
+          setPhotos([fallbackPhoto]);
         }
-      } else {
-        // No place_id, use existing image URL
-        setPhotos([createFallbackPhoto(imageUrl)]);
+      } catch (error) {
+        console.error('❌ Error loading photos:', error);
+        setPhotos([fallbackPhoto]);
+      } finally {
+        setIsLoadingPhotos(false);
       }
-    };
+    } else {
+      setPhotos([fallbackPhoto]);
+    }
+  }, [isVisible, photoLoadAttempted, isLoadingPhotos, interaction.place_id, destination, fetchPhotos, fallbackPhoto]);
 
+  // Load photos when component becomes visible
+  useEffect(() => {
     loadPhotos();
-  }, [interaction.place_id, imageUrl, destination, fetchPhotos]);
+  }, [loadPhotos]);
 
   // Check Street View status on mount
   useEffect(() => {
     const checkStreetViewAvailability = async () => {
-      if (!landmarkFromInteraction) {
-        setStreetViewStatus('unavailable');
-        return;
-      }
+      if (!landmarkFromInteraction || streetViewStatus !== 'unknown') return;
 
       try {
         await openStreetViewModal([landmarkFromInteraction], landmarkFromInteraction);
@@ -159,12 +162,15 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
       }
     };
 
-    if (streetViewStatus === 'unknown') {
-      checkStreetViewAvailability();
-    }
+    checkStreetViewAvailability();
   }, [landmarkFromInteraction, streetViewStatus, openStreetViewModal, closeStreetViewModal, streetViewItems]);
 
-  const handleStreetViewClick = async (e: React.MouseEvent) => {
+  // Stable display photo (prevents infinite re-renders)
+  const displayPhoto = useMemo(() => {
+    return currentPhoto || fallbackPhoto;
+  }, [currentPhoto, fallbackPhoto]);
+
+  const handleStreetViewClick = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
     
     if (!landmarkFromInteraction) {
@@ -178,9 +184,9 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
     } catch (error) {
       console.error(`❌ Error opening enhanced Street View for ${landmarkFromInteraction.name}:`, error);
     }
-  };
+  }, [landmarkFromInteraction, openStreetViewModal]);
 
-  const handleFallbackClick = (e: React.MouseEvent, type: 'satellite' | 'maps') => {
+  const handleFallbackClick = useCallback((e: React.MouseEvent, type: 'satellite' | 'maps') => {
     e.stopPropagation();
     
     if (!landmarkFromInteraction) return;
@@ -195,17 +201,16 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
     }
     
     window.open(url, '_blank');
-  };
+  }, [landmarkFromInteraction]);
 
-  const handleImageClick = () => {
+  const handleImageClick = useCallback(() => {
     setIsImageViewerOpen(true);
-  };
+  }, []);
 
-  const handleImageDownload = async (e: React.MouseEvent) => {
+  const handleImageDownload = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
     
-    const photoToDownload = currentPhoto || createFallbackPhoto(imageUrl);
-    const downloadUrl = photoToDownload.urls.large || photoToDownload.urls.medium || photoToDownload.urls.thumb;
+    const downloadUrl = displayPhoto.urls.large || displayPhoto.urls.medium || displayPhoto.urls.thumb;
     
     try {
       if (Capacitor.isNativePlatform()) {
@@ -235,36 +240,36 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
         console.error('Download failed:', downloadError);
       }
     }
-  };
+  }, [displayPhoto, destination, currentIndex]);
 
-  const goToPreviousPhoto = (e: React.MouseEvent) => {
+  const goToPreviousPhoto = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     goToPrevious();
-  };
+  }, [goToPrevious]);
 
-  const goToNextPhoto = (e: React.MouseEvent) => {
+  const goToNextPhoto = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     goToNext();
-  };
+  }, [goToNext]);
 
-  const displayPhoto = currentPhoto || createFallbackPhoto(imageUrl);
   const hasMultiplePhotos = photos.length > 1;
 
-  if (isLoadingPhotos) {
+  // Don't render if not visible (lazy loading)
+  if (!isVisible) {
     return (
       <div className="mb-2 flex-shrink-0 relative">
-        <div className="w-full h-20 bg-gray-200 animate-pulse rounded flex items-center justify-center">
+        <div className="w-full h-20 bg-gray-200 rounded flex items-center justify-center">
           <Camera className="w-6 h-6 text-gray-400" />
         </div>
       </div>
     );
   }
 
-  if (!currentPhoto) {
+  if (isLoadingPhotos) {
     return (
       <div className="mb-2 flex-shrink-0 relative">
-        <div className="w-full h-20 bg-gray-100 rounded flex items-center justify-center">
-          <div className="text-gray-500 text-sm">No image available</div>
+        <div className="w-full h-20 bg-gray-200 animate-pulse rounded flex items-center justify-center">
+          <Camera className="w-6 h-6 text-gray-400" />
         </div>
       </div>
     );
@@ -360,7 +365,6 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
                 <EyeOff className="w-3 h-3 text-gray-400" />
               </Button>
               
-              {/* Fallback: Satellite View Button */}
               <Button
                 variant="ghost"
                 size="sm"
@@ -371,7 +375,6 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
                 <Satellite className="w-3 h-3 text-white" />
               </Button>
               
-              {/* Fallback: Maps Link Button */}
               <Button
                 variant="ghost"
                 size="sm"

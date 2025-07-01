@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselApi } from '@/components/ui/carousel';
 import { Search, Star } from 'lucide-react';
 import InteractionCard from './InteractionCard';
@@ -26,17 +27,23 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
 }) => {
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [visibleIndexes, setVisibleIndexes] = useState<Set<number>>(new Set([0, 1, 2])); // Track visible items
   const { stop, isPlaying, currentPlayingId } = useTTSContext();
+  const observerRef = useRef<IntersectionObserver>();
 
   // Handle carousel slide changes - stop audio when card moves
   useEffect(() => {
     if (!carouselApi) return;
 
     const handleSlideChange = () => {
-      console.log('Card movement detected');
+      const selectedIndex = carouselApi.selectedScrollSnap();
       
-      // Now we can directly check the isPlaying state from context
-      console.log('Audio playing state:', isPlaying);
+      // Update visible indexes for lazy loading (current + adjacent items)
+      const newVisibleIndexes = new Set<number>();
+      for (let i = Math.max(0, selectedIndex - 1); i <= Math.min(currentInteractions.length - 1, selectedIndex + 2); i++) {
+        newVisibleIndexes.add(i);
+      }
+      setVisibleIndexes(newVisibleIndexes);
       
       // If audio is playing, stop it
       if (isPlaying) {
@@ -44,20 +51,53 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
         stop();
       }
       
-      // Update current slide
-      setCurrentSlide(carouselApi.selectedScrollSnap());
+      setCurrentSlide(selectedIndex);
     };
 
     // Listen for slide changes
     carouselApi.on("select", handleSlideChange);
     
-    // Set initial slide
-    setCurrentSlide(carouselApi.selectedScrollSnap());
+    // Set initial slide and visible indexes
+    const initialIndex = carouselApi.selectedScrollSnap();
+    setCurrentSlide(initialIndex);
+    const initialVisibleIndexes = new Set<number>();
+    for (let i = Math.max(0, initialIndex - 1); i <= Math.min(currentInteractions.length - 1, initialIndex + 2); i++) {
+      initialVisibleIndexes.add(i);
+    }
+    setVisibleIndexes(initialVisibleIndexes);
 
     return () => {
       carouselApi.off("select", handleSlideChange);
     };
-  }, [carouselApi, stop, isPlaying]);
+  }, [carouselApi, stop, isPlaying, currentInteractions.length]);
+
+  // Set up intersection observer for additional lazy loading
+  useEffect(() => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const index = parseInt(entry.target.getAttribute('data-index') || '0');
+          if (entry.isIntersecting) {
+            setVisibleIndexes(prev => new Set([...prev, index]));
+          }
+        });
+      },
+      {
+        rootMargin: '50px',
+        threshold: 0.1
+      }
+    );
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, []);
 
   const scrollToSlide = (index: number) => {
     if (carouselApi) {
@@ -123,13 +163,23 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
         >
           <CarouselContent className="-ml-2 md:-ml-4">
             {currentInteractions.map((interaction, index) => (
-              <CarouselItem key={interaction.id} className="pl-2 md:pl-4 basis-4/5 md:basis-3/5 lg:basis-2/5">
+              <CarouselItem 
+                key={interaction.id} 
+                className="pl-2 md:pl-4 basis-4/5 md:basis-3/5 lg:basis-2/5"
+                data-index={index}
+                ref={(el) => {
+                  if (el && observerRef.current) {
+                    observerRef.current.observe(el);
+                  }
+                }}
+              >
                 <InteractionCard
                   interaction={interaction}
                   index={index}
                   isCurrentlyPlaying={currentPlayingId === interaction.id}
                   onToggleFavorite={onToggleFavorite}
                   onLocationClick={onLocationClick}
+                  isVisible={visibleIndexes.has(index)} // Pass visibility for lazy loading
                 />
               </CarouselItem>
             ))}
