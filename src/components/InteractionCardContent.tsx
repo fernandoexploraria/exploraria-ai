@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -11,7 +10,7 @@ interface Interaction {
   full_transcript: any;
   landmark_coordinates: any;
   created_at: string;
-  is_favorite: boolean; // Added to match main interface
+  is_favorite: boolean; // Changed from optional to required
 }
 
 interface InteractionCardContentProps {
