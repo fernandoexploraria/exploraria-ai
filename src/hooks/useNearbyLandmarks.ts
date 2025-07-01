@@ -14,6 +14,7 @@ export interface NearbyLandmark {
 interface UseNearbyLandmarksProps {
   userLocation: UserLocation | null;
   notificationDistance: number;
+  baseLandmarks?: Landmark[]; // Add support for base landmarks from props
 }
 
 // Convert TopLandmark to Landmark format
@@ -38,7 +39,8 @@ const convertTourLandmarkToLandmark = (tourLandmark: any): Landmark => {
 
 export const useNearbyLandmarks = ({ 
   userLocation, 
-  notificationDistance 
+  notificationDistance,
+  baseLandmarks = [] // Default to empty array if not provided
 }: UseNearbyLandmarksProps): NearbyLandmark[] => {
   return useMemo(() => {
     if (!userLocation) {
@@ -46,12 +48,12 @@ export const useNearbyLandmarks = ({
       return [];
     }
 
-    // Step 1: Combine TOP_LANDMARKS and TOUR_LANDMARKS into a single array
-    const staticLandmarks = TOP_LANDMARKS.map(convertTopLandmarkToLandmark);
+    // Step 1: Combine all landmark sources into a single array
+    const topLandmarks = TOP_LANDMARKS.map(convertTopLandmarkToLandmark);
     const tourLandmarks = TOUR_LANDMARKS.map(convertTourLandmarkToLandmark);
-    const combinedLandmarks = [...staticLandmarks, ...tourLandmarks];
+    const combinedLandmarks = [...baseLandmarks, ...topLandmarks, ...tourLandmarks];
 
-    console.log(`🎯 Combined landmarks: ${staticLandmarks.length} static + ${tourLandmarks.length} tour = ${combinedLandmarks.length} total`);
+    console.log(`🎯 Combined landmarks: ${baseLandmarks.length} base + ${topLandmarks.length} top + ${tourLandmarks.length} tour = ${combinedLandmarks.length} total`);
 
     if (combinedLandmarks.length === 0) {
       console.log('🎯 No nearby landmarks: no landmarks available');
@@ -95,5 +97,5 @@ export const useNearbyLandmarks = ({
     }
 
     return sortedLandmarks;
-  }, [userLocation, notificationDistance]);
+  }, [userLocation, notificationDistance, baseLandmarks]);
 };
