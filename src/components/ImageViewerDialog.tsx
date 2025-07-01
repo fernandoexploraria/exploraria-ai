@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -16,9 +15,10 @@ interface ImageViewerDialogProps {
   onOpenChange: (open: boolean) => void;
   imageUrl?: string;
   photo?: PhotoData;
-  photos?: PhotoData[]; // New: support for multiple photos
+  photos?: PhotoData[];
   imageName: string;
-  initialIndex?: number; // New: starting photo index
+  initialIndex?: number;
+  onIndexChange?: (index: number) => void;
 }
 
 const ImageViewerDialog: React.FC<ImageViewerDialogProps> = ({
@@ -29,6 +29,7 @@ const ImageViewerDialog: React.FC<ImageViewerDialogProps> = ({
   photos,
   imageName,
   initialIndex = 0,
+  onIndexChange,
 }) => {
   const [zoomLevel, setZoomLevel] = useState(1);
   const [showAttribution, setShowAttribution] = useState(false);
@@ -51,7 +52,8 @@ const ImageViewerDialog: React.FC<ImageViewerDialogProps> = ({
     closeFullscreen
   } = usePhotoNavigation({
     photos: photosList,
-    initialIndex
+    initialIndex,
+    onIndexChange
   });
 
   const handleDownload = async () => {

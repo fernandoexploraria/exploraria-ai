@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -102,7 +101,8 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
     hasPrevious,
     totalCount,
     goToNext,
-    goToPrevious
+    goToPrevious,
+    goToIndex
   } = usePhotoNavigation({
     photos,
     initialIndex: 0
@@ -275,6 +275,11 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
     );
   }
 
+  // Callback to synchronize photo index when dialog navigation occurs
+  const handleDialogIndexChange = useCallback((newIndex: number) => {
+    goToIndex(newIndex);
+  }, [goToIndex]);
+
   return (
     <>
       <div className="mb-2 flex-shrink-0 relative group cursor-pointer" onClick={handleImageClick}>
@@ -428,6 +433,7 @@ const InteractionCardImage: React.FC<InteractionCardImageProps> = ({
         photos={photos}
         imageName={destination}
         initialIndex={currentIndex}
+        onIndexChange={handleDialogIndexChange} // Pass the synchronization callback
       />
 
       {/* Enhanced Street View Modal */}

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,14 +38,14 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
   onLocationClick,
   isVisible = true
 }) => {
-  const { playText, stop } = useTTSContext();
+  const { speak, stop } = useTTSContext();
 
   const handlePlayPause = () => {
     if (isCurrentlyPlaying) {
       stop();
     } else {
       const textToRead = `${interaction.destination}. ${interaction.assistant_response}`;
-      playText(textToRead, interaction.id);
+      speak(textToRead, interaction.id);
     }
   };
 
