@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +17,10 @@ import {
   SignalLow,
   Info,
   Zap,
-  Clock
+  Clock,
+  Database,
+  Cloud,
+  AlertTriangle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -42,6 +44,48 @@ const PhotoQualityIndicator: React.FC<PhotoQualityIndicatorProps> = ({
 
   const currentQuality = getOptimalImageQuality();
   
+  // Get photo source information
+  const getPhotoSourceInfo = () => {
+    const source = photo.photoSource || 'unknown';
+    switch (source) {
+      case 'database_raw_data':
+        return {
+          label: 'DB',
+          fullName: 'Database Raw Data',
+          color: 'bg-blue-500',
+          icon: Database,
+          description: 'Loaded from cached database raw_data'
+        };
+      case 'database_photos_field':
+        return {
+          label: 'DB',
+          fullName: 'Database Photos Field',
+          color: 'bg-green-500',
+          icon: Database,
+          description: 'Loaded from database photos field'
+        };
+      case 'google_places_api':
+        return {
+          label: 'API',
+          fullName: 'Google Places API',
+          color: 'bg-orange-500',
+          icon: Cloud,
+          description: 'Fetched from Google Places API'
+        };
+      default:
+        return {
+          label: 'ERR',
+          fullName: 'Unknown Source',
+          color: 'bg-red-500',
+          icon: AlertTriangle,
+          description: 'Photo source unknown or error'
+        };
+    }
+  };
+
+  const sourceInfo = getPhotoSourceInfo();
+  const SourceIcon = sourceInfo.icon;
+
   // Estimate data usage for different quality levels
   const getDataUsageEstimate = (quality: 'low' | 'medium' | 'high') => {
     const baseSize = 50; // KB for thumb
@@ -95,26 +139,61 @@ const PhotoQualityIndicator: React.FC<PhotoQualityIndicatorProps> = ({
           variant="ghost"
           size="sm"
           className={cn(
-            'text-white hover:bg-white/20 px-2 py-1 h-auto gap-1',
+            'text-white hover:bg-white/20 px-2 py-1 h-auto gap-2',
             className
           )}
         >
-          <NetworkIcon className="w-3 h-3" />
-          <Badge 
-            variant="secondary" 
-            className={cn(
-              'text-xs text-white border-0 px-1 py-0',
-              getQualityColor(currentQuality)
-            )}
-          >
-            {getQualityLabel(currentQuality)}
-          </Badge>
+          <div className="flex items-center gap-1">
+            <NetworkIcon className="w-3 h-3" />
+            <Badge 
+              variant="secondary" 
+              className={cn(
+                'text-xs text-white border-0 px-1 py-0',
+                getQualityColor(currentQuality)
+              )}
+            >
+              {getQualityLabel(currentQuality)}
+            </Badge>
+          </div>
+          
+          {/* Visual Source Indicator */}
+          <div className="flex items-center gap-1">
+            <SourceIcon className="w-3 h-3" />
+            <Badge 
+              variant="secondary" 
+              className={cn(
+                'text-xs text-white border-0 px-1 py-0',
+                sourceInfo.color
+              )}
+            >
+              {sourceInfo.label}
+            </Badge>
+          </div>
+          
           <Info className="w-3 h-3" />
         </Button>
       </PopoverTrigger>
       
       <PopoverContent className="w-80 p-4">
         <div className="space-y-4">
+          {/* Photo Source Information */}
+          <div>
+            <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
+              <SourceIcon className="w-4 h-4" />
+              Photo Source
+            </h4>
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <Badge className={cn('text-white', sourceInfo.color)}>
+                  {sourceInfo.fullName}
+                </Badge>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {sourceInfo.description}
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Network Status */}
           <div>
             <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
@@ -199,6 +278,14 @@ const PhotoQualityIndicator: React.FC<PhotoQualityIndicatorProps> = ({
                 <span className="text-muted-foreground">Aspect Ratio:</span>
                 <span className="font-medium">
                   {(photo.width / photo.height).toFixed(2)}:1
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Photo Reference:</span>
+                <span className="font-medium text-xs break-all">
+                  {photo.photoReference.length > 20 
+                    ? `${photo.photoReference.substring(0, 20)}...` 
+                    : photo.photoReference}
                 </span>
               </div>
             </div>

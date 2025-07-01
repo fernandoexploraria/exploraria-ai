@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, X, Maximize2 } from 'lucide-react';
@@ -113,13 +112,15 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
   return (
     <>
       <div className={cn('relative bg-black rounded-lg overflow-hidden', className)}>
-        {/* Header with controls */}
-        <div className="absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-black/70 to-transparent p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-white text-sm">
-                {currentIndex + 1} / {totalCount}
-              </span>
+        {/* Header with controls - ADJUSTED POSITIONING */}
+        <div className="absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-black/80 via-black/40 to-transparent pt-6 px-4 pb-8">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-white text-sm">
+                  {currentIndex + 1} / {totalCount}
+                </span>
+              </div>
               <PhotoQualityIndicator photo={currentPhoto} />
             </div>
             

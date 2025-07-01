@@ -2,7 +2,7 @@
 import React from 'react';
 import { PhotoData } from '@/hooks/useEnhancedPhotos';
 import { cn } from '@/lib/utils';
-import { Star } from 'lucide-react';
+import { Star, Database, Cloud, AlertTriangle } from 'lucide-react';
 
 interface PhotoThumbnailGridProps {
   photos: PhotoData[];
@@ -20,6 +20,32 @@ const PhotoThumbnailGrid: React.FC<PhotoThumbnailGridProps> = ({
   className
 }) => {
   console.log(`🖼️ [PhotoThumbnailGrid] Rendered with currentIndex: ${currentIndex}, totalPhotos: ${photos.length}`);
+
+  // Get photo source information for visual indicators
+  const getPhotoSourceInfo = (photo: PhotoData) => {
+    const source = photo.photoSource || 'unknown';
+    switch (source) {
+      case 'database_raw_data':
+      case 'database_photos_field':
+        return {
+          color: 'bg-blue-500',
+          icon: Database,
+          label: 'DB'
+        };
+      case 'google_places_api':
+        return {
+          color: 'bg-orange-500',
+          icon: Cloud,
+          label: 'API'
+        };
+      default:
+        return {
+          color: 'bg-red-500',
+          icon: AlertTriangle,
+          label: 'ERR'
+        };
+    }
+  };
 
   // Calculate which thumbnails to show based on current index
   const getVisiblePhotos = () => {
@@ -79,53 +105,71 @@ const PhotoThumbnailGrid: React.FC<PhotoThumbnailGridProps> = ({
         </div>
       )}
 
-      {visiblePhotos.map(({ photo, originalIndex }) => (
-        <button
-          key={`${photo.id}-${originalIndex}`}
-          onClick={(e) => handleThumbnailClick(originalIndex, e)}
-          className={cn(
-            'relative group flex-shrink-0 w-16 h-12 rounded overflow-hidden transition-all duration-200',
-            'border-2 hover:scale-105',
-            originalIndex === currentIndex
-              ? 'border-white shadow-lg scale-105'
-              : 'border-transparent hover:border-white/50'
-          )}
-        >
-          <img
-            src={photo.urls.thumb}
-            alt={`Thumbnail ${originalIndex + 1}`}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
-          
-          {/* Quality indicator */}
-          {photo.qualityScore && (
-            <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <div 
-                className={cn(
-                  'w-2 h-2 rounded-full',
-                  getQualityColor(photo.qualityScore)
-                )}
-                title={`Quality: ${getQualityText(photo.qualityScore)} (${Math.round(photo.qualityScore)})`}
-              />
+      {visiblePhotos.map(({ photo, originalIndex }) => {
+        const sourceInfo = getPhotoSourceInfo(photo);
+        const SourceIcon = sourceInfo.icon;
+        
+        return (
+          <button
+            key={`${photo.id}-${originalIndex}`}
+            onClick={(e) => handleThumbnailClick(originalIndex, e)}
+            className={cn(
+              'relative group flex-shrink-0 w-16 h-12 rounded overflow-hidden transition-all duration-200',
+              'border-2 hover:scale-105',
+              originalIndex === currentIndex
+                ? 'border-white shadow-lg scale-105'
+                : 'border-transparent hover:border-white/50'
+            )}
+          >
+            <img
+              src={photo.urls.thumb}
+              alt={`Thumbnail ${originalIndex + 1}`}
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+            
+            {/* Source indicator - top-left */}
+            <div className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-1">
+                <div 
+                  className={cn(
+                    'w-2 h-2 rounded-full',
+                    sourceInfo.color
+                  )}
+                  title={`Source: ${sourceInfo.label}`}
+                />
+              </div>
             </div>
-          )}
-          
-          {/* Current indicator */}
-          {originalIndex === currentIndex && (
-            <div className="absolute inset-0 bg-white/10 flex items-center justify-center">
-              <Star className="w-4 h-4 text-white fill-white" />
+            
+            {/* Quality indicator - top-right */}
+            {photo.qualityScore && (
+              <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div 
+                  className={cn(
+                    'w-2 h-2 rounded-full',
+                    getQualityColor(photo.qualityScore)
+                  )}
+                  title={`Quality: ${getQualityText(photo.qualityScore)} (${Math.round(photo.qualityScore)})`}
+                />
+              </div>
+            )}
+            
+            {/* Current indicator */}
+            {originalIndex === currentIndex && (
+              <div className="absolute inset-0 bg-white/10 flex items-center justify-center">
+                <Star className="w-4 h-4 text-white fill-white" />
+              </div>
+            )}
+            
+            {/* Index number */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent">
+              <span className="text-white text-xs px-1 py-0.5 block text-center">
+                {originalIndex + 1}
+              </span>
             </div>
-          )}
-          
-          {/* Index number */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent">
-            <span className="text-white text-xs px-1 py-0.5 block text-center">
-              {originalIndex + 1}
-            </span>
-          </div>
-        </button>
-      ))}
+          </button>
+        );
+      })}
 
       {/* Show indicator if there are photos after the visible range */}
       {photos.length > maxVisible && 
