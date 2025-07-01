@@ -165,9 +165,7 @@ const Map: React.FC<MapProps> = ({
     };
 
     const enhancedInfo = React.createElement(EnhancedLandmarkInfo, {
-      landmark: enhancedLandmark,
-      tourDetails: tourDetails,
-      smartTourLandmarks: smartTourLandmarks
+      landmark: enhancedLandmark
     });
 
     const infoRoot = createRoot(infoContainer);
@@ -189,7 +187,7 @@ const Map: React.FC<MapProps> = ({
       anchor: 'bottom',
       maxWidth: '320px'
     }).setDOMContent(popupContent);
-  }, [fetchLandmarkPhotos, smartTourLandmarks, tourDetails]);
+  }, [fetchLandmarkPhotos]);
 
   const addLandmarkMarkers = useCallback(() => {
     if (!map.current) return;
