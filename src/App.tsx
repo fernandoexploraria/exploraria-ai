@@ -1,9 +1,10 @@
+
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
-import { QueryClientProvider, QueryClient } from 'react-query';
+import { Toaster } from 'sonner';
+import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 import { AuthProvider } from '@/components/AuthProvider';
-import Index from '@/pages';
+import Index from '@/pages/Index';
 import LandmarkInfoPage from '@/pages/LandmarkInfo';
 
 const queryClient = new QueryClient();
