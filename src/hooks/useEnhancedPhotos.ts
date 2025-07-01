@@ -18,12 +18,34 @@ export interface PhotoData {
   width: number;
   height: number;
   qualityScore?: number;
+  photoSource?: 'database_raw_data' | 'database_photos_field' | 'google_places_api';
 }
 
 export interface PhotosResponse {
   photos: PhotoData[];
   placeId: string;
   totalPhotos: number;
+}
+
+// Database landmark interface for enhanced data access
+export interface DatabaseLandmark {
+  id: string;
+  landmark_id: string;
+  name: string;
+  place_id: string | null;
+  raw_data: any;
+  photos: any;
+  photo_references: string[] | null;
+  rating: number | null;
+  user_ratings_total: number | null;
+  price_level: number | null;
+  website_uri: string | null;
+  opening_hours: any;
+  editorial_summary: string | null;
+  formatted_address: string | null;
+  types: string[] | null;
+  coordinates: any;
+  tour_id: string;
 }
 
 const calculatePhotoScore = (photo: PhotoData, index: number): number => {
@@ -52,32 +74,137 @@ const calculatePhotoScore = (photo: PhotoData, index: number): number => {
   return score;
 };
 
+// Extract photos from database raw_data with full metadata preservation
+const extractPhotosFromRawData = (rawData: any): PhotoData[] => {
+  if (!rawData?.photos || !Array.isArray(rawData.photos)) {
+    return [];
+  }
+
+  console.log(`🔍 Extracting photos from raw_data: found ${rawData.photos.length} photos`);
+  
+  return rawData.photos.map((photo: any, index: number) => {
+    const photoData: PhotoData = {
+      id: index + 1,
+      photoReference: photo.name || `raw_data_${index}`,
+      urls: {
+        thumb: photo.photoUri || '',
+        medium: photo.photoUri || '',
+        large: photo.photoUri || ''
+      },
+      attributions: photo.authorAttributions || [],
+      width: photo.widthPx || 800,
+      height: photo.heightPx || 600,
+      photoSource: 'database_raw_data'
+    };
+    
+    photoData.qualityScore = calculatePhotoScore(photoData, index);
+    return photoData;
+  });
+};
+
+// Extract photos from database photos field
+const extractPhotosFromPhotosField = (photos: any): PhotoData[] => {
+  if (!photos) return [];
+
+  console.log(`🔍 Extracting photos from photos field`);
+  
+  // Handle different photo field formats
+  let photoArray: any[] = [];
+  if (Array.isArray(photos)) {
+    photoArray = photos;
+  } else if (typeof photos === 'object' && photos.urls) {
+    photoArray = [photos];
+  } else if (typeof photos === 'string') {
+    try {
+      const parsed = JSON.parse(photos);
+      photoArray = Array.isArray(parsed) ? parsed : [parsed];
+    } catch {
+      return [];
+    }
+  }
+
+  return photoArray.map((photo: any, index: number) => {
+    const photoData: PhotoData = {
+      id: index + 1,
+      photoReference: photo.photoReference || `photos_field_${index}`,
+      urls: photo.urls || {
+        thumb: photo.url || '',
+        medium: photo.url || '',
+        large: photo.url || ''
+      },
+      attributions: photo.attributions || [],
+      width: photo.width || 800,
+      height: photo.height || 600,
+      photoSource: 'database_photos_field'
+    };
+    
+    photoData.qualityScore = calculatePhotoScore(photoData, index);
+    return photoData;
+  });
+};
+
 export const useEnhancedPhotos = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const selectBestPhoto = useCallback((photos: PhotoData[]): PhotoData | null => {
-    if (!photos || photos.length === 0) return null;
-    
-    // Calculate scores and sort by quality
-    const scoredPhotos = photos.map((photo, index) => ({
-      ...photo,
-      qualityScore: calculatePhotoScore(photo, index)
-    }));
-    
-    // Sort by quality score (highest first)
-    scoredPhotos.sort((a, b) => (b.qualityScore || 0) - (a.qualityScore || 0));
-    
-    return scoredPhotos[0];
+  // Fetch landmark data from database (tour landmarks with enhanced data)
+  const fetchLandmarkFromDatabase = useCallback(async (
+    landmarkId: string
+  ): Promise<DatabaseLandmark | null> => {
+    try {
+      console.log(`🔍 Fetching landmark from database: ${landmarkId}`);
+      
+      const { data, error: dbError } = await supabase
+        .from('generated_landmarks')
+        .select(`
+          id,
+          landmark_id,
+          name,
+          place_id,
+          raw_data,
+          photos,
+          photo_references,
+          rating,
+          user_ratings_total,
+          price_level,
+          website_uri,
+          opening_hours,
+          editorial_summary,
+          formatted_address,
+          types,
+          coordinates,
+          tour_id
+        `)
+        .eq('landmark_id', landmarkId)
+        .maybeSingle();
+
+      if (dbError) {
+        console.error('❌ Database query error:', dbError);
+        return null;
+      }
+
+      if (data) {
+        console.log(`✅ Found landmark in database: ${data.name}`);
+        return data as DatabaseLandmark;
+      }
+
+      console.log(`ℹ️ Landmark not found in database: ${landmarkId}`);
+      return null;
+    } catch (error) {
+      console.error('❌ Error fetching landmark from database:', error);
+      return null;
+    }
   }, []);
 
+  // Enhanced photo fetching with 3-tier strategy
   const fetchPhotos = useCallback(async (
     placeId: string, 
     maxWidth: number = 800,
-    quality: 'thumb' | 'medium' | 'large' = 'medium'
+    quality: 'thumb' | 'medium' | 'large' = 'medium',
+    landmarkId?: string // Optional landmark ID for database lookup
   ): Promise<PhotosResponse | null> => {
-    if (!placeId) {
-      setError('Place ID is required');
+    if (!placeId && !landmarkId) {
+      setError('Place ID or Landmark ID is required');
       return null;
     }
 
@@ -85,42 +212,76 @@ export const useEnhancedPhotos = () => {
     setError(null);
 
     try {
-      console.log(`🖼️ Fetching enhanced photos for place: ${placeId}`);
-      
-      const { data, error: fetchError } = await supabase.functions.invoke('google-places-photos-v2', {
-        body: {
-          placeId,
-          maxWidth,
-          quality
-        }
-      });
+      let photos: PhotoData[] = [];
+      let sourceUsed = '';
 
-      if (fetchError) {
-        console.error('❌ Error fetching photos:', fetchError);
-        setError(fetchError.message || 'Failed to fetch photos');
-        return null;
+      // TIER 1: Check database for tour landmarks with raw_data
+      if (landmarkId) {
+        console.log(`🔍 Phase 1: Checking database for landmark: ${landmarkId}`);
+        const dbLandmark = await fetchLandmarkFromDatabase(landmarkId);
+        
+        if (dbLandmark?.raw_data?.photos) {
+          photos = extractPhotosFromRawData(dbLandmark.raw_data);
+          sourceUsed = 'database_raw_data';
+          console.log(`✅ Phase 1 SUCCESS: Found ${photos.length} photos from raw_data`);
+        }
+        // TIER 2: Fallback to photos field from database
+        else if (dbLandmark?.photos) {
+          photos = extractPhotosFromPhotosField(dbLandmark.photos);
+          sourceUsed = 'database_photos_field';
+          console.log(`✅ Phase 2 SUCCESS: Found ${photos.length} photos from photos field`);
+        }
       }
 
-      if (data?.photos && data.photos.length > 0) {
-        // Apply quality scoring and sort photos
-        const photosWithScores = data.photos.map((photo: PhotoData, index: number) => ({
-          ...photo,
-          qualityScore: calculatePhotoScore(photo, index)
-        }));
+      // TIER 3: Fallback to Google Places API
+      if (photos.length === 0 && placeId) {
+        console.log(`🔍 Phase 3: Fetching from Google Places API for place: ${placeId}`);
         
+        const { data, error: apiError } = await supabase.functions.invoke('google-places-photos-v2', {
+          body: {
+            placeId,
+            maxWidth,
+            quality
+          }
+        });
+
+        if (apiError) {
+          console.error('❌ API Error:', apiError);
+          setError(apiError.message || 'Failed to fetch photos from API');
+          return null;
+        }
+
+        if (data?.photos && data.photos.length > 0) {
+          // Add source tracking to API photos
+          photos = data.photos.map((photo: PhotoData, index: number) => ({
+            ...photo,
+            photoSource: 'google_places_api' as const,
+            qualityScore: photo.qualityScore || calculatePhotoScore(photo, index)
+          }));
+          sourceUsed = 'google_places_api';
+          console.log(`✅ Phase 3 SUCCESS: Found ${photos.length} photos from Google Places API`);
+        }
+      }
+
+      if (photos.length > 0) {
         // Sort by quality score (highest first)
-        photosWithScores.sort((a: PhotoData, b: PhotoData) => 
-          (b.qualityScore || 0) - (a.qualityScore || 0)
-        );
+        photos.sort((a, b) => (b.qualityScore || 0) - (a.qualityScore || 0));
         
-        console.log(`✅ Successfully fetched ${photosWithScores.length} photos for place: ${placeId} (sorted by quality)`);
+        console.log(`🎯 Photo fetching complete - Source: ${sourceUsed}, Count: ${photos.length}`);
+        console.log(`📊 Quality distribution:`, {
+          high: photos.filter(p => (p.qualityScore || 0) > 50).length,
+          medium: photos.filter(p => (p.qualityScore || 0) > 25 && (p.qualityScore || 0) <= 50).length,
+          low: photos.filter(p => (p.qualityScore || 0) <= 25).length
+        });
+
         return {
-          ...data,
-          photos: photosWithScores
+          photos,
+          placeId: placeId || landmarkId || '',
+          totalPhotos: photos.length
         };
       } else {
-        console.log(`ℹ️ No photos available for place: ${placeId}`);
-        return { photos: [], placeId, totalPhotos: 0 };
+        console.log(`ℹ️ No photos found for place: ${placeId || landmarkId}`);
+        return { photos: [], placeId: placeId || landmarkId || '', totalPhotos: 0 };
       }
 
     } catch (error) {
@@ -130,6 +291,13 @@ export const useEnhancedPhotos = () => {
     } finally {
       setLoading(false);
     }
+  }, [fetchLandmarkFromDatabase]);
+
+  const selectBestPhoto = useCallback((photos: PhotoData[]): PhotoData | null => {
+    if (!photos || photos.length === 0) return null;
+    
+    // Photos should already be sorted by quality score
+    return photos[0];
   }, []);
 
   const getOptimalPhotoUrl = useCallback((photo: PhotoData, networkQuality: 'high' | 'medium' | 'low' = 'medium'): string => {
@@ -154,6 +322,7 @@ export const useEnhancedPhotos = () => {
     getOptimalPhotoUrl,
     getBestPhoto,
     selectBestPhoto,
+    fetchLandmarkFromDatabase,
     loading,
     error
   };

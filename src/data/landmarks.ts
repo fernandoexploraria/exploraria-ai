@@ -1,4 +1,3 @@
-
 export interface Landmark {
   id: string;
   name: string;
@@ -9,7 +8,7 @@ export interface Landmark {
   types?: string[];
   placeId?: string;
   formattedAddress?: string;
-  tourId?: string; // 🔥 NEW: Optional tour_id for database-linked landmarks
+  tourId?: string; // 🔥 Enhanced: Optional tour_id for database-linked landmarks
 }
 
 export interface EnhancedLandmark extends Landmark {
@@ -20,6 +19,16 @@ export interface EnhancedLandmark extends Landmark {
   photos?: string[];
   types?: string[];
   formattedAddress?: string;
+  // 🔥 Enhanced: Additional fields for database integration
+  landmark_id?: string; // Database landmark identifier
+  place_id?: string; // Google Places ID in database format
+  raw_data?: any; // Complete Google Places raw response
+  photo_references?: string[]; // Photo reference IDs
+  user_ratings_total?: number;
+  price_level?: number;
+  website_uri?: string;
+  opening_hours?: any;
+  editorial_summary?: string;
 }
 
 export const landmarks: Landmark[] = [

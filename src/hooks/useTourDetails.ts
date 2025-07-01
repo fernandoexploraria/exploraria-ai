@@ -5,8 +5,9 @@ import { supabase } from '@/integrations/supabase/client';
 interface TourDetails {
   destination: string;
   systemPrompt: string;
-  // Enhanced with raw data access
+  // Enhanced with raw data access and photo capabilities
   landmarksWithRawData?: any[];
+  landmarksWithPhotos?: any[];
 }
 
 export const useTourDetails = (landmarks: any[]) => {
@@ -46,8 +47,8 @@ export const useTourDetails = (landmarks: any[]) => {
           throw new Error('No data returned from tour details function');
         }
 
-        // 🔥 NEW: Fetch enhanced landmark data with raw_data
-        console.log('🔍 Fetching enhanced landmark data from database...');
+        // 🔥 ENHANCED: Fetch landmark data with full photo capabilities
+        console.log('🔍 Fetching enhanced landmark data with photo capabilities...');
         const { data: landmarksData, error: landmarksError } = await supabase
           .from('generated_landmarks')
           .select(`
@@ -68,16 +69,28 @@ export const useTourDetails = (landmarks: any[]) => {
           console.warn('⚠️ Could not fetch enhanced landmark data, using basic tour details only');
         }
 
+        // Enhanced logging with photo source analysis
+        const photoSourceAnalysis = landmarksData?.reduce((acc: any, landmark: any) => {
+          if (landmark.raw_data?.photos) acc.rawDataPhotos++;
+          if (landmark.photos) acc.photosField++;
+          if (landmark.photo_references?.length) acc.photoReferences++;
+          return acc;
+        }, { rawDataPhotos: 0, photosField: 0, photoReferences: 0 }) || {};
+
         console.log('✅ Successfully fetched enhanced tour details:', {
           destination: tourData.destination,
           landmarksCount: landmarksData?.length || 0,
+          photoSources: photoSourceAnalysis,
           hasRawData: landmarksData?.some(l => l.raw_data) || false
         });
 
         setTourDetails({
           destination: tourData.destination,
           systemPrompt: tourData.systemPrompt,
-          landmarksWithRawData: landmarksData || []
+          landmarksWithRawData: landmarksData || [],
+          landmarksWithPhotos: landmarksData?.filter(l => 
+            l.raw_data?.photos || l.photos || l.photo_references?.length
+          ) || []
         });
 
       } catch (err) {
