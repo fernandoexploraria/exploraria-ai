@@ -9,6 +9,8 @@ interface Interaction {
   interaction_type: string;
   landmark_coordinates: any;
   full_transcript: any;
+  created_at: string;
+  is_favorite: boolean; // Added to match main interface
 }
 
 interface InteractionCardActionsProps {

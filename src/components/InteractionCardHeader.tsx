@@ -10,7 +10,7 @@ interface Interaction {
   destination: string;
   user_input: string;
   assistant_response: string;
-  is_favorite: boolean;
+  is_favorite: boolean; // Changed from optional to required
   created_at: string;
   interaction_type: string;
   full_transcript: any;
