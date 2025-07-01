@@ -1,3 +1,4 @@
+
 import React, { useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Volume2 } from 'lucide-react';
@@ -11,7 +12,7 @@ interface CarouselControlsProps {
   currentInteraction?: Interaction;
 }
 
-const CarouselControls: React.FC<CarouselControlsProps> = React.memo(({
+const CarouselControls: React.FC<CarouselControlsProps> = ({
   currentSlide,
   totalSlides,
   onSlideSelect,
@@ -48,10 +49,6 @@ const CarouselControls: React.FC<CarouselControlsProps> = React.memo(({
     speak(textToSpeak, isMemoryNarration, currentInteraction.id);
   }, [currentInteraction, speak]);
 
-  const handleSlideSelect = useCallback((index: number) => {
-    onSlideSelect(index);
-  }, [onSlideSelect]);
-
   return (
     <div className="flex flex-col items-center gap-3 mt-6">
       {/* Navigation dots */}
@@ -60,7 +57,7 @@ const CarouselControls: React.FC<CarouselControlsProps> = React.memo(({
           {Array.from({ length: totalSlides }, (_, index) => (
             <button
               key={index}
-              onClick={() => handleSlideSelect(index)}
+              onClick={() => onSlideSelect(index)}
               className={`w-2 h-2 rounded-full transition-all duration-200 ${
                 index === currentSlide
                   ? 'bg-white scale-125'
@@ -87,8 +84,6 @@ const CarouselControls: React.FC<CarouselControlsProps> = React.memo(({
       </Button>
     </div>
   );
-});
-
-CarouselControls.displayName = 'CarouselControls';
+};
 
 export default CarouselControls;

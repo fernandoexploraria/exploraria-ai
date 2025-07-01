@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselApi } from '@/components/ui/carousel';
 import { Search, Star } from 'lucide-react';
 import InteractionCard from './InteractionCard';
 import CarouselControls from './CarouselControls';
+import CarouselErrorBoundary from './CarouselErrorBoundary';
 import SkeletonLoader from './ui/skeleton-loader';
 import { Interaction } from '@/types/interaction';
 import { useTTSContext } from '@/contexts/TTSContext';
@@ -189,47 +191,49 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
   const currentInteraction = currentInteractions[currentSlide];
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-2">
-      <div className="w-full max-w-6xl flex flex-col items-center">
-        <Carousel 
-          className="w-full"
-          setApi={setCarouselApi}
-          opts={{
-            align: "center",
-            loop: false,
-          }}
-        >
-          <CarouselContent className="-ml-2 md:-ml-4">
-            {currentInteractions.map((interaction, index) => (
-              <CarouselItem 
-                key={interaction.id} 
-                className="pl-2 md:pl-4 basis-4/5 md:basis-3/5 lg:basis-2/5"
-                data-index={index}
-                ref={(el) => setElementRef(el, index)}
-              >
-                <InteractionCard
-                  interaction={interaction}
-                  index={index}
-                  isCurrentlyPlaying={currentPlayingId === interaction.id}
-                  onToggleFavorite={onToggleFavorite}
-                  onLocationClick={onLocationClick}
-                  isVisible={visibleIndexes.has(index)}
-                />
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-          <CarouselPrevious className="hidden md:flex" />
-          <CarouselNext className="hidden md:flex" />
-        </Carousel>
-        
-        <CarouselControls
-          currentSlide={currentSlide}
-          totalSlides={currentInteractions.length}
-          onSlideSelect={scrollToSlide}
-          currentInteraction={currentInteraction}
-        />
+    <CarouselErrorBoundary>
+      <div className="flex-1 flex flex-col items-center justify-center p-2">
+        <div className="w-full max-w-6xl flex flex-col items-center">
+          <Carousel 
+            className="w-full"
+            setApi={setCarouselApi}
+            opts={{
+              align: "center",
+              loop: false,
+            }}
+          >
+            <CarouselContent className="-ml-2 md:-ml-4">
+              {currentInteractions.map((interaction, index) => (
+                <CarouselItem 
+                  key={interaction.id} 
+                  className="pl-2 md:pl-4 basis-4/5 md:basis-3/5 lg:basis-2/5"
+                  data-index={index}
+                  ref={(el) => setElementRef(el, index)}
+                >
+                  <InteractionCard
+                    interaction={interaction}
+                    index={index}
+                    isCurrentlyPlaying={currentPlayingId === interaction.id}
+                    onToggleFavorite={onToggleFavorite}
+                    onLocationClick={onLocationClick}
+                    isVisible={visibleIndexes.has(index)}
+                  />
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious className="hidden md:flex" />
+            <CarouselNext className="hidden md:flex" />
+          </Carousel>
+          
+          <CarouselControls
+            currentSlide={currentSlide}
+            totalSlides={currentInteractions.length}
+            onSlideSelect={scrollToSlide}
+            currentInteraction={currentInteraction}
+          />
+        </div>
       </div>
-    </div>
+    </CarouselErrorBoundary>
   );
 };
 
