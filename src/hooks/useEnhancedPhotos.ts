@@ -74,88 +74,99 @@ const calculatePhotoScore = (photo: PhotoData, index: number): number => {
   return score;
 };
 
-// Helper function to validate and construct photo URLs
-const constructPhotoUrl = (photoUri: string, maxWidth: number = 800): string => {
-  // Check if it's already a complete URL
-  if (photoUri.startsWith('http://') || photoUri.startsWith('https://')) {
-    console.log(`📷 Using complete URL: ${photoUri}`);
-    return photoUri;
+// Helper function to call the edge function for photo URL construction
+const constructPhotoUrlSecurely = async (photoUri: string, maxWidth: number = 800): Promise<string> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('google-photo-url', {
+      body: {
+        photoReference: photoUri,
+        maxWidth
+      }
+    });
+
+    if (error) {
+      console.error(`❌ Edge function error for ${photoUri}:`, error);
+      throw error;
+    }
+
+    if (data?.url) {
+      console.log(`🔧 Constructed URL from edge function: ${photoUri} -> ${data.url}`);
+      return data.url;
+    } else {
+      throw new Error('No URL returned from edge function');
+    }
+  } catch (error) {
+    console.error(`❌ Failed to construct URL for ${photoUri}:`, error);
+    throw error;
   }
-  
-  // If it's a photo reference, construct Google Places API URL
-  if (photoUri.startsWith('places/') || photoUri.includes('photo')) {
-    // Extract photo reference from the URI
-    const photoRef = photoUri.replace('places/', '').replace('/media', '');
-    const constructedUrl = `https://places.googleapis.com/v1/${photoRef}/media?maxWidthPx=${maxWidth}&key=${import.meta.env.VITE_GOOGLE_API_KEY || 'MISSING_API_KEY'}`;
-    console.log(`🔧 Constructed URL from reference: ${photoRef} -> ${constructedUrl}`);
-    return constructedUrl;
-  }
-  
-  // Fallback: treat as photo reference and construct URL
-  console.log(`⚠️ Treating unknown format as photo reference: ${photoUri}`);
-  return `https://places.googleapis.com/v1/${photoUri}/media?maxWidthPx=${maxWidth}&key=${import.meta.env.VITE_GOOGLE_API_KEY || 'MISSING_API_KEY'}`;
 };
 
-// Validate URL format
+// Validate URL format (updated to remove MISSING_API_KEY check)
 const isValidUrl = (url: string): boolean => {
   try {
     new URL(url);
-    return url.includes('http') && !url.includes('MISSING_API_KEY');
+    return url.includes('http');
   } catch {
     return false;
   }
 };
 
 // Extract photos from database raw_data with enhanced URL construction
-const extractPhotosFromRawData = (rawData: any, photoOptimization?: any): PhotoData[] => {
+const extractPhotosFromRawData = async (rawData: any, photoOptimization?: any): Promise<PhotoData[]> => {
   if (!rawData?.photos || !Array.isArray(rawData.photos)) {
     return [];
   }
 
   console.log(`🔍 Extracting photos from raw_data: found ${rawData.photos.length} photos`);
   
-  return rawData.photos.map((photo: any, index: number) => {
+  const photoPromises = rawData.photos.map(async (photo: any, index: number) => {
     const originalPhotoUri = photo.photoUri || '';
     
-    // Use photo optimization if available for URL construction
-    const thumbUrl = constructPhotoUrl(originalPhotoUri, 400);
-    const mediumUrl = constructPhotoUrl(originalPhotoUri, 800);
-    const largeUrl = constructPhotoUrl(originalPhotoUri, 1600);
-    
-    // Validate constructed URLs
-    const validThumb = isValidUrl(thumbUrl);
-    const validMedium = isValidUrl(mediumUrl);
-    const validLarge = isValidUrl(largeUrl);
-    
-    if (!validThumb && !validMedium && !validLarge) {
-      console.warn(`⚠️ All constructed URLs are invalid for photo ${index}:`, {
-        original: originalPhotoUri,
-        thumb: thumbUrl,
-        medium: mediumUrl,
-        large: largeUrl
-      });
+    try {
+      // Use edge function for URL construction
+      const thumbUrl = await constructPhotoUrlSecurely(originalPhotoUri, 400);
+      const mediumUrl = await constructPhotoUrlSecurely(originalPhotoUri, 800);
+      const largeUrl = await constructPhotoUrlSecurely(originalPhotoUri, 1600);
+      
+      // Validate constructed URLs
+      const validThumb = isValidUrl(thumbUrl);
+      const validMedium = isValidUrl(mediumUrl);
+      const validLarge = isValidUrl(largeUrl);
+      
+      if (!validThumb && !validMedium && !validLarge) {
+        console.warn(`⚠️ All constructed URLs are invalid for photo ${index}:`, {
+          original: originalPhotoUri,
+          thumb: thumbUrl,
+          medium: mediumUrl,
+          large: largeUrl
+        });
+        return null; // Skip this photo
+      }
+      
+      const photoData: PhotoData = {
+        id: index + 1,
+        photoReference: photo.name || originalPhotoUri || `raw_data_${index}`,
+        urls: {
+          thumb: validThumb ? thumbUrl : '',
+          medium: validMedium ? mediumUrl : '',
+          large: validLarge ? largeUrl : ''
+        },
+        attributions: photo.authorAttributions || [],
+        width: photo.widthPx || 800,
+        height: photo.heightPx || 600,
+        photoSource: 'database_raw_data'
+      };
+      
+      photoData.qualityScore = calculatePhotoScore(photoData, index);
+      return photoData;
+    } catch (error) {
+      console.warn(`⚠️ Failed to construct URLs for photo ${index}:`, error);
+      return null; // Skip this photo
     }
-    
-    const photoData: PhotoData = {
-      id: index + 1,
-      photoReference: photo.name || originalPhotoUri || `raw_data_${index}`,
-      urls: {
-        thumb: validThumb ? thumbUrl : '',
-        medium: validMedium ? mediumUrl : '',
-        large: validLarge ? largeUrl : ''
-      },
-      attributions: photo.authorAttributions || [],
-      width: photo.widthPx || 800,
-      height: photo.heightPx || 600,
-      photoSource: 'database_raw_data'
-    };
-    
-    photoData.qualityScore = calculatePhotoScore(photoData, index);
-    return photoData;
-  }).filter(photo => 
-    // Filter out photos with no valid URLs
-    photo.urls.thumb || photo.urls.medium || photo.urls.large
-  );
+  });
+
+  const photos = await Promise.all(photoPromises);
+  return photos.filter(photo => photo !== null) as PhotoData[];
 };
 
 // Extract photos from database photos field
@@ -288,7 +299,7 @@ export const useEnhancedPhotos = () => {
         const dbLandmark = await fetchLandmarkFromDatabase(landmarkId);
         
         if (dbLandmark?.raw_data?.photos) {
-          photos = extractPhotosFromRawData(dbLandmark.raw_data, photoOptimization);
+          photos = await extractPhotosFromRawData(dbLandmark.raw_data, photoOptimization);
           sourceUsed = 'database_raw_data';
           console.log(`✅ Phase 1 SUCCESS: Found ${photos.length} photos from raw_data`);
           

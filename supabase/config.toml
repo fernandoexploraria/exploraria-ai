@@ -41,6 +41,9 @@ verify_jwt = false
 [functions.google-places-proximity]
 verify_jwt = false
 
+[functions.google-photo-url]
+verify_jwt = false
+
 [storage]
 enabled = true
 port = 54325
