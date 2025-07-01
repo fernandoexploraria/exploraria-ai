@@ -339,9 +339,9 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
 
       console.log('Tour created successfully:', tourData.id);
 
-      // Insert landmarks if any exist
+      // Insert landmarks if any exist - ENHANCED WITH NEW FIELDS
       if (landmarks.length > 0) {
-        console.log('Inserting landmarks...');
+        console.log('Inserting enhanced landmarks with complete data...');
         
         const landmarkInserts = landmarks.map((landmark, index) => ({
           tour_id: tourData.id, // Link to the created tour
@@ -350,15 +350,24 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
           coordinates: `(${landmark.geometry.location.lng},${landmark.geometry.location.lat})`,
           description: landmark.editorialSummary || `${landmark.name} - ${landmark.types?.join(', ')}`,
           rating: landmark.rating,
+          // 🔥 NEW ENHANCED FIELDS
+          price_level: landmark.priceLevel,
+          user_ratings_total: landmark.userRatingsTotal,
+          website_uri: landmark.website,
+          opening_hours: landmark.regularOpeningHours || null,
+          editorial_summary: landmark.editorialSummary,
+          photo_references: landmark.photos?.map((p: any) => p.name) || [],
+          // EXISTING FIELDS
           photos: landmark.photoUrl ? [landmark.photoUrl] : [],
           formatted_address: landmark.vicinity,
           types: landmark.types || [],
           place_id: landmark.placeId,
-          quality_score: landmark.rating || 0,
-          confidence: 'high'
+          confidence: 'high',
+          // 🔥 COMPLETE RAW DATA PRESERVATION
+          raw_data: landmark.rawGooglePlacesData || landmark
         }));
 
-        console.log('Landmark insert data (first item):', landmarkInserts[0]);
+        console.log('Enhanced landmark insert data (first item):', landmarkInserts[0]);
 
         const { error: landmarksError } = await supabase
           .from('generated_landmarks')
@@ -369,7 +378,7 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
           throw new Error(`Failed to create landmarks: ${landmarksError.message}`);
         }
 
-        console.log('Landmarks inserted successfully');
+        console.log('Enhanced landmarks inserted successfully with complete data preservation');
       }
 
       // Move to step 4 - preparing map

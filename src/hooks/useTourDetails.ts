@@ -5,6 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 interface TourDetails {
   destination: string;
   systemPrompt: string;
+  // Enhanced with raw data access
+  landmarksWithRawData?: any[];
 }
 
 export const useTourDetails = (landmarks: any[]) => {
@@ -23,28 +25,60 @@ export const useTourDetails = (landmarks: any[]) => {
         return;
       }
 
-      console.log('🔍 Fetching tour details for tour_id:', firstLandmarkWithTourId.tourId);
+      console.log('🔍 Fetching enhanced tour details for tour_id:', firstLandmarkWithTourId.tourId);
       setIsLoading(true);
       setError(null);
 
       try {
+        // Fetch basic tour details
         console.log('📡 Calling get-tour-details function...');
-        const { data, error } = await supabase.functions.invoke('get-tour-details', {
+        const { data: tourData, error: tourError } = await supabase.functions.invoke('get-tour-details', {
           body: { tourId: firstLandmarkWithTourId.tourId }
         });
 
-        if (error) {
-          console.error('❌ Supabase function error:', error);
-          throw new Error(`Function error: ${error.message || 'Unknown error'}`);
+        if (tourError) {
+          console.error('❌ Supabase function error:', tourError);
+          throw new Error(`Function error: ${tourError.message || 'Unknown error'}`);
         }
 
-        if (!data) {
+        if (!tourData) {
           console.error('❌ No data returned from function');
           throw new Error('No data returned from tour details function');
         }
 
-        console.log('✅ Successfully fetched tour details:', data);
-        setTourDetails(data);
+        // 🔥 NEW: Fetch enhanced landmark data with raw_data
+        console.log('🔍 Fetching enhanced landmark data from database...');
+        const { data: landmarksData, error: landmarksError } = await supabase
+          .from('generated_landmarks')
+          .select(`
+            *,
+            raw_data,
+            price_level,
+            user_ratings_total,
+            website_uri,
+            opening_hours,
+            editorial_summary,
+            photo_references
+          `)
+          .eq('tour_id', firstLandmarkWithTourId.tourId);
+
+        if (landmarksError) {
+          console.error('❌ Error fetching enhanced landmarks:', landmarksError);
+          // Don't throw error, just log warning and continue with basic tour data
+          console.warn('⚠️ Could not fetch enhanced landmark data, using basic tour details only');
+        }
+
+        console.log('✅ Successfully fetched enhanced tour details:', {
+          destination: tourData.destination,
+          landmarksCount: landmarksData?.length || 0,
+          hasRawData: landmarksData?.some(l => l.raw_data) || false
+        });
+
+        setTourDetails({
+          destination: tourData.destination,
+          systemPrompt: tourData.systemPrompt,
+          landmarksWithRawData: landmarksData || []
+        });
 
       } catch (err) {
         console.error('❌ Failed to fetch tour details:', err);

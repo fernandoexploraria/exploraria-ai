@@ -103,7 +103,7 @@ serve(async (req) => {
     const searchRadius = radius || getRadiusForDestinationType(destinationTypes)
     const maxResults = getMaxResultsForDestinationType(destinationTypes)
     
-    console.log('Searching nearby landmarks with updated radii:', { 
+    console.log('Searching nearby landmarks with enhanced data capture:', { 
       coordinates, 
       radius: searchRadius, 
       maxResults,
@@ -144,8 +144,7 @@ serve(async (req) => {
     const data = await response.json()
 
     if (data.places) {
-      // Map new API response to legacy format for backward compatibility
-      // Use the dynamic maxResults limit instead of fixed slice(0, 20)
+      // Enhanced mapping with complete data preservation
       const nearbyPlaces = data.places.slice(0, maxResults).map((place: any) => ({
         placeId: place.id,
         name: place.displayName?.text || place.displayName,
@@ -165,14 +164,18 @@ serve(async (req) => {
             lng: place.location?.longitude || 0
           }
         },
-        // Enhanced fields for intelligent tour generation
+        // Enhanced fields for complete data capture
         editorialSummary: place.editorialSummary?.text,
         website: place.websiteUri,
+        regularOpeningHours: place.regularOpeningHours,
+        photos: place.photos || [],
         searchRadius: searchRadius,
-        maxResults: maxResults
+        maxResults: maxResults,
+        // 🔥 NEW: Store complete raw Google Places API response
+        rawGooglePlacesData: place
       }))
 
-      console.log(`Found ${nearbyPlaces.length} landmarks within ${searchRadius}m (max ${maxResults} results)`)
+      console.log(`Enhanced data capture: Found ${nearbyPlaces.length} landmarks within ${searchRadius}m (max ${maxResults} results)`)
 
       return new Response(
         JSON.stringify({ 

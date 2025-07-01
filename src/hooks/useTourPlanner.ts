@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Landmark, EnhancedLandmark } from '@/data/landmarks';
 import { setTourLandmarks, clearTourMarkers } from '@/data/tourLandmarks';
@@ -187,7 +188,7 @@ export const useTourPlanner = () => {
         qualityMetrics: enhancedTourData.metadata?.coordinateQuality
       });
 
-      // Preserve enhanced landmarks with all metadata
+      // Preserve enhanced landmarks with all metadata - NO QUALITY_SCORE FIELD
       const enhancedLandmarks: EnhancedLandmark[] = enhancedTourData.landmarks.map((enhancedLandmark: any) => ({
         id: enhancedLandmark.id,
         name: enhancedLandmark.name,
@@ -200,6 +201,7 @@ export const useTourPlanner = () => {
         photos: enhancedLandmark.photos,
         types: enhancedLandmark.types,
         formattedAddress: enhancedLandmark.formattedAddress
+        // 🔥 NOTE: Removed quality_score field completely
       }));
 
       // Phase 4: Finalize tour with slower progress

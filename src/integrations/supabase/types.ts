@@ -18,21 +18,27 @@ export type Database = {
           coordinates: unknown
           created_at: string
           description: string | null
+          editorial_summary: string | null
           error_messages: string[] | null
           fallback_methods_used: string[] | null
           formatted_address: string | null
           id: string
           landmark_id: string
           name: string
+          opening_hours: Json | null
+          photo_references: string[] | null
           photos: Json | null
           place_id: string | null
+          price_level: number | null
           processing_time_ms: number | null
-          quality_score: number | null
           rating: number | null
+          raw_data: Json | null
           search_attempts: number | null
           search_query: string | null
           tour_id: string
           types: string[] | null
+          user_ratings_total: number | null
+          website_uri: string | null
         }
         Insert: {
           api_calls_made?: number | null
@@ -42,21 +48,27 @@ export type Database = {
           coordinates: unknown
           created_at?: string
           description?: string | null
+          editorial_summary?: string | null
           error_messages?: string[] | null
           fallback_methods_used?: string[] | null
           formatted_address?: string | null
           id?: string
           landmark_id: string
           name: string
+          opening_hours?: Json | null
+          photo_references?: string[] | null
           photos?: Json | null
           place_id?: string | null
+          price_level?: number | null
           processing_time_ms?: number | null
-          quality_score?: number | null
           rating?: number | null
+          raw_data?: Json | null
           search_attempts?: number | null
           search_query?: string | null
           tour_id: string
           types?: string[] | null
+          user_ratings_total?: number | null
+          website_uri?: string | null
         }
         Update: {
           api_calls_made?: number | null
@@ -66,21 +78,27 @@ export type Database = {
           coordinates?: unknown
           created_at?: string
           description?: string | null
+          editorial_summary?: string | null
           error_messages?: string[] | null
           fallback_methods_used?: string[] | null
           formatted_address?: string | null
           id?: string
           landmark_id?: string
           name?: string
+          opening_hours?: Json | null
+          photo_references?: string[] | null
           photos?: Json | null
           place_id?: string | null
+          price_level?: number | null
           processing_time_ms?: number | null
-          quality_score?: number | null
           rating?: number | null
+          raw_data?: Json | null
           search_attempts?: number | null
           search_query?: string | null
           tour_id?: string
           types?: string[] | null
+          user_ratings_total?: number | null
+          website_uri?: string | null
         }
         Relationships: [
           {
