@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { PhotoData } from '@/hooks/useEnhancedPhotos';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { usePhotoOptimization } from '@/hooks/photo-optimization/usePhotoOptimization';
+import { isValidGooglePlacesPhotoUrl } from '@/utils/photoUrlValidation';
 
 interface EnhancedProgressiveImageProps {
   photo: PhotoData;
@@ -27,6 +28,7 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
   const [hasError, setHasError] = useState(false);
   const [loadAttempts, setLoadAttempts] = useState(0);
   const [optimizationInfo, setOptimizationInfo] = useState<string>('');
+  const [validationError, setValidationError] = useState<string>('');
   
   const { getOptimalImageQuality } = useNetworkStatus();
   const photoOptimization = usePhotoOptimization();
@@ -37,8 +39,9 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
     setHasError(false);
     setLoadAttempts(0);
     setOptimizationInfo('');
+    setValidationError('');
     
-    // Enhanced progressive loading with optimization
+    // Enhanced progressive loading with robust validation
     const loadImageWithOptimization = async () => {
       const networkQuality = getOptimalImageQuality();
       
@@ -65,16 +68,29 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
         ].filter(item => item.url);
       }
       
-      // If no URLs available, try optimization on photo reference
-      if (urlsToTry.length === 0 && photo.photoReference) {
-        console.log(`📸 No URLs available, trying optimization for: ${photo.photoReference}`);
+      // Pre-validate URLs using robust validation
+      const validatedUrls = urlsToTry.filter(({ url }) => {
+        if (url.includes('places.googleapis.com')) {
+          const validation = isValidGooglePlacesPhotoUrl(url);
+          if (!validation.isValid) {
+            console.warn(`📸 Pre-validation failed for ${url}: ${validation.error}`);
+            setValidationError(validation.error || 'Unknown validation error');
+            return false;
+          }
+        }
+        return true;
+      });
+
+      // If no valid URLs available, try optimization on photo reference
+      if (validatedUrls.length === 0 && photo.photoReference) {
+        console.log(`📸 No valid URLs available, trying optimization for: ${photo.photoReference}`);
         try {
           const optimizedResult = await photoOptimization.getOptimizedPhotoUrl(
             photo.photoReference,
             networkQuality === 'low' ? 'thumb' : networkQuality === 'high' ? 'large' : 'medium'
           );
           
-          urlsToTry = [{ url: optimizedResult.url, size: 'medium' as const }];
+          validatedUrls.push({ url: optimizedResult.url, size: 'medium' as const });
           setOptimizationInfo(`Optimized (${optimizedResult.source})`);
           
           if (optimizedResult.isPreValidated) {
@@ -88,20 +104,21 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
         }
       }
       
-      if (urlsToTry.length === 0) {
+      if (validatedUrls.length === 0) {
         console.error('❌ No valid URLs available for photo:', photo);
         setHasError(true);
+        setValidationError('No valid URLs passed validation');
         onError?.();
         return;
       }
       
-      // Try each URL in order with enhanced error handling
-      for (let i = 0; i < urlsToTry.length; i++) {
-        const { url, size } = urlsToTry[i];
+      // Try each validated URL in order with enhanced error handling
+      for (let i = 0; i < validatedUrls.length; i++) {
+        const { url, size } = validatedUrls[i];
         setLoadAttempts(i + 1);
         
         try {
-          console.log(`📷 Attempting to load photo (attempt ${i + 1}/${urlsToTry.length}):`, { url, size });
+          console.log(`📷 Attempting to load photo (attempt ${i + 1}/${validatedUrls.length}):`, { url, size });
           
           // Record the attempt for metrics
           const startTimer = photoOptimization.metrics.startPhotoLoadTimer(photo.id.toString());
@@ -143,8 +160,8 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
           });
           
           // If this was the last attempt, show error
-          if (i === urlsToTry.length - 1) {
-            console.error('❌ All photo URLs failed to load for:', photo);
+          if (i === validatedUrls.length - 1) {
+            console.error('❌ All validated photo URLs failed to load for:', photo);
             setHasError(true);
             onError?.();
           }
@@ -176,6 +193,11 @@ const EnhancedProgressiveImage: React.FC<EnhancedProgressiveImageProps> = ({
             Tried {loadAttempts} URL{loadAttempts !== 1 ? 's' : ''}
             {optimizationInfo && ` (${optimizationInfo})`}
           </div>
+          {validationError && (
+            <div className="text-xs mt-1 text-red-500">
+              Validation: {validationError}
+            </div>
+          )}
         </div>
       </div>
     );

@@ -1,7 +1,7 @@
-
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { usePhotoOptimization } from './photo-optimization/usePhotoOptimization';
+import { isValidGooglePlacesPhotoUrl } from '@/utils/photoUrlValidation';
 
 export interface PhotoData {
   id: number;
@@ -102,8 +102,18 @@ const constructPhotoUrlSecurely = async (photoUri: string, maxWidth: number = 80
   }
 };
 
-// Validate URL format (updated to remove MISSING_API_KEY check)
+// Updated validation function using the robust Google Places Photo validation
 const isValidUrl = (url: string): boolean => {
+  // For Google Places Photo URLs, use the robust validation
+  if (url.includes('places.googleapis.com')) {
+    const result = isValidGooglePlacesPhotoUrl(url);
+    if (!result.isValid) {
+      console.warn(`❌ Google Places Photo URL validation failed: ${result.error}`, url);
+    }
+    return result.isValid;
+  }
+
+  // For other URLs, use basic validation
   try {
     new URL(url);
     return url.includes('http');
@@ -112,7 +122,7 @@ const isValidUrl = (url: string): boolean => {
   }
 };
 
-// Extract photos from database raw_data with enhanced URL construction
+// Extract photos from database raw_data with corrected photo reference handling
 const extractPhotosFromRawData = async (rawData: any, photoOptimization?: any): Promise<PhotoData[]> => {
   if (!rawData?.photos || !Array.isArray(rawData.photos)) {
     return [];
@@ -121,7 +131,8 @@ const extractPhotosFromRawData = async (rawData: any, photoOptimization?: any): 
   console.log(`🔍 Extracting photos from raw_data: found ${rawData.photos.length} photos`);
   
   const photoPromises = rawData.photos.map(async (photo: any, index: number) => {
-    // Use the correct field name from database: photo.name (not photo.photoUri)
+    // CORRECTED: Use the photo.name field as-is from Google Places API (New)
+    // This is the full resource name like: places/{placeId}/photos/{photo_reference}
     const originalPhotoReference = photo.name || '';
     
     // Skip photos with empty or missing references
@@ -133,18 +144,18 @@ const extractPhotosFromRawData = async (rawData: any, photoOptimization?: any): 
     try {
       console.log(`🔧 Processing photo ${index} with reference: ${originalPhotoReference}`);
       
-      // Use edge function for URL construction
+      // Use edge function for URL construction (now handles photo.name correctly)
       const thumbUrl = await constructPhotoUrlSecurely(originalPhotoReference, 400);
       const mediumUrl = await constructPhotoUrlSecurely(originalPhotoReference, 800);
       const largeUrl = await constructPhotoUrlSecurely(originalPhotoReference, 1600);
       
-      // Validate constructed URLs
-      const validThumb = isValidUrl(thumbUrl);
-      const validMedium = isValidUrl(mediumUrl);
-      const validLarge = isValidUrl(largeUrl);
+      // Validate constructed URLs using robust validation
+      const thumbValidation = isValidUrl(thumbUrl);
+      const mediumValidation = isValidUrl(mediumUrl);
+      const largeValidation = isValidUrl(largeUrl);
       
-      if (!validThumb && !validMedium && !validLarge) {
-        console.warn(`⚠️ All constructed URLs are invalid for photo ${index}:`, {
+      if (!thumbValidation && !mediumValidation && !largeValidation) {
+        console.warn(`⚠️ All constructed URLs failed validation for photo ${index}:`, {
           original: originalPhotoReference,
           thumb: thumbUrl,
           medium: mediumUrl,
@@ -155,11 +166,11 @@ const extractPhotosFromRawData = async (rawData: any, photoOptimization?: any): 
       
       const photoData: PhotoData = {
         id: index + 1,
-        photoReference: originalPhotoReference, // Use the correct field name
+        photoReference: originalPhotoReference,
         urls: {
-          thumb: validThumb ? thumbUrl : '',
-          medium: validMedium ? mediumUrl : '',
-          large: validLarge ? largeUrl : ''
+          thumb: thumbValidation ? thumbUrl : '',
+          medium: mediumValidation ? mediumUrl : '',
+          large: largeValidation ? largeUrl : ''
         },
         attributions: photo.authorAttributions || [],
         width: photo.widthPx || 800,
@@ -168,6 +179,17 @@ const extractPhotosFromRawData = async (rawData: any, photoOptimization?: any): 
       };
       
       photoData.qualityScore = calculatePhotoScore(photoData, index);
+      
+      console.log(`✅ Successfully processed photo ${index}:`, {
+        reference: originalPhotoReference,
+        validUrls: {
+          thumb: thumbValidation,
+          medium: mediumValidation,
+          large: largeValidation
+        },
+        qualityScore: photoData.qualityScore
+      });
+      
       return photoData;
     } catch (error) {
       console.warn(`⚠️ Failed to construct URLs for photo ${index} with reference "${originalPhotoReference}":`, error);
