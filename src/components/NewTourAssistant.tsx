@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { CleanDialog, CleanDialogContent, CleanDialogHeader, CleanDialogTitle } from '@/components/ui/clean-dialog';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Landmark } from '@/data/landmarks';
@@ -313,12 +312,12 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   // Show loading if configuration is being fetched or tour details are loading
   if (isLoadingConfig || isFetchingTourDetails) {
     return (
-      <Dialog open={open} onOpenChange={handleDialogClose}>
-        <DialogContent className="sm:max-w-xs p-8 bg-transparent border-none shadow-none">
+      <CleanDialog open={open} onOpenChange={handleDialogClose}>
+        <CleanDialogContent className="sm:max-w-xs p-8 bg-transparent border-none shadow-none">
           <div className="bg-background rounded-lg p-6 border shadow-lg">
-            <DialogHeader>
-              <DialogTitle>Loading Tour Guide</DialogTitle>
-            </DialogHeader>
+            <CleanDialogHeader>
+              <CleanDialogTitle>Loading Tour Guide</CleanDialogTitle>
+            </CleanDialogHeader>
             <div className="flex items-center justify-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
             </div>
@@ -328,20 +327,20 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
               </div>
             )}
           </div>
-        </DialogContent>
-      </Dialog>
+        </CleanDialogContent>
+      </CleanDialog>
     );
   }
 
   // Show error if configuration couldn't be loaded or there's a connection error
   if (!elevenLabsConfig || connectionError || tourDetailsError) {
     return (
-      <Dialog open={open} onOpenChange={handleDialogClose}>
-        <DialogContent className="sm:max-w-xs p-8 bg-transparent border-none shadow-none">
+      <CleanDialog open={open} onOpenChange={handleDialogClose}>
+        <CleanDialogContent className="sm:max-w-xs p-8 bg-transparent border-none shadow-none">
           <div className="bg-background rounded-lg p-6 border shadow-lg">
-            <DialogHeader>
-              <DialogTitle>Connection Error</DialogTitle>
-            </DialogHeader>
+            <CleanDialogHeader>
+              <CleanDialogTitle>Connection Error</CleanDialogTitle>
+            </CleanDialogHeader>
             <div className="text-center space-y-4">
               <div className="text-red-500 text-sm">
                 {tourDetailsError ? `Tour Details Error: ${tourDetailsError}` : 'Connection Error'}
@@ -392,14 +391,14 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </CleanDialogContent>
+      </CleanDialog>
     );
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleDialogClose}>
-      <DialogContent className="sm:max-w-xs p-8 bg-transparent border-none shadow-none">
+    <CleanDialog open={open} onOpenChange={handleDialogClose}>
+      <CleanDialogContent className="sm:max-w-xs p-8 bg-transparent border-none shadow-none">
         <div className="flex items-center justify-center">
           <div className="relative flex items-center justify-center">
             <div className={`w-48 h-48 rounded-full border-4 flex items-center justify-center transition-all duration-300 ${getCircleColor()}`}>
@@ -435,8 +434,8 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
             )}
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </CleanDialogContent>
+    </CleanDialog>
   );
 };
 
