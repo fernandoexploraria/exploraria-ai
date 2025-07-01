@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import mapboxgl from 'mapbox-gl';
@@ -47,7 +46,7 @@ const Map: React.FC<MapProps> = ({
   const userMarker = useRef<mapboxgl.Marker | null>(null);
   const landmarkMarkers = useRef<mapboxgl.Marker[]>([]);
   const selectedPopup = useRef<mapboxgl.Popup | null>(null);
-  const enhancedPhotosCache = useRef<Map<string, PhotoData[]>>(new Map());
+  const enhancedPhotosCache = useRef<globalThis.Map<string, PhotoData[]>>(new globalThis.Map());
   
   const [mapLoaded, setMapLoaded] = useState(false);
   const [proximityAlerts, setProximityAlerts] = useState<ProximityAlert[]>([]);
@@ -58,7 +57,7 @@ const Map: React.FC<MapProps> = ({
   const [selectedLandmark, setSelectedLandmark] = useState<Landmark | null>(null);
 
   const mapboxToken = useMapboxToken();
-  const { startTracking, stopTracking, userLocation: currentLocation, locationError } = useLocationTracking();
+  const { startTracking, stopTracking, userLocation: currentLocation, locationState } = useLocationTracking();
   const proximityAlertsHook = useProximityAlerts();
   const { fetchStreetView } = useStreetView();
 
@@ -157,8 +156,16 @@ const Map: React.FC<MapProps> = ({
     const infoContainer = document.createElement('div');
     infoContainer.className = 'info-container';
 
+    // Convert basic Landmark to EnhancedLandmark format for EnhancedLandmarkInfo
+    const enhancedLandmark = {
+      ...landmark,
+      coordinateSource: 'manual',
+      confidence: 1.0,
+      placeId: landmark.placeId || undefined
+    };
+
     const enhancedInfo = React.createElement(EnhancedLandmarkInfo, {
-      landmark: landmark,
+      landmark: enhancedLandmark,
       tourDetails: tourDetails,
       smartTourLandmarks: smartTourLandmarks
     });
@@ -338,10 +345,10 @@ const Map: React.FC<MapProps> = ({
   }, [showUserLocation, startTracking, stopTracking]);
 
   useEffect(() => {
-    if (locationError) {
-      toast.error(`Location Error: ${locationError}`, { duration: 5000 });
+    if (locationState.error) {
+      toast.error(`Location Error: ${locationState.error}`, { duration: 5000 });
     }
-  }, [locationError]);
+  }, [locationState.error]);
 
   useEffect(() => {
     if (selectedLandmarkForStreetView) {
