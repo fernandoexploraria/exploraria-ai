@@ -16,7 +16,7 @@ interface Interaction {
   landmark_coordinates: any;
   full_transcript: any;
   image_url?: string;
-  is_favorite?: boolean;
+  is_favorite: boolean; // Changed from optional to required
   place_id?: string;
 }
 
