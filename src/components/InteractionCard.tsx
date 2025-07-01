@@ -15,7 +15,7 @@ interface Interaction {
   created_at: string;
   landmark_coordinates: any;
   full_transcript: any;
-  landmark_image_url: string | null; // Changed to nullable instead of optional
+  landmark_image_url: string | null;
   is_favorite: boolean;
   place_id?: string;
 }
@@ -29,7 +29,7 @@ interface InteractionCardProps {
   isVisible?: boolean;
 }
 
-const InteractionCard: React.FC<InteractionCardProps> = ({
+const InteractionCard: React.FC<InteractionCardProps> = React.memo(({
   interaction,
   index,
   isCurrentlyPlaying,
@@ -76,6 +76,8 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
       </CardContent>
     </Card>
   );
-};
+});
+
+InteractionCard.displayName = 'InteractionCard';
 
 export default InteractionCard;

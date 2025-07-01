@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, CarouselApi } from '@/components/ui/carousel';
 import { Search, Star } from 'lucide-react';
 import InteractionCard from './InteractionCard';
@@ -30,9 +30,39 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
   const [visibleIndexes, setVisibleIndexes] = useState<Set<number>>(new Set([0, 1, 2]));
   const { stop, isPlaying, currentPlayingId } = useTTSContext();
   const observerRef = useRef<IntersectionObserver | null>(null);
+  const elementsRef = useRef<Map<number, HTMLDivElement>>(new Map());
 
-  // Handle carousel slide changes - stop audio when card moves
-  useEffect(() => {
+  // Stable observer callback
+  const observerCallback = useCallback((entries: IntersectionObserverEntry[]) => {
+    entries.forEach((entry) => {
+      const indexAttr = entry.target.getAttribute('data-index');
+      if (indexAttr) {
+        const index = parseInt(indexAttr, 10);
+        if (!isNaN(index) && entry.isIntersecting) {
+          setVisibleIndexes(prev => new Set([...prev, index]));
+        }
+      }
+    });
+  }, []);
+
+  // Stable ref callback for carousel items
+  const setElementRef = useCallback((element: HTMLDivElement | null, index: number) => {
+    if (element) {
+      elementsRef.current.set(index, element);
+      if (observerRef.current) {
+        try {
+          observerRef.current.observe(element);
+        } catch (error) {
+          console.warn('Failed to observe element:', error);
+        }
+      }
+    } else {
+      elementsRef.current.delete(index);
+    }
+  }, []);
+
+  // Handle carousel slide changes - use useLayoutEffect to prevent timing issues
+  useLayoutEffect(() => {
     if (!carouselApi) return;
 
     const handleSlideChange = () => {
@@ -67,11 +97,15 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
     setVisibleIndexes(initialVisibleIndexes);
 
     return () => {
-      carouselApi.off("select", handleSlideChange);
+      try {
+        carouselApi.off("select", handleSlideChange);
+      } catch (error) {
+        console.warn('Error removing carousel listener:', error);
+      }
     };
   }, [carouselApi, stop, isPlaying, currentInteractions.length]);
 
-  // Set up intersection observer for additional lazy loading with improved cleanup
+  // Set up intersection observer with stable dependencies
   useEffect(() => {
     // Clean up previous observer
     if (observerRef.current) {
@@ -79,24 +113,22 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
       observerRef.current = null;
     }
 
-    // Create new observer
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          const indexAttr = entry.target.getAttribute('data-index');
-          if (indexAttr) {
-            const index = parseInt(indexAttr, 10);
-            if (!isNaN(index) && entry.isIntersecting) {
-              setVisibleIndexes(prev => new Set([...prev, index]));
-            }
-          }
-        });
-      },
-      {
-        rootMargin: '50px',
-        threshold: 0.1
+    // Create new observer with stable callback
+    observerRef.current = new IntersectionObserver(observerCallback, {
+      rootMargin: '50px',
+      threshold: 0.1
+    });
+
+    // Observe existing elements
+    elementsRef.current.forEach((element) => {
+      if (observerRef.current) {
+        try {
+          observerRef.current.observe(element);
+        } catch (error) {
+          console.warn('Failed to observe existing element:', error);
+        }
       }
-    );
+    });
 
     return () => {
       if (observerRef.current) {
@@ -104,25 +136,14 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
         observerRef.current = null;
       }
     };
-  }, []);
+  }, [observerCallback]);
 
-  const scrollToSlide = (index: number) => {
+  const scrollToSlide = useCallback((index: number) => {
     if (carouselApi) {
       console.log('Manually scrolling to slide:', index);
       carouselApi.scrollTo(index);
     }
-  };
-
-  // Improved ref callback to prevent errors
-  const setObserverRef = (el: HTMLDivElement | null, index: number) => {
-    if (el && observerRef.current) {
-      try {
-        observerRef.current.observe(el);
-      } catch (error) {
-        console.warn('Failed to observe element:', error);
-      }
-    }
-  };
+  }, [carouselApi]);
 
   if (isLoading) {
     return (
@@ -185,7 +206,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
                 key={interaction.id} 
                 className="pl-2 md:pl-4 basis-4/5 md:basis-3/5 lg:basis-2/5"
                 data-index={index}
-                ref={(el) => setObserverRef(el, index)}
+                ref={(el) => setElementRef(el, index)}
               >
                 <InteractionCard
                   interaction={interaction}

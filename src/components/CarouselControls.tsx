@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Volume2 } from 'lucide-react';
 import { useTTSContext } from '@/contexts/TTSContext';
@@ -12,7 +12,7 @@ interface CarouselControlsProps {
   currentInteraction?: Interaction;
 }
 
-const CarouselControls: React.FC<CarouselControlsProps> = ({
+const CarouselControls: React.FC<CarouselControlsProps> = React.memo(({
   currentSlide,
   totalSlides,
   onSlideSelect,
@@ -20,7 +20,7 @@ const CarouselControls: React.FC<CarouselControlsProps> = ({
 }) => {
   const { speak, isPlaying } = useTTSContext();
 
-  const handleSpeakerClick = () => {
+  const handleSpeakerClick = useCallback(() => {
     if (!currentInteraction) return;
 
     let textToSpeak = '';
@@ -47,7 +47,11 @@ const CarouselControls: React.FC<CarouselControlsProps> = ({
     }
 
     speak(textToSpeak, isMemoryNarration, currentInteraction.id);
-  };
+  }, [currentInteraction, speak]);
+
+  const handleSlideSelect = useCallback((index: number) => {
+    onSlideSelect(index);
+  }, [onSlideSelect]);
 
   return (
     <div className="flex flex-col items-center gap-3 mt-6">
@@ -57,7 +61,7 @@ const CarouselControls: React.FC<CarouselControlsProps> = ({
           {Array.from({ length: totalSlides }, (_, index) => (
             <button
               key={index}
-              onClick={() => onSlideSelect(index)}
+              onClick={() => handleSlideSelect(index)}
               className={`w-2 h-2 rounded-full transition-all duration-200 ${
                 index === currentSlide
                   ? 'bg-white scale-125'
@@ -84,6 +88,8 @@ const CarouselControls: React.FC<CarouselControlsProps> = ({
       </Button>
     </div>
   );
-};
+});
+
+CarouselControls.displayName = 'CarouselControls';
 
 export default CarouselControls;
