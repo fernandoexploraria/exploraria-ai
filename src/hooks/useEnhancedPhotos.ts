@@ -176,16 +176,18 @@ export const useEnhancedPhotos = () => {
           tour_id
         `)
         .eq('landmark_id', landmarkId)
-        .maybeSingle();
+        .order('created_at', { ascending: false })
+        .limit(1);
 
       if (dbError) {
         console.error('❌ Database query error:', dbError);
         return null;
       }
 
-      if (data) {
-        console.log(`✅ Found landmark in database: ${data.name}`);
-        return data as DatabaseLandmark;
+      if (data && data.length > 0) {
+        const landmark = data[0];
+        console.log(`✅ Found landmark in database: ${landmark.name} (selected from ${data.length} results)`);
+        return landmark as DatabaseLandmark;
       }
 
       console.log(`ℹ️ Landmark not found in database: ${landmarkId}`);
