@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { Volume2, Eye, MapPin } from 'lucide-react';
+import { Volume2, Eye, MapPin, Info } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { TOUR_LANDMARKS, TourLandmark } from '@/data/tourLandmarks';
@@ -866,7 +866,65 @@ const MapComponent: React.FC<MapProps> = ({
   // Create a new ref for storing React roots for popup cleanup
   const popupRoots = useRef<{ [key: string]: ReactDOM.Root }>({});
 
-  // Updated function to show landmark popup with PhotoCarousel
+  // Function to open enhanced info window
+  const openEnhancedInfoWindow = async (landmark: Landmark) => {
+    console.log('Opening enhanced info window for:', landmark.name);
+    
+    // Try to get enhanced data from database first
+    let enhancedData = null;
+    try {
+      const { data, error } = await supabase
+        .from('generated_landmarks')
+        .select('*')
+        .or(`name.eq.${landmark.name},landmark_id.eq.${landmark.id}`)
+        .single();
+      
+      if (!error && data) {
+        enhancedData = data;
+        console.log('Found enhanced data for landmark:', data);
+      }
+    } catch (error) {
+      console.log('No enhanced data found, using basic landmark data');
+    }
+
+    // Fetch photos
+    const photos = await fetchLandmarkPhotos(landmark);
+    
+    // Prepare landmark data for the info window
+    const landmarkData = {
+      id: landmark.id,
+      name: landmark.name,
+      description: landmark.description,
+      coordinates: landmark.coordinates,
+      rating: enhancedData?.rating ? Number(enhancedData.rating) : undefined,
+      user_ratings_total: enhancedData?.user_ratings_total || undefined,
+      price_level: enhancedData?.price_level || undefined,
+      formatted_address: enhancedData?.formatted_address || undefined,
+      editorial_summary: enhancedData?.editorial_summary || undefined,
+      types: enhancedData?.types || undefined,
+      opening_hours: enhancedData?.opening_hours || undefined,
+      website_uri: enhancedData?.website_uri || undefined,
+      photos: photos
+    };
+
+    // Store data in sessionStorage for the new window
+    const dataKey = `landmark-info-${landmark.id}-${Date.now()}`;
+    sessionStorage.setItem(dataKey, JSON.stringify(landmarkData));
+    
+    // Open new window
+    const newWindow = window.open(
+      `/landmark-info?data=${dataKey}`,
+      '_blank',
+      'width=1200,height=800,scrollbars=yes,resizable=yes'
+    );
+    
+    if (!newWindow) {
+      console.error('Failed to open new window - popup blocked?');
+      // Fallback: could show in a modal instead
+    }
+  };
+
+  // Updated function to show landmark popup with info icon
   const showLandmarkPopup = async (landmark: Landmark) => {
     if (!map.current) return;
     
@@ -951,8 +1009,16 @@ const MapComponent: React.FC<MapProps> = ({
               ×
             </button>
 
+            <button
+              onClick={() => openEnhancedInfoWindow(landmark)}
+              className="absolute top-2 right-10 z-50 bg-blue-500/95 hover:bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center transition-colors"
+              title="More information"
+            >
+              <Info className="w-3 h-3" />
+            </button>
+
             <div className="absolute top-0 left-0 right-0 z-40 bg-gradient-to-b from-black/70 to-transparent p-4">
-              <h3 className="text-white font-bold text-lg pr-8">{landmark.name}</h3>
+              <h3 className="text-white font-bold text-lg pr-16">{landmark.name}</h3>
             </div>
 
             <div className="absolute bottom-16 right-4 z-40 flex gap-2">
@@ -1022,8 +1088,16 @@ const MapComponent: React.FC<MapProps> = ({
               ×
             </button>
 
+            <button
+              onClick={() => openEnhancedInfoWindow(landmark)}
+              className="absolute top-2 right-10 z-50 bg-blue-500/95 hover:bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center transition-colors"
+              title="More information"
+            >
+              <Info className="w-3 h-3" />
+            </button>
+
             <div className="p-4">
-              <h3 className="text-lg font-bold mb-3 pr-8">{landmark.name}</h3>
+              <h3 className="text-lg font-bold mb-3 pr-16">{landmark.name}</h3>
               <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center mb-3 relative">
                 <div className="text-center">
                   <MapPin className="w-8 h-8 text-gray-400 mx-auto mb-1" />
