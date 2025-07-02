@@ -35,9 +35,9 @@ export const useLandmarkPhotos = () => {
     try {
       console.log(`🖼️ Fetching photos for landmark: ${landmark.name}`);
       
-      // Determine available identifiers
-      const landmarkId = landmark.id || landmark.landmark_id;
-      const placeId = landmark.placeId || landmark.place_id;
+      // Enhanced placeId detection - check multiple fields for Google Places ID
+      const placeId = landmark.placeId || landmark.place_id || landmark.id;
+      console.log(`🖼️ Using placeId: ${placeId} for landmark: ${landmark.name}`);
       
       // Enhanced photo fetching with database-first approach
       const result: PhotosResponse | null = await fetchPhotos(
@@ -48,6 +48,7 @@ export const useLandmarkPhotos = () => {
       );
 
       if (!result) {
+        console.log(`🖼️ No photos found for landmark: ${landmark.name}`);
         return {
           photos: [],
           bestPhoto: null,
@@ -72,7 +73,7 @@ export const useLandmarkPhotos = () => {
         low: photos.filter(p => (p.qualityScore || 0) <= 25).length
       };
 
-      console.log(`✅ Landmark photos fetched: ${photos.length} photos from ${sourceUsed}`);
+      console.log(`✅ Landmark photos fetched: ${photos.length} photos from ${sourceUsed} for ${landmark.name}`);
       
       return {
         photos,
@@ -118,7 +119,8 @@ export const useLandmarkPhotos = () => {
       const batch = landmarks.slice(i, i + maxConcurrent);
       
       const batchPromises = batch.map(async (landmark) => {
-        const landmarkId = landmark.id || landmark.landmark_id || landmark.name;
+        // Enhanced landmark ID detection for batching
+        const landmarkId = landmark.id || landmark.landmark_id || landmark.placeId || landmark.place_id || landmark.name;
         const result = await fetchLandmarkPhotos(landmark, options);
         return { landmarkId, result };
       });

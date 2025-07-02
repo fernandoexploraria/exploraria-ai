@@ -23,7 +23,8 @@ const convertTopLandmarkToLandmark = (topLandmark: any): Landmark => {
     id: `top-${topLandmark.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
     name: topLandmark.name,
     coordinates: topLandmark.coordinates,
-    description: topLandmark.description
+    description: topLandmark.description,
+    placeId: topLandmark.place_id // 🔥 PRESERVE GOOGLE PLACES ID
   };
 };
 
@@ -33,7 +34,8 @@ const convertTourLandmarkToLandmark = (tourLandmark: any): Landmark => {
     id: `tour-landmark-${tourLandmark.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
     name: tourLandmark.name,
     coordinates: tourLandmark.coordinates,
-    description: tourLandmark.description
+    description: tourLandmark.description,
+    placeId: tourLandmark.placeId // 🔥 PRESERVE GOOGLE PLACES ID
   };
 };
 

@@ -8,6 +8,8 @@ import { Trash2, MapPin } from 'lucide-react';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { formatDistance } from '@/utils/proximityUtils';
 import { landmarks } from '@/data/landmarks';
+import { TOP_LANDMARKS } from '@/data/topLandmarks';
+import { TOUR_LANDMARKS } from '@/data/tourLandmarks';
 
 const ProximityAlertsList: React.FC = () => {
   const { proximityAlerts, setProximityAlerts } = useProximityAlerts();
@@ -29,8 +31,17 @@ const ProximityAlertsList: React.FC = () => {
   };
 
   const getLandmarkName = (landmarkId: string) => {
-    const landmark = landmarks.find(l => l.id === landmarkId);
-    return landmark?.name || 'Unknown Landmark';
+    // Enhanced landmark lookup - check all sources with placeId compatibility
+    const baseLandmark = landmarks.find(l => l.id === landmarkId || l.placeId === landmarkId);
+    if (baseLandmark) return baseLandmark.name;
+
+    const topLandmark = TOP_LANDMARKS.find(l => l.place_id === landmarkId || `top-${l.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}` === landmarkId);
+    if (topLandmark) return topLandmark.name;
+
+    const tourLandmark = TOUR_LANDMARKS.find(l => l.placeId === landmarkId || `tour-landmark-${l.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}` === landmarkId);
+    if (tourLandmark) return tourLandmark.name;
+
+    return 'Unknown Landmark';
   };
 
   if (proximityAlerts.length === 0) {
