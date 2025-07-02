@@ -154,6 +154,19 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     setAssistantState('not-started');
   };
 
+  // Convert TourLandmark to Landmark for components that require the Landmark interface
+  const convertTourLandmarkToLandmark = (tourLandmark: any): Landmark => ({
+    id: tourLandmark.id || tourLandmark.placeId, // Use id if available, fallback to placeId
+    name: tourLandmark.name,
+    coordinates: tourLandmark.coordinates,
+    description: tourLandmark.description,
+    rating: tourLandmark.rating,
+    photos: tourLandmark.photos,
+    types: tourLandmark.types,
+    placeId: tourLandmark.placeId,
+    formattedAddress: tourLandmark.formattedAddress
+  });
+
   return (
     <div className="w-screen h-screen relative">
       <TopControls
@@ -201,8 +214,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         </div>
       )}
 
-      {/* Regular Floating Proximity Cards */}
-      {Object.entries(activeCards).map(([landmarkId, landmark], index) => (
+      {/* Regular Floating Proximity Cards - Convert TourLandmark to Landmark */}
+      {Object.entries(activeCards).map(([landmarkId, tourLandmark], index) => (
         <div
           key={landmarkId}
           style={{
@@ -213,7 +226,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           }}
         >
           <FloatingProximityCard
-            landmark={landmark}
+            landmark={convertTourLandmarkToLandmark(tourLandmark)}
             userLocation={userLocation}
             onClose={() => closeProximityCard(landmarkId)}
             onGetDirections={showRouteToService}
