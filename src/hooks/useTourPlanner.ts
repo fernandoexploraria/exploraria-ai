@@ -210,9 +210,26 @@ export const useTourPlanner = () => {
       startMarkerLoading();
       await animateProgress(95, 'Loading landmarks to map...', 'finalizing');
 
-      // Set tour landmarks for map display (now using complete enhanced data)
-      console.log('Setting enhanced tour landmarks:', enhancedLandmarks.length);
-      setTourLandmarks(enhancedLandmarks);
+      // Convert EnhancedLandmark[] to TourLandmark[] with proper validation
+      console.log('Converting enhanced landmarks to tour landmarks:', enhancedLandmarks.length);
+      const tourLandmarks = enhancedLandmarks
+        .filter(landmark => landmark.placeId) // Only include landmarks with placeId
+        .map(landmark => ({
+          placeId: landmark.placeId!, // Now guaranteed to exist due to filter
+          name: landmark.name,
+          coordinates: landmark.coordinates,
+          description: landmark.description,
+          rating: landmark.rating,
+          photos: landmark.photos,
+          types: landmark.types,
+          formattedAddress: landmark.formattedAddress,
+          tourId: undefined, // Will be set when we have tour persistence
+          coordinateSource: landmark.coordinateSource,
+          confidence: landmark.confidence
+        }));
+
+      console.log('Setting tour landmarks:', tourLandmarks.length, 'valid landmarks with placeId');
+      setTourLandmarks(tourLandmarks);
 
       const newTourPlan: TourPlan = {
         landmarks: enhancedLandmarks,
