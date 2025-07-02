@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import MobileResponsiveDialog from '@/components/MobileResponsiveDialog';
 import { Button } from '@/components/ui/button';
@@ -341,13 +340,13 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
 
       console.log('Tour created successfully:', tourData.id);
 
-      // Insert landmarks if any exist - ENHANCED WITH PRICE LEVEL MAPPING
+      // Insert landmarks if any exist - ENHANCED WITH CONSECUTIVE LANDMARK_ID
       if (landmarks.length > 0) {
-        console.log('Inserting enhanced landmarks with complete data and price level mapping...');
+        console.log('Inserting enhanced landmarks with consecutive landmark_id values...');
         
         const landmarkInserts = landmarks.map((landmark, index) => ({
           tour_id: tourData.id, // Link to the created tour
-          landmark_id: landmark.placeId,
+          landmark_id: `landmark-${index + 1}`, // 🔥 CONSECUTIVE LANDMARK ID
           name: landmark.name,
           coordinates: `(${landmark.geometry.location.lng},${landmark.geometry.location.lat})`,
           description: landmark.editorialSummary || `${landmark.name} - ${landmark.types?.join(', ')}`,
@@ -363,13 +362,13 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
           photos: landmark.photoUrl ? [landmark.photoUrl] : [],
           formatted_address: landmark.vicinity,
           types: landmark.types || [],
-          place_id: landmark.placeId,
+          place_id: landmark.placeId, // 🔥 PLACE_ID STORED CORRECTLY HERE
           confidence: 'high',
           // 🔥 COMPLETE RAW DATA PRESERVATION
           raw_data: landmark.rawGooglePlacesData || landmark
         }));
 
-        console.log('Enhanced landmark insert with price level mapping (first item):', landmarkInserts[0]);
+        console.log('Enhanced landmark insert with consecutive landmark_id (first item):', landmarkInserts[0]);
 
         const { error: landmarksError } = await supabase
           .from('generated_landmarks')
@@ -380,7 +379,7 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
           throw new Error(`Failed to create landmarks: ${landmarksError.message}`);
         }
 
-        console.log('Enhanced landmarks inserted successfully with price level mapping');
+        console.log('Enhanced landmarks inserted successfully with consecutive landmark_id values');
       }
 
       // Move to step 4 - preparing map
