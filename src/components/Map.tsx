@@ -112,7 +112,8 @@ const MapComponent: React.FC<MapProps> = ({
           id: `top-landmark-${topIndex}`,
           name: topLandmark.name,
           coordinates: topLandmark.coordinates,
-          description: topLandmark.description
+          description: topLandmark.description,
+          placeId: topLandmark.place_id // Include place_id for enhanced photo fetching
         };
         
       case 'base':
@@ -685,12 +686,38 @@ const MapComponent: React.FC<MapProps> = ({
     });
   };
 
+  // Enhanced photo fetching function that optimally uses place_id
   const fetchLandmarkPhotos = async (landmark: Landmark) => {
     try {
-      const result = await fetchPhotosWithHook(landmark);
-      return result.photos; // Extract the photos array from LandmarkPhotoResult
+      console.log(`🖼️ Fetching photos for landmark: ${landmark.name}`, {
+        hasPlaceId: !!landmark.placeId,
+        placeId: landmark.placeId,
+        landmarkId: landmark.id
+      });
+
+      // Enhanced landmark object with debugging info
+      const enhancedLandmark = {
+        ...landmark,
+        // Ensure we have the place_id properly mapped for photo fetching
+        place_id: landmark.placeId || landmark.place_id,
+        placeId: landmark.placeId || landmark.place_id
+      };
+
+      const result = await fetchPhotosWithHook(enhancedLandmark, {
+        maxWidth: 800,
+        quality: 'medium' as const,
+        preferredSource: landmark.placeId ? 'database' as const : undefined
+      });
+
+      console.log(`✅ Photo fetch result for ${landmark.name}:`, {
+        photoCount: result.photos.length,
+        sourceUsed: result.sourceUsed,
+        hasPlaceId: !!landmark.placeId
+      });
+
+      return result.photos;
     } catch (error) {
-      console.error('Error fetching photos:', error);
+      console.error('❌ Error fetching photos for landmark:', landmark.name, error);
       return [];
     }
   };
@@ -772,7 +799,10 @@ const MapComponent: React.FC<MapProps> = ({
   const showLandmarkPopup = async (landmark: Landmark) => {
     if (!map.current) return;
     
-    console.log('Showing popup for:', landmark.name);
+    console.log('🗺️ Showing popup for landmark:', landmark.name, {
+      hasPlaceId: !!landmark.placeId,
+      placeId: landmark.placeId
+    });
     
     stopCurrentAudio();
     
@@ -820,6 +850,7 @@ const MapComponent: React.FC<MapProps> = ({
     });
 
     try {
+      // Use enhanced photo fetching with place_id optimization
       const photos = await fetchLandmarkPhotos(landmark);
       const firstPhotoUrl = photos.length > 0 ? photos[0].urls.medium : undefined;
       
@@ -894,7 +925,7 @@ const MapComponent: React.FC<MapProps> = ({
       root.render(<PopupContent />);
 
     } catch (error) {
-      console.error('Failed to load photos for', landmark.name, error);
+      console.error('❌ Failed to load photos for', landmark.name, error);
       
       await storeMapMarkerInteraction(landmark);
       
