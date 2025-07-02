@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
 import mapboxgl from 'mapbox-gl';
@@ -809,7 +810,7 @@ const MapComponent: React.FC<MapProps> = ({
     try {
       setPlayingAudio(prev => ({ ...prev, [landmarkId]: true }));
       
-      let landmarkSource: 'tour' | 'top' = 'base';
+      let landmarkSource: 'tour' | 'top' | null = null;
       
       if (landmarkId.startsWith('tour-landmark-')) {
         landmarkSource = 'tour';
