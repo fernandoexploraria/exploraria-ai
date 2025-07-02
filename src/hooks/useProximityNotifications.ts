@@ -1,19 +1,26 @@
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { useNearbyLandmarks } from '@/hooks/useNearbyLandmarks';
 import { toast } from 'sonner';
+import { Landmark } from '@/data/landmarks';
+
+interface ActiveCard {
+  landmark: Landmark;
+  distance: number;
+}
 
 export const useProximityNotifications = () => {
   const { proximitySettings } = useProximityAlerts();
   const { userLocation } = useLocationTracking();
   const notifiedLandmarksRef = useRef<Set<string>>(new Set());
+  const [activeCards, setActiveCards] = useState<{ [key: string]: Landmark }>({});
 
-  // Get nearby landmarks using inner and outer distances
+  // Get nearby landmarks using outer distance (card_distance for floating cards)
   const nearbyLandmarks = useNearbyLandmarks({
     userLocation,
-    notificationDistance: proximitySettings?.outer_distance || 250
+    notificationDistance: proximitySettings?.card_distance || 100
   });
 
   useEffect(() => {
@@ -21,14 +28,14 @@ export const useProximityNotifications = () => {
       return;
     }
 
-    const innerDistance = proximitySettings.inner_distance;
-    const outerDistance = proximitySettings.outer_distance;
+    const notificationDistance = proximitySettings.notification_distance;
+    const cardDistance = proximitySettings.card_distance;
 
     console.log('🔔 Processing proximity notifications:', {
       userLocation: { lat: userLocation.latitude, lng: userLocation.longitude },
       nearbyCount: nearbyLandmarks.length,
-      innerDistance,
-      outerDistance,
+      notificationDistance,
+      cardDistance,
       notifiedCount: notifiedLandmarksRef.current.size
     });
 
@@ -36,28 +43,33 @@ export const useProximityNotifications = () => {
       const landmarkKey = landmark.id || landmark.placeId || landmark.name;
       const isAlreadyNotified = notifiedLandmarksRef.current.has(landmarkKey);
 
-      // Determine notification zone
-      let notificationZone: 'inner' | 'outer' | null = null;
-      if (distance <= innerDistance) {
-        notificationZone = 'inner';
-      } else if (distance <= outerDistance) {
-        notificationZone = 'outer';
+      // Show floating card for very close landmarks
+      if (distance <= cardDistance) {
+        setActiveCards(prev => ({
+          ...prev,
+          [landmarkKey]: landmark
+        }));
+      } else {
+        // Remove card if landmark is now far away
+        setActiveCards(prev => {
+          const newCards = { ...prev };
+          delete newCards[landmarkKey];
+          return newCards;
+        });
       }
 
-      if (notificationZone && !isAlreadyNotified) {
-        const message = notificationZone === 'inner' 
-          ? `📍 You're very close to ${landmark.name} (${Math.round(distance)}m away)!`
-          : `🗺️ ${landmark.name} is nearby (${Math.round(distance)}m away)`;
+      // Show notification for landmarks within notification distance
+      if (distance <= notificationDistance && !isAlreadyNotified) {
+        const message = `📍 ${landmark.name} is nearby (${Math.round(distance)}m away)`;
 
-        console.log(`🔔 Proximity notification (${notificationZone} zone):`, {
+        console.log(`🔔 Proximity notification:`, {
           landmark: landmark.name,
-          distance: Math.round(distance),
-          zone: notificationZone
+          distance: Math.round(distance)
         });
 
         toast(message, {
           description: landmark.description || `Explore this ${landmark.types?.[0]?.replace(/_/g, ' ') || 'landmark'}`,
-          duration: notificationZone === 'inner' ? 8000 : 5000,
+          duration: 5000,
           action: {
             label: "View Details",
             onClick: () => {
@@ -70,15 +82,13 @@ export const useProximityNotifications = () => {
         // Mark as notified
         notifiedLandmarksRef.current.add(landmarkKey);
 
-        // Trigger panorama metadata preloading for inner zone landmarks
-        if (notificationZone === 'inner') {
-          console.log(`🔄 Triggering panorama metadata preload for ${landmark.name} (inner zone)`);
-          // TODO: Implement panorama metadata preloading
-        }
+        // Trigger panorama metadata preloading for close landmarks
+        console.log(`🔄 Triggering panorama metadata preload for ${landmark.name}`);
+        // TODO: Implement panorama metadata preloading
       }
 
       // Clean up notifications for landmarks that are now far away
-      if (distance > outerDistance && isAlreadyNotified) {
+      if (distance > notificationDistance && isAlreadyNotified) {
         console.log(`🧹 Cleaning up notification for ${landmark.name} (now ${Math.round(distance)}m away)`);
         notifiedLandmarksRef.current.delete(landmarkKey);
       }
@@ -86,10 +96,10 @@ export const useProximityNotifications = () => {
 
     // Log summary
     if (nearbyLandmarks.length > 0) {
-      const innerCount = nearbyLandmarks.filter(({ distance }) => distance <= innerDistance).length;
-      const outerCount = nearbyLandmarks.filter(({ distance }) => distance <= outerDistance && distance > innerDistance).length;
+      const cardCount = nearbyLandmarks.filter(({ distance }) => distance <= cardDistance).length;
+      const notificationCount = nearbyLandmarks.filter(({ distance }) => distance <= notificationDistance).length;
       
-      console.log(`📊 Proximity summary: ${innerCount} inner, ${outerCount} outer, ${notifiedLandmarksRef.current.size} notified`);
+      console.log(`📊 Proximity summary: ${cardCount} cards, ${notificationCount} notifications, ${notifiedLandmarksRef.current.size} notified`);
     }
 
   }, [nearbyLandmarks, proximitySettings, userLocation]);
@@ -99,11 +109,28 @@ export const useProximityNotifications = () => {
     if (!proximitySettings?.is_enabled) {
       console.log('🧹 Clearing all proximity notifications (proximity disabled)');
       notifiedLandmarksRef.current.clear();
+      setActiveCards({});
     }
   }, [proximitySettings?.is_enabled]);
 
+  const closeProximityCard = (landmarkId: string) => {
+    setActiveCards(prev => {
+      const newCards = { ...prev };
+      delete newCards[landmarkId];
+      return newCards;
+    });
+  };
+
+  const showRouteToService = (landmark: Landmark) => {
+    console.log('🗺️ Showing route to service:', landmark.name);
+    // TODO: Implement route to service functionality
+  };
+
   return {
     nearbyLandmarks,
-    notifiedCount: notifiedLandmarksRef.current.size
+    notifiedCount: notifiedLandmarksRef.current.size,
+    activeCards,
+    closeProximityCard,
+    showRouteToService
   };
 };

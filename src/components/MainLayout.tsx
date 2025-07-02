@@ -189,10 +189,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
       <Map 
         mapboxToken={mapboxToken}
-        landmarks={allLandmarks}
+        allLandmarks={allLandmarks}
+        smartTourLandmarks={smartTourLandmarks}
         onSelectLandmark={onSelectLandmark}
         selectedLandmark={selectedLandmark}
-        plannedLandmarks={[...smartTourLandmarks]}
       />
 
       {/* Debug Proximity Card - positioned above regular cards */}
@@ -215,7 +215,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       )}
 
       {/* Regular Floating Proximity Cards - Convert TourLandmark to Landmark */}
-      {Object.entries(activeCards).map(([landmarkId, tourLandmark], index) => (
+      {Object.entries(activeCards).map(([landmarkId, landmark], index) => (
         <div
           key={landmarkId}
           style={{
@@ -226,7 +226,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           }}
         >
           <FloatingProximityCard
-            landmark={convertTourLandmarkToLandmark(tourLandmark)}
+            landmark={landmark}
             userLocation={userLocation}
             onClose={() => closeProximityCard(landmarkId)}
             onGetDirections={showRouteToService}

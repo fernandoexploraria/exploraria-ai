@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { Landmark } from '@/data/landmarks';
@@ -27,28 +28,15 @@ const Map: React.FC<MapProps> = ({
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<{ [key: string]: mapboxgl.Marker }>({});
   const { user } = useAuth();
-  const { showStaticLandmarks, showSmartTourLandmarks } = useLandmarkSourceToggle();
-  const { isLoading, setLoading } = useMarkerLoadingState();
-  const { isOffline } = useOfflineCache();
-  const { isOnline } = useConnectionMonitor();
+  const { currentLandmarks } = useLandmarkSourceToggle();
+  const { isMarkersLoading, startMarkerLoading, finishMarkerLoading } = useMarkerLoadingState();
+  const offlineCache = useOfflineCache();
+  const { connectionHealth } = useConnectionMonitor();
 
-  // Memoize landmarks to display based on toggle states
+  // Memoize landmarks to display - use all landmarks from the hook
   const landmarksToDisplay = useMemo(() => {
-    const landmarks = [];
-    
-    if (showStaticLandmarks) {
-      const staticLandmarks = allLandmarks.filter(landmark => 
-        !smartTourLandmarks.some(smartLandmark => smartLandmark.id === landmark.id)
-      );
-      landmarks.push(...staticLandmarks);
-    }
-    
-    if (showSmartTourLandmarks) {
-      landmarks.push(...smartTourLandmarks);
-    }
-    
-    return landmarks;
-  }, [allLandmarks, smartTourLandmarks, showStaticLandmarks, showSmartTourLandmarks]);
+    return currentLandmarks;
+  }, [currentLandmarks]);
 
   // Initialize map
   useEffect(() => {
@@ -92,7 +80,7 @@ const Map: React.FC<MapProps> = ({
     Object.values(markers.current).forEach(marker => marker.remove());
     markers.current = {};
 
-    setLoading(true);
+    startMarkerLoading();
 
     // Add new markers
     landmarksToDisplay.forEach((landmark) => {
@@ -100,7 +88,8 @@ const Map: React.FC<MapProps> = ({
       
       const markerElement = document.createElement('div');
       markerElement.className = 'custom-marker';
-      markerElement.innerHTML = getPlaceTypeIcon(landmark.types?.[0] || 'point_of_interest');
+      const iconResult = getPlaceTypeIcon(landmark.types?.[0] || 'point_of_interest');
+      markerElement.innerHTML = typeof iconResult === 'string' ? iconResult : iconResult.icon;
       markerElement.style.fontSize = '24px';
       markerElement.style.cursor = 'pointer';
       
@@ -141,8 +130,8 @@ const Map: React.FC<MapProps> = ({
       }
     };
 
-    setLoading(false);
-  }, [landmarksToDisplay, onSelectLandmark, setLoading, smartTourLandmarks]);
+    finishMarkerLoading();
+  }, [landmarksToDisplay, onSelectLandmark, startMarkerLoading, finishMarkerLoading, smartTourLandmarks]);
 
   // Handle selected landmark
   useEffect(() => {
@@ -174,14 +163,14 @@ const Map: React.FC<MapProps> = ({
       <div ref={mapContainer} className="w-full h-full" />
       
       {/* Connection status indicator */}
-      {!isOnline && (
+      {connectionHealth.status === 'offline' && (
         <div className="absolute top-4 left-4 bg-red-600 text-white px-3 py-1 rounded text-sm z-10">
           Offline Mode
         </div>
       )}
       
       {/* Loading indicator */}
-      {isLoading && (
+      {isMarkersLoading && (
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black/80 text-white px-4 py-2 rounded z-10">
           Loading markers...
         </div>
