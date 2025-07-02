@@ -25,8 +25,7 @@ export const useEnhancedLandmarkPhotos = () => {
     const enhancedLandmark = {
       ...landmark,
       // Ensure we have the place_id available for photo fetching
-      place_id: landmark.placeId || landmark.place_id,
-      placeId: landmark.placeId || landmark.place_id
+      placeId: landmark.placeId || landmark.placeId
     };
 
     try {
@@ -39,8 +38,8 @@ export const useEnhancedLandmarkPhotos = () => {
       }
 
       // If no photos and we have a place_id, the API might have failed
-      if (enhancedLandmark.place_id) {
-        console.log(`⚠️ No photos found despite having place_id: ${enhancedLandmark.place_id}`);
+      if (enhancedLandmark.placeId) {
+        console.log(`⚠️ No photos found despite having placeId: ${enhancedLandmark.placeId}`);
       }
 
       // Return the empty result with fallback information
@@ -74,8 +73,8 @@ export const useEnhancedLandmarkPhotos = () => {
     console.log(`🔄 Batch photo fetch for ${landmarks.length} landmarks`);
     
     // Prioritize landmarks with place_id for better success rate
-    const landmarksWithPlaceId = landmarks.filter(l => l.placeId || l.place_id);
-    const landmarksWithoutPlaceId = landmarks.filter(l => !l.placeId && !l.place_id);
+    const landmarksWithPlaceId = landmarks.filter(l => l.placeId);
+    const landmarksWithoutPlaceId = landmarks.filter(l => !l.placeId);
     
     console.log(`📊 Batch optimization:`, {
       withPlaceId: landmarksWithPlaceId.length,

@@ -1,20 +1,18 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { Landmark } from '@/data/landmarks';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
-import { useNearbyLandmarks } from '@/hooks/useNearbyLandmarks';
 import { usePendingDestination } from '@/hooks/usePendingDestination';
-import { useMarkerLoadingState } from '@/hooks/useMarkerLoadingState';
 import { useEnhancedLandmarkPhotos } from '@/hooks/useEnhancedLandmarkPhotos';
 import { useDemoMode } from '@/hooks/useDemoMode';
 import FloatingProximityCard from './FloatingProximityCard';
-import { createMarkerElement } from '@/utils/locationUtils';
 import { Button } from '@/components/ui/button';
-import { MapPin, Navigation, Layers } from 'lucide-react';
+import { Navigation, Layers } from 'lucide-react';
 
-mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
 
 interface MapProps {
   landmarks: Landmark[];
@@ -42,10 +40,7 @@ const Map: React.FC<MapProps> = ({
   const [userLocation, setUserLocation] = useState<LocationData | null>(null);
   const [nearbyLandmarks, setNearbyLandmarks] = useState<Landmark[]>([]);
   const [proximityCardLandmark, setProximityCardLandmark] = useState<Landmark | null>(null);
-  const [proximityCardDistance, setProximityCardDistance] = useState<number | null>(null);
-  const [showDebugMarkers, setShowDebugMarkers] = useState(false);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
-  const [markerLoading, setMarkerLoading] = useState<{ [key: string]: boolean }>({});
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
@@ -59,8 +54,7 @@ const Map: React.FC<MapProps> = ({
     stopTracking,
   } = useLocationTracking();
   const { checkProximity } = useProximityAlerts();
-  const { pendingDestination, setPendingDestination, clearPendingDestination } = usePendingDestination();
-  const { setMarkerLoadingState } = useMarkerLoadingState(setMarkerLoading);
+  const { pendingDestination } = usePendingDestination();
   const { fetchPhotosWithPlaceIdFallback } = useEnhancedLandmarkPhotos();
   const { isDemoMode } = useDemoMode();
   
@@ -130,10 +124,7 @@ const Map: React.FC<MapProps> = ({
   // Start location tracking
   useEffect(() => {
     startTracking();
-
-    return () => {
-      stopTracking();
-    };
+    return () => stopTracking();
   }, [startTracking, stopTracking]);
 
   // Update user location
@@ -186,7 +177,6 @@ const Map: React.FC<MapProps> = ({
 
       if (closestLandmark && distance !== null) {
         setProximityCardLandmark(closestLandmark);
-        setProximityCardDistance(distance);
 
         // Set a timeout to clear the proximity card after 10 seconds
         if (locationTimeoutRef.current) {
@@ -194,7 +184,6 @@ const Map: React.FC<MapProps> = ({
         }
         locationTimeoutRef.current = setTimeout(() => {
           setProximityCardLandmark(null);
-          setProximityCardDistance(null);
         }, 10000);
       }
     }
@@ -260,31 +249,31 @@ const Map: React.FC<MapProps> = ({
     }).setHTML(popupContent);
   }, []);
 
-  const addLandmarkMarkers = useCallback(async () => {
-    if (!mapRef.current) return;
-
-    // Remove existing markers
-    markersRef.current.forEach((marker) => marker.remove());
-    markersRef.current.clear();
-
-    // Add new markers
-    for (const landmark of landmarks) {
-      await addLandmarkMarker(landmark);
-    }
-
-    // Add smart tour markers
-    for (const landmark of smartTourLandmarks) {
-      await addLandmarkMarker(landmark, true);
-    }
-  }, [landmarks, smartTourLandmarks, addLandmarkMarker]);
+  const createMarkerElement = useCallback((isSmartTour = false, landmarkName = '') => {
+    const el = document.createElement('div');
+    el.className = `marker ${isSmartTour ? 'smart-tour-marker' : 'regular-marker'}`;
+    el.style.cssText = `
+      width: 32px;
+      height: 32px;
+      background: ${isSmartTour ? '#fbbf24' : '#3b82f6'};
+      border: 2px solid white;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      font-size: 16px;
+    `;
+    el.innerHTML = isSmartTour ? '⭐' : '📍';
+    el.title = landmarkName;
+    return el;
+  }, []);
 
   const addLandmarkMarker = useCallback(async (landmark: Landmark, isSmartTour = false) => {
-    if (!mapRef.current) return;
+    if (!map) return;
 
     console.log(`📍 Adding marker for ${landmark.name} (SmartTour: ${isSmartTour})`);
-    
-    // Set loading state
-    setMarkerLoadingState(landmark.id, true);
     
     try {
       // Fetch photos with enhanced system
@@ -302,7 +291,7 @@ const Map: React.FC<MapProps> = ({
       const marker = new mapboxgl.Marker(markerElement)
         .setLngLat(landmark.coordinates)
         .setPopup(popup)
-        .addTo(mapRef.current);
+        .addTo(map);
 
       // Store marker reference
       markersRef.current.set(landmark.id, marker);
@@ -311,11 +300,26 @@ const Map: React.FC<MapProps> = ({
       
     } catch (error) {
       console.error(`❌ Failed to add marker for ${landmark.name}:`, error);
-    } finally {
-      // Clear loading state
-      setMarkerLoadingState(landmark.id, false);
     }
-  }, [fetchPhotosWithHook, createLandmarkPopup, setMarkerLoadingState]);
+  }, [map, fetchPhotosWithHook, createLandmarkPopup, createMarkerElement]);
+
+  const addLandmarkMarkers = useCallback(async () => {
+    if (!map) return;
+
+    // Remove existing markers
+    markersRef.current.forEach((marker) => marker.remove());
+    markersRef.current.clear();
+
+    // Add new markers
+    for (const landmark of landmarks) {
+      await addLandmarkMarker(landmark);
+    }
+
+    // Add smart tour markers
+    for (const landmark of smartTourLandmarks) {
+      await addLandmarkMarker(landmark, true);
+    }
+  }, [landmarks, smartTourLandmarks, addLandmarkMarker, map]);
 
   useEffect(() => {
     if (map && isMapLoaded) {
@@ -339,16 +343,11 @@ const Map: React.FC<MapProps> = ({
 
   const handleCloseProximityCard = () => {
     setProximityCardLandmark(null);
-    setProximityCardDistance(null);
   };
 
   const handleViewProximityDetails = (landmark: Landmark) => {
     onLandmarkClick(landmark);
     handleCloseProximityCard();
-  };
-
-  const toggleDebugMarkers = () => {
-    setShowDebugMarkers(!showDebugMarkers);
   };
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
@@ -358,15 +357,14 @@ const Map: React.FC<MapProps> = ({
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2)
-      ;
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distance = R * c; // Distance in km
     return distance;
   };
 
   const deg2rad = (deg: number): number => {
-    return deg * (Math.PI / 180)
+    return deg * (Math.PI / 180);
   };
 
   return (
@@ -377,28 +375,6 @@ const Map: React.FC<MapProps> = ({
         style={{ minHeight: '400px' }}
       />
       
-      {/* Debug markers */}
-      {showDebugMarkers && userLocation && (
-        <div className="absolute top-40 left-4">
-          <div className="bg-white p-4 rounded-lg shadow-md">
-            <h3 className="text-lg font-semibold mb-2">Debug Markers</h3>
-            <p>User Location: {userLocation.latitude}, {userLocation.longitude}</p>
-            <p>Nearby Landmarks: {nearbyLandmarks.length}</p>
-            {nearbyLandmarks.map((landmark) => (
-              <div key={landmark.id} className="mb-2">
-                <p>{landmark.name}</p>
-                <p>Distance: {calculateDistance(
-                  userLocation.latitude,
-                  userLocation.longitude,
-                  landmark.coordinates[1],
-                  landmark.coordinates[0]
-                ).toFixed(2)} km</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      
       {/* Map controls */}
       <div className="absolute bottom-4 right-4 flex flex-col gap-2">
         <Button
@@ -406,8 +382,8 @@ const Map: React.FC<MapProps> = ({
           size="sm"
           className="bg-background/80 backdrop-blur-sm shadow-lg"
           onClick={() => {
-            if (mapRef.current && userLocation) {
-              mapRef.current.flyTo({
+            if (map && userLocation) {
+              map.flyTo({
                 center: [userLocation.longitude, userLocation.latitude],
                 zoom: 15,
                 duration: 1000
@@ -423,12 +399,12 @@ const Map: React.FC<MapProps> = ({
           size="sm"
           className="bg-background/80 backdrop-blur-sm shadow-lg"
           onClick={() => {
-            if (mapRef.current) {
-              const currentStyle = mapRef.current.getStyle().name;
+            if (map) {
+              const currentStyle = map.getStyle().name;
               const newStyle = currentStyle === 'Mapbox Streets' 
                 ? 'mapbox://styles/mapbox/satellite-v9'
                 : 'mapbox://styles/mapbox/streets-v11';
-              mapRef.current.setStyle(newStyle);
+              map.setStyle(newStyle);
             }
           }}
         >
@@ -446,7 +422,7 @@ const Map: React.FC<MapProps> = ({
       {/* Pending destination indicator */}
       {pendingDestination && (
         <div className="absolute top-4 left-4 bg-blue-500 text-white p-2 rounded shadow-md">
-          Navigating to: {pendingDestination.name}
+          Navigating to: {pendingDestination}
         </div>
       )}
       
@@ -454,9 +430,9 @@ const Map: React.FC<MapProps> = ({
       {proximityCardLandmark && (
         <FloatingProximityCard
           landmark={proximityCardLandmark}
-          distance={proximityCardDistance}
+          userLocation={userLocation}
           onClose={handleCloseProximityCard}
-          onViewDetails={handleViewProximityDetails}
+          onGetDirections={() => {}}
         />
       )}
     </div>
