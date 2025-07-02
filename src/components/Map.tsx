@@ -29,7 +29,7 @@ const Map: React.FC<MapProps> = ({
   const { user } = useAuth();
   const { currentLandmarks } = useLandmarkSourceToggle();
   const { isMarkersLoading, startMarkerLoading, finishMarkerLoading } = useMarkerLoadingState(750);
-  const offlineCache = useOfflineCache();
+  const offlineCache = useOfflineCache({});
   const { connectionHealth } = useConnectionMonitor();
 
   // Memoize landmarks to display - use all landmarks from the hook
