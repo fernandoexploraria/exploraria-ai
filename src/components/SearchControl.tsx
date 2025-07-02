@@ -12,6 +12,7 @@ import { Landmark } from "@/data/landmarks"
 import { TOP_LANDMARKS } from "@/data/topLandmarks"
 import { ArrowRight } from "lucide-react"
 import LandmarkEnrichmentTest from "./LandmarkEnrichmentTest"
+import { useDemoMode } from "@/hooks/useDemoMode"
 
 interface SearchControlProps {
   landmarks: Landmark[]
@@ -21,6 +22,7 @@ interface SearchControlProps {
 const SearchControl: React.FC<SearchControlProps> = ({ landmarks, onSelectLandmark }) => {
   const [open, setOpen] = React.useState(false)
   const [showEnrichmentTest, setShowEnrichmentTest] = React.useState(false)
+  const { isDemoMode } = useDemoMode()
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -69,15 +71,17 @@ const SearchControl: React.FC<SearchControlProps> = ({ landmarks, onSelectLandma
           </kbd>
         </Button>
         
-        {/* Temporary test button for Phase 1 */}
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => setShowEnrichmentTest(!showEnrichmentTest)}
-          className="text-xs"
-        >
-          {showEnrichmentTest ? 'Hide' : 'Test'} Enrichment
-        </Button>
+        {/* Conditionally render test button only when demo mode is off */}
+        {!isDemoMode && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setShowEnrichmentTest(!showEnrichmentTest)}
+            className="text-xs"
+          >
+            {showEnrichmentTest ? 'Hide' : 'Test'} Enrichment
+          </Button>
+        )}
       </div>
 
       {/* Repositioned enrichment test component to top-right */}
