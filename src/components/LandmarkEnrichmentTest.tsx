@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
@@ -18,17 +19,26 @@ interface EnrichedLandmark {
 const LandmarkEnrichmentTest: React.FC = () => {
   const [isEnriching, setIsEnriching] = useState(false);
   const [results, setResults] = useState<EnrichedLandmark[]>([]);
+  const [progress, setProgress] = useState(0);
+  const [currentBatch, setCurrentBatch] = useState(0);
+  const [totalBatches, setTotalBatches] = useState(0);
+  const [enrichedCode, setEnrichedCode] = useState<string>('');
+  const [showCode, setShowCode] = useState(false);
   const { toast } = useToast();
 
   // Test with first 3 landmarks for Phase 1
   const testLandmarks = TOP_LANDMARKS.slice(0, 3);
+  
+  const BATCH_SIZE = 5; // Process 5 landmarks at a time
+  const BATCH_DELAY = 2000; // 2 second delay between batches
 
-  const handleEnrichment = async () => {
+  const handlePhase1Test = async () => {
     setIsEnriching(true);
     setResults([]);
+    setProgress(0);
 
     try {
-      console.log('Starting enrichment test with 3 landmarks...');
+      console.log('Starting Phase 1 enrichment test with 3 landmarks...');
       
       const { data, error } = await supabase.functions.invoke('enrich-landmark', {
         body: {
@@ -45,18 +55,17 @@ const LandmarkEnrichmentTest: React.FC = () => {
         
         const summary = data.summary;
         toast({
-          title: "Enrichment Complete",
+          title: "Phase 1 Test Complete",
           description: `${summary.success} successful, ${summary.failed} failed, ${summary.notFound} not found`,
         });
         
-        console.log('Enrichment results:', data.enrichedLandmarks);
-        console.log('Summary:', summary);
+        console.log('Phase 1 results:', data.enrichedLandmarks);
       }
 
     } catch (error) {
-      console.error('Enrichment error:', error);
+      console.error('Phase 1 enrichment error:', error);
       toast({
-        title: "Enrichment Failed",
+        title: "Phase 1 Test Failed",
         description: error.message || "Unknown error occurred",
         variant: "destructive"
       });
@@ -65,41 +74,255 @@ const LandmarkEnrichmentTest: React.FC = () => {
     }
   };
 
+  const handleBulkEnrichment = async () => {
+    setIsEnriching(true);
+    setResults([]);
+    setProgress(0);
+    setShowCode(false);
+    setEnrichedCode('');
+
+    const allResults: EnrichedLandmark[] = [];
+    const batches = [];
+    
+    // Split landmarks into batches
+    for (let i = 0; i < TOP_LANDMARKS.length; i += BATCH_SIZE) {
+      batches.push(TOP_LANDMARKS.slice(i, i + BATCH_SIZE));
+    }
+    
+    setTotalBatches(batches.length);
+    
+    try {
+      console.log(`Starting bulk enrichment of ${TOP_LANDMARKS.length} landmarks in ${batches.length} batches...`);
+      
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        setCurrentBatch(batchIndex + 1);
+        const batch = batches[batchIndex];
+        
+        console.log(`Processing batch ${batchIndex + 1}/${batches.length} with ${batch.length} landmarks...`);
+        
+        try {
+          const { data, error } = await supabase.functions.invoke('enrich-landmark', {
+            body: {
+              landmarks: batch
+            }
+          });
+
+          if (error) {
+            console.error(`Batch ${batchIndex + 1} error:`, error);
+            // Add failed landmarks to results
+            batch.forEach(landmark => {
+              allResults.push({
+                ...landmark,
+                enrichment_status: 'failed',
+                error: error.message
+              });
+            });
+          } else if (data?.enrichedLandmarks) {
+            allResults.push(...data.enrichedLandmarks);
+            console.log(`Batch ${batchIndex + 1} completed: ${data.summary.success} successful`);
+          }
+        } catch (batchError) {
+          console.error(`Batch ${batchIndex + 1} exception:`, batchError);
+          // Add failed landmarks to results
+          batch.forEach(landmark => {
+            allResults.push({
+              ...landmark,
+              enrichment_status: 'failed',
+              error: batchError.message
+            });
+          });
+        }
+        
+        // Update progress
+        const progressPercent = ((batchIndex + 1) / batches.length) * 100;
+        setProgress(progressPercent);
+        setResults([...allResults]);
+        
+        // Add delay between batches (except for the last one)
+        if (batchIndex < batches.length - 1) {
+          console.log(`Waiting ${BATCH_DELAY}ms before next batch...`);
+          await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
+        }
+      }
+      
+      // Generate the enriched TypeScript code
+      generateEnrichedCode(allResults);
+      
+      const successCount = allResults.filter(l => l.enrichment_status === 'success').length;
+      const failedCount = allResults.filter(l => l.enrichment_status === 'failed').length;
+      const notFoundCount = allResults.filter(l => l.enrichment_status === 'not_found').length;
+      
+      toast({
+        title: "Bulk Enrichment Complete",
+        description: `${successCount} successful, ${failedCount} failed, ${notFoundCount} not found out of ${TOP_LANDMARKS.length} landmarks`,
+      });
+      
+      console.log(`Bulk enrichment complete: ${successCount}/${TOP_LANDMARKS.length} landmarks enriched successfully`);
+
+    } catch (error) {
+      console.error('Bulk enrichment error:', error);
+      toast({
+        title: "Bulk Enrichment Failed",
+        description: error.message || "Unknown error occurred",
+        variant: "destructive"
+      });
+    } finally {
+      setIsEnriching(false);
+    }
+  };
+
+  const generateEnrichedCode = (enrichedResults: EnrichedLandmark[]) => {
+    const codeLines = [
+      'export interface TopLandmark {',
+      '  name: string;',
+      '  coordinates: [number, number];',
+      '  description: string;',
+      '  place_id?: string;',
+      '}',
+      '',
+      '// Top 100 most visited landmarks around the world with approximate coordinates',
+      'export const TOP_LANDMARKS: TopLandmark[] = ['
+    ];
+
+    enrichedResults.forEach((landmark, index) => {
+      const placeIdPart = landmark.place_id ? `, place_id: "${landmark.place_id}"` : '';
+      const line = `  { name: "${landmark.name}", coordinates: [${landmark.coordinates.join(', ')}], description: "${landmark.description}"${placeIdPart} }${index < enrichedResults.length - 1 ? ',' : ''}`;
+      codeLines.push(line);
+    });
+
+    codeLines.push('];');
+    
+    setEnrichedCode(codeLines.join('\n'));
+    setShowCode(true);
+  };
+
+  const copyCodeToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(enrichedCode);
+      toast({
+        title: "Code Copied",
+        description: "The enriched code has been copied to your clipboard",
+      });
+    } catch (error) {
+      toast({
+        title: "Copy Failed",
+        description: "Could not copy to clipboard",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const successCount = results.filter(l => l.enrichment_status === 'success').length;
+  const failedCount = results.filter(l => l.enrichment_status === 'failed').length;
+  const notFoundCount = results.filter(l => l.enrichment_status === 'not_found').length;
+
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6 max-w-6xl mx-auto">
       <Card>
         <CardHeader>
-          <CardTitle>Landmark Enrichment Test - Phase 1</CardTitle>
+          <CardTitle>Landmark Enrichment - Phase 1 & 2</CardTitle>
           <p className="text-sm text-gray-600">
-            Testing enrichment with the first 3 landmarks to validate the process
+            Phase 1: Test with 3 landmarks | Phase 2: Bulk process all 100 landmarks
           </p>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <h3 className="font-semibold mb-2">Test Landmarks:</h3>
-            <ul className="list-disc list-inside space-y-1">
-              {testLandmarks.map((landmark, index) => (
-                <li key={index} className="text-sm">
-                  {landmark.name} - {landmark.coordinates.join(', ')}
-                </li>
-              ))}
-            </ul>
+        <CardContent className="space-y-6">
+          {/* Phase 1 Section */}
+          <div className="border rounded-lg p-4">
+            <h3 className="font-semibold mb-3">Phase 1: Test Enrichment (3 landmarks)</h3>
+            <div className="mb-4">
+              <h4 className="font-medium mb-2">Test Landmarks:</h4>
+              <ul className="list-disc list-inside space-y-1 text-sm">
+                {testLandmarks.map((landmark, index) => (
+                  <li key={index}>
+                    {landmark.name} - {landmark.coordinates.join(', ')}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <Button 
+              onClick={handlePhase1Test} 
+              disabled={isEnriching}
+              variant="outline"
+              className="w-full"
+            >
+              {isEnriching ? 'Testing...' : 'Run Phase 1 Test'}
+            </Button>
           </div>
 
-          <Button 
-            onClick={handleEnrichment} 
-            disabled={isEnriching}
-            className="w-full"
-          >
-            {isEnriching ? 'Enriching Landmarks...' : 'Start Enrichment Test'}
-          </Button>
+          {/* Phase 2 Section */}
+          <div className="border rounded-lg p-4">
+            <h3 className="font-semibold mb-3">Phase 2: Bulk Enrichment (All 100 landmarks)</h3>
+            <div className="mb-4 space-y-2">
+              <p className="text-sm text-gray-600">
+                This will process all {TOP_LANDMARKS.length} landmarks in batches of {BATCH_SIZE} with {BATCH_DELAY/1000}s delays between batches.
+              </p>
+              {isEnriching && totalBatches > 0 && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Batch {currentBatch} of {totalBatches}</span>
+                    <span>{Math.round(progress)}%</span>
+                  </div>
+                  <Progress value={progress} className="w-full" />
+                  <p className="text-sm text-gray-500">
+                    Processed: {results.length} / {TOP_LANDMARKS.length} landmarks
+                  </p>
+                </div>
+              )}
+            </div>
+            <Button 
+              onClick={handleBulkEnrichment} 
+              disabled={isEnriching}
+              className="w-full"
+            >
+              {isEnriching ? `Processing Batch ${currentBatch}/${totalBatches}...` : 'Start Phase 2 - Bulk Enrichment'}
+            </Button>
+          </div>
 
+          {/* Results Summary */}
           {results.length > 0 && (
-            <div className="mt-6">
-              <h3 className="font-semibold mb-4">Enrichment Results:</h3>
-              <div className="space-y-3">
-                {results.map((landmark, index) => (
-                  <Card key={index} className="p-4">
+            <div className="border rounded-lg p-4">
+              <h3 className="font-semibold mb-3">Enrichment Summary</h3>
+              <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">{successCount}</div>
+                  <div className="text-sm text-gray-600">Successful</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-red-600">{failedCount}</div>
+                  <div className="text-sm text-gray-600">Failed</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-yellow-600">{notFoundCount}</div>
+                  <div className="text-sm text-gray-600">Not Found</div>
+                </div>
+              </div>
+              
+              {showCode && enrichedCode && (
+                <div className="mt-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="font-medium">Generated Enriched Code:</h4>
+                    <Button onClick={copyCodeToClipboard} size="sm" variant="outline">
+                      Copy Code
+                    </Button>
+                  </div>
+                  <div className="bg-gray-100 p-4 rounded-lg overflow-x-auto max-h-96">
+                    <pre className="text-xs font-mono whitespace-pre-wrap">{enrichedCode}</pre>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-2">
+                    Copy this code and replace the content in <code>src/data/topLandmarks.ts</code>
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Detailed Results */}
+          {results.length > 0 && !showCode && (
+            <div className="border rounded-lg p-4">
+              <h3 className="font-semibold mb-4">Detailed Results (showing first 20):</h3>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {results.slice(0, 20).map((landmark, index) => (
+                  <Card key={index} className="p-3">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <h4 className="font-medium">{landmark.name}</h4>
@@ -130,6 +353,11 @@ const LandmarkEnrichmentTest: React.FC = () => {
                     </div>
                   </Card>
                 ))}
+                {results.length > 20 && (
+                  <p className="text-sm text-gray-500 text-center">
+                    ... and {results.length - 20} more results
+                  </p>
+                )}
               </div>
             </div>
           )}
