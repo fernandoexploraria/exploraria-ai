@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
 import mapboxgl from 'mapbox-gl';
@@ -687,38 +686,148 @@ const MapComponent: React.FC<MapProps> = ({
     });
   };
 
-  // Enhanced photo fetching function that optimally uses place_id
+  // Enhanced photo fetching function that optimally uses place_id with fallbacks
   const fetchLandmarkPhotos = async (landmark: Landmark) => {
     try {
       console.log(`🖼️ Fetching photos for landmark: ${landmark.name}`, {
         hasPlaceId: !!landmark.placeId,
         placeId: landmark.placeId,
-        landmarkId: landmark.id
+        landmarkId: landmark.id,
+        coordinates: landmark.coordinates
       });
 
-      // Enhanced landmark object with debugging info
-      const enhancedLandmark = {
-        ...landmark,
-        // Ensure we have the place_id properly mapped for photo fetching
-        place_id: landmark.placeId,
-        placeId: landmark.placeId
-      };
+      // Strategy 1: Use place_id if available (optimal path)
+      if (landmark.placeId) {
+        console.log(`🎯 Using place_id for ${landmark.name}: ${landmark.placeId}`);
+        
+        const enhancedLandmark = {
+          ...landmark,
+          place_id: landmark.placeId,
+          placeId: landmark.placeId
+        };
 
-      const result = await fetchPhotosWithHook(enhancedLandmark, {
-        maxWidth: 800,
-        quality: 'medium' as const,
-        preferredSource: landmark.placeId ? 'database' as const : undefined
-      });
+        const result = await fetchPhotosWithHook(enhancedLandmark, {
+          maxWidth: 800,
+          quality: 'medium' as const,
+          preferredSource: 'database' as const
+        });
 
-      console.log(`✅ Photo fetch result for ${landmark.name}:`, {
-        photoCount: result.photos.length,
-        sourceUsed: result.sourceUsed,
-        hasPlaceId: !!landmark.placeId
-      });
+        if (result.photos.length > 0) {
+          console.log(`✅ Photo fetch SUCCESS with place_id for ${landmark.name}: ${result.photos.length} photos`);
+          return result.photos;
+        }
+        
+        console.log(`⚠️ No photos found with place_id, trying fallback methods for ${landmark.name}`);
+      }
 
-      return result.photos;
+      // Strategy 2: Fallback to coordinate-based search using Google Places Nearby API
+      if (landmark.coordinates && landmark.coordinates.length === 2) {
+        console.log(`🗺️ Trying coordinate-based search for ${landmark.name} at [${landmark.coordinates[0]}, ${landmark.coordinates[1]}]`);
+        
+        try {
+          // Use the supabase function for nearby search to find place_id
+          const { data: nearbyData, error: nearbyError } = await supabase.functions.invoke('google-places-nearby', {
+            body: {
+              latitude: landmark.coordinates[1],
+              longitude: landmark.coordinates[0],
+              radius: 50, // Small radius for precise matching
+              query: landmark.name,
+              type: 'tourist_attraction'
+            }
+          });
+
+          if (!nearbyError && nearbyData?.results && nearbyData.results.length > 0) {
+            const nearbyPlace = nearbyData.results[0];
+            if (nearbyPlace.place_id) {
+              console.log(`🎯 Found place_id via coordinates for ${landmark.name}: ${nearbyPlace.place_id}`);
+              
+              const coordinateBasedLandmark = {
+                ...landmark,
+                place_id: nearbyPlace.place_id,
+                placeId: nearbyPlace.place_id
+              };
+
+              const result = await fetchPhotosWithHook(coordinateBasedLandmark, {
+                maxWidth: 800,
+                quality: 'medium' as const,
+                preferredSource: 'api' as const
+              });
+
+              if (result.photos.length > 0) {
+                console.log(`✅ Photo fetch SUCCESS with coordinate fallback for ${landmark.name}: ${result.photos.length} photos`);
+                return result.photos;
+              }
+            }
+          }
+        } catch (coordError) {
+          console.warn(`⚠️ Coordinate-based search failed for ${landmark.name}:`, coordError);
+        }
+      }
+
+      // Strategy 3: Fallback to text search using landmark name
+      console.log(`🔍 Trying text search fallback for ${landmark.name}`);
+      
+      try {
+        const { data: searchData, error: searchError } = await supabase.functions.invoke('google-places-search', {
+          body: {
+            query: `${landmark.name} landmark tourist attraction`,
+            location: landmark.coordinates && landmark.coordinates.length === 2 ? {
+              lat: landmark.coordinates[1],
+              lng: landmark.coordinates[0]
+            } : undefined,
+            radius: landmark.coordinates ? 1000 : undefined // 1km radius if we have coordinates
+          }
+        });
+
+        if (!searchError && searchData?.results && searchData.results.length > 0) {
+          const searchPlace = searchData.results[0];
+          if (searchPlace.place_id) {
+            console.log(`🎯 Found place_id via text search for ${landmark.name}: ${searchPlace.place_id}`);
+            
+            const textSearchLandmark = {
+              ...landmark,
+              place_id: searchPlace.place_id,
+              placeId: searchPlace.place_id
+            };
+
+            const result = await fetchPhotosWithHook(textSearchLandmark, {
+              maxWidth: 800,
+              quality: 'medium' as const,
+              preferredSource: 'api' as const
+            });
+
+            if (result.photos.length > 0) {
+              console.log(`✅ Photo fetch SUCCESS with text search fallback for ${landmark.name}: ${result.photos.length} photos`);
+              return result.photos;
+            }
+          }
+        }
+      } catch (searchError) {
+        console.warn(`⚠️ Text search fallback failed for ${landmark.name}:`, searchError);
+      }
+
+      // Strategy 4: Final fallback - try with just the landmark data we have
+      console.log(`🔄 Final fallback attempt for ${landmark.name} using available data`);
+      
+      try {
+        const fallbackResult = await fetchPhotosWithHook(landmark, {
+          maxWidth: 800,
+          quality: 'medium' as const
+        });
+
+        if (fallbackResult.photos.length > 0) {
+          console.log(`✅ Photo fetch SUCCESS with final fallback for ${landmark.name}: ${fallbackResult.photos.length} photos`);
+          return fallbackResult.photos;
+        }
+      } catch (finalError) {
+        console.warn(`⚠️ Final fallback failed for ${landmark.name}:`, finalError);
+      }
+
+      console.log(`ℹ️ No photos found for ${landmark.name} after all fallback attempts`);
+      return [];
+
     } catch (error) {
-      console.error('❌ Error fetching photos for landmark:', landmark.name, error);
+      console.error('❌ Error in enhanced photo fetching for landmark:', landmark.name, error);
       return [];
     }
   };
