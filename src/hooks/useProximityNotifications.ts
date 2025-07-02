@@ -5,15 +5,15 @@ import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { useNearbyLandmarks } from '@/hooks/useNearbyLandmarks';
 import { useTTSContext } from '@/contexts/TTSContext';
 import { useStreetView } from '@/hooks/useStreetView';
-import { Landmark } from '@/data/landmarks';
+import { TourLandmark } from '@/data/tourLandmarks';
 import { supabase } from '@/integrations/supabase/client';
 
 interface NotificationState {
-  [landmarkId: string]: number; // timestamp of last notification
+  [placeId: string]: number; // timestamp of last notification
 }
 
 interface PrepZoneState {
-  [landmarkId: string]: {
+  [placeId: string]: {
     entered: boolean;
     streetViewPreloaded: boolean;
     timestamp: number;
@@ -21,7 +21,7 @@ interface PrepZoneState {
 }
 
 interface CardState {
-  [landmarkId: string]: {
+  [placeId: string]: {
     shown: boolean;
     timestamp: number;
   };
@@ -44,8 +44,8 @@ export const useProximityNotifications = () => {
   const previousNearbyLandmarksRef = useRef<Set<string>>(new Set());
   const previousCardZoneLandmarksRef = useRef<Set<string>>(new Set());
 
-  // State for active proximity cards
-  const [activeCards, setActiveCards] = useState<{[landmarkId: string]: Landmark}>({});
+  // State for active proximity cards - use placeId as key
+  const [activeCards, setActiveCards] = useState<{[placeId: string]: TourLandmark}>({});
 
   // Check if proximity settings are loaded with valid distance values
   const isProximitySettingsReady = proximitySettings && 
@@ -105,8 +105,8 @@ export const useProximityNotifications = () => {
   }, []);
 
   // Check if notification cooldown has passed
-  const canNotify = useCallback((landmarkId: string): boolean => {
-    const lastNotification = notificationStateRef.current[landmarkId];
+  const canNotify = useCallback((placeId: string): boolean => {
+    const lastNotification = notificationStateRef.current[placeId];
     if (!lastNotification) return true;
     
     const timeSinceLastNotification = Date.now() - lastNotification;
@@ -114,8 +114,8 @@ export const useProximityNotifications = () => {
   }, []);
 
   // Check if card cooldown has passed
-  const canShowCard = useCallback((landmarkId: string): boolean => {
-    const lastCard = cardStateRef.current[landmarkId];
+  const canShowCard = useCallback((placeId: string): boolean => {
+    const lastCard = cardStateRef.current[placeId];
     if (!lastCard) return true;
     
     const timeSinceLastCard = Date.now() - lastCard.timestamp;
@@ -147,7 +147,7 @@ export const useProximityNotifications = () => {
   }, []);
 
   // Function to show route to landmark
-  const showRouteToLandmark = useCallback(async (landmark: Landmark) => {
+  const showRouteToLandmark = useCallback(async (landmark: TourLandmark) => {
     if (!userLocation) {
       console.log('No user location available for route');
       return;
@@ -223,9 +223,9 @@ export const useProximityNotifications = () => {
   }, [userLocation]);
 
   // Handle prep zone entry and Street View pre-loading
-  const handlePrepZoneEntry = useCallback(async (landmark: Landmark) => {
-    const landmarkId = landmark.id;
-    const prepState = prepZoneStateRef.current[landmarkId];
+  const handlePrepZoneEntry = useCallback(async (landmark: TourLandmark) => {
+    const placeId = landmark.placeId;
+    const prepState = prepZoneStateRef.current[placeId];
 
     // Check if we've already handled this landmark's prep zone
     if (prepState?.entered && prepState?.streetViewPreloaded) {
@@ -235,19 +235,31 @@ export const useProximityNotifications = () => {
     console.log(`🎯 Entered prep zone for ${landmark.name} - starting Street View pre-load`);
 
     // Update prep zone state
-    prepZoneStateRef.current[landmarkId] = {
+    prepZoneStateRef.current[placeId] = {
       entered: true,
       streetViewPreloaded: false,
       timestamp: Date.now()
     };
 
-    // Start Street View pre-loading in the background
+    // Start Street View pre-loading in the background - convert to Landmark format
     try {
-      await preloadStreetView(landmark);
+      const landmarkForPreload = {
+        id: landmark.id || landmark.placeId,
+        name: landmark.name,
+        coordinates: landmark.coordinates,
+        description: landmark.description,
+        rating: landmark.rating,
+        photos: landmark.photos,
+        types: landmark.types,
+        placeId: landmark.placeId,
+        formattedAddress: landmark.formattedAddress
+      };
+      
+      await preloadStreetView(landmarkForPreload);
       
       // Update state to indicate Street View is preloaded
-      prepZoneStateRef.current[landmarkId] = {
-        ...prepZoneStateRef.current[landmarkId],
+      prepZoneStateRef.current[placeId] = {
+        ...prepZoneStateRef.current[placeId],
         streetViewPreloaded: true
       };
 
@@ -259,10 +271,10 @@ export const useProximityNotifications = () => {
   }, [preloadStreetView, saveNotificationState]);
 
   // Handle card zone entry
-  const showProximityCard = useCallback((landmark: Landmark) => {
-    const landmarkId = landmark.id;
+  const showProximityCard = useCallback((landmark: TourLandmark) => {
+    const placeId = landmark.placeId;
     
-    if (!canShowCard(landmarkId)) {
+    if (!canShowCard(placeId)) {
       console.log(`🏪 Card for ${landmark.name} still in cooldown`);
       return;
     }
@@ -270,7 +282,7 @@ export const useProximityNotifications = () => {
     console.log(`🏪 Showing proximity card for ${landmark.name}`);
 
     // Update card state
-    cardStateRef.current[landmarkId] = {
+    cardStateRef.current[placeId] = {
       shown: true,
       timestamp: Date.now()
     };
@@ -278,25 +290,25 @@ export const useProximityNotifications = () => {
     // Add to active cards
     setActiveCards(prev => ({
       ...prev,
-      [landmarkId]: landmark
+      [placeId]: landmark
     }));
 
     saveNotificationState();
   }, [canShowCard, saveNotificationState]);
 
   // Function to close a proximity card
-  const closeProximityCard = useCallback((landmarkId: string) => {
-    console.log(`🏪 Closing proximity card for landmark ${landmarkId}`);
+  const closeProximityCard = useCallback((placeId: string) => {
+    console.log(`🏪 Closing proximity card for landmark ${placeId}`);
     
     setActiveCards(prev => {
       const updated = { ...prev };
-      delete updated[landmarkId];
+      delete updated[placeId];
       return updated;
     });
   }, []);
 
   // Show proximity toast notification with sound, TTS, and Street View
-  const showProximityToast = useCallback(async (landmark: Landmark, distance: number) => {
+  const showProximityToast = useCallback(async (landmark: TourLandmark, distance: number) => {
     const formattedDistance = distance >= 1000 
       ? `${(distance / 1000).toFixed(1)} km` 
       : `${Math.round(distance)} m`;
@@ -315,7 +327,7 @@ export const useProximityNotifications = () => {
     }
 
     // Check if Street View is pre-loaded for enhanced toast
-    const streetViewData = getCachedData(landmark.id);
+    const streetViewData = getCachedData(landmark.id || landmark.placeId);
     const hasStreetView = !!streetViewData;
 
     // Show visual toast with optional Street View enhancement
@@ -332,7 +344,7 @@ export const useProximityNotifications = () => {
     });
 
     // Record notification
-    notificationStateRef.current[landmark.id] = Date.now();
+    notificationStateRef.current[landmark.placeId] = Date.now();
     saveNotificationState();
   }, [saveNotificationState, showRouteToLandmark, playNotificationSound, speak, getCachedData]);
 
@@ -344,8 +356,8 @@ export const useProximityNotifications = () => {
 
     // Handle newly entered prep zones
     prepZoneLandmarks.forEach(({ landmark }) => {
-      const landmarkId = landmark.id;
-      const prepState = prepZoneStateRef.current[landmarkId];
+      const placeId = landmark.placeId;
+      const prepState = prepZoneStateRef.current[placeId];
       
       if (!prepState?.entered) {
         handlePrepZoneEntry(landmark);
@@ -353,11 +365,11 @@ export const useProximityNotifications = () => {
     });
 
     // Clean up prep zone state for landmarks that are no longer nearby
-    const currentPrepZoneIds = new Set(prepZoneLandmarks.map(nl => nl.landmark.id));
-    Object.keys(prepZoneStateRef.current).forEach(landmarkId => {
-      if (!currentPrepZoneIds.has(landmarkId)) {
-        console.log(`🚪 Exited prep zone for landmark ${landmarkId}`);
-        delete prepZoneStateRef.current[landmarkId];
+    const currentPrepZoneIds = new Set(prepZoneLandmarks.map(nl => nl.landmark.placeId));
+    Object.keys(prepZoneStateRef.current).forEach(placeId => {
+      if (!currentPrepZoneIds.has(placeId)) {
+        console.log(`🚪 Exited prep zone for landmark ${placeId}`);
+        delete prepZoneStateRef.current[placeId];
         saveNotificationState();
       }
     });
@@ -369,7 +381,7 @@ export const useProximityNotifications = () => {
       return;
     }
 
-    const currentCardZoneIds = new Set(cardZoneLandmarks.map(nl => nl.landmark.id));
+    const currentCardZoneIds = new Set(cardZoneLandmarks.map(nl => nl.landmark.placeId));
     const previousCardZoneIds = previousCardZoneLandmarksRef.current;
 
     // Find newly entered card zone landmarks
@@ -380,20 +392,20 @@ export const useProximityNotifications = () => {
     // Show card for newly entered landmarks (one at a time, closest first)
     if (newlyEnteredCardIds.length > 0) {
       const closestNewCardLandmark = cardZoneLandmarks.find(nl => 
-        newlyEnteredCardIds.includes(nl.landmark.id)
+        newlyEnteredCardIds.includes(nl.landmark.placeId)
       );
 
-      if (closestNewCardLandmark && canShowCard(closestNewCardLandmark.landmark.id)) {
+      if (closestNewCardLandmark && canShowCard(closestNewCardLandmark.landmark.placeId)) {
         showProximityCard(closestNewCardLandmark.landmark);
       }
     }
 
     // Hide cards for landmarks that are no longer in card zone
     const exitedCardIds = Array.from(previousCardZoneIds).filter(id => !currentCardZoneIds.has(id));
-    exitedCardIds.forEach(landmarkId => {
-      if (activeCards[landmarkId]) {
-        console.log(`🏪 Exiting card zone for ${landmarkId}, hiding card`);
-        closeProximityCard(landmarkId);
+    exitedCardIds.forEach(placeId => {
+      if (activeCards[placeId]) {
+        console.log(`🏪 Exiting card zone for ${placeId}, hiding card`);
+        closeProximityCard(placeId);
       }
     });
 
@@ -407,7 +419,7 @@ export const useProximityNotifications = () => {
       return;
     }
 
-    const currentNearbyIds = new Set(nearbyLandmarks.map(nl => nl.landmark.id));
+    const currentNearbyIds = new Set(nearbyLandmarks.map(nl => nl.landmark.placeId));
     const previousNearbyIds = previousNearbyLandmarksRef.current;
 
     // Find newly entered landmarks (in current but not in previous)
@@ -420,7 +432,7 @@ export const useProximityNotifications = () => {
       // Find the first (closest) newly entered landmark that can be notified
       // nearbyLandmarks is already sorted by distance (closest first)
       const closestNewLandmark = nearbyLandmarks.find(nl => 
-        newlyEnteredIds.includes(nl.landmark.id) && canNotify(nl.landmark.id)
+        newlyEnteredIds.includes(nl.landmark.placeId) && canNotify(nl.landmark.placeId)
       );
 
       if (closestNewLandmark) {
@@ -441,25 +453,25 @@ export const useProximityNotifications = () => {
       let hasChanges = false;
 
       // Clean up notification state
-      for (const [landmarkId, timestamp] of Object.entries(notificationStateRef.current)) {
+      for (const [placeId, timestamp] of Object.entries(notificationStateRef.current)) {
         if (now - timestamp > NOTIFICATION_COOLDOWN * 2) { // Keep for 2x cooldown period
-          delete notificationStateRef.current[landmarkId];
+          delete notificationStateRef.current[placeId];
           hasChanges = true;
         }
       }
 
       // Clean up prep zone state (keep for 1 hour)
-      for (const [landmarkId, state] of Object.entries(prepZoneStateRef.current)) {
+      for (const [placeId, state] of Object.entries(prepZoneStateRef.current)) {
         if (now - state.timestamp > 60 * 60 * 1000) { // 1 hour
-          delete prepZoneStateRef.current[landmarkId];
+          delete prepZoneStateRef.current[placeId];
           hasChanges = true;
         }
       }
 
       // Clean up card state (keep for 2x cooldown period)
-      for (const [landmarkId, state] of Object.entries(cardStateRef.current)) {
+      for (const [placeId, state] of Object.entries(cardStateRef.current)) {
         if (now - state.timestamp > CARD_COOLDOWN * 2) {
-          delete cardStateRef.current[landmarkId];
+          delete cardStateRef.current[placeId];
           hasChanges = true;
         }
       }

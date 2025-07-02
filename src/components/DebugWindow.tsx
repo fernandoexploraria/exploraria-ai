@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { X, MapPin, Eye, Timer, Target, Route, Bell, Camera, TestTube, Loader2, Database, Wifi, WifiOff, CreditCard } from 'lucide-react';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -59,9 +58,9 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
   const getStrategyInfo = (landmark: any, distance: number) => {
     const strategy = getViewpointStrategy(distance, effectiveType);
     const strategyKey = `${strategy.strategy}-${strategy.quality}`;
-    const cached = getCachedData(landmark.id, strategyKey);
-    const isUnavailable = isKnownUnavailable(landmark.id);
-    const loading = isLoading[landmark.id];
+    const cached = getCachedData(landmark.id || landmark.placeId, strategyKey);
+    const isUnavailable = isKnownUnavailable(landmark.id || landmark.placeId);
+    const loading = isLoading[landmark.id || landmark.placeId];
 
     // Determine viewpoint count based on strategy
     let viewpointCount = 1;
@@ -100,10 +99,32 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
   const handleLandmarkClick = async (clickedLandmark: any, landmarks: any[]) => {
     console.log(`🔍 Opening Street View for ${clickedLandmark.landmark.name} from debug window`);
     
-    // Extract just the landmark objects from NearbyLandmark array
-    const landmarkObjects = landmarks.map(nearby => nearby.landmark);
+    // Extract just the landmark objects from NearbyLandmark array and convert to Landmark format
+    const landmarkObjects = landmarks.map(nearby => ({
+      id: nearby.landmark.id || nearby.landmark.placeId,
+      name: nearby.landmark.name,
+      coordinates: nearby.landmark.coordinates,
+      description: nearby.landmark.description,
+      rating: nearby.landmark.rating,
+      photos: nearby.landmark.photos,
+      types: nearby.landmark.types,
+      placeId: nearby.landmark.placeId,
+      formattedAddress: nearby.landmark.formattedAddress
+    }));
     
-    await openStreetViewModal(landmarkObjects, clickedLandmark.landmark);
+    const clickedLandmarkConverted = {
+      id: clickedLandmark.landmark.id || clickedLandmark.landmark.placeId,
+      name: clickedLandmark.landmark.name,
+      coordinates: clickedLandmark.landmark.coordinates,
+      description: clickedLandmark.landmark.description,
+      rating: clickedLandmark.landmark.rating,
+      photos: clickedLandmark.landmark.photos,
+      types: clickedLandmark.landmark.types,
+      placeId: clickedLandmark.landmark.placeId,
+      formattedAddress: clickedLandmark.landmark.formattedAddress
+    };
+    
+    await openStreetViewModal(landmarkObjects, clickedLandmarkConverted);
   };
 
   if (!isVisible) return null;
@@ -294,12 +315,13 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                 </div>
                 <div className="pl-5 space-y-2 max-h-40 overflow-y-auto">
                   {cardZoneLandmarks.map((nearby, index) => {
-                    const isActive = !!activeCards[nearby.landmark.id];
-                    const cardInfo = cardState[nearby.landmark.id];
+                    const placeId = nearby.landmark.placeId;
+                    const isActive = !!activeCards[placeId];
+                    const cardInfo = cardState[placeId];
                     
                     return (
                       <div 
-                        key={nearby.landmark.id} 
+                        key={placeId} 
                         className="border border-green-200 dark:border-green-800 rounded p-2 space-y-1 bg-green-100 dark:bg-green-900/20 cursor-pointer hover:bg-green-200 dark:hover:bg-green-900/30 transition-colors relative group"
                         onClick={() => handleLandmarkClick(nearby, cardZoneLandmarks)}
                       >
@@ -359,13 +381,14 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                 </div>
                 <div className="pl-5 space-y-2 max-h-40 overflow-y-auto">
                   {prepZoneLandmarks.map((nearby, index) => {
-                    const isInNotificationZone = notificationZoneLandmarks.some(n => n.landmark.id === nearby.landmark.id);
-                    const isInCardZone = cardZoneLandmarks.some(n => n.landmark.id === nearby.landmark.id);
+                    const placeId = nearby.landmark.placeId;
+                    const isInNotificationZone = notificationZoneLandmarks.some(n => n.landmark.placeId === placeId);
+                    const isInCardZone = cardZoneLandmarks.some(n => n.landmark.placeId === placeId);
                     const strategyInfo = getStrategyInfo(nearby.landmark, nearby.distance);
                     
                     return (
                       <div 
-                        key={nearby.landmark.id} 
+                        key={placeId} 
                         className="border border-yellow-200 dark:border-yellow-800 rounded p-2 space-y-1 bg-yellow-100 dark:bg-yellow-900/20 cursor-pointer hover:bg-yellow-200 dark:hover:bg-yellow-900/30 transition-colors relative group"
                         onClick={() => handleLandmarkClick(nearby, prepZoneLandmarks)}
                       >
@@ -445,12 +468,13 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                 </div>
                 <div className="pl-5 space-y-2 max-h-40 overflow-y-auto">
                   {notificationZoneLandmarks.map((nearby, index) => {
-                    const isInCardZone = cardZoneLandmarks.some(n => n.landmark.id === nearby.landmark.id);
+                    const placeId = nearby.landmark.placeId;
+                    const isInCardZone = cardZoneLandmarks.some(n => n.landmark.placeId === placeId);
                     const strategyInfo = getStrategyInfo(nearby.landmark, nearby.distance);
                     
                     return (
                       <div 
-                        key={nearby.landmark.id} 
+                        key={placeId} 
                         className="border border-orange-200 dark:border-orange-800 rounded p-2 space-y-1 bg-orange-100 dark:bg-orange-900/20 cursor-pointer hover:bg-orange-200 dark:hover:bg-orange-900/30 transition-colors relative group"
                         onClick={() => handleLandmarkClick(nearby, notificationZoneLandmarks)}
                       >

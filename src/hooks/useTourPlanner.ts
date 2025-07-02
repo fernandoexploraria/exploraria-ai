@@ -223,6 +223,7 @@ export const useTourPlanner = () => {
         .filter(landmark => landmark.placeId) // Only include landmarks with placeId
         .map(landmark => ({
           placeId: landmark.placeId!, // Now guaranteed to exist due to filter
+          id: landmark.id || landmark.placeId!, // Ensure id exists for compatibility
           name: landmark.name,
           coordinates: landmark.coordinates,
           description: landmark.description,
@@ -235,7 +236,7 @@ export const useTourPlanner = () => {
           confidence: convertConfidenceToString(landmark.confidence) // Convert number to string literal
         }));
 
-      console.log('Setting tour landmarks:', tourLandmarks.length, 'valid landmarks with placeId');
+      console.log('Setting tour landmarks:', tourLandmarks.length, 'valid landmarks with placeId and id');
       setTourLandmarks(tourLandmarks);
 
       const newTourPlan: TourPlan = {

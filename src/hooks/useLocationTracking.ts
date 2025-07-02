@@ -160,8 +160,18 @@ export const useLocationTracking = (): LocationTrackingHook => {
     if (isSignificant && nearbyLandmarks.length > 0 && shouldPreloadStreetView()) {
       console.log(`🔄 Triggering enhanced Street View multi-viewpoint pre-loading for ${nearbyLandmarks.length} nearby landmarks (within ${proximitySettings?.outer_distance || 250}m outer zone)`);
       
-      // Extract landmarks from NearbyLandmark objects and pre-load enhanced Street View
-      const landmarksToPreload = nearbyLandmarks.map(nearbyLandmark => nearbyLandmark.landmark);
+      // Convert TourLandmark to Landmark format for preloadForProximity
+      const landmarksToPreload = nearbyLandmarks.map(nearbyLandmark => ({
+        id: nearbyLandmark.landmark.id || nearbyLandmark.landmark.placeId,
+        name: nearbyLandmark.landmark.name,
+        coordinates: nearbyLandmark.landmark.coordinates,
+        description: nearbyLandmark.landmark.description,
+        rating: nearbyLandmark.landmark.rating,
+        photos: nearbyLandmark.landmark.photos,
+        types: nearbyLandmark.landmark.types,
+        placeId: nearbyLandmark.landmark.placeId,
+        formattedAddress: nearbyLandmark.landmark.formattedAddress
+      }));
       
       preloadForProximity(landmarksToPreload, {
         latitude: newLocation.latitude,

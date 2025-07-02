@@ -2,6 +2,7 @@
 export interface TourLandmark {
   // Core identification (using placeId as the unique key)
   placeId: string;                    // Required - primary unique identifier
+  id?: string;                        // Optional - for compatibility with Landmark interface
   name: string;
   coordinates: [number, number];
   description: string;
@@ -48,7 +49,7 @@ export const setTourLandmarks = (landmarks: TourLandmark[]) => {
     TOUR_LANDMARKS.length = 0;
   }
   
-  // Add new landmarks with validation
+  // Add new landmarks with validation and ensure they have id for compatibility
   const validLandmarks = landmarks.filter(landmark => {
     const isValid = landmark.name && 
       landmark.coordinates && 
@@ -61,7 +62,10 @@ export const setTourLandmarks = (landmarks: TourLandmark[]) => {
     }
     
     return isValid;
-  });
+  }).map(landmark => ({
+    ...landmark,
+    id: landmark.id || landmark.placeId // Use placeId as fallback for id
+  }));
   
   TOUR_LANDMARKS.push(...validLandmarks);
   console.log('📍 Enhanced tour landmarks set:', validLandmarks.length, 'valid landmarks added');
@@ -70,7 +74,9 @@ export const setTourLandmarks = (landmarks: TourLandmark[]) => {
   if (validLandmarks.length > 0) {
     console.log('📍 Sample landmarks:', validLandmarks.slice(0, 3).map(l => ({
       name: l.name,
-      coordinates: l.coordinates
+      coordinates: l.coordinates,
+      id: l.id,
+      placeId: l.placeId
     })));
   }
 };
