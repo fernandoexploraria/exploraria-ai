@@ -443,7 +443,7 @@ const MapComponent: React.FC<MapProps> = ({
           source: BASE_LANDMARKS_SOURCE_ID,
           paint: {
             'circle-radius': 6,
-            'circle-color': '#22d3ee',
+            'circle-color': '#a855f7',
             'circle-stroke-color': '#ffffff',
             'circle-stroke-width': 2
           }
@@ -780,7 +780,7 @@ const MapComponent: React.FC<MapProps> = ({
         if (!searchError && searchData?.results && searchData.results.length > 0) {
           const searchPlace = searchData.results[0];
           if (searchPlace.place_id) {
-            console.log(`🎯 Found place_id via text search for ${landmark.name}: ${searchPlace.placeId}`);
+            console.log(`🎯 Found place_id via text search for ${landmark.name}: ${searchPlace.place_id}`);
             
             const textSearchLandmark = {
               ...landmark,
