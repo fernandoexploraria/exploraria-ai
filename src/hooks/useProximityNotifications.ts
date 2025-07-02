@@ -4,10 +4,10 @@ import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { useNearbyLandmarks } from '@/hooks/useNearbyLandmarks';
 import { toast } from 'sonner';
-import { Landmark } from '@/data/landmarks';
+import { TourLandmark } from '@/data/tourLandmarks';
 
 interface ActiveCard {
-  landmark: Landmark;
+  landmark: TourLandmark;
   distance: number;
 }
 
@@ -15,7 +15,7 @@ export const useProximityNotifications = () => {
   const { proximitySettings } = useProximityAlerts();
   const { userLocation } = useLocationTracking();
   const notifiedLandmarksRef = useRef<Set<string>>(new Set());
-  const [activeCards, setActiveCards] = useState<{ [key: string]: Landmark }>({});
+  const [activeCards, setActiveCards] = useState<{ [key: string]: TourLandmark }>({});
 
   // Get nearby landmarks using outer distance (card_distance for floating cards)
   const nearbyLandmarks = useNearbyLandmarks({
@@ -121,7 +121,7 @@ export const useProximityNotifications = () => {
     });
   };
 
-  const showRouteToService = (landmark: Landmark) => {
+  const showRouteToService = (landmark: TourLandmark) => {
     console.log('🗺️ Showing route to service:', landmark.name);
     // TODO: Implement route to service functionality
   };

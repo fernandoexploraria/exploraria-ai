@@ -88,7 +88,7 @@ const Map: React.FC<MapProps> = ({
       
       const markerElement = document.createElement('div');
       markerElement.className = 'custom-marker';
-      const iconResult = getPlaceTypeIcon(landmark.types?.[0] || 'point_of_interest');
+      const iconResult = getPlaceTypeIcon(landmark.types || ['point_of_interest']);
       markerElement.innerHTML = typeof iconResult === 'string' ? iconResult : iconResult.icon;
       markerElement.style.fontSize = '24px';
       markerElement.style.cursor = 'pointer';
@@ -163,7 +163,7 @@ const Map: React.FC<MapProps> = ({
       <div ref={mapContainer} className="w-full h-full" />
       
       {/* Connection status indicator */}
-      {connectionHealth.status === 'offline' && (
+      {connectionHealth.isOffline && (
         <div className="absolute top-4 left-4 bg-red-600 text-white px-3 py-1 rounded text-sm z-10">
           Offline Mode
         </div>
