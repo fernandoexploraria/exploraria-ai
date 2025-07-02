@@ -1,9 +1,23 @@
 
 export interface TourLandmark {
+  // Core identification (using placeId as the unique key)
+  placeId: string;                    // Required - primary unique identifier
   name: string;
   coordinates: [number, number];
   description: string;
-  placeId?: string;
+  
+  // Google Places data (from tour generation)
+  rating?: number;                    // Star rating (1-5)
+  photos?: string[];                  // Array of photo URLs
+  types?: string[];                   // Place types ['restaurant', 'tourist_attraction']
+  formattedAddress?: string;          // Full formatted address
+  
+  // Tour metadata
+  tourId?: string;                    // Reference to generating tour
+  
+  // Generation quality metrics
+  coordinateSource?: string;          // 'google_places' | 'geocoding' | 'fallback'
+  confidence?: 'high' | 'medium' | 'low'; // Data quality indicator
 }
 
 // Mutable array that gets cleared and repopulated for each new tour
