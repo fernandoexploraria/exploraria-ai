@@ -12,8 +12,6 @@ import FloatingProximityCard from './FloatingProximityCard';
 import { Button } from '@/components/ui/button';
 import { Navigation, Layers } from 'lucide-react';
 
-mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
-
 interface MapProps {
   landmarks: Landmark[];
   selectedLandmark: Landmark | null;
@@ -47,7 +45,7 @@ const Map: React.FC<MapProps> = ({
   const mapboxToken = useMapboxToken();
   const {
     userLocation: trackedLocation,
-    error: locationError,
+    locationState,
     startTracking,
     stopTracking,
   } = useLocationTracking();
@@ -83,13 +81,14 @@ const Map: React.FC<MapProps> = ({
   useEffect(() => {
     if (!mapboxToken || map) return;
 
-    mapboxgl.accessToken = mapboxToken;
-
     const initializeMap = () => {
       if (!mapContainerRef.current) {
         console.error('Map container not found!');
         return;
       }
+
+      // Set the mapbox access token
+      mapboxgl.accessToken = mapboxToken;
 
       const newMap = new mapboxgl.Map({
         container: mapContainerRef.current,
@@ -424,9 +423,9 @@ const Map: React.FC<MapProps> = ({
       </div>
 
       {/* Location error */}
-      {locationError && (
+      {locationState.error && (
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-500 text-white p-2 rounded shadow-md">
-          Error: {locationError}
+          Error: {locationState.error}
         </div>
       )}
 
