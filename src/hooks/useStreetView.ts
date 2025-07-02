@@ -24,6 +24,7 @@ interface StreetViewCache {
     data: StreetViewData | null; // null indicates Street View not available
     timestamp: number;
     isAvailable: boolean;
+    hasPanorama?: boolean; // NEW: indicates if interactive panorama is available
   };
 }
 
@@ -58,6 +59,19 @@ export const useStreetView = () => {
 
     const cacheAge = Date.now() - cached.timestamp;
     return !cached.isAvailable && cacheAge <= NEGATIVE_CACHE_DURATION;
+  }, []);
+
+  // NEW: Check if panorama is available for a landmark
+  const hasPanoramaAvailable = useCallback((landmarkId: string): boolean => {
+    const cached = cacheRef.current[landmarkId];
+    return cached?.hasPanorama === true;
+  }, []);
+
+  // NEW: Set panorama availability for a landmark
+  const setPanoramaAvailability = useCallback((landmarkId: string, available: boolean) => {
+    if (cacheRef.current[landmarkId]) {
+      cacheRef.current[landmarkId].hasPanorama = available;
+    }
   }, []);
 
   // Fetch Street View data for a landmark
@@ -100,7 +114,8 @@ export const useStreetView = () => {
         cacheRef.current[landmarkId] = {
           data: null,
           timestamp: Date.now(),
-          isAvailable: false
+          isAvailable: false,
+          hasPanorama: false
         };
         
         setError(`Failed to fetch Street View: ${error.message}`);
@@ -114,7 +129,8 @@ export const useStreetView = () => {
         cacheRef.current[landmarkId] = {
           data: null,
           timestamp: Date.now(),
-          isAvailable: false
+          isAvailable: false,
+          hasPanorama: false
         };
         
         return null;
@@ -124,7 +140,8 @@ export const useStreetView = () => {
       cacheRef.current[landmarkId] = {
         data,
         timestamp: Date.now(),
-        isAvailable: true
+        isAvailable: true,
+        hasPanorama: undefined // Will be determined separately
       };
 
       console.log(`✅ Street View data cached for ${landmark.name}`);
@@ -138,7 +155,8 @@ export const useStreetView = () => {
       cacheRef.current[landmarkId] = {
         data: null,
         timestamp: Date.now(),
-        isAvailable: false
+        isAvailable: false,
+        hasPanorama: false
       };
       
       setError(errorMessage);
@@ -182,6 +200,8 @@ export const useStreetView = () => {
     getStreetView,
     getCachedData,
     isKnownUnavailable,
+    hasPanoramaAvailable, // NEW
+    setPanoramaAvailability, // NEW
     clearCache,
     isLoading,
     error
