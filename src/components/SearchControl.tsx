@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import {
   CommandDialog,
@@ -79,9 +80,9 @@ const SearchControl: React.FC<SearchControlProps> = ({ landmarks, onSelectLandma
         </Button>
       </div>
 
-      {/* Temporary enrichment test component */}
+      {/* Temporary enrichment test component with scrollable container */}
       {showEnrichmentTest && (
-        <div className="absolute top-full left-0 right-0 z-50 mt-2">
+        <div className="absolute top-full left-0 right-0 z-50 mt-2 max-h-[80vh] overflow-y-auto bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg">
           <LandmarkEnrichmentTest />
         </div>
       )}
