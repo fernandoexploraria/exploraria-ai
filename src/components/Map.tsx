@@ -1040,7 +1040,7 @@ const MapComponent: React.FC<MapProps> = ({
               
               <button
                 onClick={() => handleTextToSpeech(landmark)}
-                disabled={playingAudio[landmarkId] || false}
+                disabled={playingAudio[landmark.id] || false}
                 className="bg-black/90 hover:bg-blue-500/95 text-white border-2 border-white/90 rounded-full w-12 h-12 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg disabled:opacity-70"
                 title="Listen to description"
               >
