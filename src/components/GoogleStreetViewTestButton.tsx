@@ -5,23 +5,30 @@ import { Eye, MapPin } from 'lucide-react';
 import GoogleStreetViewPanorama from './GoogleStreetViewPanorama';
 import { useGoogleStreetViewPanorama } from '@/hooks/useGoogleStreetViewPanorama';
 import { useStreetView } from '@/hooks/useStreetView';
-import { landmarks } from '@/data/landmarks';
+import { TOP_LANDMARKS } from '@/data/topLandmarks';
 
 const GoogleStreetViewTestButton: React.FC = () => {
   const [selectedLandmark, setSelectedLandmark] = useState<string>('');
   const { panoramaState, openPanorama, closePanorama } = useGoogleStreetViewPanorama();
   const { fetchPanoramaData, isLoading } = useStreetView();
 
-  // Test landmarks in Mexico City
-  const testLandmarks = landmarks.filter(landmark => 
-    landmark.name.includes('Zócalo') || 
-    landmark.name.includes('Palacio') ||
-    landmark.name.includes('Catedral') ||
-    landmark.name.includes('Torre')
-  ).slice(0, 5);
+  // Select 6 world-famous landmarks with excellent Street View coverage
+  const testLandmarks = [
+    TOP_LANDMARKS[0], // Eiffel Tower, Paris
+    TOP_LANDMARKS[1], // Times Square, New York
+    TOP_LANDMARKS[4], // Big Ben, London
+    TOP_LANDMARKS[7], // Colosseum, Rome
+    TOP_LANDMARKS[10], // Golden Gate Bridge, San Francisco
+    TOP_LANDMARKS[19], // Empire State Building, New York
+  ].map(landmark => ({
+    id: `test-${landmark.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+    name: landmark.name,
+    coordinates: landmark.coordinates,
+    description: landmark.description
+  }));
 
   const handleTestPanorama = async (landmarkId: string) => {
-    const landmark = landmarks.find(l => l.id === landmarkId);
+    const landmark = testLandmarks.find(l => l.id === landmarkId);
     if (landmark) {
       console.log('🎯 Testing panorama for:', landmark.name);
       setSelectedLandmark(landmarkId);
