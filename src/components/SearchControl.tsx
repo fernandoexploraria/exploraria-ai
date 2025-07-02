@@ -32,7 +32,11 @@ const SearchControl: React.FC<SearchControlProps> = ({
 
   // Add photo preloading for search results
   const photoPreloading = usePhotoPreloading(
-    userLocation,
+    userLocation ? {
+      latitude: userLocation.latitude,
+      longitude: userLocation.longitude,
+      timestamp: userLocation.timestamp || Date.now()
+    } : null,
     [...landmarks, ...TOP_LANDMARKS.map(tl => ({
       id: `top-${tl.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
       name: tl.name,
