@@ -11,7 +11,8 @@ interface GoogleStreetViewPanoramaProps {
     lng: number;
   };
   landmarkName: string;
-  apiKey: string;
+  panoId?: string; // NEW: Use pano ID from edge function
+  isAvailable?: boolean; // NEW: Availability from edge function
 }
 
 const GoogleStreetViewPanorama: React.FC<GoogleStreetViewPanoramaProps> = ({
@@ -19,50 +20,82 @@ const GoogleStreetViewPanorama: React.FC<GoogleStreetViewPanoramaProps> = ({
   onClose,
   location,
   landmarkName,
-  apiKey
+  panoId,
+  isAvailable = null
 }) => {
   const panoramaRef = useRef<HTMLDivElement>(null);
-  const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
   const [panorama, setPanorama] = useState<google.maps.StreetViewPanorama | null>(null);
+  const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = useState(false);
 
+  // Load Google Maps JavaScript API dynamically
   useEffect(() => {
-    if (!isOpen || !panoramaRef.current) return;
+    if (typeof google !== 'undefined' && google.maps) {
+      setIsGoogleMapsLoaded(true);
+      return;
+    }
 
-    // Check if Street View is available for this location
-    const checkAvailability = async () => {
-      try {
-        const streetViewService = new google.maps.StreetViewService();
-        streetViewService.getPanorama({
-          location: location,
-          radius: 50
-        }, (data, status) => {
-          const available = status === google.maps.StreetViewStatus.OK;
-          setIsAvailable(available);
-          
-          if (available && panoramaRef.current) {
-            // Create the panorama
-            const pano = new google.maps.StreetViewPanorama(panoramaRef.current, {
-              position: location,
-              pov: { heading: 0, pitch: 0 },
-              zoom: 1,
-              visible: true,
-              enableCloseButton: false,
-              fullscreenControl: true,
-              motionTracking: false,
-              motionTrackingControl: false,
-              showRoadLabels: true,
-            });
-            setPanorama(pano);
-          }
-        });
-      } catch (error) {
-        console.error('Error checking Street View availability:', error);
-        setIsAvailable(false);
+    // Load Google Maps JavaScript API
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_GOOGLE_API_KEY || ''}&libraries=geometry`;
+    script.async = true;
+    script.defer = true;
+    
+    script.onload = () => {
+      setIsGoogleMapsLoaded(true);
+    };
+    
+    script.onerror = () => {
+      console.error('Failed to load Google Maps JavaScript API');
+    };
+    
+    document.head.appendChild(script);
+
+    return () => {
+      // Clean up script if component unmounts
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
       }
     };
+  }, []);
 
-    checkAvailability();
-  }, [isOpen, location]);
+  useEffect(() => {
+    if (!isOpen || !panoramaRef.current || !isGoogleMapsLoaded) return;
+
+    // Check if we know the panorama is not available
+    if (isAvailable === false) {
+      console.log(`🚫 Panorama not available for ${landmarkName}`);
+      return;
+    }
+
+    try {
+      // Create the panorama using the location or pano ID
+      const pano = new google.maps.StreetViewPanorama(panoramaRef.current, {
+        position: location,
+        ...(panoId && { pano: panoId }), // Use pano ID if available
+        pov: { heading: 0, pitch: 0 },
+        zoom: 1,
+        visible: true,
+        enableCloseButton: false,
+        fullscreenControl: true,
+        motionTracking: false,
+        motionTrackingControl: false,
+        showRoadLabels: true,
+      });
+
+      setPanorama(pano);
+
+      // Listen for status changes
+      pano.addListener('status_changed', () => {
+        const status = pano.getStatus();
+        if (status !== google.maps.StreetViewStatus.OK) {
+          console.log(`❌ Panorama status changed to: ${status}`);
+        }
+      });
+
+    } catch (error) {
+      console.error('Error creating Street View panorama:', error);
+    }
+  }, [isOpen, location, landmarkName, panoId, isAvailable, isGoogleMapsLoaded]);
 
   // Cleanup panorama when component unmounts or closes
   useEffect(() => {
@@ -93,20 +126,14 @@ const GoogleStreetViewPanorama: React.FC<GoogleStreetViewPanoramaProps> = ({
 
         {/* Panorama Content */}
         <div className="w-full h-full">
-          {isAvailable === null ? (
+          {!isGoogleMapsLoaded ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                <p>Checking Street View availability...</p>
+                <p>Loading Google Maps...</p>
               </div>
             </div>
-          ) : isAvailable ? (
-            <div 
-              ref={panoramaRef}
-              className="w-full h-full"
-              style={{ minHeight: '400px' }}
-            />
-          ) : (
+          ) : isAvailable === false ? (
             <div className="flex items-center justify-center h-full bg-gray-100">
               <div className="text-center text-gray-600">
                 <div className="text-6xl mb-4">🏙️</div>
@@ -115,6 +142,12 @@ const GoogleStreetViewPanorama: React.FC<GoogleStreetViewPanoramaProps> = ({
                 <p className="text-sm mt-2">This may be due to privacy restrictions or limited coverage.</p>
               </div>
             </div>
+          ) : (
+            <div 
+              ref={panoramaRef}
+              className="w-full h-full"
+              style={{ minHeight: '400px' }}
+            />
           )}
         </div>
       </div>

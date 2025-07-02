@@ -14,6 +14,7 @@ interface EnhancedStreetViewRequest {
   quality?: 'low' | 'medium' | 'high';
   landmarkType?: string;
   size?: string;
+  requestType?: 'image' | 'panorama' | 'both'; // NEW: specify what data to return
 }
 
 interface StreetViewData {
@@ -32,9 +33,24 @@ interface StreetViewData {
   };
 }
 
+interface PanoramaData {
+  panoId: string;
+  location: {
+    lat: number;
+    lng: number;
+  };
+  isAvailable: boolean;
+  landmarkName: string;
+  metadata: {
+    status: string;
+    copyright?: string;
+  };
+}
+
 interface MultiViewpointResponse {
   primary: StreetViewData;
   viewpoints: StreetViewData[];
+  panorama?: PanoramaData; // NEW: panorama-specific data
   metadata: {
     totalViews: number;
     recommendedView: number;
@@ -107,6 +123,53 @@ const getSizeForQuality = (quality: string): string => {
       return '800x800';
     default:
       return '640x640';
+  }
+};
+
+// NEW: Function to get panorama data
+const getPanoramaData = async (
+  lat: number,
+  lng: number,
+  landmarkName: string,
+  googleApiKey: string
+): Promise<PanoramaData | null> => {
+  try {
+    const metadataUrl = `https://maps.googleapis.com/maps/api/streetview/metadata?` +
+      `location=${lat},${lng}&` +
+      `key=${googleApiKey}`;
+
+    const metadataResponse = await fetch(metadataUrl);
+    const metadata = await metadataResponse.json();
+
+    if (metadata.status !== 'OK') {
+      console.log(`❌ Panorama not available (status: ${metadata.status})`);
+      return {
+        panoId: '',
+        location: { lat, lng },
+        isAvailable: false,
+        landmarkName,
+        metadata: {
+          status: metadata.status
+        }
+      };
+    }
+
+    return {
+      panoId: metadata.pano_id || '',
+      location: {
+        lat: metadata.location?.lat || lat,
+        lng: metadata.location?.lng || lng
+      },
+      isAvailable: true,
+      landmarkName,
+      metadata: {
+        status: metadata.status,
+        copyright: metadata.copyright
+      }
+    };
+  } catch (error) {
+    console.error('❌ Error fetching panorama data:', error);
+    return null;
   }
 };
 
@@ -293,7 +356,8 @@ serve(async (req) => {
       quality = 'medium',
       landmarkType = 'building',
       size,
-      includeMetadata = true
+      includeMetadata = true,
+      requestType = 'both' // NEW: default to both image and panorama data
     }: EnhancedStreetViewRequest = await req.json();
     
     if (!coordinates || coordinates.length !== 2) {
@@ -315,11 +379,40 @@ serve(async (req) => {
     }
 
     const finalSize = size || getSizeForQuality(quality);
-    const requestedHeadings = getViewpointHeadings(viewpoints, landmarkType);
     
     console.log(`🗺️ Fetching Enhanced Street View for ${landmarkName} at [${lng}, ${lat}]`);
-    console.log(`📐 Strategy: ${viewpoints}, Quality: ${quality}, Requested: [${requestedHeadings.join(', ')}°]`);
+    console.log(`📐 Strategy: ${viewpoints}, Quality: ${quality}, Request Type: ${requestType}`);
 
+    // NEW: Handle panorama-only requests
+    if (requestType === 'panorama') {
+      const panoramaData = await getPanoramaData(lat, lng, landmarkName, googleApiKey);
+      
+      if (!panoramaData) {
+        return new Response(JSON.stringify({
+          error: 'Failed to fetch panorama data',
+          landmarkName
+        }), { 
+          status: 404, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      }
+
+      return new Response(JSON.stringify({
+        panorama: panoramaData,
+        metadata: {
+          totalViews: 0,
+          recommendedView: 0,
+          dataUsage: '0KB (panorama data only)',
+          requestType
+        }
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Continue with existing image logic for 'image' and 'both' request types
+    const requestedHeadings = getViewpointHeadings(viewpoints, landmarkType);
     const attemptedHeadings = new Set<number>();
     const successfulViewpoints: StreetViewData[] = [];
     const fallbackInfo = {
@@ -410,9 +503,16 @@ serve(async (req) => {
       dataUsage: `${totalDataKb}KB`
     });
 
+    // NEW: Get panorama data if requested
+    let panoramaData = null;
+    if (requestType === 'both') {
+      panoramaData = await getPanoramaData(lat, lng, landmarkName, googleApiKey);
+    }
+
     const response: MultiViewpointResponse = {
       primary,
       viewpoints: filteredViewpoints,
+      ...(panoramaData && { panorama: panoramaData }), // Include panorama data if available
       metadata: {
         totalViews: filteredViewpoints.length,
         recommendedView: recommendedViewIndex,
