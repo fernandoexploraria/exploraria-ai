@@ -17,7 +17,8 @@ import {
   EyeOff
 } from 'lucide-react';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { networkSimulator, NETWORK_CONDITIONS } from '@/utils/networkSimulator';
+import { networkSimulator, NETWORK_CONDITIONS, testStrategySelection, performanceTimer } from '@/utils/networkSimulator';
+import { CacheTestUtils, performanceBenchmark } from '@/utils/streetViewTestUtils';
 
 interface StreetViewDebugPanelProps {
   isVisible: boolean;
@@ -33,6 +34,7 @@ const StreetViewDebugPanel: React.FC<StreetViewDebugPanelProps> = ({
   const [refreshKey, setRefreshKey] = useState(0);
   const [simulatedNetwork, setSimulatedNetwork] = useState<string | null>(null);
   const { isOnline, effectiveType, downlink, connectionType } = useNetworkStatus();
+  const cacheTestUtils = CacheTestUtils.getInstance();
 
   // Auto-refresh debug data
   useEffect(() => {
@@ -55,7 +57,21 @@ const StreetViewDebugPanel: React.FC<StreetViewDebugPanelProps> = ({
     }
   };
 
+  const testAllStrategies = () => {
+    const distances = [50, 200, 750, 1500];
+    console.log('🧪 Testing strategy selection for all distances:');
+    
+    distances.forEach(distance => {
+      console.log(`\n📏 Distance: ${distance}m`);
+      const results = testStrategySelection(distance);
+      console.table(results);
+    });
+  };
+
   const clearAllCaches = () => {
+    // This would need to be implemented in the actual hooks
+    cacheTestUtils.reset();
+    performanceBenchmark.clear();
     console.log('🗑️ All caches and metrics cleared');
   };
 
@@ -73,6 +89,7 @@ const StreetViewDebugPanel: React.FC<StreetViewDebugPanelProps> = ({
     );
   }
 
+  const cacheMetrics = cacheTestUtils.getMetrics();
   const networkStats = {
     isOnline,
     effectiveType,
@@ -88,7 +105,7 @@ const StreetViewDebugPanel: React.FC<StreetViewDebugPanelProps> = ({
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
               <Activity className="h-5 w-5" />
-              Panorama Debug
+              Street View Debug
             </CardTitle>
             <Button
               variant="ghost"
@@ -104,9 +121,10 @@ const StreetViewDebugPanel: React.FC<StreetViewDebugPanelProps> = ({
         
         <CardContent className="space-y-4">
           <Tabs defaultValue="network" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 bg-white/10">
+            <TabsList className="grid w-full grid-cols-4 bg-white/10">
               <TabsTrigger value="network" className="text-xs">Network</TabsTrigger>
-              <TabsTrigger value="panorama" className="text-xs">Panorama</TabsTrigger>
+              <TabsTrigger value="cache" className="text-xs">Cache</TabsTrigger>
+              <TabsTrigger value="perf" className="text-xs">Performance</TabsTrigger>
               <TabsTrigger value="test" className="text-xs">Test</TabsTrigger>
             </TabsList>
             
@@ -155,21 +173,78 @@ const StreetViewDebugPanel: React.FC<StreetViewDebugPanelProps> = ({
               </div>
             </TabsContent>
             
-            <TabsContent value="panorama" className="space-y-3">
+            <TabsContent value="cache" className="space-y-3">
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span>Strategy:</span>
-                  <span className="text-green-400">Panorama-Only</span>
+                  <span>Hit Rate:</span>
+                  <span>{(cacheMetrics.hitRate * 100).toFixed(1)}%</span>
                 </div>
                 
                 <div className="flex justify-between">
-                  <span>Static Views:</span>
-                  <span className="text-red-400">Disabled</span>
+                  <span>Total Ops:</span>
+                  <span>{cacheMetrics.totalOperations}</span>
                 </div>
                 
-                <div className="text-xs text-white/70 mt-2">
-                  Interactive panorama experience active. Static Street View components have been removed for improved performance and user experience.
+                <div className="flex justify-between">
+                  <span>Size:</span>
+                  <span>{(cacheMetrics.totalSize / 1024).toFixed(1)} KB</span>
                 </div>
+                
+                <Progress 
+                  value={cacheMetrics.hitRate * 100} 
+                  className="h-2"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <div className="text-center p-2 bg-white/10 rounded">
+                  <div className="text-lg font-bold text-green-400">{cacheMetrics.hits}</div>
+                  <div className="text-xs">Hits</div>
+                </div>
+                <div className="text-center p-2 bg-white/10 rounded">
+                  <div className="text-lg font-bold text-red-400">{cacheMetrics.misses}</div>
+                  <div className="text-xs">Misses</div>
+                </div>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="perf" className="space-y-3">
+              <div className="space-y-2">
+                <div className="text-sm">
+                  <div className="flex justify-between mb-1">
+                    <span>API Calls:</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => performanceBenchmark.logSummary('API')}
+                      className="h-6 px-2 text-xs"
+                    >
+                      Log Stats
+                    </Button>
+                  </div>
+                  
+                  <div className="flex justify-between mb-1">
+                    <span>Loading:</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => performanceBenchmark.logSummary('Loading')}
+                      className="h-6 px-2 text-xs"
+                    >
+                      Log Stats
+                    </Button>
+                  </div>
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => performanceBenchmark.logSummary()}
+                  className="w-full h-7 text-xs"
+                >
+                  <Timer className="h-3 w-3 mr-1" />
+                  Full Performance Report
+                </Button>
               </div>
             </TabsContent>
             
@@ -178,11 +253,21 @@ const StreetViewDebugPanel: React.FC<StreetViewDebugPanelProps> = ({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => console.log('🧪 Testing panorama availability...')}
+                  onClick={testAllStrategies}
                   className="w-full h-7 text-xs"
                 >
                   <Settings className="h-3 w-3 mr-1" />
-                  Test Panorama Availability
+                  Test All Strategies
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => cacheTestUtils.logSummary()}
+                  className="w-full h-7 text-xs"
+                >
+                  <Database className="h-3 w-3 mr-1" />
+                  Log Cache Summary
                 </Button>
                 
                 <Button

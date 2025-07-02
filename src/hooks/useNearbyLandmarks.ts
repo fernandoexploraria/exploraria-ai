@@ -29,7 +29,7 @@ export const useNearbyLandmarks = ({
       return [];
     }
 
-    console.log('🎯 Processing tour landmarks for panorama availability:', {
+    console.log('🎯 Processing tour landmarks for proximity detection:', {
       totalTourLandmarks: TOUR_LANDMARKS.length,
       userLocation: { lat: userLocation.latitude, lng: userLocation.longitude },
       notificationDistance
@@ -44,7 +44,7 @@ export const useNearbyLandmarks = ({
 
     console.log('🎯 Tour landmarks within radius:', nearbyTourLandmarks.length);
 
-    // Calculate distance for each nearby tour landmark
+    // Calculate distance for each nearby tour landmark and create NearbyLandmark objects
     const landmarksWithDistance: NearbyLandmark[] = nearbyTourLandmarks.map(tourLandmark => {
       const distance = calculateDistance(
         userLocation.latitude,
@@ -73,14 +73,14 @@ export const useNearbyLandmarks = ({
       
       console.log(`🎯 Found ${sortedLandmarks.length} tour landmarks within ${notificationDistance}m: ${landmarkSummary}`);
       
-      // Log panorama availability potential
+      // Log rich data availability
       const richDataCount = sortedLandmarks.filter(({ landmark }) => 
         landmark.rating || landmark.photos?.length || landmark.types?.length
       ).length;
       
-      console.log(`🎯 Tour landmarks with rich data (panorama candidates): ${richDataCount}/${sortedLandmarks.length}`);
+      console.log(`🎯 Tour landmarks with rich data: ${richDataCount}/${sortedLandmarks.length}`);
     } else {
-      console.log(`🎯 No tour landmarks found within ${notificationDistance}m for panorama checking`);
+      console.log(`🎯 No tour landmarks found within ${notificationDistance}m`);
     }
 
     return sortedLandmarks;

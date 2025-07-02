@@ -13,7 +13,6 @@ import { useDebugWindow } from '@/hooks/useDebugWindow';
 import { useProximityNotifications } from '@/hooks/useProximityNotifications';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { Landmark } from '@/data/landmarks';
-import { TourLandmark } from '@/data/tourLandmarks';
 import { User } from '@supabase/supabase-js';
 
 type AssistantState = 'not-started' | 'started' | 'listening' | 'recording' | 'playback';
@@ -72,7 +71,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   const { activeCards, closeProximityCard, showRouteToService } = useProximityNotifications();
   
   // Debug state for test proximity card
-  const [debugProximityCard, setDebugProximityCard] = useState<TourLandmark | null>(null);
+  const [debugProximityCard, setDebugProximityCard] = useState<Landmark | null>(null);
   
   // New state for FAB management
   const [isSessionActive, setIsSessionActive] = useState(false);
@@ -93,10 +92,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     onAuthDialogOpen();
   };
 
-  // Create mock test landmark for debugging - Fixed: Added required placeId property
-  const createTestLandmark = (): TourLandmark => ({
+  // Create mock test landmark for debugging - FIXED: removed category property
+  const createTestLandmark = (): Landmark => ({
     id: 'debug-fuente-coyotes',
-    placeId: 'debug-fuente-coyotes-place', // Added required placeId
     name: 'Fuente de los Coyotes',
     description: 'A beautiful fountain located in Mexico City, perfect for testing proximity card functionality with nearby services.',
     coordinates: [-99.1332, 19.4326] // Mexico City coordinates
@@ -156,20 +154,18 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     setAssistantState('not-started');
   };
 
-  // Convert TourLandmark to compatible format for FloatingProximityCard
-  const convertToCompatibleFormat = (tourLandmark: TourLandmark) => {
-    return {
-      id: tourLandmark.id || tourLandmark.placeId || tourLandmark.name,
-      name: tourLandmark.name,
-      coordinates: tourLandmark.coordinates,
-      description: tourLandmark.description,
-      rating: tourLandmark.rating,
-      photos: tourLandmark.photos,
-      types: tourLandmark.types,
-      placeId: tourLandmark.placeId,
-      formattedAddress: tourLandmark.formattedAddress
-    };
-  };
+  // Convert TourLandmark to Landmark for components that require the Landmark interface
+  const convertTourLandmarkToLandmark = (tourLandmark: any): Landmark => ({
+    id: tourLandmark.id || tourLandmark.placeId, // Use id if available, fallback to placeId
+    name: tourLandmark.name,
+    coordinates: tourLandmark.coordinates,
+    description: tourLandmark.description,
+    rating: tourLandmark.rating,
+    photos: tourLandmark.photos,
+    types: tourLandmark.types,
+    placeId: tourLandmark.placeId,
+    formattedAddress: tourLandmark.formattedAddress
+  });
 
   return (
     <div className="w-screen h-screen relative">
@@ -193,10 +189,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
       <Map 
         mapboxToken={mapboxToken}
-        allLandmarks={allLandmarks}
-        smartTourLandmarks={smartTourLandmarks}
+        landmarks={allLandmarks}
         onSelectLandmark={onSelectLandmark}
         selectedLandmark={selectedLandmark}
+        plannedLandmarks={[...smartTourLandmarks]}
       />
 
       {/* Debug Proximity Card - positioned above regular cards */}
@@ -210,16 +206,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           }}
         >
           <FloatingProximityCard
-            landmark={convertToCompatibleFormat(debugProximityCard)}
+            landmark={debugProximityCard}
             userLocation={userLocation}
             onClose={closeDebugProximityCard}
-            onGetDirections={(landmark) => showRouteToService(debugProximityCard)}
+            onGetDirections={showRouteToService}
           />
         </div>
       )}
 
-      {/* Regular Floating Proximity Cards - Convert TourLandmark to compatible format */}
-      {Object.entries(activeCards).map(([landmarkId, landmark], index) => (
+      {/* Regular Floating Proximity Cards - Convert TourLandmark to Landmark */}
+      {Object.entries(activeCards).map(([landmarkId, tourLandmark], index) => (
         <div
           key={landmarkId}
           style={{
@@ -230,10 +226,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           }}
         >
           <FloatingProximityCard
-            landmark={convertToCompatibleFormat(landmark)}
+            landmark={convertTourLandmarkToLandmark(tourLandmark)}
             userLocation={userLocation}
             onClose={() => closeProximityCard(landmarkId)}
-            onGetDirections={(landmark) => showRouteToService(activeCards[landmarkId])}
+            onGetDirections={showRouteToService}
           />
         </div>
       ))}

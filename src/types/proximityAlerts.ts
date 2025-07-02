@@ -15,9 +15,8 @@ export interface ProximitySettings {
   user_id: string;
   is_enabled: boolean;
   notification_distance: number; // in meters - for toast notifications
-  outer_distance: number; // in meters - for Street View prep zone (deprecated but kept for compatibility)
+  outer_distance: number; // in meters - for Street View prep zone
   card_distance: number; // in meters - for floating card notifications
-  inner_distance?: number; // in meters - legacy field for backwards compatibility
   created_at?: string;
   updated_at?: string;
 }

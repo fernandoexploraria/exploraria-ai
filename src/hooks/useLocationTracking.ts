@@ -1,8 +1,8 @@
-
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { UserLocation } from '@/types/proximityAlerts';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useNearbyLandmarks } from '@/hooks/useNearbyLandmarks';
+import { useEnhancedStreetViewMulti } from '@/hooks/useEnhancedStreetViewMulti';
 import { 
   detectMovement, 
   calculateAdaptiveInterval, 
@@ -60,12 +60,14 @@ export const useLocationTracking = (): LocationTrackingHook => {
   const locationHistoryRef = useRef<LocationHistory[]>([]);
   const lastSignificantLocationRef = useRef<UserLocation | null>(null);
 
-  // Get nearby landmarks using outer_distance for panorama pre-loading
+  // Get nearby landmarks using outer_distance for enhanced Street View pre-loading
   const nearbyLandmarks = useNearbyLandmarks({
     userLocation,
     notificationDistance: proximitySettings?.outer_distance || 250
   });
 
+  // Add enhanced Street View multi-viewpoint pre-loading
+  const { preloadForProximity } = useEnhancedStreetViewMulti();
   const lastPreloadLocationRef = useRef<UserLocation | null>(null);
   const PRELOAD_DISTANCE_THRESHOLD = 200; // meters - trigger preload when moving this distance
 
@@ -141,8 +143,8 @@ export const useLocationTracking = (): LocationTrackingHook => {
       console.log(`🔄 Location unchanged (within ${LOCATION_CHANGE_THRESHOLD}m threshold)`);
     }
 
-    // Trigger panorama metadata pre-loading for nearby landmarks when location changes significantly
-    const shouldPreloadPanorama = () => {
+    // Trigger enhanced Street View multi-viewpoint pre-loading for nearby landmarks when location changes significantly
+    const shouldPreloadStreetView = () => {
       if (!lastPreloadLocationRef.current) return true;
       
       const distanceFromLastPreload = calculateDistance(
@@ -155,11 +157,28 @@ export const useLocationTracking = (): LocationTrackingHook => {
       return distanceFromLastPreload >= PRELOAD_DISTANCE_THRESHOLD;
     };
 
-    if (isSignificant && nearbyLandmarks.length > 0 && shouldPreloadPanorama()) {
-      console.log(`🔄 Triggering panorama metadata pre-loading for ${nearbyLandmarks.length} nearby landmarks (within ${proximitySettings?.outer_distance || 250}m outer zone)`);
+    if (isSignificant && nearbyLandmarks.length > 0 && shouldPreloadStreetView()) {
+      console.log(`🔄 Triggering enhanced Street View multi-viewpoint pre-loading for ${nearbyLandmarks.length} nearby landmarks (within ${proximitySettings?.outer_distance || 250}m outer zone)`);
       
-      // TODO: Implement panorama metadata preloading once google-streetview-enhanced is updated
-      // This will replace the old static Street View preloading
+      // Convert TourLandmark to Landmark format for preloadForProximity
+      const landmarksToPreload = nearbyLandmarks.map(nearbyLandmark => ({
+        id: nearbyLandmark.landmark.id || nearbyLandmark.landmark.placeId,
+        name: nearbyLandmark.landmark.name,
+        coordinates: nearbyLandmark.landmark.coordinates,
+        description: nearbyLandmark.landmark.description,
+        rating: nearbyLandmark.landmark.rating,
+        photos: nearbyLandmark.landmark.photos,
+        types: nearbyLandmark.landmark.types,
+        placeId: nearbyLandmark.landmark.placeId,
+        formattedAddress: nearbyLandmark.landmark.formattedAddress
+      }));
+      
+      preloadForProximity(landmarksToPreload, {
+        latitude: newLocation.latitude,
+        longitude: newLocation.longitude
+      }).catch(error => {
+        console.warn('⚠️ Enhanced Street View multi-viewpoint pre-loading failed:', error);
+      });
       
       lastPreloadLocationRef.current = newLocation;
     }
@@ -189,7 +208,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
       console.log(`⏱️ Adapting poll interval: ${locationState.pollInterval}ms → ${finalInterval}ms`);
       scheduleNextPoll(finalInterval);
     }
-  }, [setUserLocation, nearbyLandmarks.length, locationState.isInBackground, locationState.pollInterval, nearbyLandmarks, proximitySettings?.outer_distance]);
+  }, [setUserLocation, nearbyLandmarks.length, locationState.isInBackground, locationState.pollInterval, preloadForProximity, nearbyLandmarks, proximitySettings?.outer_distance]);
 
   // Handle location error with exponential backoff
   const handleLocationError = useCallback((error: GeolocationPositionError) => {
@@ -307,7 +326,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
 
   // Start optimized tracking
   const startTracking = useCallback(async (): Promise<void> => {
-    console.log(`🚀 Starting optimized location tracking with panorama metadata...`);
+    console.log(`🚀 Starting optimized location tracking with enhanced Street View...`);
     
     if (!navigator.geolocation) {
       console.error('❌ Geolocation not supported');
@@ -337,7 +356,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
     // Start adaptive polling
     scheduleNextPoll(BASE_POLLING_INTERVAL);
 
-    console.log(`✅ Optimized location tracking with panorama metadata started`);
+    console.log(`✅ Optimized location tracking with enhanced Street View started`);
   }, [requestCurrentLocation, scheduleNextPoll]);
 
   // Stop tracking
