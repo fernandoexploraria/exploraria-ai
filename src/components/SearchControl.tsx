@@ -1,4 +1,3 @@
-
 import * as React from "react"
 import {
   CommandDialog,
@@ -46,7 +45,8 @@ const SearchControl: React.FC<SearchControlProps> = ({ landmarks, onSelectLandma
       id: `top-${Date.now()}`,
       name: topLandmark.name,
       coordinates: topLandmark.coordinates,
-      description: topLandmark.description
+      description: topLandmark.description,
+      placeId: topLandmark.place_id // Add place_id to enable photo fetching
     };
     
     // Remove the fromSearch flag - let the marker click handle everything
