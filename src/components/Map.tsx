@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
 import mapboxgl from 'mapbox-gl';
@@ -699,8 +700,8 @@ const MapComponent: React.FC<MapProps> = ({
       const enhancedLandmark = {
         ...landmark,
         // Ensure we have the place_id properly mapped for photo fetching
-        place_id: landmark.placeId || landmark.place_id,
-        placeId: landmark.placeId || landmark.place_id
+        place_id: landmark.placeId,
+        placeId: landmark.placeId
       };
 
       const result = await fetchPhotosWithHook(enhancedLandmark, {
