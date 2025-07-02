@@ -191,7 +191,12 @@ const MapComponent: React.FC<MapProps> = ({
   const updateBaseLandmarksLayer = useCallback(() => {
     if (!map.current) return;
     
-    console.log('🗺️ [Base Layer] Updating base landmarks GeoJSON layer with', landmarks.length, 'landmarks');
+    console.log('🗺️ [Base Layer] Skipping marker addition - base layer disabled');
+    
+    // Base landmarks layer is temporarily disabled
+    // Keep this function structure for potential future use
+    
+    /* Commented out marker addition logic:
     
     const features = landmarks.map((landmark) => ({
       type: 'Feature' as const,
@@ -215,6 +220,14 @@ const MapComponent: React.FC<MapProps> = ({
     if (source) {
       source.setData(geojsonData);
       console.log('🗺️ [Base Layer] Updated with', features.length, 'features');
+    }
+    
+    */
+    
+    // Clear the layer by setting empty data
+    const source = map.current.getSource(BASE_LANDMARKS_SOURCE_ID) as mapboxgl.GeoJSONSource;
+    if (source) {
+      source.setData({ type: 'FeatureCollection', features: [] });
     }
   }, [landmarks]);
 
