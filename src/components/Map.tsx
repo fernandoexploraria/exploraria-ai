@@ -20,7 +20,6 @@ interface MapProps {
   onLandmarkClick: (landmark: Landmark) => void;
   onMapReady?: () => void;
   smartTourLandmarks?: Landmark[];
-  onTestProximityCard?: () => void;
 }
 
 interface LocationData {
@@ -33,8 +32,7 @@ const Map: React.FC<MapProps> = ({
   selectedLandmark,
   onLandmarkClick,
   onMapReady,
-  smartTourLandmarks = [],
-  onTestProximityCard
+  smartTourLandmarks = []
 }) => {
   const [map, setMap] = useState<mapboxgl.Map | null>(null);
   const [userLocation, setUserLocation] = useState<LocationData | null>(null);
@@ -46,14 +44,14 @@ const Map: React.FC<MapProps> = ({
   const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const locationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const { mapboxToken } = useMapboxToken();
+  const mapboxToken = useMapboxToken();
   const {
-    location: trackedLocation,
+    userLocation: trackedLocation,
     error: locationError,
     startTracking,
     stopTracking,
   } = useLocationTracking();
-  const { checkProximity } = useProximityAlerts();
+  const proximityAlertsHook = useProximityAlerts();
   const { pendingDestination } = usePendingDestination();
   const { fetchPhotosWithPlaceIdFallback } = useEnhancedLandmarkPhotos();
   const { isDemoMode } = useDemoMode();
@@ -167,15 +165,28 @@ const Map: React.FC<MapProps> = ({
 
   // Proximity alerts
   useEffect(() => {
-    if (userLocation && nearbyLandmarks.length > 0) {
+    if (userLocation && nearbyLandmarks.length > 0 && proximityAlertsHook.userLocation) {
       const { latitude, longitude } = userLocation;
-      const { closestLandmark, distance } = checkProximity(
-        latitude,
-        longitude,
-        nearbyLandmarks
-      );
+      
+      // Find closest landmark
+      let closestLandmark = null;
+      let minDistance = Infinity;
+      
+      nearbyLandmarks.forEach((landmark) => {
+        const distance = calculateDistance(
+          latitude,
+          longitude,
+          landmark.coordinates[1],
+          landmark.coordinates[0]
+        );
+        
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestLandmark = landmark;
+        }
+      });
 
-      if (closestLandmark && distance !== null) {
+      if (closestLandmark && minDistance < 1) { // Within 1km
         setProximityCardLandmark(closestLandmark);
 
         // Set a timeout to clear the proximity card after 10 seconds
@@ -187,7 +198,7 @@ const Map: React.FC<MapProps> = ({
         }, 10000);
       }
     }
-  }, [userLocation, nearbyLandmarks, checkProximity]);
+  }, [userLocation, nearbyLandmarks, proximityAlertsHook.userLocation]);
 
   const createLandmarkPopup = useCallback((
     landmark: Landmark,
