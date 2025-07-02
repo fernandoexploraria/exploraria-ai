@@ -1,8 +1,8 @@
+
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import SplashScreen from '@/components/SplashScreen';
 import MainLayout from '@/components/MainLayout';
 import DebugWindow from '@/components/DebugWindow';
-import GoogleStreetViewTestButton from '@/components/GoogleStreetViewTestButton';
 import { landmarks as staticLandmarks, Landmark } from '@/data/landmarks';
 import { useAuth } from '@/components/AuthProvider';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
@@ -218,7 +218,6 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
         isVisible={isDebugVisible}
         onClose={toggleDebug}
       />
-      <GoogleStreetViewTestButton />
     </>
   );
 };
