@@ -1,10 +1,18 @@
-
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useOfflineCache } from '@/hooks/useOfflineCache';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { Landmark } from '@/data/landmarks';
 import { CacheTestUtils, performanceBenchmark } from '@/utils/streetViewTestUtils';
+
+interface PanoramaData {
+  pano_id: string;
+  position: { lat: number; lng: number };
+  links: Array<{ heading: number; pano_id: string; description?: string }>;
+  copyright?: string;
+  date?: string;
+  status: 'OK' | 'ZERO_RESULTS' | 'OVER_QUERY_LIMIT' | 'REQUEST_DENIED';
+}
 
 interface StreetViewData {
   imageUrl: string;
@@ -20,6 +28,8 @@ interface StreetViewData {
     status: string;
     copyright?: string;
   };
+  panorama?: PanoramaData;
+  panoramaAvailable: boolean;
 }
 
 interface MultiViewpointResponse {
@@ -29,6 +39,12 @@ interface MultiViewpointResponse {
     totalViews: number;
     recommendedView: number;
     dataUsage: string;
+    panoramaStats?: {
+      availableCount: number;
+      totalRequested: number;
+      panoramaIds: string[];
+      hasConnectedViews: boolean;
+    };
   };
 }
 
@@ -43,6 +59,8 @@ interface MultiStreetViewCache {
     timestamp: number;
     strategy: string;
     isAvailable: boolean;
+    hasPanorama: boolean;
+    panoramaIds: string[];
     size?: number;
   };
 }
@@ -50,7 +68,7 @@ interface MultiStreetViewCache {
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 const NEGATIVE_CACHE_DURATION = 60 * 60 * 1000; // 1 hour
 
-// Enhanced strategy selection with detailed logging
+// Enhanced strategy selection with panorama considerations
 const getViewpointStrategy = (distance?: number, networkQuality?: string): ViewpointStrategy => {
   const isSlowNetwork = networkQuality === 'slow' || networkQuality === '2g' || networkQuality === 'slow-2g';
   
@@ -65,11 +83,11 @@ const getViewpointStrategy = (distance?: number, networkQuality?: string): Viewp
   } else if (distance < 100) {
     strategy = 'all';
     quality = isSlowNetwork ? 'medium' : 'high';
-    reasoning = `Very close (${Math.round(distance)}m), all viewpoints needed for comprehensive view`;
+    reasoning = `Very close (${Math.round(distance)}m), all viewpoints needed for comprehensive panorama experience`;
   } else if (distance < 500) {
     strategy = 'smart';
     quality = isSlowNetwork ? 'low' : 'medium';
-    reasoning = `Close distance (${Math.round(distance)}m), smart selection optimal`;
+    reasoning = `Close distance (${Math.round(distance)}m), smart selection optimal for panorama navigation`;
   } else if (distance < 1000) {
     strategy = 'cardinal';
     quality = isSlowNetwork ? 'low' : 'medium';
@@ -80,14 +98,14 @@ const getViewpointStrategy = (distance?: number, networkQuality?: string): Viewp
     reasoning = `Far distance (${Math.round(distance)}m), single view adequate`;
   }
 
-  // Enhanced debug logging
-  console.log(`📐 Strategy Selection:`, {
+  console.log(`📐 Enhanced Strategy Selection:`, {
     distance: distance ? `${Math.round(distance)}m` : 'unknown',
     networkQuality,
     isSlowNetwork,
     selectedStrategy: strategy,
     selectedQuality: quality,
-    reasoning
+    reasoning,
+    panoramaOptimized: distance && distance < 500
   });
 
   return { strategy, quality };
@@ -106,7 +124,7 @@ export const useEnhancedStreetViewMulti = () => {
     maxItems: 100
   });
 
-  // Enhanced cache operations with metrics
+  // Enhanced cache operations with panorama metadata
   const getCachedData = useCallback((landmarkId: string, strategy: string): MultiViewpointResponse | null => {
     const cached = cacheRef.current[landmarkId];
     if (!cached || cached.strategy !== strategy) {
@@ -127,7 +145,11 @@ export const useEnhancedStreetViewMulti = () => {
     }
 
     cacheTestUtils.recordHit();
-    console.log(`💾 Cache hit for ${landmarkId}, age: ${Math.round(cacheAge / 1000)}s`);
+    console.log(`💾 Cache hit for ${landmarkId}:`, {
+      age: `${Math.round(cacheAge / 1000)}s`,
+      hasPanorama: cached.hasPanorama,
+      panoramaIds: cached.panoramaIds.length
+    });
     return cached.data;
   }, [cacheTestUtils]);
 
@@ -139,20 +161,31 @@ export const useEnhancedStreetViewMulti = () => {
   ) => {
     const estimatedSize = data ? JSON.stringify(data).length : 0;
     
+    // Extract panorama information for cache metadata
+    const hasPanorama = data?.viewpoints.some(vp => vp.panoramaAvailable) || false;
+    const panoramaIds = data?.viewpoints
+      .filter(vp => vp.panorama?.pano_id)
+      .map(vp => vp.panorama!.pano_id) || [];
+    
     cacheRef.current[landmarkId] = {
       data,
       timestamp: Date.now(),
       strategy,
       isAvailable,
+      hasPanorama,
+      panoramaIds,
       size: estimatedSize
     };
     
     cacheTestUtils.recordSet(estimatedSize);
-    console.log(`💾 Cached data for ${landmarkId}:`, {
+    console.log(`💾 Cached enhanced data for ${landmarkId}:`, {
       strategy,
       isAvailable,
       size: `${(estimatedSize / 1024).toFixed(2)} KB`,
-      viewpoints: data?.viewpoints.length || 0
+      viewpoints: data?.viewpoints.length || 0,
+      hasPanorama,
+      panoramaIds: panoramaIds.length,
+      panoramaStats: data?.metadata.panoramaStats
     });
   }, [cacheTestUtils]);
 
@@ -170,7 +203,18 @@ export const useEnhancedStreetViewMulti = () => {
     return isUnavailable;
   }, []);
 
-  // Enhanced fetch with performance monitoring
+  // Enhanced panorama availability checking
+  const hasPanoramaData = useCallback((landmarkId: string): boolean => {
+    const cached = cacheRef.current[landmarkId];
+    return cached?.hasPanorama || false;
+  }, []);
+
+  const getPanoramaIds = useCallback((landmarkId: string): string[] => {
+    const cached = cacheRef.current[landmarkId];
+    return cached?.panoramaIds || [];
+  }, []);
+
+  // Enhanced fetch with panorama data processing
   const fetchEnhancedStreetView = useCallback(async (
     landmark: Landmark,
     distance?: number,
@@ -180,8 +224,8 @@ export const useEnhancedStreetViewMulti = () => {
     const strategy = customStrategy || getViewpointStrategy(distance, effectiveType);
     const strategyKey = `${strategy.strategy}-${strategy.quality}`;
     
-    // Performance and network logging
-    console.log(`🌍 Fetching enhanced Street View:`, {
+    // Enhanced performance and network logging
+    console.log(`🌍 Fetching enhanced Street View with panorama support:`, {
       landmark: landmark.name,
       distance: distance ? `${Math.round(distance)}m` : 'unknown',
       strategy: strategy.strategy,
@@ -197,7 +241,10 @@ export const useEnhancedStreetViewMulti = () => {
     // Check cache first
     const cached = getCachedData(landmarkId, strategyKey);
     if (cached !== null) {
-      console.log(`📋 Using cached data for ${landmark.name}`);
+      console.log(`📋 Using cached data for ${landmark.name}:`, {
+        hasPanorama: cached.metadata.panoramaStats?.availableCount || 0 > 0,
+        panoramaIds: cached.metadata.panoramaStats?.panoramaIds || []
+      });
       return cached;
     }
 
@@ -212,7 +259,7 @@ export const useEnhancedStreetViewMulti = () => {
 
     try {
       const result = await performanceBenchmark.measure(
-        `Enhanced Street View API - ${landmark.name}`,
+        `Enhanced Street View API with Panorama - ${landmark.name}`,
         async () => {
           const { data, error } = await supabase.functions.invoke('google-streetview-enhanced', {
             body: {
@@ -230,7 +277,7 @@ export const useEnhancedStreetViewMulti = () => {
           if (error) throw new Error(error.message);
           return data;
         },
-        { landmark: landmark.name, strategy: strategy.strategy, quality: strategy.quality }
+        { landmark: landmark.name, strategy: strategy.strategy, quality: strategy.quality, panorama: true }
       );
 
       if (!result) {
@@ -239,14 +286,21 @@ export const useEnhancedStreetViewMulti = () => {
         return null;
       }
 
-      // Success logging with detailed metrics
-      console.log(`✅ Enhanced Street View loaded:`, {
+      // Enhanced success logging with panorama details
+      const panoramaStats = result.metadata.panoramaStats;
+      console.log(`✅ Enhanced Street View with panorama loaded:`, {
         landmark: landmark.name,
         viewpoints: result.viewpoints.length,
         dataUsage: result.metadata.dataUsage,
         recommendedView: result.metadata.recommendedView,
         strategy: strategy.strategy,
-        quality: strategy.quality
+        quality: strategy.quality,
+        panorama: {
+          available: panoramaStats?.availableCount || 0,
+          total: panoramaStats?.totalRequested || 0,
+          connected: panoramaStats?.hasConnectedViews || false,
+          ids: panoramaStats?.panoramaIds || []
+        }
       });
       
       setCachedData(landmarkId, result, strategyKey, true);
@@ -255,7 +309,7 @@ export const useEnhancedStreetViewMulti = () => {
       if (isOnline && offlineCache.isReady) {
         try {
           await offlineCache.setItem(`${landmarkId}-${strategyKey}`, result);
-          console.log(`💾 Offline cached: ${landmark.name}`);
+          console.log(`💾 Offline cached with panorama: ${landmark.name}`);
         } catch (error) {
           console.warn(`⚠️ Failed to cache offline for ${landmark.name}:`, error);
         }
@@ -276,7 +330,7 @@ export const useEnhancedStreetViewMulti = () => {
         try {
           const offlineData = await offlineCache.getItem(`${landmarkId}-${strategyKey}`);
           if (offlineData) {
-            console.log(`💾 Using offline fallback: ${landmark.name}`);
+            console.log(`💾 Using offline fallback with panorama: ${landmark.name}`);
             return offlineData;
           }
         } catch (offlineError) {
@@ -292,7 +346,7 @@ export const useEnhancedStreetViewMulti = () => {
     }
   }, [getCachedData, setCachedData, isKnownUnavailable, effectiveType, isOnline, offlineCache, connectionType, downlink]);
 
-  // Enhanced preloading with performance monitoring
+  // Enhanced preloading with panorama prioritization
   const preloadForProximity = useCallback(async (
     landmarks: Landmark[],
     userLocation: { latitude: number; longitude: number }
@@ -302,37 +356,46 @@ export const useEnhancedStreetViewMulti = () => {
       return;
     }
 
-    console.log(`🔄 Starting proximity preload:`, {
+    console.log(`🔄 Starting proximity preload with panorama prioritization:`, {
       landmarks: landmarks.length,
       userLocation,
       network: { effectiveType, downlink }
     });
     
-    const preloadPromises = landmarks.map(async (landmark) => {
-      try {
-        const distance = Math.sqrt(
-          Math.pow((landmark.coordinates[1] - userLocation.latitude) * 111000, 2) +
-          Math.pow((landmark.coordinates[0] - userLocation.longitude) * 111000, 2)
-        );
+    // Sort landmarks by distance for prioritized preloading
+    const landmarksWithDistance = landmarks.map(landmark => {
+      const distance = Math.sqrt(
+        Math.pow((landmark.coordinates[1] - userLocation.latitude) * 111000, 2) +
+        Math.pow((landmark.coordinates[0] - userLocation.longitude) * 111000, 2)
+      );
+      return { landmark, distance };
+    }).sort((a, b) => a.distance - b.distance);
 
+    const preloadPromises = landmarksWithDistance.map(async ({ landmark, distance }) => {
+      try {
         const strategy = getViewpointStrategy(distance, effectiveType);
         const strategyKey = `${strategy.strategy}-${strategy.quality}`;
         const existing = getCachedData(landmark.id, strategyKey);
         
         if (existing) {
-          console.log(`⚡ Preload skip (cached): ${landmark.name}`);
+          const hasPanorama = existing.metadata.panoramaStats?.availableCount || 0 > 0;
+          console.log(`⚡ Preload skip (cached): ${landmark.name} (panorama: ${hasPanorama ? 'YES' : 'NO'})`);
           return;
         }
 
-        await fetchEnhancedStreetView(landmark, distance);
-        console.log(`⚡ Preloaded: ${landmark.name} (${Math.round(distance)}m)`);
+        const result = await fetchEnhancedStreetView(landmark, distance);
+        const panoramaInfo = result?.metadata.panoramaStats;
+        console.log(`⚡ Preloaded: ${landmark.name} (${Math.round(distance)}m)`, {
+          panorama: panoramaInfo ? `${panoramaInfo.availableCount}/${panoramaInfo.totalRequested}` : 'N/A',
+          connected: panoramaInfo?.hasConnectedViews || false
+        });
       } catch (error) {
         console.warn(`⚠️ Preload failed: ${landmark.name}`, error);
       }
     });
 
     await Promise.allSettled(preloadPromises);
-    console.log(`✅ Proximity preload completed for ${landmarks.length} landmarks`);
+    console.log(`✅ Proximity preload completed for ${landmarks.length} landmarks with panorama data`);
   }, [fetchEnhancedStreetView, getCachedData, effectiveType, isOnline, downlink]);
 
   const getBestViewpoint = useCallback((
@@ -380,11 +443,13 @@ export const useEnhancedStreetViewMulti = () => {
     const totalSize = cacheEntries.reduce((sum, [, cached]) => sum + (cached.size || 0), 0);
     const availableCount = cacheEntries.filter(([, cached]) => cached.isAvailable).length;
     const unavailableCount = cacheEntries.length - availableCount;
+    const panoramaCount = cacheEntries.filter(([, cached]) => cached.hasPanorama).length;
 
     return {
       totalEntries: cacheEntries.length,
       availableEntries: availableCount,
       unavailableEntries: unavailableCount,
+      panoramaEntries: panoramaCount,
       totalSizeKB: (totalSize / 1024).toFixed(2),
       ...cacheTestUtils.getMetrics()
     };
@@ -396,7 +461,23 @@ export const useEnhancedStreetViewMulti = () => {
     preloadForProximity,
     getCachedData,
     isKnownUnavailable,
-    clearCache,
+    hasPanoramaData,
+    getPanoramaIds,
+    clearCache: useCallback((landmarkId?: string) => {
+      if (landmarkId) {
+        const cached = cacheRef.current[landmarkId];
+        if (cached) {
+          cacheTestUtils.recordDelete(cached.size || 0);
+        }
+        delete cacheRef.current[landmarkId];
+        console.log(`🗑️ Cleared cache for ${landmarkId}`);
+      } else {
+        const totalSize = Object.values(cacheRef.current).reduce((sum, cached) => sum + (cached.size || 0), 0);
+        cacheRef.current = {};
+        cacheTestUtils.reset();
+        console.log(`🗑️ Cleared all cache with panorama (${(totalSize / 1024).toFixed(2)} KB)`);
+      }
+    }, [cacheTestUtils]),
     getCacheStats,
     isLoading,
     error,

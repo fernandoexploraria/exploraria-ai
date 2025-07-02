@@ -7,6 +7,8 @@ import { calculateDistance, filterLandmarksWithinRadius } from '@/utils/proximit
 export interface NearbyLandmark {
   landmark: TourLandmark;
   distance: number; // in meters
+  panoramaReady?: boolean; // Indicates if panorama data is preloaded
+  streetViewStatus?: 'available' | 'preloading' | 'unavailable' | 'unknown';
 }
 
 interface UseNearbyLandmarksProps {
@@ -29,7 +31,7 @@ export const useNearbyLandmarks = ({
       return [];
     }
 
-    console.log('🎯 Processing tour landmarks for proximity detection:', {
+    console.log('🎯 Processing tour landmarks for proximity detection with panorama support:', {
       totalTourLandmarks: TOUR_LANDMARKS.length,
       userLocation: { lat: userLocation.latitude, lng: userLocation.longitude },
       notificationDistance
@@ -53,32 +55,51 @@ export const useNearbyLandmarks = ({
         tourLandmark.coordinates[0]  // longitude
       );
 
+      // Initialize Street View status as unknown - will be updated by proximity system
       return {
         landmark: tourLandmark,
-        distance
+        distance,
+        panoramaReady: false,
+        streetViewStatus: 'unknown'
       };
     });
 
     // Sort by distance (ascending - closest first)
     const sortedLandmarks = landmarksWithDistance.sort((a, b) => a.distance - b.distance);
 
-    // Log the nearby tour landmarks for debugging
+    // Enhanced logging with panorama preparation status
     if (sortedLandmarks.length > 0) {
       const landmarkSummary = sortedLandmarks
-        .map(({ landmark, distance }) => {
+        .map(({ landmark, distance, streetViewStatus }) => {
           const hasRichData = landmark.rating || landmark.photos?.length || landmark.types?.length;
-          return `${landmark.name} (${Math.round(distance)}m)${hasRichData ? ' [rich data]' : ''}`;
+          const statusIcon = streetViewStatus === 'available' ? '📸' : 
+                           streetViewStatus === 'preloading' ? '⏳' : 
+                           streetViewStatus === 'unavailable' ? '❌' : '❓';
+          return `${landmark.name} (${Math.round(distance)}m)${hasRichData ? ' [rich data]' : ''} ${statusIcon}`;
         })
         .join(', ');
       
       console.log(`🎯 Found ${sortedLandmarks.length} tour landmarks within ${notificationDistance}m: ${landmarkSummary}`);
       
-      // Log rich data availability
+      // Enhanced rich data and panorama logging
       const richDataCount = sortedLandmarks.filter(({ landmark }) => 
         landmark.rating || landmark.photos?.length || landmark.types?.length
       ).length;
       
-      console.log(`🎯 Tour landmarks with rich data: ${richDataCount}/${sortedLandmarks.length}`);
+      const closeCount = sortedLandmarks.filter(({ distance }) => distance < 100).length;
+      const moderateCount = sortedLandmarks.filter(({ distance }) => distance >= 100 && distance < 500).length;
+      
+      console.log(`🎯 Tour landmarks analysis:`, {
+        withRichData: `${richDataCount}/${sortedLandmarks.length}`,
+        veryClose: `${closeCount} (<100m) - panorama priority`,
+        close: `${moderateCount} (100-500m) - street view ready`,
+        total: sortedLandmarks.length
+      });
+
+      // Log panorama preloading recommendations
+      if (closeCount > 0) {
+        console.log(`🔄 Panorama preloading recommended for ${closeCount} very close landmarks`);
+      }
     } else {
       console.log(`🎯 No tour landmarks found within ${notificationDistance}m`);
     }
