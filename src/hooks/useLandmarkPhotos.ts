@@ -44,7 +44,7 @@ export const useLandmarkPhotos = () => {
         placeId,
         maxWidth,
         quality,
-        landmarkId // This enables database lookup for tour landmarks
+        placeId // This enables database lookup for tour landmarks
       );
 
       if (!result) {
