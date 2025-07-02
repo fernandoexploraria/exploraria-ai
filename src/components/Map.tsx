@@ -1007,7 +1007,7 @@ const MapComponent: React.FC<MapProps> = ({
             }
 
             // Open modal with enhanced panorama support and user location context
-            await openStreetViewModal([landmark], landmark);
+            await openStreetViewModal([landmark], landmark, userLocation);
           } catch (error) {
             console.error('❌ Error opening enhanced Street View:', error);
           }
@@ -1040,7 +1040,7 @@ const MapComponent: React.FC<MapProps> = ({
               
               <button
                 onClick={() => handleTextToSpeech(landmark)}
-                disabled={playingAudio[landmark.id] || false}
+                disabled={playingAudio[landmarkId] || false}
                 className="bg-black/90 hover:bg-blue-500/95 text-white border-2 border-white/90 rounded-full w-12 h-12 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg disabled:opacity-70"
                 title="Listen to description"
               >
@@ -1101,7 +1101,7 @@ const MapComponent: React.FC<MapProps> = ({
             });
 
             // Open modal with enhanced panorama support
-            await openStreetViewModal([landmark], landmark);
+            await openStreetViewModal([landmark], landmark, userLocation);
           } catch (error) {
             console.error('❌ Error opening enhanced Street View:', error);
           }
@@ -1532,7 +1532,7 @@ const MapComponent: React.FC<MapProps> = ({
       if (targetLandmark) {
         console.log(`🔍 Opening Street View modal for ${targetLandmark.name} from layer click`);
         try {
-          await openStreetViewModal([targetLandmark], targetLandmark);
+          await openStreetViewModal([targetLandmark], targetLandmark, userLocation);
           console.log('✅ openStreetViewModal call completed');
         } catch (error) {
           console.error('❌ Error calling openStreetViewModal:', error);
