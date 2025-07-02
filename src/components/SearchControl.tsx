@@ -35,21 +35,21 @@ const SearchControl: React.FC<SearchControlProps> = ({ landmarks, onSelectLandma
   }, [])
 
   const handleSelect = (landmark: Landmark) => {
-    // Remove the fromSearch flag - let the marker click handle everything
     onSelectLandmark(landmark)
     setOpen(false)
   }
 
   const handleTopLandmarkSelect = (topLandmark: any) => {
-    // Create a temporary landmark object for top landmarks
+    // Create a temporary landmark object for top landmarks with place_id for photo integration
     const tempLandmark: Landmark = {
       id: `top-${Date.now()}`,
       name: topLandmark.name,
       coordinates: topLandmark.coordinates,
-      description: topLandmark.description
+      description: topLandmark.description,
+      // Include place_id for enhanced photo fetching
+      placeId: topLandmark.place_id
     };
     
-    // Remove the fromSearch flag - let the marker click handle everything
     onSelectLandmark(tempLandmark)
     setOpen(false)
   }
