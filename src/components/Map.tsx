@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { Landmark } from '@/data/landmarks';
@@ -38,7 +39,7 @@ const Map: React.FC<MapProps> = ({
   const [isMapLoaded, setIsMapLoaded] = useState(false);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
+  const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map<string, mapboxgl.Marker>());
   const locationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const mapboxToken = useMapboxToken();
