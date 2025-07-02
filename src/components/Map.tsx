@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { GoogleMap, Marker, useJsApiLoader, InfoWindow } from '@react-google-maps/api';
 import { Loader } from '@googlemaps/js-api-loader';
@@ -22,10 +23,20 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useStreetViewNavigation } from '@/hooks/useStreetViewNavigation';
 
 interface MapProps {
-  apiKey: string;
+  mapboxToken: string;
+  landmarks: Landmark[];
+  onSelectLandmark: (landmark: Landmark) => void;
+  selectedLandmark: Landmark | null;
+  plannedLandmarks: Landmark[];
 }
 
-const Map: React.FC<MapProps> = ({ apiKey }) => {
+const Map: React.FC<MapProps> = ({ 
+  mapboxToken, 
+  landmarks, 
+  onSelectLandmark, 
+  selectedLandmark, 
+  plannedLandmarks 
+}) => {
   const mapRef = useRef<google.maps.Map | null>(null);
   const [searchParams] = useSearchParams();
   const initialSearch = searchParams.get('search') || '';
@@ -33,7 +44,7 @@ const Map: React.FC<MapProps> = ({ apiKey }) => {
   const [debouncedSearch] = useDebounce(search, 300);
   const [currentLandmark, setCurrentLandmark] = useState<Landmark | null>(null);
   const [showTraffic, setShowTraffic] = useLocalStorage<boolean>('showTraffic', false);
-	const [showTransit, setShowTransit] = useLocalStorage<boolean>('showTransit', false);
+  const [showTransit, setShowTransit] = useLocalStorage<boolean>('showTransit', false);
   const { location: userLocation, error: geolocationError, isLoading: locationLoading } = useGeolocation();
   const { isOnline } = useNetworkStatus();
 
@@ -47,10 +58,10 @@ const Map: React.FC<MapProps> = ({ apiKey }) => {
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: apiKey,
+    googleMapsApiKey: mapboxToken, // Using mapboxToken as Google Maps API key for now
   });
 
-  const { data: landmarks, isLoading, error } = useQuery(
+  const { data: apiLandmarks, isLoading, error } = useQuery(
     ['landmarks', debouncedSearch],
     () => getLandmarks(debouncedSearch),
     {
@@ -59,6 +70,9 @@ const Map: React.FC<MapProps> = ({ apiKey }) => {
       refetchOnWindowFocus: false
     }
   );
+
+  // Combine provided landmarks with API landmarks
+  const allLandmarks = [...landmarks, ...(apiLandmarks || [])];
 
   useEffect(() => {
     if (initialSearch) {
@@ -85,15 +99,16 @@ const Map: React.FC<MapProps> = ({ apiKey }) => {
 
   const handleMarkerClick = (landmark: Landmark) => {
     setCurrentLandmark(landmark);
+    onSelectLandmark(landmark);
   };
 
   const handleTrafficToggle = (checked: boolean) => {
     setShowTraffic(checked);
   };
 
-	const handleTransitToggle = (checked: boolean) => {
-		setShowTransit(checked);
-	};
+  const handleTransitToggle = (checked: boolean) => {
+    setShowTransit(checked);
+  };
 
   useEffect(() => {
     if (mapRef.current) {
@@ -108,7 +123,7 @@ const Map: React.FC<MapProps> = ({ apiKey }) => {
     }
   }, [showTraffic]);
 
-	useEffect(() => {
+  useEffect(() => {
     if (mapRef.current) {
       if (showTransit) {
         const transitLayer = new google.maps.TransitLayer();
@@ -121,19 +136,22 @@ const Map: React.FC<MapProps> = ({ apiKey }) => {
   }, [showTransit]);
 
   const handleEnhancedStreetViewOpen = useCallback(async () => {
-    if (!currentLandmark || !userLocation) {
-      console.log('❌ Missing landmark or user location for enhanced Street View');
+    if (!currentLandmark) {
+      console.log('❌ No landmark selected for Street View');
       return;
     }
 
     console.log('🚀 Opening enhanced Street View modal with panorama context for:', currentLandmark.name);
     
     try {
-      // Calculate distance for strategy selection
-      const distance = Math.sqrt(
-        Math.pow((currentLandmark.coordinates[1] - userLocation.latitude) * 111000, 2) +
-        Math.pow((currentLandmark.coordinates[0] - userLocation.longitude) * 111000, 2)
-      );
+      // Calculate distance for strategy selection if user location is available
+      let distance = 1000; // Default distance for strategy selection
+      if (userLocation) {
+        distance = Math.sqrt(
+          Math.pow((currentLandmark.coordinates[1] - userLocation.latitude) * 111000, 2) +
+          Math.pow((currentLandmark.coordinates[0] - userLocation.longitude) * 111000, 2)
+        );
+      }
 
       console.log(`📏 Distance to ${currentLandmark.name}: ${Math.round(distance)}m`);
 
@@ -153,7 +171,6 @@ const Map: React.FC<MapProps> = ({ apiKey }) => {
         ? 'Street View is not available offline'
         : 'Street View is temporarily unavailable';
       
-      // You could add a toast notification here if needed
       console.log(`ℹ️ ${errorMessage} for ${currentLandmark.name}`);
     }
   }, [currentLandmark, userLocation, openStreetViewModal, isOnline]);
@@ -181,7 +198,7 @@ const Map: React.FC<MapProps> = ({ apiKey }) => {
                 onCheckedChange={handleTrafficToggle}
               />
             </div>
-						<div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
               <Label htmlFor="transit">Show Transit</Label>
               <Switch
                 id="transit"
@@ -237,7 +254,7 @@ const Map: React.FC<MapProps> = ({ apiKey }) => {
               }}
             />
           )}
-          {landmarks?.map((landmark) => (
+          {allLandmarks?.map((landmark) => (
             <Marker
               key={landmark.id}
               position={{ lat: landmark.coordinates[1], lng: landmark.coordinates[0] }}
