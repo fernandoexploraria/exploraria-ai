@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { usePhotoOptimization } from './photo-optimization/usePhotoOptimization';
@@ -329,7 +328,7 @@ export const useEnhancedPhotos = () => {
       // TIER 1: Check database for tour landmarks with raw_data
       if (landmarkId) {
         console.log(`🔍 Phase 1: Checking database for landmark: ${landmarkId}`);
-        const dbLandmark = await fetchLandmarkFromDatabase(landmarkId);
+        const dbLandmark = await fetchLandmarkFromDatabase(placeId);
         
         if (dbLandmark?.raw_data?.photos) {
           console.log(`🔍 Found ${dbLandmark.raw_data.photos.length} photos in raw_data, processing...`);
