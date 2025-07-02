@@ -7,6 +7,38 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
+// Price level mapping utility
+const mapPriceLevel = (priceLevel: string | number | null | undefined): number | null => {
+  if (priceLevel === null || priceLevel === undefined) {
+    return null;
+  }
+
+  if (typeof priceLevel === 'number') {
+    if (priceLevel >= 0 && priceLevel <= 4) {
+      return priceLevel;
+    }
+    console.warn('Unknown numeric price level:', priceLevel, 'using fallback 9999');
+    return 9999;
+  }
+
+  const priceLevelMap: Record<string, number> = {
+    'PRICE_LEVEL_FREE': 0,
+    'PRICE_LEVEL_INEXPENSIVE': 1,
+    'PRICE_LEVEL_MODERATE': 2,
+    'PRICE_LEVEL_EXPENSIVE': 3,
+    'PRICE_LEVEL_VERY_EXPENSIVE': 4
+  };
+
+  const mappedValue = priceLevelMap[priceLevel];
+  
+  if (mappedValue !== undefined) {
+    return mappedValue;
+  }
+
+  console.warn('Unknown price level enum:', priceLevel, 'using fallback 9999');
+  return 9999;
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { 
@@ -69,14 +101,14 @@ serve(async (req) => {
     const data = await response.json()
 
     if (data.places) {
-      // Map new API response to legacy format for backward compatibility
+      // Map new API response to legacy format for backward compatibility with price level mapping
       const searchResults = data.places.slice(0, 20).map((place: any) => ({
         placeId: place.id,
         name: place.displayName?.text || place.displayName,
         formattedAddress: place.formattedAddress,
         rating: place.rating,
         userRatingsTotal: place.userRatingCount,
-        priceLevel: place.priceLevel,
+        priceLevel: mapPriceLevel(place.priceLevel), // Apply price level mapping
         types: place.types,
         openNow: place.regularOpeningHours?.openNow,
         photoReference: place.photos?.[0]?.name,

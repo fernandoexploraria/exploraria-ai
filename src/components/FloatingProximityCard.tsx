@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { X, MapPin, Star, Navigation, Clock, Utensils, Coffee, Car, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -6,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { Landmark } from '@/data/landmarks';
 import { toast } from 'sonner';
+import { formatPriceLevel } from '@/utils/priceUtils';
 import ProximityAutocomplete from './ProximityAutocomplete';
 
 interface NearbyService {
@@ -250,10 +252,10 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = ({
             </div>
           )}
 
-          {selectedService.price_level && (
+          {selectedService.price_level !== null && selectedService.price_level !== undefined && (
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-400">Price:</span>
-              <span className="text-xs text-white">{'$'.repeat(selectedService.price_level)}</span>
+              <span className="text-xs text-white">{formatPriceLevel(selectedService.price_level)}</span>
             </div>
           )}
 

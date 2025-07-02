@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
@@ -6,6 +5,38 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
+
+// Price level mapping utility
+const mapPriceLevel = (priceLevel: string | number | null | undefined): number | null => {
+  if (priceLevel === null || priceLevel === undefined) {
+    return null;
+  }
+
+  if (typeof priceLevel === 'number') {
+    if (priceLevel >= 0 && priceLevel <= 4) {
+      return priceLevel;
+    }
+    console.warn('Unknown numeric price level:', priceLevel, 'using fallback 9999');
+    return 9999;
+  }
+
+  const priceLevelMap: Record<string, number> = {
+    'PRICE_LEVEL_FREE': 0,
+    'PRICE_LEVEL_INEXPENSIVE': 1,
+    'PRICE_LEVEL_MODERATE': 2,
+    'PRICE_LEVEL_EXPENSIVE': 3,
+    'PRICE_LEVEL_VERY_EXPENSIVE': 4
+  };
+
+  const mappedValue = priceLevelMap[priceLevel];
+  
+  if (mappedValue !== undefined) {
+    return mappedValue;
+  }
+
+  console.warn('Unknown price level enum:', priceLevel, 'using fallback 9999');
+  return 9999;
+};
 
 // 28 specific landmark types for intelligent tour generation
 const LANDMARK_TYPES = [
@@ -144,13 +175,13 @@ serve(async (req) => {
     const data = await response.json()
 
     if (data.places) {
-      // Enhanced mapping with complete data preservation
+      // Enhanced mapping with complete data preservation and price level mapping
       const nearbyPlaces = data.places.slice(0, maxResults).map((place: any) => ({
         placeId: place.id,
         name: place.displayName?.text || place.displayName,
         rating: place.rating,
         userRatingsTotal: place.userRatingCount,
-        priceLevel: place.priceLevel,
+        priceLevel: mapPriceLevel(place.priceLevel), // Apply price level mapping
         types: place.types,
         vicinity: place.formattedAddress,
         openNow: place.regularOpeningHours?.openNow,
@@ -175,7 +206,7 @@ serve(async (req) => {
         rawGooglePlacesData: place
       }))
 
-      console.log(`Enhanced data capture: Found ${nearbyPlaces.length} landmarks within ${searchRadius}m (max ${maxResults} results)`)
+      console.log(`Enhanced data capture with price level mapping: Found ${nearbyPlaces.length} landmarks within ${searchRadius}m (max ${maxResults} results)`)
 
       return new Response(
         JSON.stringify({ 

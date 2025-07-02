@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import MobileResponsiveDialog from '@/components/MobileResponsiveDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/AuthProvider';
 import { getPlaceTypeIcon, getPlaceTypeLabel } from '@/utils/placeTypeIcons';
+import { mapPriceLevel } from '@/utils/priceUtils';
 import { setTourLandmarks, clearTourMarkers } from '@/data/tourLandmarks';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useMarkerLoadingState } from '@/hooks/useMarkerLoadingState';
@@ -339,9 +340,9 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
 
       console.log('Tour created successfully:', tourData.id);
 
-      // Insert landmarks if any exist - ENHANCED WITH NEW FIELDS
+      // Insert landmarks if any exist - ENHANCED WITH PRICE LEVEL MAPPING
       if (landmarks.length > 0) {
-        console.log('Inserting enhanced landmarks with complete data...');
+        console.log('Inserting enhanced landmarks with complete data and price level mapping...');
         
         const landmarkInserts = landmarks.map((landmark, index) => ({
           tour_id: tourData.id, // Link to the created tour
@@ -350,8 +351,8 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
           coordinates: `(${landmark.geometry.location.lng},${landmark.geometry.location.lat})`,
           description: landmark.editorialSummary || `${landmark.name} - ${landmark.types?.join(', ')}`,
           rating: landmark.rating,
-          // 🔥 NEW ENHANCED FIELDS
-          price_level: landmark.priceLevel,
+          // 🔥 ENHANCED FIELDS WITH PRICE LEVEL MAPPING
+          price_level: mapPriceLevel(landmark.priceLevel), // Apply integer mapping with fallback
           user_ratings_total: landmark.userRatingsTotal,
           website_uri: landmark.website,
           opening_hours: landmark.regularOpeningHours || null,
@@ -367,7 +368,7 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
           raw_data: landmark.rawGooglePlacesData || landmark
         }));
 
-        console.log('Enhanced landmark insert data (first item):', landmarkInserts[0]);
+        console.log('Enhanced landmark insert with price level mapping (first item):', landmarkInserts[0]);
 
         const { error: landmarksError } = await supabase
           .from('generated_landmarks')
@@ -378,7 +379,7 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
           throw new Error(`Failed to create landmarks: ${landmarksError.message}`);
         }
 
-        console.log('Enhanced landmarks inserted successfully with complete data preservation');
+        console.log('Enhanced landmarks inserted successfully with price level mapping');
       }
 
       // Move to step 4 - preparing map

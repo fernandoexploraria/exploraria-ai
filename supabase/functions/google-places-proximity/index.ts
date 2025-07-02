@@ -1,10 +1,41 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+// Price level mapping utility
+const mapPriceLevel = (priceLevel: string | number | null | undefined): number | null => {
+  if (priceLevel === null || priceLevel === undefined) {
+    return null;
+  }
+
+  if (typeof priceLevel === 'number') {
+    if (priceLevel >= 0 && priceLevel <= 4) {
+      return priceLevel;
+    }
+    console.warn('Unknown numeric price level:', priceLevel, 'using fallback 9999');
+    return 9999;
+  }
+
+  const priceLevelMap: Record<string, number> = {
+    'PRICE_LEVEL_FREE': 0,
+    'PRICE_LEVEL_INEXPENSIVE': 1,
+    'PRICE_LEVEL_MODERATE': 2,
+    'PRICE_LEVEL_EXPENSIVE': 3,
+    'PRICE_LEVEL_VERY_EXPENSIVE': 4
+  };
+
+  const mappedValue = priceLevelMap[priceLevel];
+  
+  if (mappedValue !== undefined) {
+    return mappedValue;
+  }
+
+  console.warn('Unknown price level enum:', priceLevel, 'using fallback 9999');
+  return 9999;
+};
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -80,7 +111,7 @@ serve(async (req) => {
     const data = await response.json()
     console.log('✅ Google Places API response:', JSON.stringify(data, null, 2))
 
-    // Transform the response to match the expected format
+    // Transform the response to match the expected format with price level mapping
     const transformedResults = (data.places || []).map((place: any) => ({
       place_id: place.id,
       name: place.displayName?.text || 'Unknown',
@@ -102,10 +133,10 @@ serve(async (req) => {
       opening_hours: place.currentOpeningHours ? {
         open_now: place.currentOpeningHours.openNow || false
       } : undefined,
-      price_level: place.priceLevel
+      price_level: mapPriceLevel(place.priceLevel) // Apply price level mapping
     }))
 
-    console.log(`🎯 Found ${transformedResults.length} proximity services`)
+    console.log(`🎯 Found ${transformedResults.length} proximity services with price level mapping`)
 
     return new Response(
       JSON.stringify({ 
