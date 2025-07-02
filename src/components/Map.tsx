@@ -191,12 +191,7 @@ const MapComponent: React.FC<MapProps> = ({
   const updateBaseLandmarksLayer = useCallback(() => {
     if (!map.current) return;
     
-    console.log('🗺️ [Base Layer] Skipping marker addition - base layer disabled');
-    
-    // Base landmarks layer is temporarily disabled
-    // Keep this function structure for potential future use
-    
-    /* Commented out marker addition logic:
+    console.log('🗺️ [Base Layer] Updating base landmarks GeoJSON layer with', landmarks.length, 'landmarks');
     
     const features = landmarks.map((landmark) => ({
       type: 'Feature' as const,
@@ -220,14 +215,6 @@ const MapComponent: React.FC<MapProps> = ({
     if (source) {
       source.setData(geojsonData);
       console.log('🗺️ [Base Layer] Updated with', features.length, 'features');
-    }
-    
-    */
-    
-    // Clear the layer by setting empty data
-    const source = map.current.getSource(BASE_LANDMARKS_SOURCE_ID) as mapboxgl.GeoJSONSource;
-    if (source) {
-      source.setData({ type: 'FeatureCollection', features: [] });
     }
   }, [landmarks]);
 
@@ -741,8 +728,10 @@ const MapComponent: React.FC<MapProps> = ({
           // Use the supabase function for nearby search to find place_id
           const { data: nearbyData, error: nearbyError } = await supabase.functions.invoke('google-places-nearby', {
             body: {
-              coordinates: [landmark.coordinates[0], landmark.coordinates[1]], // [lng, lat]
-              radius: 50,
+              latitude: landmark.coordinates[1],
+              longitude: landmark.coordinates[0],
+              radius: 50, // Small radius for precise matching
+              query: landmark.name,
               type: 'tourist_attraction'
             }
           });
