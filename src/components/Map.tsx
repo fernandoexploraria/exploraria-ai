@@ -39,7 +39,7 @@ const Map: React.FC<MapProps> = ({
   const [isMapLoaded, setIsMapLoaded] = useState(false);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
+  const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map<string, mapboxgl.Marker>());
   const locationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const mapboxToken = useMapboxToken();
@@ -49,7 +49,7 @@ const Map: React.FC<MapProps> = ({
     startTracking,
     stopTracking,
   } = useLocationTracking();
-  const proximityAlertsHook = useProximityAlerts();
+  const proximityAlertsHook = useProximityAlerts(userLocation, landmarks);
   const { pendingDestination } = usePendingDestination();
   const { fetchPhotosWithPlaceIdFallback } = useEnhancedLandmarkPhotos();
   const { isDemoMode } = useDemoMode();
