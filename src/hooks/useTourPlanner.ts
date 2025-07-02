@@ -65,6 +65,13 @@ export const useTourPlanner = () => {
     setProgressState(prev => ({ ...prev, ...update }));
   };
 
+  // Helper function to convert numeric confidence to string literal
+  const convertConfidenceToString = (confidence: number): 'high' | 'medium' | 'low' => {
+    if (confidence >= 0.8) return 'high';
+    if (confidence >= 0.5) return 'medium';
+    return 'low';
+  };
+
   const generateTour = async (destination: string) => {
     // Check current user
     const { data: { user } } = await supabase.auth.getUser();
@@ -210,7 +217,7 @@ export const useTourPlanner = () => {
       startMarkerLoading();
       await animateProgress(95, 'Loading landmarks to map...', 'finalizing');
 
-      // Convert EnhancedLandmark[] to TourLandmark[] with proper validation
+      // Convert EnhancedLandmark[] to TourLandmark[] with proper validation and type conversion
       console.log('Converting enhanced landmarks to tour landmarks:', enhancedLandmarks.length);
       const tourLandmarks = enhancedLandmarks
         .filter(landmark => landmark.placeId) // Only include landmarks with placeId
@@ -225,7 +232,7 @@ export const useTourPlanner = () => {
           formattedAddress: landmark.formattedAddress,
           tourId: undefined, // Will be set when we have tour persistence
           coordinateSource: landmark.coordinateSource,
-          confidence: landmark.confidence
+          confidence: convertConfidenceToString(landmark.confidence) // Convert number to string literal
         }));
 
       console.log('Setting tour landmarks:', tourLandmarks.length, 'valid landmarks with placeId');
