@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube, MapPin, ToggleLeft, ToggleRight } from 'lucide-react';
@@ -153,11 +152,7 @@ const TopControls: React.FC<TopControlsProps> = ({
             onClick={onLogoClick}
           />
           
-          <SearchControl 
-            landmarks={allLandmarks} 
-            onSelectLandmark={onSelectLandmark} 
-            isDemoMode={isDemoMode}
-          />
+          <SearchControl landmarks={allLandmarks} onSelectLandmark={onSelectLandmark} />
           
           {!isDemoMode && (isCollapsed || !connectionHealth.isHealthy) && (
             <ConnectionStatus compact className="w-full" />
