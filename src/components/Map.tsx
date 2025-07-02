@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
 import mapboxgl from 'mapbox-gl';
@@ -32,6 +31,8 @@ const TOUR_LANDMARKS_SOURCE_ID = 'tour-landmarks-source';
 const TOUR_LANDMARKS_LAYER_ID = 'tour-landmarks-layer';
 const TOP_LANDMARKS_SOURCE_ID = 'top-landmarks-source';
 const TOP_LANDMARKS_LAYER_ID = 'top-landmarks-layer';
+const BASE_LANDMARKS_SOURCE_ID = 'base-landmarks-source';
+const BASE_LANDMARKS_LAYER_ID = 'base-landmarks-layer';
 
 const MapComponent: React.FC<MapProps> = ({ 
   mapboxToken, 
@@ -78,7 +79,7 @@ const MapComponent: React.FC<MapProps> = ({
     navigatePrevious 
   } = useStreetViewNavigation();
 
-  const findLandmarkByFeatureProperties = useCallback((properties: any, layerType: 'tour' | 'top'): Landmark | null => {
+  const findLandmarkByFeatureProperties = useCallback((properties: any, layerType: 'tour' | 'top' | 'base'): Landmark | null => {
     if (!properties) return null;
     
     switch (layerType) {
@@ -115,10 +116,17 @@ const MapComponent: React.FC<MapProps> = ({
           placeId: topLandmark.place_id // Include place_id for enhanced photo fetching
         };
         
+      case 'base':
+        const baseLandmark = landmarks.find(landmark => 
+          landmark.name === properties.name || landmark.id === properties.id
+        );
+        
+        return baseLandmark || null;
+        
       default:
         return null;
     }
-  }, []);
+  }, [landmarks]);
 
   const updateTourLandmarksLayer = useCallback(() => {
     if (!map.current) return;
@@ -179,6 +187,36 @@ const MapComponent: React.FC<MapProps> = ({
       console.log('🗺️ [Top Layer] Updated with', features.length, 'features');
     }
   }, []);
+
+  const updateBaseLandmarksLayer = useCallback(() => {
+    if (!map.current) return;
+    
+    console.log('🗺️ [Base Layer] Updating base landmarks GeoJSON layer with', landmarks.length, 'landmarks');
+    
+    const features = landmarks.map((landmark) => ({
+      type: 'Feature' as const,
+      geometry: {
+        type: 'Point' as const,
+        coordinates: landmark.coordinates
+      },
+      properties: {
+        id: landmark.id,
+        name: landmark.name,
+        description: landmark.description
+      }
+    }));
+    
+    const geojsonData = {
+      type: 'FeatureCollection' as const,
+      features
+    };
+    
+    const source = map.current.getSource(BASE_LANDMARKS_SOURCE_ID) as mapboxgl.GeoJSONSource;
+    if (source) {
+      source.setData(geojsonData);
+      console.log('🗺️ [Base Layer] Updated with', features.length, 'features');
+    }
+  }, [landmarks]);
 
   useEffect(() => {
     console.log('🔄 Syncing tour landmarks state:', TOUR_LANDMARKS.length);
@@ -356,7 +394,7 @@ const MapComponent: React.FC<MapProps> = ({
       });
 
       map.current.on('load', () => {
-        console.log('🗺️ [Layers] Map loaded, initializing GeoJSON layers...');
+        console.log('🗺️ [Layers] Map loaded, initializing all GeoJSON layers...');
         
         if (!map.current) return;
         
@@ -394,9 +432,26 @@ const MapComponent: React.FC<MapProps> = ({
           }
         });
         
-        console.log('🗺️ [Layers] GeoJSON layers initialized');
+        map.current.addSource(BASE_LANDMARKS_SOURCE_ID, {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
         
-        const addLayerClickHandler = (layerId: string, layerType: 'tour' | 'top') => {
+        map.current.addLayer({
+          id: BASE_LANDMARKS_LAYER_ID,
+          type: 'circle',
+          source: BASE_LANDMARKS_SOURCE_ID,
+          paint: {
+            'circle-radius': 6,
+            'circle-color': '#22d3ee',
+            'circle-stroke-color': '#ffffff',
+            'circle-stroke-width': 2
+          }
+        });
+        
+        console.log('🗺️ [Layers] All GeoJSON layers initialized');
+        
+        const addLayerClickHandler = (layerId: string, layerType: 'tour' | 'top' | 'base') => {
           map.current!.on('click', layerId, (e) => {
             e.originalEvent.stopPropagation();
             
@@ -445,9 +500,11 @@ const MapComponent: React.FC<MapProps> = ({
         
         addLayerClickHandler(TOUR_LANDMARKS_LAYER_ID, 'tour');
         addLayerClickHandler(TOP_LANDMARKS_LAYER_ID, 'top');
+        addLayerClickHandler(BASE_LANDMARKS_LAYER_ID, 'base');
         
         updateTourLandmarksLayer();
         updateTopLandmarksLayer();
+        updateBaseLandmarksLayer();
       });
 
       map.current.on('click', (e) => {
@@ -502,7 +559,7 @@ const MapComponent: React.FC<MapProps> = ({
     } catch (error) {
       console.error('🗺️ [Map] Error during map initialization:', error);
     }
-  }, [mapboxToken, user, updateTourLandmarksLayer, updateTopLandmarksLayer, findLandmarkByFeatureProperties, onSelectLandmark]);
+  }, [mapboxToken, user, updateTourLandmarksLayer, updateTopLandmarksLayer, updateBaseLandmarksLayer, findLandmarkByFeatureProperties, onSelectLandmark]);
 
   useEffect(() => {
     updateTourLandmarksLayer();
@@ -511,6 +568,10 @@ const MapComponent: React.FC<MapProps> = ({
   useEffect(() => {
     updateTopLandmarksLayer();
   }, [updateTopLandmarksLayer]);
+
+  useEffect(() => {
+    updateBaseLandmarksLayer();
+  }, [updateBaseLandmarksLayer]);
 
   useEffect(() => {
     if (!geolocateControl.current || !proximitySettings) {
@@ -810,7 +871,7 @@ const MapComponent: React.FC<MapProps> = ({
     try {
       setPlayingAudio(prev => ({ ...prev, [landmarkId]: true }));
       
-      let landmarkSource: 'tour' | 'top' | null = null;
+      let landmarkSource: 'tour' | 'top' | 'base' = 'base';
       
       if (landmarkId.startsWith('tour-landmark-')) {
         landmarkSource = 'tour';
