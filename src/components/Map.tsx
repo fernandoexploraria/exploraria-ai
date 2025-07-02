@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { GoogleMap, Marker, useJsApiLoader, InfoWindow } from '@react-google-maps/api';
 import { Loader } from '@googlemaps/js-api-loader';
@@ -41,7 +40,7 @@ const Map: React.FC<MapProps> = ({
   const [searchParams] = useSearchParams();
   const initialSearch = searchParams.get('search') || '';
   const [search, setSearch] = useState(initialSearch);
-  const [debouncedSearch] = useDebounce(search, 300);
+  const debouncedSearch = useDebounce(search, 300);
   const [currentLandmark, setCurrentLandmark] = useState<Landmark | null>(null);
   const [showTraffic, setShowTraffic] = useLocalStorage<boolean>('showTraffic', false);
   const [showTransit, setShowTransit] = useLocalStorage<boolean>('showTransit', false);
