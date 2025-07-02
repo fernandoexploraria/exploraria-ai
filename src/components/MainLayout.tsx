@@ -93,9 +93,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     onAuthDialogOpen();
   };
 
-  // Create mock test landmark for debugging
+  // Create mock test landmark for debugging - Fixed: Added required placeId property
   const createTestLandmark = (): TourLandmark => ({
     id: 'debug-fuente-coyotes',
+    placeId: 'debug-fuente-coyotes-place', // Added required placeId
     name: 'Fuente de los Coyotes',
     description: 'A beautiful fountain located in Mexico City, perfect for testing proximity card functionality with nearby services.',
     coordinates: [-99.1332, 19.4326] // Mexico City coordinates

@@ -28,7 +28,7 @@ const Map: React.FC<MapProps> = ({
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<{ [key: string]: mapboxgl.Marker }>({});
   const { user } = useAuth();
-  const { currentLandmarks } = useLandmarkSourceToggle();
+  const { currentLandmarks } = useLandmarkSourceToggle(allLandmarks); // Fixed: Added required argument
   const { isMarkersLoading, startMarkerLoading, finishMarkerLoading } = useMarkerLoadingState();
   const offlineCache = useOfflineCache();
   const { connectionHealth } = useConnectionMonitor();
@@ -89,7 +89,8 @@ const Map: React.FC<MapProps> = ({
       const markerElement = document.createElement('div');
       markerElement.className = 'custom-marker';
       const iconResult = getPlaceTypeIcon(landmark.types || ['point_of_interest']);
-      markerElement.innerHTML = typeof iconResult === 'string' ? iconResult : iconResult.icon;
+      // Fixed: Handle LucideIcon type properly
+      markerElement.innerHTML = typeof iconResult === 'string' ? iconResult : '📍';
       markerElement.style.fontSize = '24px';
       markerElement.style.cursor = 'pointer';
       
@@ -162,10 +163,10 @@ const Map: React.FC<MapProps> = ({
     <div className="relative w-full h-full">
       <div ref={mapContainer} className="w-full h-full" />
       
-      {/* Connection status indicator */}
-      {connectionHealth.isOffline && (
+      {/* Connection status indicator - Fixed: Check for isHealthy instead of isOffline */}
+      {!connectionHealth.isHealthy && (
         <div className="absolute top-4 left-4 bg-red-600 text-white px-3 py-1 rounded text-sm z-10">
-          Offline Mode
+          Connection Issues
         </div>
       )}
       
