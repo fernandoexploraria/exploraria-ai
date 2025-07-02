@@ -944,8 +944,6 @@ const MapComponent: React.FC<MapProps> = ({
     } catch (error) {
       console.log('❌ Error getting Street View from enhanced hook:', error);
     }
-    
-    const hasStreetView = streetViewDataFromUseStreetView !== null || streetViewDataFromEnhanced !== null;
 
     const popupContainer = document.createElement('div');
     popupContainer.style.width = '450px';
@@ -1032,15 +1030,13 @@ const MapComponent: React.FC<MapProps> = ({
             </div>
 
             <div className="absolute bottom-16 right-4 z-40 flex gap-2">
-              {hasStreetView && (
-                <button
-                  onClick={handleEnhancedStreetViewOpen}
-                  className="bg-blue-500/95 hover:bg-blue-600 text-white border-2 border-white/90 rounded-full w-12 h-12 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg"
-                  title="View Enhanced Street View with Panorama"
-                >
-                  <Eye className="w-5 h-5" />
-                </button>
-              )}
+              <button
+                onClick={handleEnhancedStreetViewOpen}
+                className="bg-blue-500/95 hover:bg-blue-600 text-white border-2 border-white/90 rounded-full w-12 h-12 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg"
+                title="View Enhanced Street View with Panorama"
+              >
+                <Eye className="w-5 h-5" />
+              </button>
               
               <button
                 onClick={() => handleTextToSpeech(landmark)}
@@ -1129,15 +1125,13 @@ const MapComponent: React.FC<MapProps> = ({
                 </div>
                 
                 <div className="absolute bottom-2 right-2 flex gap-2">
-                  {hasStreetView && (
-                    <button
-                      onClick={handleEnhancedStreetViewOpen}
-                      className="bg-blue-500/95 hover:bg-blue-600 text-white border-2 border-white/90 rounded-full w-10 h-10 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg"
-                      title="View Enhanced Street View with Panorama"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                  )}
+                  <button
+                    onClick={handleEnhancedStreetViewOpen}
+                    className="bg-blue-500/95 hover:bg-blue-600 text-white border-2 border-white/90 rounded-full w-10 h-10 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg"
+                    title="View Enhanced Street View with Panorama"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
                   
                   <button
                     onClick={() => handleTextToSpeech(landmark)}
