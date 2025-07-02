@@ -80,9 +80,9 @@ const SearchControl: React.FC<SearchControlProps> = ({ landmarks, onSelectLandma
         </Button>
       </div>
 
-      {/* Temporary enrichment test component with scrollable container */}
+      {/* Repositioned enrichment test component to top-right */}
       {showEnrichmentTest && (
-        <div className="absolute top-full left-0 right-0 z-50 mt-2 max-h-[80vh] overflow-y-auto bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg">
+        <div className="fixed top-4 right-4 z-50 w-96 max-h-[90vh] overflow-y-auto bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg">
           <LandmarkEnrichmentTest />
         </div>
       )}
