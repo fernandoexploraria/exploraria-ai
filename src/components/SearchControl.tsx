@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import {
   CommandDialog,
@@ -13,11 +14,12 @@ import { TOP_LANDMARKS } from "@/data/topLandmarks"
 import { ArrowRight } from "lucide-react"
 import LandmarkEnrichmentTest from "./LandmarkEnrichmentTest"
 import { usePhotoPreloading } from "@/hooks/usePhotoPreloading"
+import { UserLocation } from "@/types/proximityAlerts"
 
 interface SearchControlProps {
   landmarks: Landmark[]
   onSelectLandmark: (landmark: Landmark) => void
-  userLocation?: { latitude: number; longitude: number } | null
+  userLocation?: UserLocation | null
 }
 
 const SearchControl: React.FC<SearchControlProps> = ({ 
@@ -59,7 +61,7 @@ const SearchControl: React.FC<SearchControlProps> = ({
 
   const handleSelect = (landmark: Landmark) => {
     // Trigger immediate preloading for selected landmark
-    if (landmark.placeId || landmark.place_id) {
+    if (landmark.placeId) {
       photoPreloading.preloadLandmarkPhoto(landmark);
     }
     

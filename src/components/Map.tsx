@@ -1,5 +1,7 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { GoogleMap, Marker, useJsApiLoader, InfoWindow } from '@react-google-maps/api';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
 import { Landmark } from '@/data/landmarks';
 import { UserLocation } from '@/types/proximityAlerts';
 import { calculateDistance } from '@/utils/proximityUtils';
@@ -21,6 +23,8 @@ interface MapProps {
     distance: number;
   };
   onLocationUpdate: (location: UserLocation) => void;
+  selectedLandmark?: Landmark | null;
+  plannedLandmarks?: Landmark[];
 }
 
 const Map: React.FC<MapProps> = ({ 
@@ -29,11 +33,13 @@ const Map: React.FC<MapProps> = ({
   userLocation, 
   followUser = true, 
   proximitySettings,
-  onLocationUpdate 
+  onLocationUpdate,
+  selectedLandmark,
+  plannedLandmarks = []
 }) => {
-  const mapRef = useRef<google.maps.Map | null>(null);
-  const markerRefs = useRef<Record<string, google.maps.Marker>>({});
-  const [selectedLandmark, setSelectedLandmark] = useState<Landmark | null>(null);
+  const mapContainer = useRef<HTMLDivElement>(null);
+  const map = useRef<mapboxgl.Map | null>(null);
+  const markersRef = useRef<Record<string, mapboxgl.Marker>>({});
   const [mapZoom, setMapZoom] = useState(16);
 
   // Add photo preloading hook
@@ -48,68 +54,48 @@ const Map: React.FC<MapProps> = ({
     }
   );
 
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_API_KEY || '',
-  });
-
-  const { trackLocation } = useLocationTracking({
+  const { userLocation: trackedLocation } = useLocationTracking({
     onLocationUpdate,
     onError: (error) => {
       console.error('Location tracking error:', error);
     }
   });
 
-  const { isNear } = useProximityAlerts({
+  const proximityAlerts = useProximityAlerts({
     userLocation,
     landmarks,
     distanceThreshold: proximitySettings.distance
   });
 
-  const { sendProximityNotification } = useProximityNotifications();
+  const proximityNotifications = useProximityNotifications();
 
   useEffect(() => {
-    if (proximitySettings.enabled && isNear && isNear.landmark) {
-      sendProximityNotification(isNear.landmark);
+    if (proximitySettings.enabled && proximityAlerts.proximityAlerts.length > 0) {
+      // Handle proximity notifications here if needed
+      console.log('Proximity alerts:', proximityAlerts.proximityAlerts);
     }
-  }, [isNear, sendProximityNotification, proximitySettings.enabled]);
-
-  useEffect(() => {
-    trackLocation();
-  }, [trackLocation]);
+  }, [proximityAlerts.proximityAlerts, proximitySettings.enabled]);
 
   const mapContainerStyle = {
     width: '100%',
     height: '100%',
   };
 
-  const onLoad = useCallback((map: google.maps.Map) => {
-    mapRef.current = map;
+  const onLoad = useCallback((mapInstance: mapboxgl.Map) => {
+    map.current = mapInstance;
   }, []);
 
   const onUnmount = useCallback(() => {
-    mapRef.current = null;
+    map.current = null;
   }, []);
 
   const handleMarkerClick = (landmark: Landmark) => {
-    setSelectedLandmark(landmark);
     onLandmarkClick(landmark);
   };
 
-  useEffect(() => {
-    if (userLocation && mapRef.current) {
-      const newLatLng = new google.maps.LatLng(userLocation.latitude, userLocation.longitude);
-      
-      if (followUser) {
-        mapRef.current.panTo(newLatLng);
-        // mapRef.current.setZoom(mapZoom);
-      }
-    }
-  }, [userLocation, followUser, mapZoom]);
-
   // Enhanced photo fetching with preload awareness
   const fetchLandmarkPhotos = useCallback(async (landmark: Landmark) => {
-    if (!landmark.placeId && !landmark.place_id) {
+    if (!landmark.placeId) {
       console.log(`⚠️ No place_id available for ${landmark.name}, using fallback strategies`);
       
       // Strategy 1: Try coordinate-based search
@@ -199,65 +185,105 @@ const Map: React.FC<MapProps> = ({
     }
   }, [photoPreloading]);
 
+  // Initialize Mapbox map
+  useEffect(() => {
+    if (!mapContainer.current) return;
+
+    // Get Mapbox token from environment
+    const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+    if (!mapboxToken) {
+      console.error('Mapbox token not found');
+      return;
+    }
+
+    mapboxgl.accessToken = mapboxToken;
+
+    const mapInstance = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: 'mapbox://styles/mapbox/streets-v12',
+      center: userLocation ? [userLocation.longitude, userLocation.latitude] : [0, 0],
+      zoom: mapZoom
+    });
+
+    map.current = mapInstance;
+
+    mapInstance.on('load', () => {
+      onLoad(mapInstance);
+    });
+
+    return () => {
+      mapInstance.remove();
+      onUnmount();
+    };
+  }, []);
+
+  // Update map center when user location changes
+  useEffect(() => {
+    if (userLocation && map.current && followUser) {
+      map.current.flyTo({
+        center: [userLocation.longitude, userLocation.latitude],
+        zoom: mapZoom
+      });
+    }
+  }, [userLocation, followUser, mapZoom]);
+
+  // Add markers for landmarks
+  useEffect(() => {
+    if (!map.current) return;
+
+    // Clear existing markers
+    Object.values(markersRef.current).forEach(marker => marker.remove());
+    markersRef.current = {};
+
+    // Add user location marker
+    if (userLocation) {
+      const userMarker = new mapboxgl.Marker({ color: 'blue' })
+        .setLngLat([userLocation.longitude, userLocation.latitude])
+        .addTo(map.current);
+      
+      markersRef.current['user'] = userMarker;
+    }
+
+    // Add landmark markers
+    landmarks.forEach(landmark => {
+      const marker = new mapboxgl.Marker({ color: 'red' })
+        .setLngLat([landmark.coordinates[0], landmark.coordinates[1]])
+        .addTo(map.current!);
+
+      marker.getElement().addEventListener('click', () => {
+        handleMarkerClick(landmark);
+      });
+
+      markersRef.current[landmark.id] = marker;
+    });
+
+    // Add planned landmarks markers
+    plannedLandmarks.forEach(landmark => {
+      const marker = new mapboxgl.Marker({ color: 'green' })
+        .setLngLat([landmark.coordinates[0], landmark.coordinates[1]])
+        .addTo(map.current!);
+
+      marker.getElement().addEventListener('click', () => {
+        handleMarkerClick(landmark);
+      });
+
+      markersRef.current[`planned-${landmark.id}`] = marker;
+    });
+
+  }, [landmarks, plannedLandmarks, userLocation]);
+
   return (
     <>
-      {isLoaded ? (
-        <GoogleMap
-          mapContainerStyle={mapContainerStyle}
-          onLoad={onLoad}
-          onUnmount={onUnmount}
-          zoom={mapZoom}
-          center={userLocation ? { lat: userLocation.latitude, lng: userLocation.longitude } : undefined}
-          options={{
-            streetViewControl: false,
-            mapTypeControl: false,
-            fullscreenControl: false,
-          }}
-        >
-          {userLocation && (
-            <Marker
-              position={{ lat: userLocation.latitude, lng: userLocation.longitude }}
-              icon={{
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: 6,
-                fillColor: "blue",
-                fillOpacity: 0.9,
-                strokeWeight: 2,
-                strokeColor: "white",
-              }}
-            />
-          )}
-          {landmarks.map((landmark) => (
-            <Marker
-              key={landmark.id}
-              position={{ lat: landmark.coordinates[1], lng: landmark.coordinates[0] }}
-              onClick={() => handleMarkerClick(landmark)}
-              ref={(ref) => (markerRefs.current[landmark.id] = ref as google.maps.Marker)}
-            />
-          ))}
-          {selectedLandmark && (
-            <InfoWindow
-              position={{ lat: selectedLandmark.coordinates[1], lng: selectedLandmark.coordinates[0] }}
-              onCloseClick={() => setSelectedLandmark(null)}
-            >
-              <div style={{ maxWidth: '200px' }}>
-                <h3>{selectedLandmark.name}</h3>
-                <p>{selectedLandmark.description}</p>
-              </div>
-            </InfoWindow>
-          )}
-        </GoogleMap>
-      ) : <div className="flex w-full h-full items-center justify-center">Loading Map...</div>}
+      <div ref={mapContainer} className="w-full h-full" />
 
       {/* Add development info about preloading stats */}
-      {React.useEffect(() => {
-        if (process.env.NODE_ENV === 'development') {
-          const stats = photoPreloading.getPreloadingStats();
-          if (stats.totalPreloaded > 0) {
-            console.log('📊 Photo Preloading Stats:', stats);
-          }
+      {process.env.NODE_ENV === 'development' && (() => {
+        const stats = photoPreloading.getPreloadingStats();
+        if (stats.totalPreloaded > 0) {
+          console.log('📊 Photo Preloading Stats:', stats);
         }
-      }, [photoPreloading.stats])}
+        return null;
+      })()}
     </>
   );
 };

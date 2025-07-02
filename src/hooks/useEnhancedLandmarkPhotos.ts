@@ -33,10 +33,10 @@ export const useEnhancedLandmarkPhotos = () => {
       }
 
       // Check if photo might be preloaded in optimization cache first
-      if (checkPreloaded && (landmark.placeId || landmark.place_id)) {
+      if (checkPreloaded && landmark.placeId) {
         try {
-          const photoRef = landmark.placeId || landmark.place_id;
-          const cachedUrl = photoOptimization.urlCache.getCachedUrl(photoRef!, quality);
+          const photoRef = landmark.placeId;
+          const cachedUrl = photoOptimization.urlCache.getCachedUrl(photoRef, quality);
           
           if (cachedUrl) {
             if (process.env.NODE_ENV === 'development') {

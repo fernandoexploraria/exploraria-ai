@@ -78,8 +78,8 @@ export const usePhotoPreloading = (
         console.log(`🔄 Preloading photo for: ${landmark.name}`);
       }
 
-      // Use place_id or placeId for photo optimization
-      const photoRef = landmark.placeId || landmark.place_id;
+      // Use placeId for photo optimization
+      const photoRef = landmark.placeId;
       
       if (photoRef) {
         await photoOptimization.getOptimizedPhotoUrl(
@@ -102,7 +102,7 @@ export const usePhotoPreloading = (
         }
       } else {
         if (process.env.NODE_ENV === 'development') {
-          console.log(`⚠️ No place_id available for preloading: ${landmark.name}`);
+          console.log(`⚠️ No placeId available for preloading: ${landmark.name}`);
         }
       }
     } catch (error) {
