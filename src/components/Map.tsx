@@ -741,10 +741,8 @@ const MapComponent: React.FC<MapProps> = ({
           // Use the supabase function for nearby search to find place_id
           const { data: nearbyData, error: nearbyError } = await supabase.functions.invoke('google-places-nearby', {
             body: {
-              latitude: landmark.coordinates[1],
-              longitude: landmark.coordinates[0],
-              radius: 50, // Small radius for precise matching
-              query: landmark.name,
+              coordinates: [landmark.coordinates[0], landmark.coordinates[1]], // [lng, lat]
+              radius: 50,
               type: 'tourist_attraction'
             }
           });
