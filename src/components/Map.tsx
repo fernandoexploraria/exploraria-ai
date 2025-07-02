@@ -474,7 +474,7 @@ const MapComponent: React.FC<MapProps> = ({
               map.current?.flyTo({
                 center: landmark.coordinates,
                 zoom: 16,
-                speed: 0.3,
+                speed: 0.6,
                 curve: 1,
                 easing: (t) => t,
               });
@@ -1107,7 +1107,7 @@ const MapComponent: React.FC<MapProps> = ({
         map.current.flyTo({
           center: selectedLandmark.coordinates,
           zoom: 16,
-          speed: 0.3,
+          speed: 0.6,
           curve: 1,
           easing: (t) => t,
         });
@@ -1116,7 +1116,7 @@ const MapComponent: React.FC<MapProps> = ({
         map.current.flyTo({
           center: selectedLandmark.coordinates,
           zoom: 16,
-          speed: 0.3,
+          speed: 0.6,
           curve: 1,
           easing: (t) => t,
         });
@@ -1161,7 +1161,7 @@ const MapComponent: React.FC<MapProps> = ({
       map.current.flyTo({
         center: plannedLandmarks[0].coordinates,
         zoom: 16,
-        speed: 0.3,
+        speed: 0.6,
         curve: 1,
         easing: (t) => t,
       });
@@ -1183,7 +1183,7 @@ const MapComponent: React.FC<MapProps> = ({
     map.current.flyTo({
       center: coordinates,
       zoom: 16,
-      speed: 0.3,
+      speed: 0.6,
       curve: 1,
       easing: (t) => t,
     });
