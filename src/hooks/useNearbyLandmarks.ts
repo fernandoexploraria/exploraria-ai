@@ -50,54 +50,49 @@ export const useNearbyLandmarks = ({
       return [];
     }
 
-    // Step 1: Combine all landmark sources into a single array
-    const topLandmarks = TOP_LANDMARKS.map(convertTopLandmarkToLandmark);
-    const tourLandmarks = TOUR_LANDMARKS.map(convertTourLandmarkToLandmark);
-    const combinedLandmarks = [...baseLandmarks, ...topLandmarks, ...tourLandmarks];
+    // TODO: This will be broken temporarily - next steps will fix this
+    // Step 1: Combined array definition and population removed
+    console.log('🎯 Combined landmarks array creation removed - flow temporarily broken');
 
-    console.log(`🎯 Combined landmarks: ${baseLandmarks.length} base + ${topLandmarks.length} top + ${tourLandmarks.length} tour = ${combinedLandmarks.length} total`);
+    // Placeholder return until next steps are implemented
+    return [];
 
-    if (combinedLandmarks.length === 0) {
-      console.log('🎯 No nearby landmarks: no landmarks available');
-      return [];
-    }
+    // Step 2: Filter landmarks within notification distance - CURRENTLY BROKEN
+    // const nearbyLandmarks = filterLandmarksWithinRadius(
+    //   userLocation,
+    //   combinedLandmarks, // This no longer exists
+    //   notificationDistance
+    // );
 
-    // Step 2: Filter landmarks within notification distance
-    const nearbyLandmarks = filterLandmarksWithinRadius(
-      userLocation,
-      combinedLandmarks,
-      notificationDistance
-    );
+    // Step 3: Calculate distance for each nearby landmark and create NearbyLandmark objects - CURRENTLY BROKEN
+    // const landmarksWithDistance: NearbyLandmark[] = nearbyLandmarks.map(landmark => {
+    //   const distance = calculateDistance(
+    //     userLocation.latitude,
+    //     userLocation.longitude,
+    //     landmark.coordinates[1], // latitude
+    //     landmark.coordinates[0]  // longitude
+    //   );
 
-    // Step 3: Calculate distance for each nearby landmark and create NearbyLandmark objects
-    const landmarksWithDistance: NearbyLandmark[] = nearbyLandmarks.map(landmark => {
-      const distance = calculateDistance(
-        userLocation.latitude,
-        userLocation.longitude,
-        landmark.coordinates[1], // latitude
-        landmark.coordinates[0]  // longitude
-      );
+    //   return {
+    //     landmark,
+    //     distance
+    //   };
+    // });
 
-      return {
-        landmark,
-        distance
-      };
-    });
+    // Step 4: Sort by distance (ascending - closest first) - CURRENTLY BROKEN
+    // const sortedLandmarks = landmarksWithDistance.sort((a, b) => a.distance - b.distance);
 
-    // Step 4: Sort by distance (ascending - closest first)
-    const sortedLandmarks = landmarksWithDistance.sort((a, b) => a.distance - b.distance);
-
-    // Log the nearby landmarks for debugging
-    if (sortedLandmarks.length > 0) {
-      const landmarkSummary = sortedLandmarks
-        .map(({ landmark, distance }) => `${landmark.name} (${Math.round(distance)}m)`)
-        .join(', ');
+    // Log the nearby landmarks for debugging - CURRENTLY BROKEN
+    // if (sortedLandmarks.length > 0) {
+    //   const landmarkSummary = sortedLandmarks
+    //     .map(({ landmark, distance }) => `${landmark.name} (${Math.round(distance)}m)`)
+    //     .join(', ');
       
-      console.log(`🎯 Found ${sortedLandmarks.length} landmarks within ${notificationDistance}m: ${landmarkSummary}`);
-    } else {
-      console.log(`🎯 No landmarks found within ${notificationDistance}m`);
-    }
+    //   console.log(`🎯 Found ${sortedLandmarks.length} landmarks within ${notificationDistance}m: ${landmarkSummary}`);
+    // } else {
+    //   console.log(`🎯 No landmarks found within ${notificationDistance}m`);
+    // }
 
-    return sortedLandmarks;
+    // return sortedLandmarks;
   }, [userLocation, notificationDistance, baseLandmarks]);
 };
