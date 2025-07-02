@@ -728,23 +728,21 @@ const MapComponent: React.FC<MapProps> = ({
           // Use the supabase function for nearby search to find place_id
           const { data: nearbyData, error: nearbyError } = await supabase.functions.invoke('google-places-nearby', {
             body: {
-              latitude: landmark.coordinates[1],
-              longitude: landmark.coordinates[0],
+              coordinates: [landmark.coordinates[0], landmark.coordinates[1]], // [longitude, latitude]
               radius: 50, // Small radius for precise matching
-              query: landmark.name,
               type: 'tourist_attraction'
             }
           });
 
-          if (!nearbyError && nearbyData?.results && nearbyData.results.length > 0) {
-            const nearbyPlace = nearbyData.results[0];
-            if (nearbyPlace.place_id) {
-              console.log(`🎯 Found place_id via coordinates for ${landmark.name}: ${nearbyPlace.place_id}`);
+          if (!nearbyError && nearbyData?.places && nearbyData.places.length > 0) {
+            const nearbyPlace = nearbyData.places[0];
+            if (nearbyPlace.placeId) {
+              console.log(`🎯 Found place_id via coordinates for ${landmark.name}: ${nearbyPlace.placeId}`);
               
               const coordinateBasedLandmark = {
                 ...landmark,
-                place_id: nearbyPlace.place_id,
-                placeId: nearbyPlace.place_id
+                place_id: nearbyPlace.placeId,
+                placeId: nearbyPlace.placeId
               };
 
               const result = await fetchPhotosWithHook(coordinateBasedLandmark, {
@@ -782,7 +780,7 @@ const MapComponent: React.FC<MapProps> = ({
         if (!searchError && searchData?.results && searchData.results.length > 0) {
           const searchPlace = searchData.results[0];
           if (searchPlace.place_id) {
-            console.log(`🎯 Found place_id via text search for ${landmark.name}: ${searchPlace.place_id}`);
+            console.log(`🎯 Found place_id via text search for ${landmark.name}: ${searchPlace.placeId}`);
             
             const textSearchLandmark = {
               ...landmark,
