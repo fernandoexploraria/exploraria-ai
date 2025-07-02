@@ -193,7 +193,19 @@ const MapComponent: React.FC<MapProps> = ({
     
     console.log('🗺️ [Base Layer] Updating base landmarks GeoJSON layer with', landmarks.length, 'landmarks');
     
-    const features = landmarks.map((landmark) => ({
+    // Filter out tour landmarks from base landmarks to avoid duplicates
+    const baseLandmarksOnly = landmarks.filter(landmark => {
+      // Check if this landmark exists in tour landmarks by name and coordinates
+      return !tourLandmarks.some(tourLandmark => 
+        tourLandmark.name === landmark.name &&
+        Math.abs(tourLandmark.coordinates[0] - landmark.coordinates[0]) < 0.0001 &&
+        Math.abs(tourLandmark.coordinates[1] - landmark.coordinates[1]) < 0.0001
+      );
+    });
+    
+    console.log('🗺️ [Base Layer] Filtered out duplicates, showing', baseLandmarksOnly.length, 'unique base landmarks');
+    
+    const features = baseLandmarksOnly.map((landmark) => ({
       type: 'Feature' as const,
       geometry: {
         type: 'Point' as const,
@@ -216,7 +228,7 @@ const MapComponent: React.FC<MapProps> = ({
       source.setData(geojsonData);
       console.log('🗺️ [Base Layer] Updated with', features.length, 'features');
     }
-  }, [landmarks]);
+  }, [landmarks, tourLandmarks]);
 
   useEffect(() => {
     console.log('🔄 Syncing tour landmarks state:', TOUR_LANDMARKS.length);
