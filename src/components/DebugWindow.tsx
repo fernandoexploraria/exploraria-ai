@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { X, MapPin, Eye, Timer, Target, Route, Bell, Camera, TestTube, Loader2, Database, Wifi, WifiOff, CreditCard } from 'lucide-react';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -13,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import EnhancedStreetViewModal from '@/components/EnhancedStreetViewModal';
 import PlacesApiTestPanel from '@/components/PlacesApiTestPanel';
 import NetworkTestingPanel from '@/components/NetworkTestingPanel';
+import TestingControls from '@/components/TestingControls';
 
 interface DebugWindowProps {
   isVisible: boolean;
@@ -172,9 +174,10 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
         </div>
 
         <Tabs defaultValue="proximity" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="proximity">Proximity Debug</TabsTrigger>
             <TabsTrigger value="api-tests">API Tests</TabsTrigger>
+            <TabsTrigger value="panorama-tests">Panorama Tests</TabsTrigger>
           </TabsList>
 
           <TabsContent value="proximity" className="space-y-4 font-mono text-xs">
@@ -582,6 +585,10 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                 <NetworkTestingPanel />
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="panorama-tests" className="space-y-4">
+            <TestingControls />
           </TabsContent>
         </Tabs>
       </div>
