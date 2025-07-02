@@ -1,8 +1,7 @@
 
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
 
 interface GoogleStreetViewPanoramaProps {
   isOpen: boolean;
@@ -12,110 +11,15 @@ interface GoogleStreetViewPanoramaProps {
     lng: number;
   };
   landmarkName: string;
-  panoId?: string; // NEW: Use pano ID from edge function
-  isAvailable?: boolean; // NEW: Availability from edge function
+  panoId?: string;
+  isAvailable?: boolean;
 }
 
 const GoogleStreetViewPanorama: React.FC<GoogleStreetViewPanoramaProps> = ({
   isOpen,
   onClose,
-  location,
-  landmarkName,
-  panoId,
-  isAvailable = null
+  landmarkName
 }) => {
-  const panoramaRef = useRef<HTMLDivElement>(null);
-  const [panorama, setPanorama] = useState<google.maps.StreetViewPanorama | null>(null);
-  const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = useState(false);
-  const [loadingError, setLoadingError] = useState<string | null>(null);
-
-  // Load Google Maps JavaScript API dynamically through our secure edge function
-  useEffect(() => {
-    if (typeof google !== 'undefined' && google.maps) {
-      setIsGoogleMapsLoaded(true);
-      return;
-    }
-
-    // Load Google Maps JavaScript API through our secure edge function
-    const script = document.createElement('script');
-    const edgeFunctionUrl = `https://ejqgdmbuabrcjxbhpxup.supabase.co/functions/v1/google-maps-api?libraries=geometry`;
-    
-    script.src = edgeFunctionUrl;
-    script.async = true;
-    script.defer = true;
-    
-    script.onload = () => {
-      console.log('✅ Google Maps API loaded successfully through edge function');
-      setIsGoogleMapsLoaded(true);
-      setLoadingError(null);
-    };
-    
-    script.onerror = (error) => {
-      console.error('❌ Failed to load Google Maps JavaScript API through edge function:', error);
-      setLoadingError('Failed to load Google Maps API');
-    };
-    
-    document.head.appendChild(script);
-
-    return () => {
-      // Clean up script if component unmounts
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isOpen || !panoramaRef.current || !isGoogleMapsLoaded) return;
-
-    // Check if we know the panorama is not available
-    if (isAvailable === false) {
-      console.log(`🚫 Panorama not available for ${landmarkName}`);
-      return;
-    }
-
-    try {
-      // Create the panorama using the location or pano ID
-      const pano = new google.maps.StreetViewPanorama(panoramaRef.current, {
-        position: location,
-        ...(panoId && { pano: panoId }), // Use pano ID if available
-        pov: { heading: 0, pitch: 0 },
-        zoom: 1,
-        visible: true,
-        enableCloseButton: false,
-        fullscreenControl: true,
-        motionTracking: false,
-        motionTrackingControl: false,
-        showRoadLabels: true,
-      });
-
-      setPanorama(pano);
-
-      // Listen for status changes
-      pano.addListener('status_changed', () => {
-        const status = pano.getStatus();
-        if (status !== google.maps.StreetViewStatus.OK) {
-          console.log(`❌ Panorama status changed to: ${status}`);
-        } else {
-          console.log(`✅ Panorama loaded successfully for ${landmarkName}`);
-        }
-      });
-
-    } catch (error) {
-      console.error('Error creating Street View panorama:', error);
-      setLoadingError('Failed to create Street View panorama');
-    }
-  }, [isOpen, location, landmarkName, panoId, isAvailable, isGoogleMapsLoaded]);
-
-  // Cleanup panorama when component unmounts or closes
-  useEffect(() => {
-    return () => {
-      if (panorama) {
-        setPanorama(null);
-      }
-    };
-  }, [panorama]);
-
   if (!isOpen) return null;
 
   return (
@@ -134,40 +38,14 @@ const GoogleStreetViewPanorama: React.FC<GoogleStreetViewPanoramaProps> = ({
           </Button>
         </div>
 
-        {/* Panorama Content */}
-        <div className="w-full h-full">
-          {loadingError ? (
-            <div className="flex items-center justify-center h-full bg-gray-100">
-              <div className="text-center text-red-600">
-                <div className="text-6xl mb-4">⚠️</div>
-                <h3 className="text-xl font-semibold mb-2">Loading Error</h3>
-                <p>{loadingError}</p>
-                <p className="text-sm mt-2 text-gray-600">Please try again later.</p>
-              </div>
-            </div>
-          ) : !isGoogleMapsLoaded ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                <p>Loading Google Maps...</p>
-              </div>
-            </div>
-          ) : isAvailable === false ? (
-            <div className="flex items-center justify-center h-full bg-gray-100">
-              <div className="text-center text-gray-600">
-                <div className="text-6xl mb-4">🏙️</div>
-                <h3 className="text-xl font-semibold mb-2">Street View Not Available</h3>
-                <p>Interactive Street View is not available for this location.</p>
-                <p className="text-sm mt-2">This may be due to privacy restrictions or limited coverage.</p>
-              </div>
-            </div>
-          ) : (
-            <div 
-              ref={panoramaRef}
-              className="w-full h-full"
-              style={{ minHeight: '400px' }}
-            />
-          )}
+        {/* Content */}
+        <div className="w-full h-full flex items-center justify-center bg-gray-100">
+          <div className="text-center text-gray-600">
+            <div className="text-6xl mb-4">🔄</div>
+            <h3 className="text-xl font-semibold mb-2">Component Deprecated</h3>
+            <p>This component has been replaced with the Simplified Street View Viewer.</p>
+            <p className="text-sm mt-2">Please use the test panel in the bottom-left corner.</p>
+          </div>
         </div>
       </div>
     </div>
