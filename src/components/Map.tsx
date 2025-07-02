@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { Landmark } from '@/data/landmarks';
@@ -29,7 +30,7 @@ const Map: React.FC<MapProps> = ({
   const { user } = useAuth();
   const { currentLandmarks } = useLandmarkSourceToggle();
   const { isMarkersLoading, startMarkerLoading, finishMarkerLoading } = useMarkerLoadingState(750);
-  const offlineCache = useOfflineCache({});
+  const offlineCache = useOfflineCache({ storeName: 'map-cache' });
   const { connectionHealth } = useConnectionMonitor();
 
   // Memoize landmarks to display - use all landmarks from the hook
