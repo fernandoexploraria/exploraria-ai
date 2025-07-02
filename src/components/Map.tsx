@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { Landmark } from '@/data/landmarks';
@@ -28,8 +27,8 @@ const Map: React.FC<MapProps> = ({
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<{ [key: string]: mapboxgl.Marker }>({});
   const { user } = useAuth();
-  const { currentLandmarks } = useLandmarkSourceToggle(); // Fixed: Removed incorrect argument
-  const { isMarkersLoading, startMarkerLoading, finishMarkerLoading } = useMarkerLoadingState();
+  const { currentLandmarks } = useLandmarkSourceToggle();
+  const { isMarkersLoading, startMarkerLoading, finishMarkerLoading } = useMarkerLoadingState(750);
   const offlineCache = useOfflineCache();
   const { connectionHealth } = useConnectionMonitor();
 
@@ -163,7 +162,7 @@ const Map: React.FC<MapProps> = ({
     <div className="relative w-full h-full">
       <div ref={mapContainer} className="w-full h-full" />
       
-      {/* Connection status indicator - Fixed: Check for isHealthy instead of isOffline */}
+      {/* Connection status indicator */}
       {!connectionHealth.isHealthy && (
         <div className="absolute top-4 left-4 bg-red-600 text-white px-3 py-1 rounded text-sm z-10">
           Connection Issues
