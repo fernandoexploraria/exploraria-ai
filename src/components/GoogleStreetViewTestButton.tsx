@@ -37,6 +37,15 @@ const GoogleStreetViewTestButton: React.FC = () => {
     );
   }
 
+  // Check if Google Maps API is loaded
+  if (typeof google === 'undefined' || !google.maps) {
+    return (
+      <div className="fixed bottom-4 left-4 z-50 bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
+        <strong>Loading Google Maps API...</strong> Please wait for the API to load.
+      </div>
+    );
+  }
+
   return (
     <div className="fixed bottom-4 left-4 z-50">
       {/* Test Button */}
