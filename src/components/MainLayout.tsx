@@ -175,10 +175,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       />
 
       <Map 
+        mapboxToken={mapboxToken}
         landmarks={allLandmarks}
-        onLandmarkClick={onSelectLandmark}
+        onSelectLandmark={onSelectLandmark}
         selectedLandmark={selectedLandmark}
-        smartTourLandmarks={smartTourLandmarks}
+        plannedLandmarks={[...smartTourLandmarks]}
       />
 
       {/* Debug Proximity Card - positioned above regular cards */}
