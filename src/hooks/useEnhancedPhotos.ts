@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { usePhotoOptimization } from './photo-optimization/usePhotoOptimization';
@@ -282,7 +283,7 @@ export const useEnhancedPhotos = () => {
           coordinates,
           tour_id
         `)
-        .eq('landmark_id', landmarkId)
+        .eq('place_id', landmarkId)
         .order('created_at', { ascending: false })
         .limit(1);
 
