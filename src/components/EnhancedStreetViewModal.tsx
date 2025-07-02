@@ -14,7 +14,6 @@ import EnhancedProgressiveImage from './EnhancedProgressiveImage';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useAdaptiveStreetViewLoader } from '@/hooks/useAdaptiveStreetViewLoader';
 import { PhotoData } from '@/hooks/useEnhancedPhotos';
-import { performanceBenchmark } from '@/utils/streetViewTestUtils';
 
 interface StreetViewData {
   imageUrl: string;
@@ -66,7 +65,6 @@ type ViewpointStrategy = 'single' | 'cardinal' | 'smart' | 'all';
 const isMultiViewpointData = (data: any): data is MultiViewpointData => {
   const isMulti = data && 'primary' in data && 'viewpoints' in data && 'metadata' in data;
   
-  // Enhanced debugging for multi-viewpoint detection
   console.log('🔍 Multi-viewpoint detection:', {
     hasData: !!data,
     hasPrimary: data && 'primary' in data,
@@ -130,7 +128,7 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
     getOptimalLoadingStrategy
   } = useAdaptiveStreetViewLoader({
     onComplete: () => {
-      console.log('✅ Street View loading completed');
+      console.log('✅ Panorama Street View loading completed');
     }
   });
 
@@ -216,7 +214,7 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
     }
   }, [currentIndex, currentViewpoint, streetViewItems, onLocationSelect, onClose]);
 
-  // Enhanced keyboard navigation with new shortcuts
+  // Enhanced keyboard navigation
   useEffect(() => {
     if (!isOpen) return;
 
@@ -243,26 +241,6 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
             handleNext();
           }
           break;
-        case 'ArrowUp':
-          e.preventDefault();
-          if (isMultiViewpoint) {
-            setCurrentViewpoint(prev => prev > 0 ? prev - 1 : maxViewpoints - 1);
-          }
-          break;
-        case 'ArrowDown':
-          e.preventDefault();
-          if (isMultiViewpoint) {
-            setCurrentViewpoint(prev => prev < maxViewpoints - 1 ? prev + 1 : 0);
-          }
-          break;
-        case ' ':
-          e.preventDefault();
-          if (e.shiftKey) {
-            handlePrevious();
-          } else {
-            handleNext();
-          }
-          break;
         case 'Escape':
           e.preventDefault();
           if (showKeyboardHelp) {
@@ -276,159 +254,18 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
           e.preventDefault();
           toggleFullscreen();
           break;
-        case 'i':
-        case 'I':
-          e.preventDefault();
-          setShowMetadata(prev => !prev);
-          break;
-        case 'm':
-        case 'M':
-          e.preventDefault();
-          if (onLocationSelect) {
-            handleShowOnMap();
-          }
-          break;
-        case 'r':
-        case 'R':
-          e.preventDefault();
-          // Reset view functionality would be implemented here
-          break;
         case '?':
           e.preventDefault();
           setShowKeyboardHelp(prev => !prev);
-          break;
-        default:
-          // Handle number keys for viewpoint selection
-          if (isMultiViewpoint && /^[1-9]$/.test(e.key)) {
-            const viewpointIndex = parseInt(e.key) - 1;
-            if (viewpointIndex < maxViewpoints) {
-              setCurrentViewpoint(viewpointIndex);
-            }
-          }
           break;
       }
     };
 
     document.addEventListener('keydown', handleKeyPress);
     return () => document.removeEventListener('keydown', handleKeyPress);
-  }, [isOpen, currentIndex, currentViewpoint, streetViewItems.length, onClose, handlePrevious, handleNext, toggleFullscreen, showKeyboardHelp, onLocationSelect, handleShowOnMap]);
+  }, [isOpen, currentIndex, currentViewpoint, streetViewItems.length, onClose, handlePrevious, handleNext, toggleFullscreen, showKeyboardHelp]);
 
   const [showDebugPanel, setShowDebugPanel] = useState(process.env.NODE_ENV === 'development');
-
-  // Stabilized loading effect with proper guards
-  useEffect(() => {
-    if (!isOpen || !mountedRef.current) return;
-    
-    const currentItem = streetViewItems[currentIndex];
-    const currentStreetViewData = currentItem?.streetViewData;
-    
-    if (!currentStreetViewData) {
-      console.log('🚫 No Street View data available for loading');
-      return;
-    }
-
-    // Create stable session ID and check if already loaded/loading
-    const sessionId = currentLoadingId;
-    
-    // Check if this item is already loaded
-    if (loadedItemsRef.current.has(sessionId)) {
-      console.log(`✅ Item ${sessionId} already loaded, skipping`);
-      return;
-    }
-    
-    // Check if already loading this session
-    if (loadingSessionRef.current === sessionId) {
-      console.log(`🔄 Already loading session ${sessionId}, skipping`);
-      return;
-    }
-
-    // Start new loading session
-    loadingSessionRef.current = sessionId;
-    console.log(`🚀 Starting loading session: ${sessionId}`);
-    
-    const loadStreetViewData = async () => {
-      if (!mountedRef.current || loadingSessionRef.current !== sessionId) {
-        console.log(`🛑 Loading cancelled for session: ${sessionId}`);
-        return;
-      }
-
-      try {
-        if (isMultiViewpointData(currentStreetViewData)) {
-          const strategy = determineStrategy(currentStreetViewData);
-          const viewpoints = currentStreetViewData.viewpoints;
-          
-          console.log(`📐 Loading multi-viewpoint: ${viewpoints.length} viewpoints with ${strategy} strategy`);
-          
-          startLoading(viewpoints.length, sessionId);
-          
-          const { concurrentLoads } = getOptimalLoadingStrategy();
-          
-          await performanceBenchmark.measure(
-            `Multi-viewpoint loading - ${viewpoints.length} viewpoints`,
-            async () => {
-              for (let i = 0; i < viewpoints.length; i += concurrentLoads) {
-                if (!mountedRef.current || loadingSessionRef.current !== sessionId) break;
-                
-                const batch = viewpoints.slice(i, i + concurrentLoads);
-                const loadPromises = batch.map((viewpoint, batchIndex) => {
-                  const actualIndex = i + batchIndex;
-                  return performanceBenchmark.measure(
-                    `Viewpoint ${actualIndex + 1}/${viewpoints.length}`,
-                    () => loadImageWithProgress(
-                      viewpoint.imageUrl, 
-                      actualIndex,
-                      () => updateProgress((actualIndex / viewpoints.length) * 100, `Loading viewpoint ${actualIndex + 1}...`)
-                    )
-                  );
-                });
-                
-                await Promise.all(loadPromises);
-              }
-            }
-          );
-        } else {
-          console.log('📐 Loading single viewpoint');
-          
-          startLoading(1, sessionId);
-          
-          updateProgress(25, 'Loading Street View...');
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
-          updateProgress(75, 'Processing image...');
-          
-          await performanceBenchmark.measure(
-            'Single viewpoint loading',
-            () => loadImageWithProgress(
-              currentStreetViewData.imageUrl,
-              0,
-              () => updateProgress(90, 'Finalizing...')
-            )
-          );
-        }
-
-        // Mark as completed if still the active session
-        if (mountedRef.current && loadingSessionRef.current === sessionId) {
-          loadedItemsRef.current.add(sessionId);
-          console.log(`✅ Loading completed for session: ${sessionId}`);
-          
-          setTimeout(() => {
-            if (mountedRef.current && loadingSessionRef.current === sessionId) {
-              finishLoading();
-              loadingSessionRef.current = null;
-            }
-          }, 200);
-        }
-      } catch (error) {
-        console.error(`❌ Loading failed for session ${sessionId}:`, error);
-        if (mountedRef.current && loadingSessionRef.current === sessionId) {
-          finishLoading();
-          loadingSessionRef.current = null;
-        }
-      }
-    };
-
-    loadStreetViewData();
-  }, [currentLoadingId, isOpen, streetViewItems, determineStrategy, startLoading, loadImageWithProgress, updateProgress, getOptimalLoadingStrategy, finishLoading]);
 
   // Component unmount cleanup
   useEffect(() => {
@@ -452,12 +289,15 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
           <div className="mb-4">
             {!isOnline ? <WifiOff className="w-12 h-12 mx-auto text-gray-400" /> : null}
           </div>
-          <h2 className="text-xl font-bold mb-4">Street View Not Available</h2>
+          <h2 className="text-xl font-bold mb-4">Panorama Street View Not Available</h2>
           <p className="text-gray-600 mb-4">
             {!isOnline 
-              ? `Street View data for ${currentItem?.landmark.name} is not available offline.`
-              : `Street View is not available for ${currentItem?.landmark.name}.`
+              ? `Panorama data for ${currentItem?.landmark.name} is not available offline.`
+              : `Interactive panorama is not available for ${currentItem?.landmark.name}.`
             }
+          </p>
+          <p className="text-sm text-blue-600 mb-4">
+            Note: We've transitioned to panorama-only Street View for better interactivity.
           </p>
           <Button onClick={onClose}>Close</Button>
         </div>
@@ -465,245 +305,58 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
     );
   }
 
-  // Enhanced multi-viewpoint detection with detailed logging
-  const isMultiViewpoint = isMultiViewpointData(currentStreetViewData);
-  
-  console.log('🎯 Street View Modal State:', {
-    landmarkName: currentItem?.landmark.name,
-    isMultiViewpoint,
-    currentViewpoint,
-    streetViewDataKeys: currentStreetViewData ? Object.keys(currentStreetViewData) : 'none',
-    viewpointCount: isMultiViewpoint ? currentStreetViewData.viewpoints.length : 1,
-    currentHeading: isMultiViewpoint 
-      ? currentStreetViewData.viewpoints[currentViewpoint]?.heading 
-      : currentStreetViewData.heading,
-    fallbackInfo: isMultiViewpoint ? currentStreetViewData.metadata.fallbackInfo : undefined
-  });
-  
-  const currentStreetView = isMultiViewpoint 
-    ? currentStreetViewData.viewpoints[currentViewpoint]
-    : currentStreetViewData;
-  
-  const allViewpoints = isMultiViewpoint 
-    ? currentStreetViewData.viewpoints 
-    : [currentStreetViewData];
-    
-  const strategy = isMultiViewpoint ? determineStrategy(currentStreetViewData) : 'single';
-
-  // Updated compass visibility logic - show for any data with 2+ viewpoints
-  const shouldShowCompass = isMultiViewpoint && allViewpoints.length >= 2;
-
-  console.log('🧭 Compass Display Logic:', {
-    isMultiViewpoint,
-    allViewpointsLength: allViewpoints.length,
-    shouldShowCompass,
-    strategy,
-    currentViewpoint,
-    viewpointHeadings: allViewpoints.map(v => v.heading)
-  });
-
-  const availableItems = streetViewItems.filter(item => item.streetViewData);
-
-  // Convert Street View data to PhotoData for enhanced loading
-  const currentStreetViewPhoto = streetViewToPhotoData(currentStreetView);
-
-  // Convert streetViewItems to thumbnailData format for the grid
-  const thumbnailData = streetViewItems.map(item => ({
-    landmark: item.landmark,
-    streetViewData: item.streetViewData && isMultiViewpointData(item.streetViewData) 
-      ? item.streetViewData.primary 
-      : item.streetViewData as StreetViewData | null
-  }));
-
+  // For now, render a placeholder until panorama integration is complete
   return (
     <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/90 ${isFullscreen ? 'p-0' : 'p-4'}`}>
       <div className={`relative w-full h-full bg-black rounded-lg overflow-hidden ${isFullscreen ? 'max-w-none max-h-none' : 'max-w-7xl max-h-[95vh]'}`}>
-        
-        {/* Loading Overlay */}
-        <StreetViewLoadingOverlay 
-          loadingState={loadingState}
-          strategy={strategy}
-        />
         
         {/* Header */}
         <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 to-transparent p-4">
           <div className="flex items-center justify-between text-white">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
-                <h2 className="text-xl font-bold">{currentStreetView.landmarkName}</h2>
+                <h2 className="text-xl font-bold">{currentItem?.landmark.name}</h2>
                 <OfflineIndicator />
               </div>
               <div className="flex items-center gap-4 text-sm opacity-90 mb-2">
-                <span>
-                  Street View • {currentStreetView.location.lat.toFixed(6)}, {currentStreetView.location.lng.toFixed(6)}
-                </span>
+                <span>Panorama Street View • Interactive Experience</span>
               </div>
-              
-              {/* Multi-viewpoint indicator with fallback info */}
-              {isMultiViewpoint && (
-                <div className="space-y-1">
-                  <MultiViewpointIndicator
-                    strategy={strategy}
-                    viewpointCount={allViewpoints.length}
-                    dataUsage={currentStreetViewData.metadata.dataUsage}
-                    variant="detailed"
-                    isLoading={loadingState.isLoading}
-                  />
-                  
-                  {/* Fallback information */}
-                  {currentStreetViewData.metadata.fallbackInfo && (
-                    <div className="text-xs text-blue-400 opacity-75">
-                      Coverage: {currentStreetViewData.metadata.fallbackInfo.coveragePercent}% 
-                      ({currentStreetViewData.metadata.fallbackInfo.fallbacksUsed} fallbacks used)
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              {isSlowConnection && (
-                <p className="text-xs text-yellow-400 mt-1">
-                  Loading optimized for slow connection
-                </p>
-              )}
-
-              {/* Debug information - only in development */}
-              {process.env.NODE_ENV === 'development' && (
-                <div className="text-xs text-blue-400 mt-1 opacity-75">
-                  Debug: {isMultiViewpoint ? 'Multi' : 'Single'} • 
-                  Views: {allViewpoints.length} • 
-                  Current: {currentViewpoint + 1} • 
-                  Heading: {currentStreetView.heading}° •
-                  Compass: {shouldShowCompass ? 'YES' : 'NO'}
-                </div>
-              )}
+              <div className="text-sm text-blue-400">
+                🚧 Panorama integration in progress - Enhanced interactive Street View coming soon!
+              </div>
             </div>
             
-            {/* Navigation Controls */}
-            <div className="flex items-center gap-4">
-              <StreetViewNavigationControls
-                onPrevious={handlePrevious}
-                onNext={handleNext}
-                onFullscreen={toggleFullscreen}
-                onShowOnMap={onLocationSelect ? handleShowOnMap : undefined}
-                onToggleInfo={() => setShowMetadata(!showMetadata)}
-                onToggleKeyboardHelp={() => setShowKeyboardHelp(!showKeyboardHelp)}
-                hasPrevious={currentIndex > 0}
-                hasNext={currentIndex < streetViewItems.length - 1}
-                currentIndex={currentIndex}
-                totalCount={streetViewItems.length}
-                isMultiViewpoint={isMultiViewpoint}
-                isInfoVisible={showMetadata}
-              />
-              
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onClose}
-                className="text-white hover:bg-white/20"
-                title="Close (Esc)"
-              >
-                <X className="h-6 w-6" />
-              </Button>
-            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="text-white hover:bg-white/20"
+              title="Close (Esc)"
+            >
+              <X className="h-6 w-6" />
+            </Button>
           </div>
         </div>
 
-        {/* Enhanced Street View Image */}
-        <div className="w-full h-full relative">
-          <EnhancedProgressiveImage
-            photo={currentStreetViewPhoto}
-            alt={`Street View of ${currentStreetView.landmarkName} (${currentStreetView.heading}°)`}
-            className="w-full h-full"
-            showAttribution={false}
-          />
-          
-          {/* Connection indicator for image */}
-          {!isOnline && (
-            <div className="absolute top-4 right-4 bg-red-600 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
-              <WifiOff className="h-3 w-3" />
-              Cached Offline
-            </div>
-          )}
+        {/* Placeholder content */}
+        <div className="w-full h-full flex items-center justify-center">
+          <div className="text-center text-white p-8">
+            <div className="text-6xl mb-4">🗺️</div>
+            <h3 className="text-2xl font-bold mb-4">Interactive Panorama Street View</h3>
+            <p className="text-gray-300 mb-4">
+              Enhanced panorama experience for {currentItem?.landmark.name}
+            </p>
+            <p className="text-sm text-blue-400">
+              Panorama-only strategy active • Static Street View components removed
+            </p>
+          </div>
         </div>
-
-        {/* Keyboard Help Panel */}
-        {showKeyboardHelp && (
-          <StreetViewKeyboardHelp
-            isMultiViewpoint={isMultiViewpoint}
-            isVisible={showKeyboardHelp}
-            onToggle={() => setShowKeyboardHelp(!showKeyboardHelp)}
-          />
-        )}
-
-        {/* Enhanced Multi-viewpoint Compass - Updated visibility logic */}
-        {shouldShowCompass && (
-          <div className="absolute top-1/2 right-4 transform -translate-y-1/2">
-            <EnhancedStreetViewCompass
-              viewpoints={allViewpoints}
-              currentViewpoint={currentViewpoint}
-              onViewpointChange={(index) => {
-                console.log(`🧭 Compass viewpoint change: ${currentViewpoint} → ${index}`);
-                setCurrentViewpoint(index);
-              }}
-              strategy={strategy}
-              loadingViewpoints={loadingViewpoints}
-            />
-          </div>
-        )}
-
-        {/* Debug overlay to verify compass should be visible */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="absolute top-1/2 left-4 bg-black/80 text-white text-xs p-2 rounded">
-            <div>Multi: {isMultiViewpoint ? 'YES' : 'NO'}</div>
-            <div>Views: {allViewpoints.length}</div>
-            <div>Show: {shouldShowCompass ? 'YES' : 'NO'}</div>
-            <div>Current: {currentViewpoint}</div>
-            <div>Strategy: {strategy}</div>
-            {isMultiViewpoint && currentStreetViewData.metadata.fallbackInfo && (
-              <div>Fallbacks: {currentStreetViewData.metadata.fallbackInfo.fallbacksUsed}</div>
-            )}
-          </div>
-        )}
-
-        {/* Metadata Panel */}
-        <StreetViewMetadataPanel
-          streetViewData={currentStreetViewData}
-          currentViewpoint={currentViewpoint}
-          isVisible={showMetadata}
-          onToggle={() => setShowMetadata(!showMetadata)}
-          loadingState={loadingState}
-        />
-
-        {/* Enhanced Thumbnail Navigation */}
-        {availableItems.length > 1 && (
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-            <StreetViewThumbnailGrid
-              thumbnails={thumbnailData}
-              onThumbnailClick={handleThumbnailClick}
-              selectedIndex={currentIndex}
-              loadingStates={Object.fromEntries(
-                Object.entries(loadingViewpoints).map(([key, value]) => [parseInt(key), value])
-              )}
-              className="justify-center"
-              size="sm"
-              maxItems={8}
-            />
-          </div>
-        )}
 
         {/* Debug Panel */}
         <StreetViewDebugPanel
           isVisible={showDebugPanel}
           onToggle={() => setShowDebugPanel(!showDebugPanel)}
         />
-
-        {/* Enhanced Keyboard shortcuts hint */}
-        <div className="absolute bottom-4 right-4 text-white text-xs opacity-50">
-          {isMultiViewpoint 
-            ? '← → Navigate • ↑ ↓ / 1-9 Change View • Space Next • F Fullscreen • I Info • ? Help • ESC Close'
-            : '← → Navigate • Space Next • F Fullscreen • I Info • ? Help • ESC Close'
-          }
-        </div>
       </div>
     </div>
   );
