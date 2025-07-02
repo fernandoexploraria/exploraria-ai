@@ -97,7 +97,8 @@ const MapComponent: React.FC<MapProps> = ({
           id: `tour-landmark-${landmarkIndex}`,
           name: tourLandmark.name,
           coordinates: tourLandmark.coordinates,
-          description: tourLandmark.description
+          description: tourLandmark.description,
+          placeId: tourLandmark.placeId // 🔥 PRESERVE PLACE_ID FOR DATABASE LOOKUP
         };
         
       case 'top':
