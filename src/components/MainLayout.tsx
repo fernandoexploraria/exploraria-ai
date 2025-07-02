@@ -175,15 +175,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       />
 
       <Map 
+        mapboxToken={mapboxToken}
         landmarks={allLandmarks}
-        onLandmarkClick={onSelectLandmark}
-        userLocation={userLocation}
-        followUser={true}
-        proximitySettings={{
-          enabled: true,
-          distance: 500
-        }}
-        onLocationUpdate={onLocationUpdate}
+        onSelectLandmark={onSelectLandmark}
         selectedLandmark={selectedLandmark}
         plannedLandmarks={[...smartTourLandmarks]}
       />

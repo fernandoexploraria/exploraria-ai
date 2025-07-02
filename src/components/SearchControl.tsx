@@ -1,4 +1,3 @@
-
 import * as React from "react"
 import {
   CommandDialog,
@@ -13,44 +12,15 @@ import { Landmark } from "@/data/landmarks"
 import { TOP_LANDMARKS } from "@/data/topLandmarks"
 import { ArrowRight } from "lucide-react"
 import LandmarkEnrichmentTest from "./LandmarkEnrichmentTest"
-import { usePhotoPreloading } from "@/hooks/usePhotoPreloading"
-import { UserLocation } from "@/types/proximityAlerts"
 
 interface SearchControlProps {
   landmarks: Landmark[]
   onSelectLandmark: (landmark: Landmark) => void
-  userLocation?: UserLocation | null
 }
 
-const SearchControl: React.FC<SearchControlProps> = ({ 
-  landmarks, 
-  onSelectLandmark,
-  userLocation 
-}) => {
+const SearchControl: React.FC<SearchControlProps> = ({ landmarks, onSelectLandmark }) => {
   const [open, setOpen] = React.useState(false)
   const [showEnrichmentTest, setShowEnrichmentTest] = React.useState(false)
-
-  // Add photo preloading for search results
-  const photoPreloading = usePhotoPreloading(
-    userLocation ? {
-      latitude: userLocation.latitude,
-      longitude: userLocation.longitude,
-      timestamp: userLocation.timestamp || Date.now()
-    } : null,
-    [...landmarks, ...TOP_LANDMARKS.map(tl => ({
-      id: `top-${tl.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
-      name: tl.name,
-      coordinates: tl.coordinates,
-      description: tl.description,
-      placeId: tl.place_id
-    }))],
-    {
-      preloadDistance: 1000,
-      maxConcurrentPreloads: 5,
-      prioritySize: 'thumb',
-      enableNetworkAware: true
-    }
-  );
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -64,11 +34,7 @@ const SearchControl: React.FC<SearchControlProps> = ({
   }, [])
 
   const handleSelect = (landmark: Landmark) => {
-    // Trigger immediate preloading for selected landmark
-    if (landmark.placeId) {
-      photoPreloading.preloadLandmarkPhoto(landmark);
-    }
-    
+    // Remove the fromSearch flag - let the marker click handle everything
     onSelectLandmark(landmark)
     setOpen(false)
   }
@@ -80,12 +46,10 @@ const SearchControl: React.FC<SearchControlProps> = ({
       name: topLandmark.name,
       coordinates: topLandmark.coordinates,
       description: topLandmark.description,
-      placeId: topLandmark.place_id
+      placeId: topLandmark.place_id // Add place_id to enable photo fetching
     };
     
-    // Trigger immediate preloading for selected landmark
-    photoPreloading.preloadLandmarkPhoto(tempLandmark);
-    
+    // Remove the fromSearch flag - let the marker click handle everything
     onSelectLandmark(tempLandmark)
     setOpen(false)
   }
