@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -55,7 +56,7 @@ const Map: React.FC<MapProps> = ({
     navigateToIndex
   } = useStreetViewNavigation();
 
-  const handleMarkerClick = (landmark: Landmark, event: React.MouseEvent) => {
+  const handleMarkerClick = (landmark: Landmark, event: Event) => {
     event.stopPropagation();
     setSelectedMarker(landmark);
     setIsLandmarkInfoOpen(true);
@@ -72,7 +73,7 @@ const Map: React.FC<MapProps> = ({
   };
 
   // Enhanced eye icon click handler - opens enhanced Street View modal
-  const handleEyeClick = async (landmark: Landmark, event: React.MouseEvent) => {
+  const handleEyeClick = async (landmark: Landmark, event: Event) => {
     event.stopPropagation();
     console.log(`👁️ Enhanced Street View requested for: ${landmark.name}`);
     
@@ -185,7 +186,11 @@ const Map: React.FC<MapProps> = ({
                 <X className="h-4 w-4" />
               </Button>
               <EnhancedLandmarkInfo
-                landmark={selectedMarker}
+                landmark={{
+                  ...selectedMarker,
+                  coordinateSource: 'unknown',
+                  confidence: 0.8
+                }}
                 onLocationSelect={handleLocationSelect}
                 onClose={closeLandmarkInfo}
               />
