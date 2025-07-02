@@ -17,9 +17,10 @@ import LandmarkEnrichmentTest from "./LandmarkEnrichmentTest"
 interface SearchControlProps {
   landmarks: Landmark[]
   onSelectLandmark: (landmark: Landmark) => void
+  isDemoMode: boolean
 }
 
-const SearchControl: React.FC<SearchControlProps> = ({ landmarks, onSelectLandmark }) => {
+const SearchControl: React.FC<SearchControlProps> = ({ landmarks, onSelectLandmark, isDemoMode }) => {
   const [open, setOpen] = React.useState(false)
   const [showEnrichmentTest, setShowEnrichmentTest] = React.useState(false)
 
@@ -33,6 +34,13 @@ const SearchControl: React.FC<SearchControlProps> = ({ landmarks, onSelectLandma
     document.addEventListener("keydown", down)
     return () => document.removeEventListener("keydown", down)
   }, [])
+
+  // Auto-hide enrichment test when demo mode is enabled
+  React.useEffect(() => {
+    if (isDemoMode && showEnrichmentTest) {
+      setShowEnrichmentTest(false)
+    }
+  }, [isDemoMode, showEnrichmentTest])
 
   const handleSelect = (landmark: Landmark) => {
     // Remove the fromSearch flag - let the marker click handle everything
@@ -69,15 +77,17 @@ const SearchControl: React.FC<SearchControlProps> = ({ landmarks, onSelectLandma
           </kbd>
         </Button>
         
-        {/* Temporary test button for Phase 1 */}
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => setShowEnrichmentTest(!showEnrichmentTest)}
-          className="text-xs"
-        >
-          {showEnrichmentTest ? 'Hide' : 'Test'} Enrichment
-        </Button>
+        {/* Enrichment test button - hidden in demo mode */}
+        {!isDemoMode && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setShowEnrichmentTest(!showEnrichmentTest)}
+            className="text-xs"
+          >
+            {showEnrichmentTest ? 'Hide' : 'Test'} Enrichment
+          </Button>
+        )}
       </div>
 
       {/* Repositioned enrichment test component to top-right */}
