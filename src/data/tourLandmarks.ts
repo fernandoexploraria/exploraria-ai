@@ -3,6 +3,7 @@ export interface TourLandmark {
   name: string;
   coordinates: [number, number];
   description: string;
+  placeId?: string;
 }
 
 // Mutable array that gets cleared and repopulated for each new tour

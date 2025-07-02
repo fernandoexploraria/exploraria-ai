@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import MobileResponsiveDialog from '@/components/MobileResponsiveDialog';
 import { Button } from '@/components/ui/button';
@@ -435,11 +436,12 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
       // Wait for cleanup to complete
       await new Promise(resolve => setTimeout(resolve, 300));
 
-      // Convert to TourLandmark format and call setTourLandmarks
+      // Convert to TourLandmark format and call setTourLandmarks with placeId included
       const tourLandmarks = validLandmarks.map(landmark => ({
         name: landmark.name,
         coordinates: landmark.coordinates,
-        description: landmark.description
+        description: landmark.description,
+        placeId: landmark.placeId // 🔥 INCLUDE PLACE_ID FOR DATABASE LOOKUP
       }));
 
       console.log('📍 Adding Enhanced Smart Tour landmarks to TOUR_LANDMARKS array:', tourLandmarks.length);
