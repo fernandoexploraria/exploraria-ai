@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Landmark, EnhancedLandmark } from '@/data/landmarks';
 import { setTourLandmarks, clearTourMarkers } from '@/data/tourLandmarks';
@@ -211,13 +210,9 @@ export const useTourPlanner = () => {
       startMarkerLoading();
       await animateProgress(95, 'Loading landmarks to map...', 'finalizing');
 
-      // Set tour landmarks for map display (simplified version)
+      // Set tour landmarks for map display (now using complete enhanced data)
       console.log('Setting enhanced tour landmarks:', enhancedLandmarks.length);
-      setTourLandmarks(enhancedLandmarks.map(lm => ({
-        name: lm.name,
-        coordinates: lm.coordinates,
-        description: lm.description
-      })));
+      setTourLandmarks(enhancedLandmarks);
 
       const newTourPlan: TourPlan = {
         landmarks: enhancedLandmarks,
