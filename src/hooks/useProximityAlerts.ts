@@ -2,8 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProximityAlert, ProximitySettings, UserLocation } from '@/types/proximityAlerts';
 import { useAuth } from '@/components/AuthProvider';
-import { TOP_LANDMARKS } from '@/data/topLandmarks';
-import { Landmark } from '@/data/landmarks';
 
 // Enhanced connection status tracking
 interface ConnectionStatus {
@@ -293,16 +291,6 @@ const createProximitySettingsSubscription = (userId: string, loadProximitySettin
   globalProximityState.channel = channel;
 };
 
-// Convert TopLandmark to Landmark format
-const convertTopLandmarkToLandmark = (topLandmark: any): Landmark => {
-  return {
-    id: `top-${topLandmark.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
-    name: topLandmark.name,
-    coordinates: topLandmark.coordinates,
-    description: topLandmark.description
-  };
-};
-
 export const useProximityAlerts = () => {
   const { user } = useAuth();
   const [proximityAlerts, setProximityAlerts] = useState<ProximityAlert[]>([]);
@@ -311,9 +299,6 @@ export const useProximityAlerts = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const isMountedRef = useRef(true);
-
-  // Get landmarks from TOP_LANDMARKS array (includes tour landmarks)
-  const combinedLandmarks = TOP_LANDMARKS.map(convertTopLandmarkToLandmark);
 
   // Subscribe to global proximity settings state
   useEffect(() => {
@@ -668,7 +653,6 @@ export const useProximityAlerts = () => {
     connectionStatus: globalProximityState.connectionStatus,
     forceReconnect,
     // Keep these for compatibility
-    combinedLandmarks,
     setProximityAlerts,
     setProximitySettings: notifySubscribers,
     setUserLocation: updateUserLocation,
