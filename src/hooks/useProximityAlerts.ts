@@ -386,7 +386,8 @@ const startPollingFallback = async (userId: string) => {
           notification_distance: data.notification_distance,
           outer_distance: data.outer_distance,
           card_distance: data.card_distance,
-          initialization_timestamp: data.initialization_timestamp,
+          // Remove initialization_timestamp from database mapping - handle in memory only
+          initialization_timestamp: undefined,
           // Map new grace period configuration fields with defaults
           grace_period_initialization: data.grace_period_initialization ?? 15000,
           grace_period_movement: data.grace_period_movement ?? 8000,
@@ -525,7 +526,8 @@ const createProximitySettingsSubscription = (userId: string, loadProximitySettin
             notification_distance: payload.new.notification_distance,
             outer_distance: payload.new.outer_distance,
             card_distance: payload.new.card_distance,
-            initialization_timestamp: payload.new.initialization_timestamp,
+            // Remove initialization_timestamp from real-time mapping - handle in memory only
+            initialization_timestamp: undefined,
             // Map new grace period configuration fields with defaults
             grace_period_initialization: payload.new.grace_period_initialization ?? 15000,
             grace_period_movement: payload.new.grace_period_movement ?? 8000,
@@ -718,7 +720,8 @@ export const useProximityAlerts = () => {
           notification_distance: data.notification_distance,
           outer_distance: data.outer_distance,
           card_distance: data.card_distance,
-          initialization_timestamp: data.initialization_timestamp,
+          // Remove initialization_timestamp from database loading - handle in memory only
+          initialization_timestamp: undefined,
           // Map new grace period configuration fields with defaults
           grace_period_initialization: data.grace_period_initialization ?? 15000,
           grace_period_movement: data.grace_period_movement ?? 8000,
@@ -821,13 +824,12 @@ export const useProximityAlerts = () => {
           setGracePeriod('initialization', initTimestamp);
         }
         
-        updateData.initialization_timestamp = initTimestamp;
+        // Don't include initialization_timestamp in database update - it's handled in memory only
         logGracePeriodEvent('Proximity enabled - initialization grace period logic applied', {
           shouldActivate: shouldActivate
         }, 'info', currentSettings);
       } else if (!enabled) {
         clearGracePeriod();
-        updateData.initialization_timestamp = null;
         logGracePeriodEvent('Proximity disabled - clearing grace period', {}, 'info', currentSettings);
       }
 

@@ -118,7 +118,8 @@ export class GracePeriodLazyLoader {
       notification_distance: data.notification_distance,
       outer_distance: data.outer_distance,
       card_distance: data.card_distance,
-      initialization_timestamp: data.initialization_timestamp,
+      // Remove initialization_timestamp from database loading - handle in memory only
+      initialization_timestamp: undefined,
       grace_period_initialization: data.grace_period_initialization ?? 15000,
       grace_period_movement: data.grace_period_movement ?? 8000,
       grace_period_app_resume: data.grace_period_app_resume ?? 5000,
