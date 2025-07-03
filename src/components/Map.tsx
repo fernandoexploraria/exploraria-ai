@@ -18,6 +18,7 @@ import { PhotoData } from '@/hooks/useEnhancedPhotos';
 import { PhotoCarousel } from './photo-carousel';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { getEnhancedLandmarkText } from '@/utils/landmarkPromptUtils';
+import OptimalRouteButton from './OptimalRouteButton';
 
 interface MapProps {
   mapboxToken: string;
@@ -1509,6 +1510,11 @@ const MapComponent: React.FC<MapProps> = ({
   return (
     <>
       <div ref={mapContainer} className="absolute inset-0" />
+      
+      {/* Optimal Route Button - positioned in top-left corner */}
+      <div className="absolute top-4 left-4 z-10">
+        <OptimalRouteButton />
+      </div>
       
       <EnhancedStreetViewModal
         isOpen={isModalOpen}
