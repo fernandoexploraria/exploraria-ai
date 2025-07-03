@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Map from '@/components/Map';
 import TopControls from '@/components/TopControls';
@@ -9,6 +8,7 @@ import FloatingTourGuideFAB from '@/components/FloatingTourGuideFAB';
 import ProximityControlPanel from '@/components/ProximityControlPanel';
 import FloatingProximityCard from '@/components/FloatingProximityCard';
 import DebugWindow from '@/components/DebugWindow';
+import GracePeriodDebugPanel from '@/components/debug/GracePeriodDebugPanel';
 import { useDebugWindow } from '@/hooks/useDebugWindow';
 import { useProximityNotifications } from '@/hooks/useProximityNotifications';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
@@ -66,7 +66,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   onTourReadyForVoice,
   voiceTourData,
 }) => {
-  const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
+  const { 
+    isVisible: isDebugVisible, 
+    toggle: toggleDebug,
+    isGracePeriodDebugVisible,
+    toggleGracePeriodDebug
+  } = useDebugWindow();
   const { userLocation } = useLocationTracking();
   const { activeCards, closeProximityCard, showRouteToService } = useProximityNotifications();
   
@@ -168,7 +173,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   });
 
   return (
-    <div className="w-screen h-screen relative">
+    <div className="h-screen flex flex-col bg-gray-50">
       <TopControls
         allLandmarks={allLandmarks}
         onSelectLandmark={onSelectLandmark}
@@ -264,9 +269,15 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         onSessionStateChange={handleSessionStateChange}
       />
 
-      <DebugWindow
-        isVisible={isDebugVisible}
-        onClose={toggleDebug}
+      {/* Debug Windows */}
+      <DebugWindow 
+        isVisible={isDebugVisible} 
+        onClose={toggleDebug} 
+      />
+      
+      <GracePeriodDebugPanel
+        isVisible={isGracePeriodDebugVisible}
+        onToggle={toggleGracePeriodDebug}
       />
     </div>
   );

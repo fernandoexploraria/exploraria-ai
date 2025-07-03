@@ -10,10 +10,16 @@ import {
   calculateDistance,
   logGracePeriodEvent,
   shouldActivateGracePeriod,
-  formatGracePeriodDebugInfo
+  formatGracePeriodDebugInfo,
+  getGracePeriodPresetName
 } from '@/utils/smartGracePeriod';
 import { validateGracePeriodRanges, autoCorrectGracePeriodValues } from '@/utils/gracePeriodValidation';
 import { useToast } from '@/hooks/use-toast';
+import { 
+  trackGracePeriodActivation,
+  trackGracePeriodClear,
+  trackGracePeriodExpiry
+} from '@/utils/gracePeriodHistory';
 
 // Enhanced connection status tracking
 interface ConnectionStatus {
@@ -83,12 +89,15 @@ const isInGracePeriod = (settings: ProximitySettings | null = null): boolean => 
   const isActive = elapsed < gracePeriodDuration;
   
   if (!isActive && state.gracePeriodActive) {
-    // Grace period naturally expired
+    // Grace period naturally expired - track in history
+    trackGracePeriodExpiry(state.gracePeriodReason!, elapsed);
+    
     logGracePeriodEvent(`Grace period naturally expired`, {
       reason: state.gracePeriodReason,
       elapsed: elapsed,
       duration: gracePeriodDuration
     }, 'info', settings);
+    
     clearGracePeriod();
   }
   
@@ -111,6 +120,15 @@ const setGracePeriod = (reason: GracePeriodState['gracePeriodReason'], timestamp
     gracePeriodReason: reason
   };
   
+  // Track in history
+  trackGracePeriodActivation(reason, 'automatic', {
+    preset: getGracePeriodPresetName(settings),
+    userLocation: globalProximityState.lastLocationForMovement ? {
+      latitude: globalProximityState.lastLocationForMovement.latitude,
+      longitude: globalProximityState.lastLocationForMovement.longitude
+    } : undefined
+  });
+  
   // Save to localStorage with reason
   try {
     localStorage.setItem('proximity_grace_period_state', JSON.stringify({
@@ -126,10 +144,18 @@ const setGracePeriod = (reason: GracePeriodState['gracePeriodReason'], timestamp
 const clearGracePeriod = () => {
   const previousReason = globalProximityState.gracePeriodState.gracePeriodReason;
   const settings = globalProximityState.settings;
+  const duration = globalProximityState.gracePeriodState.initializationTimestamp 
+    ? Date.now() - globalProximityState.gracePeriodState.initializationTimestamp 
+    : undefined;
   
   logGracePeriodEvent(`Clearing grace period`, {
     previousReason: previousReason
   }, 'info', settings);
+  
+  // Track in history
+  if (duration) {
+    trackGracePeriodClear('automatic', duration);
+  }
   
   globalProximityState.gracePeriodState = {
     initializationTimestamp: null,

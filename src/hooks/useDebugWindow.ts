@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 
 export const useDebugWindow = () => {
   const [isVisible, setIsVisible] = useState(false);
+  const [isGracePeriodDebugVisible, setIsGracePeriodDebugVisible] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -11,6 +12,12 @@ export const useDebugWindow = () => {
         event.preventDefault();
         setIsVisible(prev => !prev);
       }
+      
+      // Toggle grace period debug with Ctrl+G
+      if (event.ctrlKey && event.key === 'g') {
+        event.preventDefault();
+        setIsGracePeriodDebugVisible(prev => !prev);
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -18,9 +25,12 @@ export const useDebugWindow = () => {
   }, []);
 
   const toggle = () => setIsVisible(prev => !prev);
+  const toggleGracePeriodDebug = () => setIsGracePeriodDebugVisible(prev => !prev);
 
   return {
     isVisible,
     toggle,
+    isGracePeriodDebugVisible,
+    toggleGracePeriodDebug,
   };
 };
