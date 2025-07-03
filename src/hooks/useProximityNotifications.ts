@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -33,6 +34,15 @@ const STORAGE_KEY = 'proximity_notifications_state';
 const PREP_ZONE_STORAGE_KEY = 'prep_zone_state';
 const CARD_STORAGE_KEY = 'proximity_cards_state';
 
+// Global singleton state to prevent multiple instances
+let globalProximityManager: {
+  isActive: boolean;
+  instanceId: string | null;
+} = {
+  isActive: false,
+  instanceId: null
+};
+
 export const useProximityNotifications = () => {
   const { proximitySettings } = useProximityAlerts();
   const { userLocation, currentPollRound } = useLocationTracking();
@@ -44,8 +54,42 @@ export const useProximityNotifications = () => {
   const previousNearbyLandmarksRef = useRef<Set<string>>(new Set());
   const previousCardZoneLandmarksRef = useRef<Set<string>>(new Set());
 
+  // Generate unique instance ID and check for singleton
+  const instanceIdRef = useRef<string>(`proximity-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+  const [isActiveInstance, setIsActiveInstance] = useState(false);
+
   // State for active proximity cards - use placeId as key
   const [activeCards, setActiveCards] = useState<{[placeId: string]: TourLandmark}>({});
+
+  // Singleton management - only one instance can be active
+  useEffect(() => {
+    const instanceId = instanceIdRef.current;
+    
+    if (!globalProximityManager.isActive) {
+      // Claim the singleton
+      globalProximityManager.isActive = true;
+      globalProximityManager.instanceId = instanceId;
+      setIsActiveInstance(true);
+      console.log(`🎯 Proximity notifications instance ${instanceId} activated as singleton`);
+    } else if (globalProximityManager.instanceId === instanceId) {
+      // This instance already owns the singleton
+      setIsActiveInstance(true);
+      console.log(`🎯 Proximity notifications instance ${instanceId} confirmed as active singleton`);
+    } else {
+      // Another instance is already active
+      setIsActiveInstance(false);
+      console.log(`🚫 Proximity notifications instance ${instanceId} blocked - singleton already active (${globalProximityManager.instanceId})`);
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (globalProximityManager.instanceId === instanceId) {
+        globalProximityManager.isActive = false;
+        globalProximityManager.instanceId = null;
+        console.log(`🎯 Proximity notifications instance ${instanceId} deactivated singleton`);
+      }
+    };
+  }, []);
 
   // Check if proximity settings are loaded with valid distance values
   const isProximitySettingsReady = proximitySettings && 
@@ -73,6 +117,8 @@ export const useProximityNotifications = () => {
 
   // Load notification state from localStorage
   useEffect(() => {
+    if (!isActiveInstance) return;
+    
     try {
       const savedState = localStorage.getItem(STORAGE_KEY);
       if (savedState) {
@@ -91,10 +137,12 @@ export const useProximityNotifications = () => {
     } catch (error) {
       console.error('Failed to load notification state:', error);
     }
-  }, []);
+  }, [isActiveInstance]);
 
   // Save notification state to localStorage
   const saveNotificationState = useCallback(() => {
+    if (!isActiveInstance) return;
+    
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(notificationStateRef.current));
       localStorage.setItem(PREP_ZONE_STORAGE_KEY, JSON.stringify(prepZoneStateRef.current));
@@ -102,7 +150,7 @@ export const useProximityNotifications = () => {
     } catch (error) {
       console.error('Failed to save notification state:', error);
     }
-  }, []);
+  }, [isActiveInstance]);
 
   // Check if card cooldown has passed
   const canShowCard = useCallback((placeId: string): boolean => {
@@ -115,6 +163,8 @@ export const useProximityNotifications = () => {
 
   // Play notification sound
   const playNotificationSound = useCallback(() => {
+    if (!isActiveInstance) return;
+    
     try {
       // Create a simple notification beep using Web Audio API
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -135,7 +185,7 @@ export const useProximityNotifications = () => {
     } catch (error) {
       console.log('Could not play notification sound:', error);
     }
-  }, []);
+  }, [isActiveInstance]);
 
   // Function to show route to landmark
   const showRouteToLandmark = useCallback(async (landmark: TourLandmark) => {
@@ -215,6 +265,8 @@ export const useProximityNotifications = () => {
 
   // Handle prep zone entry and Street View pre-loading
   const handlePrepZoneEntry = useCallback(async (landmark: TourLandmark) => {
+    if (!isActiveInstance) return;
+    
     const placeId = landmark.placeId;
     const prepState = prepZoneStateRef.current[placeId];
 
@@ -223,7 +275,7 @@ export const useProximityNotifications = () => {
       return;
     }
 
-    console.log(`🎯 Entered prep zone for ${landmark.name} - starting Street View pre-load`);
+    console.log(`🎯 [${instanceIdRef.current}] Entered prep zone for ${landmark.name} - starting Street View pre-load`);
 
     // Update prep zone state
     prepZoneStateRef.current[placeId] = {
@@ -259,18 +311,20 @@ export const useProximityNotifications = () => {
     } catch (error) {
       console.error(`❌ Failed to pre-load Street View for ${landmark.name}:`, error);
     }
-  }, [preloadStreetView, saveNotificationState]);
+  }, [preloadStreetView, saveNotificationState, isActiveInstance]);
 
   // Handle card zone entry
   const showProximityCard = useCallback((landmark: TourLandmark) => {
+    if (!isActiveInstance) return;
+    
     const placeId = landmark.placeId;
     
     if (!canShowCard(placeId)) {
-      console.log(`🏪 Card for ${landmark.name} still in cooldown`);
+      console.log(`🏪 [${instanceIdRef.current}] Card for ${landmark.name} still in cooldown`);
       return;
     }
 
-    console.log(`🏪 Showing proximity card for ${landmark.name}`);
+    console.log(`🏪 [${instanceIdRef.current}] Showing proximity card for ${landmark.name}`);
 
     // Update card state
     cardStateRef.current[placeId] = {
@@ -285,11 +339,11 @@ export const useProximityNotifications = () => {
     }));
 
     saveNotificationState();
-  }, [canShowCard, saveNotificationState]);
+  }, [canShowCard, saveNotificationState, isActiveInstance]);
 
   // Function to close a proximity card
   const closeProximityCard = useCallback((placeId: string) => {
-    console.log(`🏪 Closing proximity card for landmark ${placeId}`);
+    console.log(`🏪 [${instanceIdRef.current}] Closing proximity card for landmark ${placeId}`);
     
     setActiveCards(prev => {
       const updated = { ...prev };
@@ -300,6 +354,11 @@ export const useProximityNotifications = () => {
 
   // Show proximity toast notification with sound, TTS, and Street View
   const showProximityToast = useCallback(async (landmark: TourLandmark, distance: number) => {
+    if (!isActiveInstance) {
+      console.log(`🚫 [${instanceIdRef.current}] Toast blocked - not active instance`);
+      return;
+    }
+    
     const placeId = landmark.placeId;
     const timestamp = new Date().toLocaleTimeString();
     
@@ -308,7 +367,7 @@ export const useProximityNotifications = () => {
     if (lastNotification) {
       const timeSinceLastNotification = Date.now() - lastNotification;
       if (timeSinceLastNotification < NOTIFICATION_COOLDOWN) {
-        console.log(`🔕 Toast notification for ${landmark.name} still in cooldown (${Math.round((NOTIFICATION_COOLDOWN - timeSinceLastNotification) / 1000)}s remaining) - Round ${currentPollRound} at ${timestamp}`);
+        console.log(`🔕 [${instanceIdRef.current}] Toast notification for ${landmark.name} still in cooldown (${Math.round((NOTIFICATION_COOLDOWN - timeSinceLastNotification) / 1000)}s remaining) - Round ${currentPollRound} at ${timestamp}`);
         return;
       }
     }
@@ -321,7 +380,7 @@ export const useProximityNotifications = () => {
       ? `${(distance / 1000).toFixed(1)} km` 
       : `${Math.round(distance)} m`;
 
-    console.log(`🔔 Showing proximity notification for ${landmark.name} at ${formattedDistance} - Round ${currentPollRound} at ${timestamp}`);
+    console.log(`🔔 [${instanceIdRef.current}] Showing proximity notification for ${landmark.name} at ${formattedDistance} - Round ${currentPollRound} at ${timestamp}`);
 
     // Play notification sound first
     playNotificationSound();
@@ -350,11 +409,11 @@ export const useProximityNotifications = () => {
         }
       }
     });
-  }, [saveNotificationState, showRouteToLandmark, playNotificationSound, speak, getCachedData, currentPollRound]);
+  }, [saveNotificationState, showRouteToLandmark, playNotificationSound, speak, getCachedData, currentPollRound, isActiveInstance]);
 
-  // Monitor prep zone entries - only when settings are ready
+  // Monitor prep zone entries - only when settings are ready and this is the active instance
   useEffect(() => {
-    if (!isProximitySettingsReady || !proximitySettings.is_enabled || !userLocation || prepZoneLandmarks.length === 0) {
+    if (!isActiveInstance || !isProximitySettingsReady || !proximitySettings.is_enabled || !userLocation || prepZoneLandmarks.length === 0) {
       return;
     }
 
@@ -372,16 +431,16 @@ export const useProximityNotifications = () => {
     const currentPrepZoneIds = new Set(prepZoneLandmarks.map(nl => nl.landmark.placeId));
     Object.keys(prepZoneStateRef.current).forEach(placeId => {
       if (!currentPrepZoneIds.has(placeId)) {
-        console.log(`🚪 Exited prep zone for landmark ${placeId}`);
+        console.log(`🚪 [${instanceIdRef.current}] Exited prep zone for landmark ${placeId}`);
         delete prepZoneStateRef.current[placeId];
         saveNotificationState();
       }
     });
-  }, [prepZoneLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, handlePrepZoneEntry, saveNotificationState]);
+  }, [prepZoneLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, handlePrepZoneEntry, saveNotificationState, isActiveInstance]);
 
-  // Monitor card zone entries - only when settings are ready
+  // Monitor card zone entries - only when settings are ready and this is the active instance
   useEffect(() => {
-    if (!isProximitySettingsReady || !proximitySettings.is_enabled || !userLocation || cardZoneLandmarks.length === 0) {
+    if (!isActiveInstance || !isProximitySettingsReady || !proximitySettings.is_enabled || !userLocation || cardZoneLandmarks.length === 0) {
       return;
     }
 
@@ -391,7 +450,7 @@ export const useProximityNotifications = () => {
     // Find newly entered card zone landmarks
     const newlyEnteredCardIds = Array.from(currentCardZoneIds).filter(id => !previousCardZoneIds.has(id));
 
-    console.log(`🏪 Card zone check: ${currentCardZoneIds.size} in zone, ${newlyEnteredCardIds.length} newly entered`);
+    console.log(`🏪 [${instanceIdRef.current}] Card zone check: ${currentCardZoneIds.size} in zone, ${newlyEnteredCardIds.length} newly entered`);
 
     // Show card for newly entered landmarks (one at a time, closest first)
     if (newlyEnteredCardIds.length > 0) {
@@ -408,18 +467,18 @@ export const useProximityNotifications = () => {
     const exitedCardIds = Array.from(previousCardZoneIds).filter(id => !currentCardZoneIds.has(id));
     exitedCardIds.forEach(placeId => {
       if (activeCards[placeId]) {
-        console.log(`🏪 Exiting card zone for ${placeId}, hiding card`);
+        console.log(`🏪 [${instanceIdRef.current}] Exiting card zone for ${placeId}, hiding card`);
         closeProximityCard(placeId);
       }
     });
 
     // Update previous card zone landmarks
     previousCardZoneLandmarksRef.current = currentCardZoneIds;
-  }, [cardZoneLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, canShowCard, showProximityCard, activeCards, closeProximityCard]);
+  }, [cardZoneLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, canShowCard, showProximityCard, activeCards, closeProximityCard, isActiveInstance]);
 
-  // Monitor for newly entered proximity zones - only when settings are ready
+  // Monitor for newly entered proximity zones - only when settings are ready and this is the active instance
   useEffect(() => {
-    if (!isProximitySettingsReady || !proximitySettings.is_enabled || !userLocation || nearbyLandmarks.length === 0) {
+    if (!isActiveInstance || !isProximitySettingsReady || !proximitySettings.is_enabled || !userLocation || nearbyLandmarks.length === 0) {
       return;
     }
 
@@ -429,7 +488,7 @@ export const useProximityNotifications = () => {
     // Find newly entered landmarks (in current but not in previous)
     const newlyEnteredIds = Array.from(currentNearbyIds).filter(id => !previousNearbyIds.has(id));
 
-    console.log(`🎯 Proximity check: ${currentNearbyIds.size} nearby, ${newlyEnteredIds.length} newly entered - Round ${currentPollRound}`);
+    console.log(`🎯 [${instanceIdRef.current}] Proximity check: ${currentNearbyIds.size} nearby, ${newlyEnteredIds.length} newly entered - Round ${currentPollRound}`);
 
     // Show notification for ONLY the closest newly entered landmark
     // Cooldown is now handled inside showProximityToast
@@ -447,10 +506,12 @@ export const useProximityNotifications = () => {
 
     // Update previous nearby landmarks
     previousNearbyLandmarksRef.current = currentNearbyIds;
-  }, [nearbyLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, showProximityToast, currentPollRound]);
+  }, [nearbyLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, showProximityToast, currentPollRound, isActiveInstance]);
 
   // Cleanup expired notifications from state
   useEffect(() => {
+    if (!isActiveInstance) return;
+    
     const cleanupInterval = setInterval(() => {
       const now = Date.now();
       let hasChanges = false;
@@ -485,18 +546,19 @@ export const useProximityNotifications = () => {
     }, 60000); // Check every minute
 
     return () => clearInterval(cleanupInterval);
-  }, [saveNotificationState]);
+  }, [saveNotificationState, isActiveInstance]);
 
   return {
     nearbyLandmarks,
     prepZoneLandmarks,
     cardZoneLandmarks,
-    activeCards,
+    activeCards: isActiveInstance ? activeCards : {},
     notificationState: notificationStateRef.current,
     prepZoneState: prepZoneStateRef.current,
     cardState: cardStateRef.current,
     isEnabled: proximitySettings?.is_enabled || false,
     closeProximityCard,
-    showRouteToService
+    showRouteToService,
+    isActiveInstance // Expose this for debugging
   };
 };
