@@ -18,7 +18,6 @@ import { PhotoData } from '@/hooks/useEnhancedPhotos';
 import { PhotoCarousel } from './photo-carousel';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { getEnhancedLandmarkText } from '@/utils/landmarkPromptUtils';
-import OptimalRouteButton from './OptimalRouteButton';
 
 interface MapProps {
   mapboxToken: string;
@@ -1436,65 +1435,11 @@ const MapComponent: React.FC<MapProps> = ({
     };
   }, []);
 
-  const showOptimalRoute = useCallback((route: any) => {
-    if (!map.current) return;
-
-    console.log('🗺️ Adding optimal route to map');
-
-    if (currentRouteLayer.current) {
-      if (map.current.getLayer(currentRouteLayer.current)) {
-        map.current.removeLayer(currentRouteLayer.current);
-      }
-      if (map.current.getSource(currentRouteLayer.current)) {
-        map.current.removeSource(currentRouteLayer.current);
-      }
-    }
-
-    const layerId = `optimal-route-${Date.now()}`;
-    currentRouteLayer.current = layerId;
-
-    map.current.addSource(layerId, {
-      type: 'geojson',
-      data: {
-        type: 'Feature',
-        properties: {},
-        geometry: route.geometry
-      }
-    });
-
-    map.current.addLayer({
-      id: layerId,
-      type: 'line',
-      source: layerId,
-      layout: {
-        'line-join': 'round',
-        'line-cap': 'round'
-      },
-      paint: {
-        'line-color': '#3B82F6',
-        'line-width': 4,
-        'line-opacity': 0.8
-      }
-    });
-
-    const coordinates = route.geometry.coordinates;
-    const bounds = new mapboxgl.LngLatBounds();
-    coordinates.forEach((coord: [number, number]) => bounds.extend(coord));
-    
-    map.current.fitBounds(bounds, {
-      padding: 100,
-      duration: 1000
-    });
-
-    console.log(`🛣️ Optimal route displayed: ${Math.round(route.distance)}m, ${Math.round(route.duration / 60)}min walk`);
-  }, []);
-
   React.useEffect(() => {
     console.log('Setting up global map functions');
     (window as any).navigateToMapCoordinates = navigateToCoordinates;
     (window as any).stopCurrentAudio = stopCurrentAudio;
     (window as any).showRouteOnMap = showRouteOnMap;
-    (window as any).showOptimalRoute = showOptimalRoute;
     
     (window as any).handleInteractionListen = (interactionId: string) => {
       const markerData = navigationMarkers.current.find(m => m.interaction?.id === interactionId);
@@ -1557,19 +1502,13 @@ const MapComponent: React.FC<MapProps> = ({
       delete (window as any).handleInteractionListen;
       delete (window as any).stopCurrentAudio;
       delete (window as any).showRouteOnMap;
-      delete (window as any).showOptimalRoute;
       delete (window as any).handleStreetViewOpen;
     };
-  }, [showRouteOnMap, showOptimalRoute, navigateToCoordinates, openStreetViewModal, landmarks]);
+  }, [showRouteOnMap, navigateToCoordinates, openStreetViewModal, landmarks]);
 
   return (
     <>
       <div ref={mapContainer} className="absolute inset-0" />
-      
-      {/* Optimal Route Button */}
-      <div className="absolute top-4 left-4 z-10">
-        <OptimalRouteButton />
-      </div>
       
       <EnhancedStreetViewModal
         isOpen={isModalOpen}
