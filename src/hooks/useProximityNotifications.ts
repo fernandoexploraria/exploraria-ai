@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -187,7 +186,7 @@ export const useProximityNotifications = () => {
       return false;
     }
 
-    // Check if we're in the grace period
+    // Check if we're in the grace period (ONLY blocks notifications, not cards)
     if (isInGracePeriod) {
       logGracePeriodEvent(
         `Notification blocked`, 
@@ -205,9 +204,9 @@ export const useProximityNotifications = () => {
     return canNotify(placeId);
   }, [isInGracePeriod, gracePeriodRemainingMs, gracePeriodReason, gracePeriodState, proximitySettings, wasNearbyDuringInitialization, canNotify]);
 
-  // FIXED: Check if we should show proximity cards (NO grace period blocking, only cooldown)
+  // CONFIRMED: Cards are NOT blocked by grace period - they show immediately
   const shouldShowCard = useCallback((placeId: string): boolean => {
-    // Cards are NOT blocked by grace period - they show immediately
+    // Cards are NOT blocked by grace period - only respect cooldown
     return canShowCard(placeId);
   }, [canShowCard]);
 

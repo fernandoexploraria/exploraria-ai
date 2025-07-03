@@ -1,12 +1,11 @@
-
 import { ProximitySettings, GracePeriodState, MovementDetectionResult } from '@/types/proximityAlerts';
 
 // Smart Grace Period Constants with user preference integration
 export const getGracePeriodConstants = (settings: ProximitySettings | null = null) => {
   return {
     INITIALIZATION: settings?.grace_period_initialization ?? 15000, // 15 seconds default
-    MOVEMENT: settings?.grace_period_movement ?? 8000, // 8 seconds default
-    APP_RESUME: settings?.grace_period_app_resume ?? 5000, // 5 seconds default
+    MOVEMENT: settings?.grace_period_movement ?? 8000, // 8 seconds default (kept for compatibility)
+    APP_RESUME: settings?.grace_period_app_resume ?? 5000, // 5 seconds default (kept for compatibility)
     LOCATION_SETTLING: settings?.location_settling_grace_period ?? 5000, // 5 seconds default
   };
 };
@@ -15,6 +14,7 @@ export const getMovementConstants = (settings: ProximitySettings | null = null) 
   return {
     SIGNIFICANT_THRESHOLD: settings?.significant_movement_threshold ?? 150, // 150 meters default
     BACKGROUND_DETECTION: 10000, // 10 seconds to determine backgrounding
+    GRACE_PERIOD_CLEAR_THRESHOLD: 100, // 100 meters - threshold for clearing grace period
   };
 };
 
@@ -94,7 +94,7 @@ export const applyGracePeriodPreset = (
   };
 };
 
-// Smart grace period activation logic
+// Smart grace period activation logic - now more restrictive
 export const shouldActivateGracePeriod = (
   reason: 'initialization' | 'movement' | 'app_resume',
   context: {
@@ -116,22 +116,29 @@ export const shouldActivateGracePeriod = (
   
   switch (reason) {
     case 'initialization':
-      // Always activate on initialization (first time enabling proximity)
+      // Only activate on initialization (proximity enabled after being disabled)
       return true;
       
     case 'movement':
-      // Activate if movement is significant enough
-      const movementThreshold = getMovementConstants(settings).SIGNIFICANT_THRESHOLD;
-      return context.movementDistance ? context.movementDistance >= movementThreshold : false;
+      // NO LONGER activate grace period on movement - only clear existing ones
+      return false;
       
     case 'app_resume':
-      // Activate if app was backgrounded for more than background detection threshold
-      const backgroundThreshold = getMovementConstants(settings).BACKGROUND_DETECTION;
-      return context.backgroundDuration ? context.backgroundDuration >= backgroundThreshold : false;
+      // NO LONGER activate grace period on app resume
+      return false;
       
     default:
       return false;
   }
+};
+
+// NEW: Check if movement should clear grace period
+export const shouldClearGracePeriodOnMovement = (
+  movementDistance: number,
+  settings: ProximitySettings | null = null
+): boolean => {
+  const clearThreshold = getMovementConstants(settings).GRACE_PERIOD_CLEAR_THRESHOLD;
+  return movementDistance >= clearThreshold;
 };
 
 // Distance calculation utility
@@ -188,6 +195,7 @@ export const formatGracePeriodDebugInfo = (
     constants: {
       ...constants,
       movementThreshold: movementConstants.SIGNIFICANT_THRESHOLD,
+      gracePeriodClearThreshold: movementConstants.GRACE_PERIOD_CLEAR_THRESHOLD,
     },
     preset: getGracePeriodPresetName(settings),
     isEnabled: settings?.grace_period_enabled ?? true,
