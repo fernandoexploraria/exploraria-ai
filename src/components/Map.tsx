@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -11,10 +12,10 @@ import { geolocateControlDebouncer } from '@/utils/geolocateControlDebouncer';
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
 
 interface MapProps {
-  tours: Tour[];
+  tours?: Tour[];
 }
 
-const Map = () => {
+const Map: React.FC<MapProps> = ({ tours = [] }) => {
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const geolocateControlRef = useRef<GeolocateControl | null>(null);
@@ -23,6 +24,23 @@ const Map = () => {
   const { proximitySettings } = useProximityAlerts();
   const { updateProximityEnabled: hookUpdateProximityEnabled } = useProximityAlerts();
   const { user } = useAuth();
+
+  // Enhanced updateProximityEnabled with multi-source flag support
+  const updateProximityEnabled = useCallback(async (enabled: boolean, source: string = 'Manual') => {
+    // Set appropriate flags based on source
+    if (source.includes('User') || source === 'Manual') {
+      geolocateControlDebouncer.setUpdateFlag('isUpdatingFromUserAction', 2000);
+    }
+    
+    console.log('🗺️ [Map] updateProximityEnabled called:', { 
+      enabled, 
+      source,
+      activeFlags: geolocateControlDebouncer.getActiveFlags()
+    });
+    
+    // Call the hook's updateProximityEnabled with source tracking
+    await hookUpdateProximityEnabled(enabled, source);
+  }, [hookUpdateProximityEnabled]);
 
   // Enhanced GeolocateControl event handlers with debouncing
   const handleGeolocateControlEvents = useCallback(() => {
@@ -35,7 +53,7 @@ const Map = () => {
       console.log('🗺️ [Map] Geolocate event fired:', {
         accuracy: e.coords?.accuracy,
         timestamp: e.timestamp,
-        controlState: control._watchState
+        controlState: (control as any)._watchState
       });
       
       geolocateControlDebouncer.debounceGeolocateEvent(
@@ -45,15 +63,15 @@ const Map = () => {
           console.log('🗺️ [Map] Executing geolocate proximity update:', enabled);
           await updateProximityEnabled(enabled, 'GeolocateControl-Geolocate');
         },
-        control._watchState
+        (control as any)._watchState
       );
     };
 
     // Enhanced trackuserlocationstart event
     const handleTrackUserLocationStart = () => {
       console.log('🗺️ [Map] Track user location start:', {
-        controlState: control._watchState,
-        isSupported: control._supportsGeolocation
+        controlState: (control as any)._watchState,
+        isSupported: (control as any)._supportsGeolocation
       });
       
       geolocateControlDebouncer.debounceGeolocateEvent(
@@ -63,15 +81,15 @@ const Map = () => {
           console.log('🗺️ [Map] Executing trackstart proximity update:', enabled);
           await updateProximityEnabled(enabled, 'GeolocateControl-TrackStart');
         },
-        control._watchState
+        (control as any)._watchState
       );
     };
 
     // Enhanced trackuserlocationend event
     const handleTrackUserLocationEnd = () => {
       console.log('🗺️ [Map] Track user location end:', {
-        controlState: control._watchState,
-        lastKnownPosition: control._lastKnownPosition
+        controlState: (control as any)._watchState,
+        lastKnownPosition: (control as any)._lastKnownPosition
       });
       
       geolocateControlDebouncer.debounceGeolocateEvent(
@@ -81,7 +99,7 @@ const Map = () => {
           console.log('🗺️ [Map] Executing trackend proximity update:', enabled);
           await updateProximityEnabled(enabled, 'GeolocateControl-TrackEnd');
         },
-        control._watchState
+        (control as any)._watchState
       );
     };
 
@@ -90,7 +108,7 @@ const Map = () => {
       console.log('🗺️ [Map] Geolocate error:', {
         code: error.code,
         message: error.message,
-        controlState: control._watchState
+        controlState: (control as any)._watchState
       });
       
       geolocateControlDebouncer.debounceGeolocateEvent(
@@ -100,7 +118,7 @@ const Map = () => {
           console.log('🗺️ [Map] Executing error proximity update:', enabled);
           await updateProximityEnabled(enabled, 'GeolocateControl-Error');
         },
-        control._watchState
+        (control as any)._watchState
       );
     };
 
@@ -120,11 +138,16 @@ const Map = () => {
 
     // Cleanup function
     return () => {
-      if (control && !control._removed) {
-        control.off('geolocate', handleGeolocate);
-        control.off('trackuserlocationstart', handleTrackUserLocationStart);
-        control.off('trackuserlocationend', handleTrackUserLocationEnd);
-        control.off('error', handleGeolocateError);
+      // Check if control still exists and hasn't been removed
+      if (control && typeof (control as any).off === 'function') {
+        try {
+          control.off('geolocate', handleGeolocate);
+          control.off('trackuserlocationstart', handleTrackUserLocationStart);
+          control.off('trackuserlocationend', handleTrackUserLocationEnd);
+          control.off('error', handleGeolocateError);
+        } catch (error) {
+          console.warn('🗺️ [Map] Error removing event listeners:', error);
+        }
       }
     };
   }, [updateProximityEnabled]);
@@ -143,12 +166,12 @@ const Map = () => {
     geolocateControlDebouncer.setUpdateFlag('isUpdatingFromProximitySettings', 1000);
 
     const control = geolocateControlRef.current;
-    const isCurrentlyTracking = control._watchState === 'ACTIVE_LOCK' || control._watchState === 'ACTIVE_ERROR';
+    const isCurrentlyTracking = (control as any)._watchState === 'ACTIVE_LOCK' || (control as any)._watchState === 'ACTIVE_ERROR';
     
     console.log('🗺️ [Map] Syncing proximity settings with GeolocateControl:', {
       proximityEnabled: proximitySettings.is_enabled,
       currentlyTracking: isCurrentlyTracking,
-      controlState: control._watchState,
+      controlState: (control as any)._watchState,
       preventingFeedback: true
     });
 
@@ -161,29 +184,12 @@ const Map = () => {
       
       // Use a small delay to prevent rapid state changes
       setTimeout(() => {
-        if (control._watchState === 'ACTIVE_LOCK' || control._watchState === 'ACTIVE_ERROR') {
+        if ((control as any)._watchState === 'ACTIVE_LOCK' || (control as any)._watchState === 'ACTIVE_ERROR') {
           control.trigger(); // This will stop tracking
         }
       }, 100);
     }
   }, [proximitySettings?.is_enabled]);
-
-  // Enhanced updateProximityEnabled with multi-source flag support
-  const updateProximityEnabled = useCallback(async (enabled: boolean, source: string = 'Manual') => {
-    // Set appropriate flags based on source
-    if (source.includes('User') || source === 'Manual') {
-      geolocateControlDebouncer.setUpdateFlag('isUpdatingFromUserAction', 2000);
-    }
-    
-    console.log('🗺️ [Map] updateProximityEnabled called:', { 
-      enabled, 
-      source,
-      activeFlags: geolocateControlDebouncer.getActiveFlags()
-    });
-    
-    // Call the hook's updateProximityEnabled with source tracking
-    await hookUpdateProximityEnabled(enabled, source);
-  }, [hookUpdateProximityEnabled]);
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
