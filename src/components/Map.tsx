@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -5,9 +6,7 @@ import { Landmark } from '@/data/landmarks';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { ProximitySettings } from '@/types/proximityAlerts';
 import { debounce, throttle } from '@/utils/debounceUtils';
-
-// Set Mapbox access token
-mapboxgl.accessToken = 'pk.eyJ1IjoibG92ZWxhY2VhaSIsImEiOiJjbTNkdGgwZGcwMGZzMmtzN2JqNjBqcjBuIn0.A_1Eb6taGVH7dxXLNJP7Uw';
+import { useMapboxToken } from '@/hooks/useMapboxToken';
 
 interface MapProps {
   landmarks: Landmark[];
@@ -27,6 +26,9 @@ const Map = ({ landmarks, onLandmarkClick, userCoordinate, plannedLandmarks }: M
   const userMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const routeSourceRef = useRef<string | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+  
+  // Get the Mapbox token dynamically
+  const mapboxToken = useMapboxToken();
   
   const { updateProximityEnabled } = useProximityAlerts();
 
@@ -75,11 +77,14 @@ const Map = ({ landmarks, onLandmarkClick, userCoordinate, plannedLandmarks }: M
     []
   );
 
-  // Initialize map
+  // Initialize map - only when token is available
   useEffect(() => {
-    if (!mapContainer.current || map.current) return;
+    if (!mapContainer.current || map.current || !mapboxToken) return;
 
-    console.log('🗺️ Initializing Mapbox map');
+    console.log('🗺️ Initializing Mapbox map with token');
+
+    // Set the access token
+    mapboxgl.accessToken = mapboxToken;
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
@@ -108,7 +113,7 @@ const Map = ({ landmarks, onLandmarkClick, userCoordinate, plannedLandmarks }: M
         map.current = null;
       }
     };
-  }, []);
+  }, [mapboxToken]); // Depend on mapboxToken
 
   // Add GeolocateControl with proximity integration
   useEffect(() => {
@@ -372,6 +377,18 @@ const Map = ({ landmarks, onLandmarkClick, userCoordinate, plannedLandmarks }: M
       delete (window as any).showRouteOnMap;
     };
   }, [mapLoaded]);
+
+  // Show loading state while token is being fetched
+  if (!mapboxToken) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-gray-100" style={{ minHeight: '400px' }}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
+          <p className="text-gray-600">Loading map...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div 
