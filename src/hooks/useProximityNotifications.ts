@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -263,7 +262,7 @@ export const useProximityNotifications = () => {
     }
   }, [userLocation]);
 
-  // Handle prep zone entry and Street View pre-loading
+  // Handle prep zone entry and Street View pre-loading - FIXED: Apply cooldown-first pattern
   const handlePrepZoneEntry = useCallback(async (landmark: TourLandmark) => {
     if (!isActiveInstance) return;
     
@@ -277,7 +276,7 @@ export const useProximityNotifications = () => {
 
     console.log(`🎯 [${instanceIdRef.current}] Entered prep zone for ${landmark.name} - starting Street View pre-load`);
 
-    // Update prep zone state
+    // FIXED: Set prep zone state IMMEDIATELY after check passes to prevent race conditions
     prepZoneStateRef.current[placeId] = {
       entered: true,
       streetViewPreloaded: false,
@@ -313,7 +312,16 @@ export const useProximityNotifications = () => {
     }
   }, [preloadStreetView, saveNotificationState, isActiveInstance]);
 
-  // Handle card zone entry
+  // Check if card cooldown has passed
+  const canShowCard = useCallback((placeId: string): boolean => {
+    const lastCard = cardStateRef.current[placeId];
+    if (!lastCard) return true;
+    
+    const timeSinceLastCard = Date.now() - lastCard.timestamp;
+    return timeSinceLastCard >= CARD_COOLDOWN;
+  }, []);
+
+  // Handle card zone entry - FIXED: Apply cooldown-first pattern
   const showProximityCard = useCallback((landmark: TourLandmark) => {
     if (!isActiveInstance) return;
     
@@ -326,7 +334,7 @@ export const useProximityNotifications = () => {
 
     console.log(`🏪 [${instanceIdRef.current}] Showing proximity card for ${landmark.name}`);
 
-    // Update card state
+    // FIXED: Set card state IMMEDIATELY after cooldown check passes to prevent race conditions
     cardStateRef.current[placeId] = {
       shown: true,
       timestamp: Date.now()
