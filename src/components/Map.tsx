@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -5,16 +6,17 @@ import { useMapboxToken } from '@/hooks/useMapboxToken';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { useNearbyLandmarks } from '@/hooks/useNearbyLandmarks';
-import { SearchControl } from '@/components/SearchControl';
-import { ProximityControlPanel } from '@/components/ProximityControlPanel';
-import { FloatingProximityCard } from '@/components/FloatingProximityCard';
-import { ProximityAutocomplete } from '@/components/ProximityAutocomplete';
-import { ProximitySearch } from '@/components/ProximitySearch';
-import { OfflineIndicator } from '@/components/OfflineIndicator';
+import SearchControl from '@/components/SearchControl';
+import ProximityControlPanel from '@/components/ProximityControlPanel';
+import FloatingProximityCard from '@/components/FloatingProximityCard';
+import ProximityAutocomplete from '@/components/ProximityAutocomplete';
+import ProximitySearch from '@/components/ProximitySearch';
+import OfflineIndicator from '@/components/OfflineIndicator';
 import { Button } from "@/components/ui/button";
 import { MapPin, Navigation, Users, Settings } from "lucide-react";
 import { useAuth } from '@/components/AuthProvider';
 import { geolocateControlDebouncer } from '@/utils/geolocateControlDebouncer';
+import { Landmark } from '@/data/landmarks';
 
 // Enhanced update source priority system
 type UpdateSource = 'Manual' | 'GeolocateControl' | 'System' | 'SettingsSync' | 'UserAction';
@@ -27,17 +29,33 @@ const UPDATE_PRIORITIES: Record<UpdateSource, number> = {
   System: 1
 };
 
-const Map = () => {
+interface MapProps {
+  mapboxToken?: string;
+  landmarks?: Landmark[];
+  onSelectLandmark?: (landmark: Landmark) => void;
+  selectedLandmark?: Landmark | null;
+  plannedLandmarks?: Landmark[];
+}
+
+const Map: React.FC<MapProps> = ({
+  landmarks = [],
+  onSelectLandmark,
+  selectedLandmark,
+  plannedLandmarks = []
+}) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const geolocateControl = useRef<mapboxgl.GeolocateControl | null>(null);
   const userMarker = useRef<mapboxgl.Marker | null>(null);
   const proximityMarkers = useRef<mapboxgl.Marker[]>([]);
   
-  const { mapboxToken } = useMapboxToken();
-  const { userLocation, startTracking, stopTracking, isTracking } = useLocationTracking();
+  const mapboxToken = useMapboxToken();
+  const { userLocation, startTracking, stopTracking, locationState } = useLocationTracking();
   const { proximitySettings, updateProximityEnabled } = useProximityAlerts();
-  const { landmarks } = useNearbyLandmarks(userLocation);
+  const nearbyLandmarks = useNearbyLandmarks({ 
+    userLocation, 
+    notificationDistance: proximitySettings?.notification_distance || 100 
+  });
   const { user } = useAuth();
 
   // Enhanced flag system for multi-source update prevention
@@ -47,6 +65,9 @@ const Map = () => {
   const proximitySettingsSyncInProgress = useRef<boolean>(false);
   const lastUpdateSource = useRef<UpdateSource>('System');
   const lastUpdateTimestamp = useRef<number>(0);
+
+  // Tracking state
+  const isTracking = locationState === 'tracking';
 
   // Debug and monitoring state
   const [debugInfo, setDebugInfo] = useState<{
@@ -68,7 +89,7 @@ const Map = () => {
   }, []);
 
   // Enhanced flag management with coordination
-  const setUpdateFlag = useCallback((flagName: keyof typeof isUpdatingFromGeolocateControl, value: boolean, source: UpdateSource) => {
+  const setUpdateFlag = useCallback((flagName: string, value: boolean, source: UpdateSource) => {
     const priority = UPDATE_PRIORITIES[source];
     const lastPriority = UPDATE_PRIORITIES[lastUpdateSource.current];
     const now = Date.now();
@@ -359,11 +380,11 @@ const Map = () => {
     proximityMarkers.current = [];
 
     // Add new markers for each landmark
-    if (landmarks) {
-      landmarks.forEach(landmark => {
-        const { longitude, latitude, name } = landmark;
+    if (nearbyLandmarks) {
+      nearbyLandmarks.forEach(({ landmark }) => {
+        const { coordinates, name } = landmark;
         const marker = new mapboxgl.Marker({ color: 'green' })
-          .setLngLat([longitude, latitude])
+          .setLngLat([coordinates[0], coordinates[1]])
           .setPopup(new mapboxgl.Popup().setText(name)) // add popup
           .addTo(map.current);
         proximityMarkers.current.push(marker);
@@ -374,7 +395,7 @@ const Map = () => {
       proximityMarkers.current.forEach(marker => marker.remove());
       proximityMarkers.current = [];
     };
-  }, [landmarks]);
+  }, [nearbyLandmarks]);
 
   // Debug panel in development
   const DebugPanel = () => {
@@ -402,7 +423,7 @@ const Map = () => {
       
       {/* Top Controls */}
       <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
-        <SearchControl />
+        <SearchControl landmarks={landmarks} onSelectLandmark={onSelectLandmark || (() => {})} />
         <ProximityControlPanel />
         <Button
           variant="outline"
