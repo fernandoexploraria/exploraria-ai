@@ -156,7 +156,15 @@ const MapComponent: React.FC<MapProps> = ({
     }
 
     try {
-      console.log('Calculating optimal route for', tourLandmarks.length, 'landmarks');
+      console.log('🚀 Calculating optimal route for', tourLandmarks.length, 'landmarks');
+      console.log('📊 Input data:', {
+        userLocation: currentUserLocation,
+        landmarks: tourLandmarks.map(l => ({ 
+          name: l.name, 
+          coordinates: l.coordinates,
+          hasValidCoords: Array.isArray(l.coordinates) && l.coordinates.length === 2
+        }))
+      });
       
       const { data, error } = await supabase.functions.invoke('mapbox-optimization', {
         body: {
@@ -172,13 +180,15 @@ const MapComponent: React.FC<MapProps> = ({
         }
       });
 
+      console.log('📦 Function response:', { data, error });
+
       if (error) {
-        console.error('Error calculating optimal route:', error);
+        console.error('❌ Error calculating optimal route:', error);
         return;
       }
 
       if (!data?.success || !data?.route) {
-        console.error('Invalid optimal route response:', data);
+        console.error('❌ Invalid optimal route response:', data);
         return;
       }
 

@@ -16,18 +16,48 @@ serve(async (req) => {
 
   try {
     const { userLocation, landmarks, profile = 'walking' } = await req.json()
+    
+    console.log('🚀 Request received:', {
+      userLocation,
+      landmarkCount: landmarks?.length,
+      profile,
+      landmarks: landmarks?.map((l: any) => ({ name: l.name, coordinates: l.coordinates }))
+    })
+    
     const mapboxToken = Deno.env.get('MAPBOX_PUBLIC_TOKEN')
     
+    console.log('🔑 Mapbox token check:', { 
+      hasToken: !!mapboxToken, 
+      tokenLength: mapboxToken?.length 
+    })
+    
     if (!mapboxToken) {
-      throw new Error('Mapbox token not configured')
+      console.error('❌ MAPBOX_PUBLIC_TOKEN not found in environment variables')
+      throw new Error('Mapbox token not configured. Please set MAPBOX_PUBLIC_TOKEN in edge function secrets.')
     }
 
     if (!userLocation || !landmarks || landmarks.length === 0) {
+      console.error('❌ Invalid input data:', { userLocation, landmarks })
       throw new Error('User location and landmarks are required')
     }
 
     if (!userLocation.longitude || !userLocation.latitude) {
+      console.error('❌ Invalid user location coordinates:', userLocation)
       throw new Error('Valid user location coordinates are required')
+    }
+
+    // Validate landmark coordinates
+    const invalidLandmarks = landmarks.filter((landmark: any) => 
+      !landmark.coordinates || 
+      !Array.isArray(landmark.coordinates) || 
+      landmark.coordinates.length !== 2 ||
+      typeof landmark.coordinates[0] !== 'number' ||
+      typeof landmark.coordinates[1] !== 'number'
+    )
+    
+    if (invalidLandmarks.length > 0) {
+      console.error('❌ Invalid landmark coordinates:', invalidLandmarks)
+      throw new Error(`${invalidLandmarks.length} landmarks have invalid coordinates`)
     }
 
     // Prepare waypoints: start with user location, then all landmarks
@@ -35,6 +65,8 @@ serve(async (req) => {
       [userLocation.longitude, userLocation.latitude],
       ...landmarks.map((landmark: any) => landmark.coordinates)
     ]
+    
+    console.log('📍 Waypoints prepared:', waypoints)
 
     // Build coordinates string for Mapbox Optimization API
     const coordinatesString = waypoints.map(wp => `${wp[0]},${wp[1]}`).join(';')
@@ -44,18 +76,33 @@ serve(async (req) => {
     // roundtrip=false: Don't return to start
     const optimizationUrl = `https://api.mapbox.com/optimized-trips/v1/${profile}/${coordinatesString}?source=first&roundtrip=false&geometries=geojson&steps=true&access_token=${mapboxToken}`
     
-    console.log('Fetching optimal route for:', { 
-      userLocation, 
-      landmarkCount: landmarks.length, 
-      profile 
+    console.log('🌐 Making Mapbox API request:', {
+      url: optimizationUrl.replace(mapboxToken, '[TOKEN_HIDDEN]'),
+      waypoints: waypoints.length
     })
     
     const response = await fetch(optimizationUrl)
+    
+    console.log('📡 Mapbox API response status:', response.status)
+    
     const data = await response.json()
+    
+    console.log('📦 Mapbox API response data:', {
+      code: data.code,
+      hasTrips: !!data.trips,
+      tripsLength: data.trips?.length,
+      message: data.message,
+      error: data.error
+    })
 
-    if (!response.ok || data.code !== 'Ok') {
-      console.error('Mapbox Optimization API error:', data)
-      throw new Error(data.message || 'Failed to calculate optimal route')
+    if (!response.ok) {
+      console.error('❌ Mapbox API HTTP error:', response.status, data)
+      throw new Error(`Mapbox API error (${response.status}): ${data.message || 'Unknown error'}`)
+    }
+    
+    if (data.code !== 'Ok') {
+      console.error('❌ Mapbox Optimization API error:', data)
+      throw new Error(data.message || `API returned code: ${data.code}`)
     }
 
     if (!data.trips || data.trips.length === 0) {
