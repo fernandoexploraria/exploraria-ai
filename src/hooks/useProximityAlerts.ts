@@ -473,6 +473,12 @@ const createProximitySettingsSubscription = (userId: string, loadProximitySettin
             outer_distance: payload.new.outer_distance,
             card_distance: payload.new.card_distance,
             initialization_timestamp: payload.new.initialization_timestamp,
+            // Map new grace period configuration fields with defaults
+            grace_period_initialization: payload.new.grace_period_initialization ?? 15000,
+            grace_period_movement: payload.new.grace_period_movement ?? 8000,
+            grace_period_app_resume: payload.new.grace_period_app_resume ?? 5000,
+            significant_movement_threshold: payload.new.significant_movement_threshold ?? 150,
+            grace_period_enabled: payload.new.grace_period_enabled ?? true,
             created_at: payload.new.created_at,
             updated_at: payload.new.updated_at,
           };
@@ -645,12 +651,12 @@ export const useProximityAlerts = () => {
           outer_distance: data.outer_distance,
           card_distance: data.card_distance,
           initialization_timestamp: data.initialization_timestamp,
-          // Map new grace period configuration fields
-          grace_period_initialization: data.grace_period_initialization,
-          grace_period_movement: data.grace_period_movement,
-          grace_period_app_resume: data.grace_period_app_resume,
-          significant_movement_threshold: data.significant_movement_threshold,
-          grace_period_enabled: data.grace_period_enabled,
+          // Map new grace period configuration fields with defaults
+          grace_period_initialization: data.grace_period_initialization ?? 15000,
+          grace_period_movement: data.grace_period_movement ?? 8000,
+          grace_period_app_resume: data.grace_period_app_resume ?? 5000,
+          significant_movement_threshold: data.significant_movement_threshold ?? 150,
+          grace_period_enabled: data.grace_period_enabled ?? true,
           created_at: data.created_at,
           updated_at: data.updated_at,
         };
