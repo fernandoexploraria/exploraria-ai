@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -27,11 +28,23 @@ interface CardState {
   };
 }
 
+// NEW: Initialization state interface
+interface InitializationState {
+  isInitializing: boolean;
+  initializationStartTime: number | null;
+  hasCompletedFirstCheck: boolean;
+  initialNearbyLandmarks: Set<string>;
+}
+
 const NOTIFICATION_COOLDOWN = 5 * 60 * 1000; // 5 minutes in milliseconds
 const CARD_COOLDOWN = 10 * 60 * 1000; // 10 minutes in milliseconds for cards
 const STORAGE_KEY = 'proximity_notifications_state';
 const PREP_ZONE_STORAGE_KEY = 'prep_zone_state';
 const CARD_STORAGE_KEY = 'proximity_cards_state';
+
+// NEW: Initialization constants
+const INITIALIZATION_GRACE_PERIOD = 15000; // 15 seconds grace period
+const INITIALIZATION_STORAGE_KEY = 'proximity_initialization_state';
 
 export const useProximityNotifications = () => {
   const { proximitySettings } = useProximityAlerts();
@@ -43,6 +56,14 @@ export const useProximityNotifications = () => {
   const cardStateRef = useRef<CardState>({});
   const previousNearbyLandmarksRef = useRef<Set<string>>(new Set());
   const previousCardZoneLandmarksRef = useRef<Set<string>>(new Set());
+
+  // NEW: Initialization state management
+  const initializationStateRef = useRef<InitializationState>({
+    isInitializing: false,
+    initializationStartTime: null,
+    hasCompletedFirstCheck: false,
+    initialNearbyLandmarks: new Set()
+  });
 
   // State for active proximity cards - use placeId as key
   const [activeCards, setActiveCards] = useState<{[placeId: string]: TourLandmark}>({});
@@ -71,6 +92,104 @@ export const useProximityNotifications = () => {
     notificationDistance: isProximitySettingsReady ? proximitySettings.card_distance : 75
   });
 
+  // NEW: Reset initialization state when proximity is enabled/disabled
+  const resetInitializationState = useCallback(() => {
+    console.log('🔄 Resetting proximity initialization state');
+    
+    initializationStateRef.current = {
+      isInitializing: false,
+      initializationStartTime: null,
+      hasCompletedFirstCheck: false,
+      initialNearbyLandmarks: new Set()
+    };
+    
+    // Reset tracking refs
+    previousNearbyLandmarksRef.current = new Set();
+    previousCardZoneLandmarksRef.current = new Set();
+    
+    // Clear notification cooldowns to give fresh start
+    notificationStateRef.current = {};
+    prepZoneStateRef.current = {};
+    cardStateRef.current = {};
+    
+    // Clear localStorage state
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(PREP_ZONE_STORAGE_KEY);
+      localStorage.removeItem(CARD_STORAGE_KEY);
+      localStorage.removeItem(INITIALIZATION_STORAGE_KEY);
+    } catch (error) {
+      console.error('Failed to clear initialization state:', error);
+    }
+    
+    console.log('✅ Proximity initialization state reset complete');
+  }, []);
+
+  // NEW: Start initialization period
+  const startInitializationPeriod = useCallback(() => {
+    console.log('🚀 Starting proximity initialization grace period');
+    
+    initializationStateRef.current = {
+      isInitializing: true,
+      initializationStartTime: Date.now(),
+      hasCompletedFirstCheck: false,
+      initialNearbyLandmarks: new Set()
+    };
+    
+    // Save to localStorage
+    try {
+      localStorage.setItem(INITIALIZATION_STORAGE_KEY, JSON.stringify(initializationStateRef.current));
+    } catch (error) {
+      console.error('Failed to save initialization state:', error);
+    }
+    
+    // Set timeout to end initialization period
+    setTimeout(() => {
+      console.log('⏰ Initialization grace period ended');
+      initializationStateRef.current.isInitializing = false;
+      
+      try {
+        localStorage.setItem(INITIALIZATION_STORAGE_KEY, JSON.stringify(initializationStateRef.current));
+      } catch (error) {
+        console.error('Failed to update initialization state:', error);
+      }
+    }, INITIALIZATION_GRACE_PERIOD);
+  }, []);
+
+  // NEW: Check if we should skip notifications during initialization
+  const shouldSkipNotificationDuringInit = useCallback((placeId: string): boolean => {
+    const initState = initializationStateRef.current;
+    
+    if (!initState.isInitializing) {
+      return false; // Not initializing, don't skip
+    }
+    
+    // If this landmark was present during initial check, skip it
+    if (initState.initialNearbyLandmarks.has(placeId)) {
+      console.log(`🔕 Skipping notification for ${placeId} during initialization (was already nearby)`);
+      return true;
+    }
+    
+    return false; // New landmark during initialization, allow notification
+  }, []);
+
+  // Monitor proximity settings changes to handle enable/disable
+  useEffect(() => {
+    if (!proximitySettings) return;
+    
+    if (proximitySettings.is_enabled) {
+      // If proximity just got enabled, start initialization period
+      if (!initializationStateRef.current.isInitializing && !initializationStateRef.current.hasCompletedFirstCheck) {
+        resetInitializationState();
+        startInitializationPeriod();
+      }
+    } else {
+      // If proximity got disabled, reset state
+      resetInitializationState();
+      setActiveCards({}); // Clear active cards
+    }
+  }, [proximitySettings?.is_enabled, resetInitializationState, startInitializationPeriod]);
+
   // Load notification state from localStorage
   useEffect(() => {
     try {
@@ -88,6 +207,18 @@ export const useProximityNotifications = () => {
       if (savedCardState) {
         cardStateRef.current = JSON.parse(savedCardState);
       }
+
+      // NEW: Load initialization state
+      const savedInitState = localStorage.getItem(INITIALIZATION_STORAGE_KEY);
+      if (savedInitState) {
+        const parsedInitState = JSON.parse(savedInitState);
+        // Only restore if initialization was recent (within grace period)
+        if (parsedInitState.initializationStartTime && 
+            Date.now() - parsedInitState.initializationStartTime < INITIALIZATION_GRACE_PERIOD * 2) {
+          initializationStateRef.current = parsedInitState;
+          console.log('🔄 Restored initialization state from localStorage');
+        }
+      }
     } catch (error) {
       console.error('Failed to load notification state:', error);
     }
@@ -99,6 +230,7 @@ export const useProximityNotifications = () => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(notificationStateRef.current));
       localStorage.setItem(PREP_ZONE_STORAGE_KEY, JSON.stringify(prepZoneStateRef.current));
       localStorage.setItem(CARD_STORAGE_KEY, JSON.stringify(cardStateRef.current));
+      localStorage.setItem(INITIALIZATION_STORAGE_KEY, JSON.stringify(initializationStateRef.current));
     } catch (error) {
       console.error('Failed to save notification state:', error);
     }
@@ -413,7 +545,7 @@ export const useProximityNotifications = () => {
     previousCardZoneLandmarksRef.current = currentCardZoneIds;
   }, [cardZoneLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, canShowCard, showProximityCard, activeCards, closeProximityCard]);
 
-  // Monitor for newly entered proximity zones - only when settings are ready
+  // Monitor for newly entered proximity zones with initialization grace period - only when settings are ready
   useEffect(() => {
     if (!isProximitySettingsReady || !proximitySettings.is_enabled || !userLocation || nearbyLandmarks.length === 0) {
       return;
@@ -421,6 +553,22 @@ export const useProximityNotifications = () => {
 
     const currentNearbyIds = new Set(nearbyLandmarks.map(nl => nl.landmark.placeId));
     const previousNearbyIds = previousNearbyLandmarksRef.current;
+
+    // NEW: Handle initialization period
+    if (initializationStateRef.current.isInitializing && !initializationStateRef.current.hasCompletedFirstCheck) {
+      console.log(`🔄 First proximity check during initialization: ${currentNearbyIds.size} landmarks nearby`);
+      
+      // Record initial nearby landmarks
+      initializationStateRef.current.initialNearbyLandmarks = new Set(currentNearbyIds);
+      initializationStateRef.current.hasCompletedFirstCheck = true;
+      
+      // Set previous to current to avoid triggering notifications
+      previousNearbyLandmarksRef.current = currentNearbyIds;
+      
+      console.log(`📝 Recorded ${currentNearbyIds.size} initial nearby landmarks during grace period`);
+      saveNotificationState();
+      return;
+    }
 
     // Find newly entered landmarks (in current but not in previous)
     const newlyEnteredIds = Array.from(currentNearbyIds).filter(id => !previousNearbyIds.has(id));
@@ -432,19 +580,21 @@ export const useProximityNotifications = () => {
       // Find the first (closest) newly entered landmark that can be notified
       // nearbyLandmarks is already sorted by distance (closest first)
       const closestNewLandmark = nearbyLandmarks.find(nl => 
-        newlyEnteredIds.includes(nl.landmark.placeId) && canNotify(nl.landmark.placeId)
+        newlyEnteredIds.includes(nl.landmark.placeId) && 
+        canNotify(nl.landmark.placeId) &&
+        !shouldSkipNotificationDuringInit(nl.landmark.placeId)
       );
 
       if (closestNewLandmark) {
         showProximityToast(closestNewLandmark.landmark, closestNewLandmark.distance);
       } else {
-        console.log(`🔕 No notifications shown - all newly entered landmarks still in cooldown`);
+        console.log(`🔕 No notifications shown - all newly entered landmarks still in cooldown or skipped during initialization`);
       }
     }
 
     // Update previous nearby landmarks
     previousNearbyLandmarksRef.current = currentNearbyIds;
-  }, [nearbyLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, canNotify, showProximityToast]);
+  }, [nearbyLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, canNotify, showProximityToast, shouldSkipNotificationDuringInit, saveNotificationState]);
 
   // Cleanup expired notifications from state
   useEffect(() => {
@@ -476,6 +626,19 @@ export const useProximityNotifications = () => {
         }
       }
 
+      // NEW: Clean up old initialization state
+      const initState = initializationStateRef.current;
+      if (initState.initializationStartTime && 
+          now - initState.initializationStartTime > INITIALIZATION_GRACE_PERIOD * 3) {
+        initializationStateRef.current = {
+          isInitializing: false,
+          initializationStartTime: null,
+          hasCompletedFirstCheck: false,
+          initialNearbyLandmarks: new Set()
+        };
+        hasChanges = true;
+      }
+
       if (hasChanges) {
         saveNotificationState();
       }
@@ -492,6 +655,8 @@ export const useProximityNotifications = () => {
     notificationState: notificationStateRef.current,
     prepZoneState: prepZoneStateRef.current,
     cardState: cardStateRef.current,
+    // NEW: Expose initialization state for debugging
+    initializationState: initializationStateRef.current,
     isEnabled: proximitySettings?.is_enabled || false,
     closeProximityCard,
     showRouteToService
