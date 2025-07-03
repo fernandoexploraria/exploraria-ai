@@ -32,7 +32,8 @@ serve(async (req) => {
       .map((coord: [number, number]) => `${coord[0]},${coord[1]}`)
       .join(';')
 
-    const url = `https://api.mapbox.com/optimized-trips/v1/mapbox/walking/${coordString}?access_token=${mapboxToken}&geometries=geojson&roundtrip=true&source=first&destination=first`
+    // Correct Mapbox Optimization API URL - removed extra 'mapbox/' segment and 'destination=first' parameter
+    const url = `https://api.mapbox.com/optimized-trips/v1/walking/${coordString}?access_token=${mapboxToken}&geometries=geojson&roundtrip=true&source=first`
 
     console.log('Calling Mapbox Optimization API:', url)
 
