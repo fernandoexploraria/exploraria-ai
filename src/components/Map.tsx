@@ -19,6 +19,7 @@ import { PhotoCarousel } from './photo-carousel';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { getEnhancedLandmarkText } from '@/utils/landmarkPromptUtils';
 import { getTourGenerationInProgress } from '@/data/tourLandmarks';
+import { UserLocation } from '@/types/proximityAlerts';
 
 interface MapProps {
   mapboxToken: string;
@@ -63,7 +64,7 @@ const MapComponent: React.FC<MapProps> = ({
   const processedPlannedLandmarks = useRef<string[]>([]);
   
   const { user } = useAuth();
-  const { updateProximityEnabled, proximitySettings } = useProximityAlerts();
+  const { updateProximityEnabled, proximitySettings, updateUserLocation } = useProximityAlerts();
   const { fetchLandmarkPhotos: fetchPhotosWithHook } = useLandmarkPhotos();
   const { locationState } = useLocationTracking();
   
@@ -99,7 +100,7 @@ const MapComponent: React.FC<MapProps> = ({
           name: tourLandmark.name,
           coordinates: tourLandmark.coordinates,
           description: tourLandmark.description,
-          placeId: tourLandmark.placeId // 🔥 PRESERVE PLACE_ID FOR DATABASE LOOKUP
+          placeId: tourLandmark.placeId
         };
         
       case 'top':
@@ -115,7 +116,7 @@ const MapComponent: React.FC<MapProps> = ({
           name: topLandmark.name,
           coordinates: topLandmark.coordinates,
           description: topLandmark.description,
-          placeId: topLandmark.place_id // Include place_id for enhanced photo fetching
+          placeId: topLandmark.place_id
         };
         
       case 'base':
@@ -195,9 +196,7 @@ const MapComponent: React.FC<MapProps> = ({
     
     console.log('🗺️ [Base Layer] Updating base landmarks GeoJSON layer with', landmarks.length, 'landmarks');
     
-    // Filter out tour landmarks from base landmarks to avoid duplicates
     const baseLandmarksOnly = landmarks.filter(landmark => {
-      // Check if this landmark exists in tour landmarks by name and coordinates
       return !tourLandmarks.some(tourLandmark => 
         tourLandmark.name === landmark.name &&
         Math.abs(tourLandmark.coordinates[0] - landmark.coordinates[0]) < 0.0001 &&
@@ -360,10 +359,8 @@ const MapComponent: React.FC<MapProps> = ({
             timestamp: Date.now()
           };
           
-          // Update location in proximity system
           updateUserLocation(location);
           
-          // Enable proximity monitoring if not already enabled
           if (proximitySettings && !proximitySettings.is_enabled) {
             console.log('🎯 Auto-enabling proximity monitoring after successful geolocation');
             updateProximityEnabled(true).catch(error => {
@@ -379,7 +376,6 @@ const MapComponent: React.FC<MapProps> = ({
         geolocateControl.on('trackuserlocationend', () => {
           console.log('🎯 GeolocateControl: Stopped tracking user location');
           
-          // Check if we should update proximity state (don't change during tour generation)
           if (!getTourGenerationInProgress()) {
             console.log('🎯 Disabling proximity monitoring due to location tracking end');
             updateProximityEnabled(false).catch(error => {
@@ -393,7 +389,6 @@ const MapComponent: React.FC<MapProps> = ({
         geolocateControl.on('error', (error: GeolocationPositionError) => {
           console.error('❌ GeolocateControl error:', error);
           
-          // Check if we should update proximity state (don't change during tour generation)
           if (!getTourGenerationInProgress()) {
             console.log('🎯 Disabling proximity monitoring due to geolocation error');
             updateProximityEnabled(false).catch(updateError => {
@@ -713,7 +708,6 @@ const MapComponent: React.FC<MapProps> = ({
     });
   };
 
-  // Enhanced photo fetching function that optimally uses place_id with fallbacks
   const fetchLandmarkPhotos = async (landmark: Landmark) => {
     try {
       console.log(`🖼️ Fetching photos for landmark: ${landmark.name}`, {
@@ -723,7 +717,6 @@ const MapComponent: React.FC<MapProps> = ({
         coordinates: landmark.coordinates
       });
 
-      // Strategy 1: Use place_id if available (optimal path)
       if (landmark.placeId) {
         console.log(`🎯 Using place_id for ${landmark.name}: ${landmark.placeId}`);
         
@@ -747,16 +740,14 @@ const MapComponent: React.FC<MapProps> = ({
         console.log(`⚠️ No photos found with place_id, trying fallback methods for ${landmark.name}`);
       }
 
-      // Strategy 2: Fallback to coordinate-based search using Google Places Nearby API
       if (landmark.coordinates && landmark.coordinates.length === 2) {
         console.log(`🗺️ Trying coordinate-based search for ${landmark.name} at [${landmark.coordinates[0]}, ${landmark.coordinates[1]}]`);
         
         try {
-          // Use the supabase function for nearby search to find place_id
           const { data: nearbyData, error: nearbyError } = await supabase.functions.invoke('google-places-nearby', {
             body: {
-              coordinates: [landmark.coordinates[0], landmark.coordinates[1]], // [longitude, latitude]
-              radius: 50, // Small radius for precise matching
+              coordinates: [landmark.coordinates[0], landmark.coordinates[1]],
+              radius: 50,
               type: 'tourist_attraction'
             }
           });
@@ -789,7 +780,6 @@ const MapComponent: React.FC<MapProps> = ({
         }
       }
 
-      // Strategy 3: Fallback to text search using landmark name
       console.log(`🔍 Trying text search fallback for ${landmark.name}`);
       
       try {
@@ -800,7 +790,7 @@ const MapComponent: React.FC<MapProps> = ({
               lat: landmark.coordinates[1],
               lng: landmark.coordinates[0]
             } : undefined,
-            radius: landmark.coordinates ? 1000 : undefined // 1km radius if we have coordinates
+            radius: landmark.coordinates ? 1000 : undefined
           }
         });
 
@@ -831,7 +821,6 @@ const MapComponent: React.FC<MapProps> = ({
         console.warn(`⚠️ Text search fallback failed for ${landmark.name}:`, searchError);
       }
 
-      // Strategy 4: Final fallback - try with just the landmark data we have
       console.log(`🔄 Final fallback attempt for ${landmark.name} using available data`);
       
       try {
@@ -985,7 +974,6 @@ const MapComponent: React.FC<MapProps> = ({
     });
 
     try {
-      // Use enhanced photo fetching with place_id optimization
       const photos = await fetchLandmarkPhotos(landmark);
       const firstPhotoUrl = photos.length > 0 ? photos[0].urls.medium : undefined;
       
