@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -34,7 +35,7 @@ const PREP_ZONE_STORAGE_KEY = 'prep_zone_state';
 const CARD_STORAGE_KEY = 'proximity_cards_state';
 
 export const useProximityNotifications = () => {
-  const { proximitySettings } = useProximityAlerts();
+  const { proximitySettings, isInGracePeriod, gracePeriodRemainingMs } = useProximityAlerts();
   const { userLocation } = useLocationTracking();
   const { speak } = useTTSContext();
   const { preloadStreetView, getCachedData } = useStreetView();
@@ -121,6 +122,30 @@ export const useProximityNotifications = () => {
     const timeSinceLastCard = Date.now() - lastCard.timestamp;
     return timeSinceLastCard >= CARD_COOLDOWN;
   }, []);
+
+  // ENHANCED: Check if we should show notifications (respects grace period)
+  const shouldShowNotification = useCallback((placeId: string): boolean => {
+    // Check if we're in the grace period
+    if (isInGracePeriod) {
+      console.log(`🕐 Grace period active (${Math.round(gracePeriodRemainingMs / 1000)}s remaining) - skipping notification for ${placeId}`);
+      return false;
+    }
+
+    // Check normal cooldown
+    return canNotify(placeId);
+  }, [isInGracePeriod, gracePeriodRemainingMs, canNotify]);
+
+  // ENHANCED: Check if we should show proximity cards (respects grace period)
+  const shouldShowCard = useCallback((placeId: string): boolean => {
+    // Check if we're in the grace period
+    if (isInGracePeriod) {
+      console.log(`🕐 Grace period active (${Math.round(gracePeriodRemainingMs / 1000)}s remaining) - skipping card for ${placeId}`);
+      return false;
+    }
+
+    // Check normal cooldown
+    return canShowCard(placeId);
+  }, [isInGracePeriod, gracePeriodRemainingMs, canShowCard]);
 
   // Play notification sound
   const playNotificationSound = useCallback(() => {
@@ -270,12 +295,16 @@ export const useProximityNotifications = () => {
     }
   }, [preloadStreetView, saveNotificationState]);
 
-  // Handle card zone entry
+  // ENHANCED: Handle card zone entry with grace period check
   const showProximityCard = useCallback((landmark: TourLandmark) => {
     const placeId = landmark.placeId;
     
-    if (!canShowCard(placeId)) {
-      console.log(`🏪 Card for ${landmark.name} still in cooldown`);
+    if (!shouldShowCard(placeId)) {
+      if (isInGracePeriod) {
+        console.log(`🕐 Grace period active - skipping card for ${landmark.name}`);
+      } else {
+        console.log(`🏪 Card for ${landmark.name} still in cooldown`);
+      }
       return;
     }
 
@@ -294,7 +323,7 @@ export const useProximityNotifications = () => {
     }));
 
     saveNotificationState();
-  }, [canShowCard, saveNotificationState]);
+  }, [shouldShowCard, isInGracePeriod, saveNotificationState]);
 
   // Function to close a proximity card
   const closeProximityCard = useCallback((placeId: string) => {
@@ -307,7 +336,7 @@ export const useProximityNotifications = () => {
     });
   }, []);
 
-  // Show proximity toast notification with sound, TTS, and Street View
+  // ENHANCED: Show proximity toast notification with grace period check
   const showProximityToast = useCallback(async (landmark: TourLandmark, distance: number) => {
     const formattedDistance = distance >= 1000 
       ? `${(distance / 1000).toFixed(1)} km` 
@@ -375,7 +404,7 @@ export const useProximityNotifications = () => {
     });
   }, [prepZoneLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, handlePrepZoneEntry, saveNotificationState]);
 
-  // Monitor card zone entries - only when settings are ready
+  // ENHANCED: Monitor card zone entries with grace period check - only when settings are ready
   useEffect(() => {
     if (!isProximitySettingsReady || !proximitySettings.is_enabled || !userLocation || cardZoneLandmarks.length === 0) {
       return;
@@ -395,7 +424,7 @@ export const useProximityNotifications = () => {
         newlyEnteredCardIds.includes(nl.landmark.placeId)
       );
 
-      if (closestNewCardLandmark && canShowCard(closestNewCardLandmark.landmark.placeId)) {
+      if (closestNewCardLandmark && shouldShowCard(closestNewCardLandmark.landmark.placeId)) {
         showProximityCard(closestNewCardLandmark.landmark);
       }
     }
@@ -411,9 +440,9 @@ export const useProximityNotifications = () => {
 
     // Update previous card zone landmarks
     previousCardZoneLandmarksRef.current = currentCardZoneIds;
-  }, [cardZoneLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, canShowCard, showProximityCard, activeCards, closeProximityCard]);
+  }, [cardZoneLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, shouldShowCard, showProximityCard, activeCards, closeProximityCard]);
 
-  // Monitor for newly entered proximity zones - only when settings are ready
+  // ENHANCED: Monitor for newly entered proximity zones with grace period check - only when settings are ready
   useEffect(() => {
     if (!isProximitySettingsReady || !proximitySettings.is_enabled || !userLocation || nearbyLandmarks.length === 0) {
       return;
@@ -432,19 +461,20 @@ export const useProximityNotifications = () => {
       // Find the first (closest) newly entered landmark that can be notified
       // nearbyLandmarks is already sorted by distance (closest first)
       const closestNewLandmark = nearbyLandmarks.find(nl => 
-        newlyEnteredIds.includes(nl.landmark.placeId) && canNotify(nl.landmark.placeId)
+        newlyEnteredIds.includes(nl.landmark.placeId) && shouldShowNotification(nl.landmark.placeId)
       );
 
       if (closestNewLandmark) {
         showProximityToast(closestNewLandmark.landmark, closestNewLandmark.distance);
       } else {
-        console.log(`🔕 No notifications shown - all newly entered landmarks still in cooldown`);
+        const reason = isInGracePeriod ? 'grace period active' : 'all newly entered landmarks still in cooldown';
+        console.log(`🔕 No notifications shown - ${reason}`);
       }
     }
 
     // Update previous nearby landmarks
     previousNearbyLandmarksRef.current = currentNearbyIds;
-  }, [nearbyLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, canNotify, showProximityToast]);
+  }, [nearbyLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, shouldShowNotification, isInGracePeriod, showProximityToast]);
 
   // Cleanup expired notifications from state
   useEffect(() => {
@@ -493,6 +523,9 @@ export const useProximityNotifications = () => {
     prepZoneState: prepZoneStateRef.current,
     cardState: cardStateRef.current,
     isEnabled: proximitySettings?.is_enabled || false,
+    // ENHANCED: Export grace period state for debugging/UI
+    isInGracePeriod,
+    gracePeriodRemainingMs,
     closeProximityCard,
     showRouteToService
   };
