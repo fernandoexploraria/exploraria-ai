@@ -4,20 +4,16 @@ import { ProximityAlert, ProximitySettings, UserLocation, GracePeriodState, Move
 import { useAuth } from '@/components/AuthProvider';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { Landmark } from '@/data/landmarks';
-import { getGracePeriodConstants, getMovementConstants } from '@/utils/smartGracePeriod';
+import { 
+  getGracePeriodConstants, 
+  getMovementConstants, 
+  calculateDistance,
+  logGracePeriodEvent,
+  shouldActivateGracePeriod,
+  formatGracePeriodDebugInfo
+} from '@/utils/smartGracePeriod';
 import { validateGracePeriodRanges, autoCorrectGracePeriodValues } from '@/utils/gracePeriodValidation';
 import { useToast } from '@/hooks/use-toast';
-
-// Grace period constants - enhanced for smart logic
-const INITIALIZATION_GRACE_PERIOD = 15000; // 15 seconds
-const MOVEMENT_GRACE_PERIOD = 8000; // 8 seconds for movement-triggered grace
-const APP_RESUME_GRACE_PERIOD = 5000; // 5 seconds when app resumes from background
-const LOCATION_SETTLING_GRACE_PERIOD = 5000; // 5 seconds for location to stabilize
-
-// Movement detection constants
-const SIGNIFICANT_MOVEMENT_THRESHOLD = 150; // meters - clear grace period if user moves this distance
-const MOVEMENT_CHECK_INTERVAL = 10000; // 10 seconds between movement checks
-const BACKGROUND_DETECTION_THRESHOLD = 30000; // 30 seconds - consider app backgrounded after this
 
 // Enhanced connection status tracking
 interface ConnectionStatus {
@@ -27,18 +23,6 @@ interface ConnectionStatus {
   isPollingActive: boolean;
   lastDataUpdate: number | null;
 }
-
-// Calculate distance between two coordinates
-const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-  const R = 6371000; // Earth's radius in meters
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c;
-};
 
 // Global state management for proximity settings with enhanced grace period and movement tracking
 const globalProximityState = {
@@ -76,7 +60,7 @@ const globalProximityState = {
   movementCheckInterval: null as NodeJS.Timeout | null,
 };
 
-// Enhanced grace period helper functions with configurable settings
+// Enhanced grace period helper functions with user preference integration
 const isInGracePeriod = (settings: ProximitySettings | null = null): boolean => {
   const state = globalProximityState.gracePeriodState;
   if (!state.initializationTimestamp || !state.gracePeriodActive) return false;
@@ -100,7 +84,11 @@ const isInGracePeriod = (settings: ProximitySettings | null = null): boolean => 
   
   if (!isActive && state.gracePeriodActive) {
     // Grace period naturally expired
-    console.log(`🕐 Grace period naturally expired (${state.gracePeriodReason}, ${elapsed}ms elapsed)`);
+    logGracePeriodEvent(`Grace period naturally expired`, {
+      reason: state.gracePeriodReason,
+      elapsed: elapsed,
+      duration: gracePeriodDuration
+    }, 'info', settings);
     clearGracePeriod();
   }
   
@@ -109,7 +97,12 @@ const isInGracePeriod = (settings: ProximitySettings | null = null): boolean => 
 
 const setGracePeriod = (reason: GracePeriodState['gracePeriodReason'], timestamp?: number) => {
   const now = timestamp || Date.now();
-  console.log(`🕐 Setting grace period (${reason}) at ${new Date(now).toISOString()}`);
+  const settings = globalProximityState.settings;
+  
+  logGracePeriodEvent(`Setting grace period`, {
+    reason: reason,
+    timestamp: new Date(now).toISOString()
+  }, 'info', settings);
   
   globalProximityState.gracePeriodState = {
     ...globalProximityState.gracePeriodState,
@@ -132,7 +125,11 @@ const setGracePeriod = (reason: GracePeriodState['gracePeriodReason'], timestamp
 
 const clearGracePeriod = () => {
   const previousReason = globalProximityState.gracePeriodState.gracePeriodReason;
-  console.log(`🕐 Clearing grace period (was: ${previousReason})`);
+  const settings = globalProximityState.settings;
+  
+  logGracePeriodEvent(`Clearing grace period`, {
+    previousReason: previousReason
+  }, 'info', settings);
   
   globalProximityState.gracePeriodState = {
     initializationTimestamp: null,
@@ -153,22 +150,26 @@ const clearGracePeriod = () => {
 
 const getGracePeriodRemainingMs = (): number => {
   const state = globalProximityState.gracePeriodState;
+  const settings = globalProximityState.settings;
+  
   if (!state.initializationTimestamp) return 0;
   
   const now = Date.now();
   const elapsed = now - state.initializationTimestamp;
   
-  let gracePeriodDuration = INITIALIZATION_GRACE_PERIOD;
+  const gracePeriodConstants = getGracePeriodConstants(settings);
+  let gracePeriodDuration = gracePeriodConstants.INITIALIZATION;
+  
   if (state.gracePeriodReason === 'movement') {
-    gracePeriodDuration = MOVEMENT_GRACE_PERIOD;
+    gracePeriodDuration = gracePeriodConstants.MOVEMENT;
   } else if (state.gracePeriodReason === 'app_resume') {
-    gracePeriodDuration = APP_RESUME_GRACE_PERIOD;
+    gracePeriodDuration = gracePeriodConstants.APP_RESUME;
   }
   
   return Math.max(0, gracePeriodDuration - elapsed);
 };
 
-// Smart movement detection for grace period management with configurable threshold
+// Smart movement detection with user preference integration
 const checkForSignificantMovement = (currentLocation: UserLocation, settings: ProximitySettings | null = null): MovementDetectionResult => {
   const lastLocation = globalProximityState.lastLocationForMovement;
   const now = Date.now();
@@ -202,10 +203,12 @@ const checkForSignificantMovement = (currentLocation: UserLocation, settings: Pr
   const shouldClearGracePeriod = significantMovement && isInGracePeriod(settings);
   
   if (significantMovement) {
-    console.log(`🚶 Significant movement detected: ${Math.round(distance)}m in ${Math.round(timeSinceLastCheck/1000)}s (threshold: ${movementConstants.SIGNIFICANT_THRESHOLD}m)`);
-    if (shouldClearGracePeriod) {
-      console.log(`🕐 Clearing grace period due to significant movement`);
-    }
+    logGracePeriodEvent(`Significant movement detected`, {
+      distance: Math.round(distance),
+      timeSinceLastCheck: Math.round(timeSinceLastCheck/1000),
+      threshold: movementConstants.SIGNIFICANT_THRESHOLD,
+      shouldClearGracePeriod: shouldClearGracePeriod
+    }, 'info', settings);
   }
   
   return {
@@ -216,20 +219,31 @@ const checkForSignificantMovement = (currentLocation: UserLocation, settings: Pr
   };
 };
 
-// Smart app backgrounding detection
+// Smart app backgrounding detection with user preference context
 const handleAppVisibilityChange = () => {
   const now = Date.now();
   const isVisible = !document.hidden;
+  const settings = globalProximityState.settings;
+  const movementConstants = getMovementConstants(settings);
   
   if (isVisible) {
     // App resumed from background
     const backgroundedAt = globalProximityState.gracePeriodState.backgroundedAt;
     if (backgroundedAt) {
       const backgroundDuration = now - backgroundedAt;
-      console.log(`📱 App resumed after ${Math.round(backgroundDuration/1000)}s in background`);
       
-      // Set resume grace period if app was backgrounded for a reasonable time
-      if (backgroundDuration >= BACKGROUND_DETECTION_THRESHOLD) {
+      logGracePeriodEvent(`App resumed from background`, {
+        backgroundDuration: Math.round(backgroundDuration/1000),
+        threshold: Math.round(movementConstants.BACKGROUND_DETECTION/1000)
+      }, 'info', settings);
+      
+      // Use smart grace period logic to determine if resume grace period should be activated
+      const shouldActivate = shouldActivateGracePeriod('app_resume', {
+        currentlyInGracePeriod: isInGracePeriod(settings),
+        backgroundDuration: backgroundDuration
+      }, settings);
+      
+      if (shouldActivate) {
         globalProximityState.gracePeriodState.resumedAt = now;
         setGracePeriod('app_resume');
       }
@@ -238,7 +252,9 @@ const handleAppVisibilityChange = () => {
     }
   } else {
     // App went to background
-    console.log(`📱 App backgrounded at ${new Date(now).toISOString()}`);
+    logGracePeriodEvent(`App backgrounded`, {
+      timestamp: new Date(now).toISOString()
+    }, 'info', settings);
     globalProximityState.gracePeriodState.backgroundedAt = now;
   }
 };
@@ -262,7 +278,10 @@ const loadGracePeriodState = () => {
         // Check if still in grace period
         if (isInGracePeriod()) {
           const remaining = getGracePeriodRemainingMs();
-          console.log(`🕐 Restored grace period (${state.reason}), remaining: ${remaining}ms`);
+          logGracePeriodEvent(`Restored grace period`, {
+            reason: state.reason,
+            remaining: remaining
+          }, 'info', globalProximityState.settings);
         } else {
           // Grace period expired, clear it
           clearGracePeriod();
@@ -559,11 +578,19 @@ export const useProximityAlerts = () => {
     
     const currentSettings = globalProximityState.settings;
     const movementResult = checkForSignificantMovement(location, currentSettings);
+    
     if (movementResult.shouldClearGracePeriod) {
       clearGracePeriod();
     } else if (movementResult.significantMovement && !isInGracePeriod(currentSettings)) {
-      console.log(`🚶 Setting movement grace period due to ${Math.round(movementResult.distance)}m movement`);
-      setGracePeriod('movement');
+      // Use smart grace period logic to determine if movement grace period should be activated
+      const shouldActivate = shouldActivateGracePeriod('movement', {
+        currentlyInGracePeriod: false,
+        movementDistance: movementResult.distance
+      }, currentSettings);
+      
+      if (shouldActivate) {
+        setGracePeriod('movement');
+      }
     }
   }, []);
 
@@ -758,13 +785,24 @@ export const useProximityAlerts = () => {
 
       if (enabled && (!currentSettings || !currentSettings.is_enabled)) {
         const initTimestamp = Date.now();
-        setGracePeriod('initialization', initTimestamp);
+        
+        // Use smart grace period logic to determine if initialization grace period should be activated
+        const shouldActivate = shouldActivateGracePeriod('initialization', {
+          currentlyInGracePeriod: false
+        }, currentSettings);
+        
+        if (shouldActivate) {
+          setGracePeriod('initialization', initTimestamp);
+        }
+        
         updateData.initialization_timestamp = initTimestamp;
-        console.log('🕐 Proximity enabled - starting initialization grace period');
+        logGracePeriodEvent('Proximity enabled - initialization grace period logic applied', {
+          shouldActivate: shouldActivate
+        }, 'info', currentSettings);
       } else if (!enabled) {
         clearGracePeriod();
         updateData.initialization_timestamp = null;
-        console.log('🕐 Proximity disabled - clearing grace period');
+        logGracePeriodEvent('Proximity disabled - clearing grace period', {}, 'info', currentSettings);
       }
 
       const { error } = await supabase
@@ -859,7 +897,6 @@ export const useProximityAlerts = () => {
     }
   }, [user]);
 
-  // New grace period setting update functions
   const updateGracePeriodSetting = useCallback(async (
     settingType: 'grace_period_initialization' | 'grace_period_movement' | 'grace_period_app_resume',
     value: number
@@ -1070,7 +1107,7 @@ export const useProximityAlerts = () => {
       // Clear grace period if disabled
       if (!enabled) {
         clearGracePeriod();
-        console.log('🕐 Grace period disabled - clearing active grace period');
+        logGracePeriodEvent('Grace period disabled - clearing active grace period', {}, 'info', currentSettings);
       }
     } catch (error) {
       console.error('❌ Error in updateGracePeriodEnabled:', error);
@@ -1227,9 +1264,11 @@ export const useProximityAlerts = () => {
     loadProximityAlerts,
     updateProximityEnabled,
     updateDistanceSetting,
-    // New grace period update functions
+    // Grace period update functions
     updateGracePeriodSetting,
     updateMovementThreshold,
     updateGracePeriodEnabled,
+    // Enhanced debug information
+    gracePeriodDebugInfo: formatGracePeriodDebugInfo(globalProximityState.gracePeriodState, globalProximityState.settings),
   };
 };
