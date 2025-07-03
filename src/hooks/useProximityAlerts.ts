@@ -4,6 +4,7 @@ import { ProximityAlert, ProximitySettings, UserLocation, GracePeriodState, Move
 import { useAuth } from '@/components/AuthProvider';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { Landmark } from '@/data/landmarks';
+import { getGracePeriodConstants, getMovementConstants } from '@/utils/smartGracePeriod';
 
 // Grace period constants - enhanced for smart logic
 const INITIALIZATION_GRACE_PERIOD = 15000; // 15 seconds
@@ -73,20 +74,24 @@ const globalProximityState = {
   movementCheckInterval: null as NodeJS.Timeout | null,
 };
 
-// Enhanced grace period helper functions with smart logic
-const isInGracePeriod = (): boolean => {
+// Enhanced grace period helper functions with configurable settings
+const isInGracePeriod = (settings: ProximitySettings | null = null): boolean => {
   const state = globalProximityState.gracePeriodState;
   if (!state.initializationTimestamp || !state.gracePeriodActive) return false;
+  
+  // Check if grace period is globally disabled
+  if (settings && !settings.grace_period_enabled) return false;
   
   const now = Date.now();
   const elapsed = now - state.initializationTimestamp;
   
-  // Different grace periods based on reason
-  let gracePeriodDuration = INITIALIZATION_GRACE_PERIOD;
+  const gracePeriodConstants = getGracePeriodConstants(settings);
+  let gracePeriodDuration = gracePeriodConstants.INITIALIZATION;
+  
   if (state.gracePeriodReason === 'movement') {
-    gracePeriodDuration = MOVEMENT_GRACE_PERIOD;
+    gracePeriodDuration = gracePeriodConstants.MOVEMENT;
   } else if (state.gracePeriodReason === 'app_resume') {
-    gracePeriodDuration = APP_RESUME_GRACE_PERIOD;
+    gracePeriodDuration = gracePeriodConstants.APP_RESUME;
   }
   
   const isActive = elapsed < gracePeriodDuration;
@@ -161,8 +166,8 @@ const getGracePeriodRemainingMs = (): number => {
   return Math.max(0, gracePeriodDuration - elapsed);
 };
 
-// Smart movement detection for grace period management
-const checkForSignificantMovement = (currentLocation: UserLocation): MovementDetectionResult => {
+// Smart movement detection for grace period management with configurable threshold
+const checkForSignificantMovement = (currentLocation: UserLocation, settings: ProximitySettings | null = null): MovementDetectionResult => {
   const lastLocation = globalProximityState.lastLocationForMovement;
   const now = Date.now();
   
@@ -184,17 +189,18 @@ const checkForSignificantMovement = (currentLocation: UserLocation): MovementDet
   );
   
   const timeSinceLastCheck = now - (globalProximityState.gracePeriodState.lastMovementCheck || now);
-  const significantMovement = distance >= SIGNIFICANT_MOVEMENT_THRESHOLD;
+  const movementConstants = getMovementConstants(settings);
+  const significantMovement = distance >= movementConstants.SIGNIFICANT_THRESHOLD;
   
   // Update tracking state
   globalProximityState.lastLocationForMovement = currentLocation;
   globalProximityState.gracePeriodState.lastMovementCheck = now;
   
   // Determine if grace period should be cleared
-  const shouldClearGracePeriod = significantMovement && isInGracePeriod();
+  const shouldClearGracePeriod = significantMovement && isInGracePeriod(settings);
   
   if (significantMovement) {
-    console.log(`🚶 Significant movement detected: ${Math.round(distance)}m in ${Math.round(timeSinceLastCheck/1000)}s`);
+    console.log(`🚶 Significant movement detected: ${Math.round(distance)}m in ${Math.round(timeSinceLastCheck/1000)}s (threshold: ${movementConstants.SIGNIFICANT_THRESHOLD}m)`);
     if (shouldClearGracePeriod) {
       console.log(`🕐 Clearing grace period due to significant movement`);
     }
@@ -333,6 +339,7 @@ const startPollingFallback = async (userId: string) => {
           notification_distance: data.notification_distance,
           outer_distance: data.outer_distance,
           card_distance: data.card_distance,
+          initialization_timestamp: data.initialization_timestamp,
           created_at: data.created_at,
           updated_at: data.updated_at,
         };
@@ -529,10 +536,11 @@ export const useProximityAlerts = () => {
   const handleLocationUpdate = useCallback((location: UserLocation) => {
     setUserLocation(location);
     
-    const movementResult = checkForSignificantMovement(location);
+    const currentSettings = globalProximityState.settings;
+    const movementResult = checkForSignificantMovement(location, currentSettings);
     if (movementResult.shouldClearGracePeriod) {
       clearGracePeriod();
-    } else if (movementResult.significantMovement && !isInGracePeriod()) {
+    } else if (movementResult.significantMovement && !isInGracePeriod(currentSettings)) {
       console.log(`🚶 Setting movement grace period due to ${Math.round(movementResult.distance)}m movement`);
       setGracePeriod('movement');
     }
@@ -637,6 +645,12 @@ export const useProximityAlerts = () => {
           outer_distance: data.outer_distance,
           card_distance: data.card_distance,
           initialization_timestamp: data.initialization_timestamp,
+          // Map new grace period configuration fields
+          grace_period_initialization: data.grace_period_initialization,
+          grace_period_movement: data.grace_period_movement,
+          grace_period_app_resume: data.grace_period_app_resume,
+          significant_movement_threshold: data.significant_movement_threshold,
+          grace_period_enabled: data.grace_period_enabled,
           created_at: data.created_at,
           updated_at: data.updated_at,
         };
@@ -871,7 +885,7 @@ export const useProximityAlerts = () => {
     isSaving,
     connectionStatus: globalProximityState.connectionStatus,
     forceReconnect,
-    isInGracePeriod: isInGracePeriod(),
+    isInGracePeriod: isInGracePeriod(globalProximityState.settings),
     gracePeriodRemainingMs: getGracePeriodRemainingMs(),
     gracePeriodReason: globalProximityState.gracePeriodState.gracePeriodReason,
     gracePeriodState: globalProximityState.gracePeriodState,
@@ -879,7 +893,7 @@ export const useProximityAlerts = () => {
     gracePeriodActive: globalProximityState.gracePeriodState.gracePeriodActive,
     clearGracePeriod,
     setGracePeriod: (reason: GracePeriodState['gracePeriodReason']) => setGracePeriod(reason),
-    checkForSignificantMovement,
+    checkForSignificantMovement: (location: UserLocation) => checkForSignificantMovement(location, globalProximityState.settings),
     combinedLandmarks,
     setProximityAlerts,
     setProximitySettings: notifySubscribers,

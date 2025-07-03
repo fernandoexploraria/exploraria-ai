@@ -1,18 +1,45 @@
 
-import { UserLocation, MovementDetectionResult, GracePeriodState } from '@/types/proximityAlerts';
+import { UserLocation, MovementDetectionResult, GracePeriodState, ProximitySettings } from '@/types/proximityAlerts';
 
-// Smart grace period constants
-export const GRACE_PERIOD_CONSTANTS = {
+// Default constants (fallback values if settings not available)
+export const DEFAULT_GRACE_PERIOD_CONSTANTS = {
   INITIALIZATION: 15000, // 15 seconds
   MOVEMENT: 8000, // 8 seconds for movement-triggered grace
   APP_RESUME: 5000, // 5 seconds when app resumes from background
   LOCATION_SETTLING: 5000, // 5 seconds for location to stabilize
 };
 
-export const MOVEMENT_CONSTANTS = {
+export const DEFAULT_MOVEMENT_CONSTANTS = {
   SIGNIFICANT_THRESHOLD: 150, // meters - clear grace period if user moves this distance
   CHECK_INTERVAL: 10000, // 10 seconds between movement checks
   BACKGROUND_DETECTION: 30000, // 30 seconds - consider app backgrounded after this
+};
+
+// Get grace period constants from settings or use defaults
+export const getGracePeriodConstants = (settings: ProximitySettings | null) => {
+  if (!settings || !settings.grace_period_enabled) {
+    return DEFAULT_GRACE_PERIOD_CONSTANTS;
+  }
+  
+  return {
+    INITIALIZATION: settings.grace_period_initialization,
+    MOVEMENT: settings.grace_period_movement,
+    APP_RESUME: settings.grace_period_app_resume,
+    LOCATION_SETTLING: DEFAULT_GRACE_PERIOD_CONSTANTS.LOCATION_SETTLING, // Keep default for now
+  };
+};
+
+// Get movement constants from settings or use defaults
+export const getMovementConstants = (settings: ProximitySettings | null) => {
+  if (!settings || !settings.grace_period_enabled) {
+    return DEFAULT_MOVEMENT_CONSTANTS;
+  }
+  
+  return {
+    SIGNIFICANT_THRESHOLD: settings.significant_movement_threshold,
+    CHECK_INTERVAL: DEFAULT_MOVEMENT_CONSTANTS.CHECK_INTERVAL, // Keep default for now
+    BACKGROUND_DETECTION: DEFAULT_MOVEMENT_CONSTANTS.BACKGROUND_DETECTION, // Keep default for now
+  };
 };
 
 // Calculate distance between two coordinates using Haversine formula
@@ -42,7 +69,7 @@ export const logGracePeriodEvent = (
   });
 };
 
-// Smart grace period decision making
+// Smart grace period decision making with configurable settings
 export const shouldActivateGracePeriod = (
   reason: GracePeriodState['gracePeriodReason'],
   context: {
@@ -50,9 +77,16 @@ export const shouldActivateGracePeriod = (
     timeSinceLastGracePeriod?: number;
     movementDistance?: number;
     backgroundDuration?: number;
-  }
+  },
+  settings: ProximitySettings | null = null
 ): boolean => {
   const { currentlyInGracePeriod, timeSinceLastGracePeriod, movementDistance, backgroundDuration } = context;
+
+  // Check if grace period is globally disabled
+  if (settings && !settings.grace_period_enabled) {
+    logGracePeriodEvent(`Grace period globally disabled`, { reason, context }, 'info');
+    return false;
+  }
 
   // Don't stack grace periods unless it's a more important reason
   if (currentlyInGracePeriod) {
@@ -70,6 +104,8 @@ export const shouldActivateGracePeriod = (
     return false;
   }
 
+  const movementConstants = getMovementConstants(settings);
+
   // Reason-specific logic
   switch (reason) {
     case 'initialization':
@@ -77,16 +113,19 @@ export const shouldActivateGracePeriod = (
       return true;
       
     case 'movement':
-      // Only activate if movement is truly significant
-      if (movementDistance && movementDistance >= MOVEMENT_CONSTANTS.SIGNIFICANT_THRESHOLD) {
-        logGracePeriodEvent(`Movement grace period activated`, { distance: movementDistance });
+      // Only activate if movement is truly significant (using configurable threshold)
+      if (movementDistance && movementDistance >= movementConstants.SIGNIFICANT_THRESHOLD) {
+        logGracePeriodEvent(`Movement grace period activated`, { 
+          distance: movementDistance,
+          threshold: movementConstants.SIGNIFICANT_THRESHOLD
+        });
         return true;
       }
       return false;
       
     case 'app_resume':
       // Only activate if app was backgrounded for a reasonable time
-      if (backgroundDuration && backgroundDuration >= MOVEMENT_CONSTANTS.BACKGROUND_DETECTION) {
+      if (backgroundDuration && backgroundDuration >= movementConstants.BACKGROUND_DETECTION) {
         logGracePeriodEvent(`App resume grace period activated`, { backgroundDuration });
         return true;
       }
@@ -97,8 +136,11 @@ export const shouldActivateGracePeriod = (
   }
 };
 
-// Debug information formatter
-export const formatGracePeriodDebugInfo = (gracePeriodState: GracePeriodState) => {
+// Debug information formatter with configurable settings
+export const formatGracePeriodDebugInfo = (
+  gracePeriodState: GracePeriodState, 
+  settings: ProximitySettings | null = null
+) => {
   if (!gracePeriodState.gracePeriodActive) {
     return 'Grace period: Inactive';
   }
@@ -108,14 +150,17 @@ export const formatGracePeriodDebugInfo = (gracePeriodState: GracePeriodState) =
     ? now - gracePeriodState.initializationTimestamp 
     : 0;
   
-  let duration = GRACE_PERIOD_CONSTANTS.INITIALIZATION;
+  const gracePeriodConstants = getGracePeriodConstants(settings);
+  let duration = gracePeriodConstants.INITIALIZATION;
+  
   if (gracePeriodState.gracePeriodReason === 'movement') {
-    duration = GRACE_PERIOD_CONSTANTS.MOVEMENT;
+    duration = gracePeriodConstants.MOVEMENT;
   } else if (gracePeriodState.gracePeriodReason === 'app_resume') {
-    duration = GRACE_PERIOD_CONSTANTS.APP_RESUME;
+    duration = gracePeriodConstants.APP_RESUME;
   }
 
   const remaining = Math.max(0, duration - elapsed);
+  const enabledStatus = settings?.grace_period_enabled !== false ? '' : ' (DISABLED)';
 
-  return `Grace period: ${gracePeriodState.gracePeriodReason} (${Math.round(remaining/1000)}s remaining)`;
+  return `Grace period: ${gracePeriodState.gracePeriodReason} (${Math.round(remaining/1000)}s remaining)${enabledStatus}`;
 };

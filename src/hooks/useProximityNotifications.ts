@@ -129,7 +129,7 @@ export const useProximityNotifications = () => {
     return timeSinceLastCard >= CARD_COOLDOWN;
   }, []);
 
-  // ENHANCED: Check if we should show notifications (respects smart grace period)
+  // ENHANCED: Check if we should show notifications (respects smart grace period with settings)
   const shouldShowNotification = useCallback((placeId: string): boolean => {
     // Check if we're in the grace period
     if (isInGracePeriod) {
@@ -139,7 +139,7 @@ export const useProximityNotifications = () => {
           placeId, 
           reason: gracePeriodReason,
           remaining: Math.round(gracePeriodRemainingMs / 1000),
-          debugInfo: formatGracePeriodDebugInfo(gracePeriodState)
+          debugInfo: formatGracePeriodDebugInfo(gracePeriodState, proximitySettings)
         }
       );
       return false;
@@ -147,9 +147,9 @@ export const useProximityNotifications = () => {
 
     // Check normal cooldown
     return canNotify(placeId);
-  }, [isInGracePeriod, gracePeriodRemainingMs, gracePeriodReason, gracePeriodState]);
+  }, [isInGracePeriod, gracePeriodRemainingMs, gracePeriodReason, gracePeriodState, proximitySettings]);
 
-  // ENHANCED: Check if we should show proximity cards (respects smart grace period)
+  // ENHANCED: Check if we should show proximity cards (respects smart grace period with settings)
   const shouldShowCard = useCallback((placeId: string): boolean => {
     // Check if we're in the grace period
     if (isInGracePeriod) {
@@ -159,7 +159,7 @@ export const useProximityNotifications = () => {
           placeId, 
           reason: gracePeriodReason,
           remaining: Math.round(gracePeriodRemainingMs / 1000),
-          debugInfo: formatGracePeriodDebugInfo(gracePeriodState)
+          debugInfo: formatGracePeriodDebugInfo(gracePeriodState, proximitySettings)
         }
       );
       return false;
@@ -167,7 +167,7 @@ export const useProximityNotifications = () => {
 
     // Check normal cooldown
     return canShowCard(placeId);
-  }, [isInGracePeriod, gracePeriodRemainingMs, gracePeriodReason, gracePeriodState]);
+  }, [isInGracePeriod, gracePeriodRemainingMs, gracePeriodReason, gracePeriodState, proximitySettings]);
 
   // Play notification sound
   const playNotificationSound = useCallback(() => {
@@ -478,7 +478,7 @@ export const useProximityNotifications = () => {
 
     console.log(`🎯 Proximity check: ${currentNearbyIds.size} nearby, ${newlyEnteredIds.length} newly entered`);
     
-    // Enhanced logging for grace period debugging
+    // Enhanced logging for grace period debugging with settings
     if (isInGracePeriod) {
       logGracePeriodEvent(
         `Proximity check during grace period`, 
@@ -487,7 +487,7 @@ export const useProximityNotifications = () => {
           newlyEntered: newlyEnteredIds.length,
           reason: gracePeriodReason,
           remaining: Math.round(gracePeriodRemainingMs / 1000),
-          debugInfo: formatGracePeriodDebugInfo(gracePeriodState)
+          debugInfo: formatGracePeriodDebugInfo(gracePeriodState, proximitySettings)
         }
       );
     }
@@ -577,7 +577,7 @@ export const useProximityNotifications = () => {
     gracePeriodRemainingMs,
     gracePeriodReason,
     gracePeriodState,
-    gracePeriodDebugInfo: formatGracePeriodDebugInfo(gracePeriodState),
+    gracePeriodDebugInfo: formatGracePeriodDebugInfo(gracePeriodState, proximitySettings),
     closeProximityCard,
     showRouteToService
   };

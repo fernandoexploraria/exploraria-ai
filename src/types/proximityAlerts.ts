@@ -18,6 +18,12 @@ export interface ProximitySettings {
   outer_distance: number; // in meters - for Street View prep zone
   card_distance: number; // in meters - for floating card notifications
   initialization_timestamp?: number; // timestamp when proximity was first enabled for current session
+  // New grace period configuration fields
+  grace_period_initialization: number; // in milliseconds, default 15000
+  grace_period_movement: number; // in milliseconds, default 8000
+  grace_period_app_resume: number; // in milliseconds, default 5000
+  significant_movement_threshold: number; // in meters, default 150
+  grace_period_enabled: boolean; // default true
   created_at?: string;
   updated_at?: string;
 }
