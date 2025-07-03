@@ -13,7 +13,7 @@ import {
   getMovementConstants,
   logGracePeriodEvent
 } from '@/utils/smartGracePeriod';
-import { ProximitySettings, GracePeriodState } from '@/types/proximityAlerts';
+import { ProximitySettings, GracePeriodState, ProximityAlert } from '@/types/proximityAlerts';
 
 interface ConnectionStatus {
   status: 'connected' | 'connecting' | 'polling' | 'failed' | 'disconnected';
@@ -41,6 +41,9 @@ export const useProximityAlerts = () => {
     lastMovementTimestamp: null,
     lastAppResumeTimestamp: null,
   });
+
+  // Proximity alerts state
+  const [proximityAlerts, setProximityAlerts] = useState<ProximityAlert[]>([]);
 
   // Refs for tracking state without causing re-renders
   const lastLocationRef = useRef<{ latitude: number; longitude: number } | null>(null);
@@ -90,6 +93,29 @@ export const useProximityAlerts = () => {
     refetchOnWindowFocus: false,
   });
 
+  // Fetch proximity alerts
+  useEffect(() => {
+    const fetchProximityAlerts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('proximity_alerts')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching proximity alerts:', error);
+          return;
+        }
+
+        setProximityAlerts(data || []);
+      } catch (err) {
+        console.error('Failed to fetch proximity alerts:', err);
+      }
+    };
+
+    fetchProximityAlerts();
+  }, []);
+
   // Function to update proximity settings in Supabase
   const updateProximitySettings = useCallback(async (updates: Partial<ProximitySettings>) => {
     if (!proximitySettings) {
@@ -132,6 +158,32 @@ export const useProximityAlerts = () => {
   const updateProximityEnabled = useCallback(async (enabled: boolean) => {
     await updateProximitySettings({ is_enabled: enabled });
   }, [updateProximitySettings]);
+
+  // Helper function to update distance settings
+  const updateDistanceSetting = useCallback(async (field: 'notification_distance' | 'outer_distance' | 'card_distance', value: number) => {
+    await updateProximitySettings({ [field]: value });
+  }, [updateProximitySettings]);
+
+  // Grace period management functions
+  const setGracePeriod = useCallback((reason: GracePeriodState['gracePeriodReason']) => {
+    setGracePeriodState({
+      isInGracePeriod: true,
+      gracePeriodReason: reason,
+      initializationTimestamp: Date.now(),
+      lastMovementTimestamp: null,
+      lastAppResumeTimestamp: null,
+    });
+  }, []);
+
+  const clearGracePeriod = useCallback(() => {
+    setGracePeriodState({
+      isInGracePeriod: false,
+      gracePeriodReason: null,
+      initializationTimestamp: null,
+      lastMovementTimestamp: null,
+      lastAppResumeTimestamp: null,
+    });
+  }, []);
 
   // Force reconnect function
   const forceReconnect = useCallback(() => {
@@ -209,7 +261,7 @@ export const useProximityAlerts = () => {
         initializationTimestamp: null,
       }));
 
-      trackGracePeriodActivation('movement_clear', 'user', {
+      trackGracePeriodActivation('initialization', 'system', {
         preset: 'movement_clear',
         userLocation: currentLocation
       });
@@ -274,7 +326,7 @@ export const useProximityAlerts = () => {
         proximitySettings
       );
 
-      trackGracePeriodActivation('initialization', 'user', {
+      trackGracePeriodActivation('initialization', 'automatic', {
         preset: 'enabled',
         userLocation
       });
@@ -318,10 +370,13 @@ export const useProximityAlerts = () => {
 
   return {
     proximitySettings,
+    proximityAlerts,
+    setProximityAlerts,
     isLoading,
     error,
     updateProximitySettings,
     updateProximityEnabled,
+    updateDistanceSetting,
     connectionStatus,
     forceReconnect,
     userLocation,
@@ -331,5 +386,7 @@ export const useProximityAlerts = () => {
       : 0,
     gracePeriodReason: gracePeriodState.gracePeriodReason,
     gracePeriodState,
+    setGracePeriod,
+    clearGracePeriod,
   };
 };

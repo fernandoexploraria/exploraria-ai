@@ -1,3 +1,4 @@
+
 export interface ProximityAlert {
   id: string;
   user_id: string;
@@ -66,14 +67,13 @@ export interface ProximityDetectionResult {
   hasExited: boolean;
 }
 
-// Enhanced grace period state
+// Enhanced grace period state - updated to include isInGracePeriod
 export interface GracePeriodState {
-  initializationTimestamp: number | null;
-  gracePeriodActive: boolean;
+  isInGracePeriod: boolean;
   gracePeriodReason: 'initialization' | 'movement' | 'app_resume' | null;
-  lastMovementCheck: number | null;
-  backgroundedAt: number | null;
-  resumedAt: number | null;
+  initializationTimestamp: number | null;
+  lastMovementTimestamp: number | null;
+  lastAppResumeTimestamp: number | null;
 }
 
 // Movement detection for smart grace period
