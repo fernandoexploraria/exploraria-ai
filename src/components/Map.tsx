@@ -8,8 +8,8 @@ import { GeolocateControl } from 'mapbox-gl';
 import { Tour } from '@/types/tour';
 import { calculateDistance } from '@/utils/locationUtils';
 import { geolocateControlDebouncer } from '@/utils/geolocateControlDebouncer';
-
-mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
+import { useMapboxToken } from '@/hooks/useMapboxToken';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface MapProps {
   tours?: Tour[];
@@ -24,6 +24,7 @@ const Map: React.FC<MapProps> = ({ tours = [] }) => {
   const { proximitySettings } = useProximityAlerts();
   const { updateProximityEnabled: hookUpdateProximityEnabled } = useProximityAlerts();
   const { user } = useAuth();
+  const mapboxToken = useMapboxToken();
 
   // Enhanced updateProximityEnabled with multi-source flag support
   const updateProximityEnabled = useCallback(async (enabled: boolean, source: string = 'Manual') => {
@@ -191,8 +192,14 @@ const Map: React.FC<MapProps> = ({ tours = [] }) => {
     }
   }, [proximitySettings?.is_enabled]);
 
+  // Initialize map only when token is available
   useEffect(() => {
-    if (!mapContainerRef.current) return;
+    if (!mapContainerRef.current || !mapboxToken) return;
+
+    console.log('🗺️ [Map] Initializing map with token:', mapboxToken);
+
+    // Set the token dynamically
+    mapboxgl.accessToken = mapboxToken;
 
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
@@ -239,7 +246,7 @@ const Map: React.FC<MapProps> = ({ tours = [] }) => {
     return () => {
       map.remove();
     };
-  }, []);
+  }, [mapboxToken]);
 
   // Attach GeolocateControl event handlers
   useEffect(() => {
@@ -269,6 +276,15 @@ const Map: React.FC<MapProps> = ({ tours = [] }) => {
       };
     }
   }, []);
+
+  // Show loading skeleton while waiting for token
+  if (!mapboxToken) {
+    return (
+      <div className="map-container" style={{ height: '100vh', width: '100%' }}>
+        <Skeleton className="w-full h-full" />
+      </div>
+    );
+  }
 
   return (
     <div ref={mapContainerRef} className="map-container" style={{ height: '100vh', width: '100%' }}>
