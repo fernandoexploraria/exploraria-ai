@@ -340,6 +340,12 @@ const startPollingFallback = async (userId: string) => {
           outer_distance: data.outer_distance,
           card_distance: data.card_distance,
           initialization_timestamp: data.initialization_timestamp,
+          // Map new grace period configuration fields with defaults
+          grace_period_initialization: data.grace_period_initialization ?? 15000,
+          grace_period_movement: data.grace_period_movement ?? 8000,
+          grace_period_app_resume: data.grace_period_app_resume ?? 5000,
+          significant_movement_threshold: data.significant_movement_threshold ?? 150,
+          grace_period_enabled: data.grace_period_enabled ?? true,
           created_at: data.created_at,
           updated_at: data.updated_at,
         };
