@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -151,48 +152,13 @@ export const useProximityNotifications = () => {
     }
   }, [isActiveInstance]);
 
-  // Handle card zone entry - FIXED: Apply cooldown-first pattern like toast notifications
-  const showProximityCard = useCallback((landmark: TourLandmark) => {
-    if (!isActiveInstance) return;
-    
-    const placeId = landmark.placeId;
-    const timestamp = new Date().toLocaleTimeString();
-    
-    // Check cooldown at the very beginning - SAME PATTERN AS TOAST NOTIFICATIONS
+  // Check if card cooldown has passed
+  const canShowCard = useCallback((placeId: string): boolean => {
     const lastCard = cardStateRef.current[placeId];
-    if (lastCard) {
-      const timeSinceLastCard = Date.now() - lastCard.timestamp;
-      if (timeSinceLastCard < CARD_COOLDOWN) {
-        console.log(`🏪 [${instanceIdRef.current}] Card for ${landmark.name} still in cooldown (${Math.round((CARD_COOLDOWN - timeSinceLastCard) / 1000)}s remaining) - Round ${currentPollRound} at ${timestamp}`);
-        return;
-      }
-    }
-
-    // Set cooldown immediately after check passes - PREVENT RACE CONDITIONS
-    cardStateRef.current[placeId] = {
-      shown: true,
-      timestamp: Date.now()
-    };
-    saveNotificationState();
-
-    console.log(`🏪 [${instanceIdRef.current}] Showing proximity card for ${landmark.name} - Round ${currentPollRound} at ${timestamp}`);
-
-    // Add to active cards
-    setActiveCards(prev => ({
-      ...prev,
-      [placeId]: landmark
-    }));
-  }, [saveNotificationState, isActiveInstance, currentPollRound]);
-
-  // Function to close a proximity card
-  const closeProximityCard = useCallback((placeId: string) => {
-    console.log(`🏪 [${instanceIdRef.current}] Closing proximity card for landmark ${placeId}`);
+    if (!lastCard) return true;
     
-    setActiveCards(prev => {
-      const updated = { ...prev };
-      delete updated[placeId];
-      return updated;
-    });
+    const timeSinceLastCard = Date.now() - lastCard.timestamp;
+    return timeSinceLastCard >= CARD_COOLDOWN;
   }, []);
 
   // Play notification sound
@@ -347,6 +313,45 @@ export const useProximityNotifications = () => {
     }
   }, [preloadStreetView, saveNotificationState, isActiveInstance]);
 
+  // Handle card zone entry
+  const showProximityCard = useCallback((landmark: TourLandmark) => {
+    if (!isActiveInstance) return;
+    
+    const placeId = landmark.placeId;
+    
+    if (!canShowCard(placeId)) {
+      console.log(`🏪 [${instanceIdRef.current}] Card for ${landmark.name} still in cooldown`);
+      return;
+    }
+
+    console.log(`🏪 [${instanceIdRef.current}] Showing proximity card for ${landmark.name}`);
+
+    // Update card state
+    cardStateRef.current[placeId] = {
+      shown: true,
+      timestamp: Date.now()
+    };
+
+    // Add to active cards
+    setActiveCards(prev => ({
+      ...prev,
+      [placeId]: landmark
+    }));
+
+    saveNotificationState();
+  }, [canShowCard, saveNotificationState, isActiveInstance]);
+
+  // Function to close a proximity card
+  const closeProximityCard = useCallback((placeId: string) => {
+    console.log(`🏪 [${instanceIdRef.current}] Closing proximity card for landmark ${placeId}`);
+    
+    setActiveCards(prev => {
+      const updated = { ...prev };
+      delete updated[placeId];
+      return updated;
+    });
+  }, []);
+
   // Show proximity toast notification with sound, TTS, and Street View
   const showProximityToast = useCallback(async (landmark: TourLandmark, distance: number) => {
     if (!isActiveInstance) {
@@ -448,13 +453,12 @@ export const useProximityNotifications = () => {
     console.log(`🏪 [${instanceIdRef.current}] Card zone check: ${currentCardZoneIds.size} in zone, ${newlyEnteredCardIds.length} newly entered`);
 
     // Show card for newly entered landmarks (one at a time, closest first)
-    // Cooldown is now handled inside showProximityCard - SAME AS TOAST NOTIFICATIONS
     if (newlyEnteredCardIds.length > 0) {
       const closestNewCardLandmark = cardZoneLandmarks.find(nl => 
         newlyEnteredCardIds.includes(nl.landmark.placeId)
       );
 
-      if (closestNewCardLandmark) {
+      if (closestNewCardLandmark && canShowCard(closestNewCardLandmark.landmark.placeId)) {
         showProximityCard(closestNewCardLandmark.landmark);
       }
     }
@@ -470,7 +474,7 @@ export const useProximityNotifications = () => {
 
     // Update previous card zone landmarks
     previousCardZoneLandmarksRef.current = currentCardZoneIds;
-  }, [cardZoneLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, showProximityCard, activeCards, closeProximityCard, isActiveInstance]);
+  }, [cardZoneLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, canShowCard, showProximityCard, activeCards, closeProximityCard, isActiveInstance]);
 
   // Monitor for newly entered proximity zones - only when settings are ready and this is the active instance
   useEffect(() => {
