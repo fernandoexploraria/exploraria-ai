@@ -1,13 +1,20 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { ProximityAlert, ProximitySettings, UserLocation } from '@/types/proximityAlerts';
+import { ProximityAlert, ProximitySettings, UserLocation, GracePeriodState, MovementDetectionResult } from '@/types/proximityAlerts';
 import { useAuth } from '@/components/AuthProvider';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { Landmark } from '@/data/landmarks';
 
-// Grace period constants
+// Grace period constants - enhanced for smart logic
 const INITIALIZATION_GRACE_PERIOD = 15000; // 15 seconds
+const MOVEMENT_GRACE_PERIOD = 8000; // 8 seconds for movement-triggered grace
+const APP_RESUME_GRACE_PERIOD = 5000; // 5 seconds when app resumes from background
 const LOCATION_SETTLING_GRACE_PERIOD = 5000; // 5 seconds for location to stabilize
+
+// Movement detection constants
+const SIGNIFICANT_MOVEMENT_THRESHOLD = 150; // meters - clear grace period if user moves this distance
+const MOVEMENT_CHECK_INTERVAL = 10000; // 10 seconds between movement checks
+const BACKGROUND_DETECTION_THRESHOLD = 30000; // 30 seconds - consider app backgrounded after this
 
 // Enhanced connection status tracking
 interface ConnectionStatus {
@@ -18,7 +25,19 @@ interface ConnectionStatus {
   lastDataUpdate: number | null;
 }
 
-// Global state management for proximity settings with enhanced connection tracking and grace period
+// Calculate distance between two coordinates
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const R = 6371000; // Earth's radius in meters
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+};
+
+// Global state management for proximity settings with enhanced grace period and movement tracking
 const globalProximityState = {
   settings: null as ProximitySettings | null,
   subscribers: new Set<(settings: ProximitySettings | null) => void>(),
@@ -40,62 +59,202 @@ const globalProximityState = {
   } as ConnectionStatus,
   pollingInterval: null as NodeJS.Timeout | null,
   reconnectionAttemptTimeout: null as NodeJS.Timeout | null,
-  // Grace period state
-  initializationTimestamp: null as number | null,
-  gracePeriodActive: false
+  // Enhanced grace period state with smart logic
+  gracePeriodState: {
+    initializationTimestamp: null,
+    gracePeriodActive: false,
+    gracePeriodReason: null,
+    lastMovementCheck: null,
+    backgroundedAt: null,
+    resumedAt: null
+  } as GracePeriodState,
+  // Movement tracking for smart grace period
+  lastLocationForMovement: null as UserLocation | null,
+  movementCheckInterval: null as NodeJS.Timeout | null,
 };
 
-// Grace period helper functions
+// Enhanced grace period helper functions with smart logic
 const isInGracePeriod = (): boolean => {
-  if (!globalProximityState.initializationTimestamp) return false;
-  const elapsed = Date.now() - globalProximityState.initializationTimestamp;
-  return elapsed < INITIALIZATION_GRACE_PERIOD;
+  const state = globalProximityState.gracePeriodState;
+  if (!state.initializationTimestamp || !state.gracePeriodActive) return false;
+  
+  const now = Date.now();
+  const elapsed = now - state.initializationTimestamp;
+  
+  // Different grace periods based on reason
+  let gracePeriodDuration = INITIALIZATION_GRACE_PERIOD;
+  if (state.gracePeriodReason === 'movement') {
+    gracePeriodDuration = MOVEMENT_GRACE_PERIOD;
+  } else if (state.gracePeriodReason === 'app_resume') {
+    gracePeriodDuration = APP_RESUME_GRACE_PERIOD;
+  }
+  
+  const isActive = elapsed < gracePeriodDuration;
+  
+  if (!isActive && state.gracePeriodActive) {
+    // Grace period naturally expired
+    console.log(`🕐 Grace period naturally expired (${state.gracePeriodReason}, ${elapsed}ms elapsed)`);
+    clearGracePeriod();
+  }
+  
+  return isActive;
 };
 
-const setInitializationTimestamp = (timestamp: number) => {
-  console.log('🕐 Setting initialization timestamp:', new Date(timestamp).toISOString());
-  globalProximityState.initializationTimestamp = timestamp;
-  globalProximityState.gracePeriodActive = true;
+const setGracePeriod = (reason: GracePeriodState['gracePeriodReason'], timestamp?: number) => {
+  const now = timestamp || Date.now();
+  console.log(`🕐 Setting grace period (${reason}) at ${new Date(now).toISOString()}`);
   
-  // Save to localStorage
+  globalProximityState.gracePeriodState = {
+    ...globalProximityState.gracePeriodState,
+    initializationTimestamp: now,
+    gracePeriodActive: true,
+    gracePeriodReason: reason
+  };
+  
+  // Save to localStorage with reason
   try {
-    localStorage.setItem('proximity_initialization_timestamp', timestamp.toString());
+    localStorage.setItem('proximity_grace_period_state', JSON.stringify({
+      timestamp: now,
+      reason: reason,
+      backgroundedAt: globalProximityState.gracePeriodState.backgroundedAt
+    }));
   } catch (error) {
-    console.error('Failed to save initialization timestamp:', error);
+    console.error('Failed to save grace period state:', error);
   }
 };
 
 const clearGracePeriod = () => {
-  console.log('🕐 Clearing grace period');
-  globalProximityState.initializationTimestamp = null;
-  globalProximityState.gracePeriodActive = false;
+  const previousReason = globalProximityState.gracePeriodState.gracePeriodReason;
+  console.log(`🕐 Clearing grace period (was: ${previousReason})`);
+  
+  globalProximityState.gracePeriodState = {
+    initializationTimestamp: null,
+    gracePeriodActive: false,
+    gracePeriodReason: null,
+    lastMovementCheck: null,
+    backgroundedAt: null,
+    resumedAt: null
+  };
   
   // Remove from localStorage
   try {
-    localStorage.removeItem('proximity_initialization_timestamp');
+    localStorage.removeItem('proximity_grace_period_state');
   } catch (error) {
-    console.error('Failed to clear initialization timestamp:', error);
+    console.error('Failed to clear grace period state:', error);
   }
 };
 
 const getGracePeriodRemainingMs = (): number => {
-  if (!globalProximityState.initializationTimestamp) return 0;
-  const elapsed = Date.now() - globalProximityState.initializationTimestamp;
-  return Math.max(0, INITIALIZATION_GRACE_PERIOD - elapsed);
+  const state = globalProximityState.gracePeriodState;
+  if (!state.initializationTimestamp) return 0;
+  
+  const now = Date.now();
+  const elapsed = now - state.initializationTimestamp;
+  
+  let gracePeriodDuration = INITIALIZATION_GRACE_PERIOD;
+  if (state.gracePeriodReason === 'movement') {
+    gracePeriodDuration = MOVEMENT_GRACE_PERIOD;
+  } else if (state.gracePeriodReason === 'app_resume') {
+    gracePeriodDuration = APP_RESUME_GRACE_PERIOD;
+  }
+  
+  return Math.max(0, gracePeriodDuration - elapsed);
 };
 
-// Load initialization timestamp from localStorage
-const loadInitializationTimestamp = () => {
+// Smart movement detection for grace period management
+const checkForSignificantMovement = (currentLocation: UserLocation): MovementDetectionResult => {
+  const lastLocation = globalProximityState.lastLocationForMovement;
+  const now = Date.now();
+  
+  if (!lastLocation) {
+    // First location check
+    globalProximityState.lastLocationForMovement = currentLocation;
+    globalProximityState.gracePeriodState.lastMovementCheck = now;
+    return {
+      significantMovement: false,
+      distance: 0,
+      timeSinceLastCheck: 0,
+      shouldClearGracePeriod: false
+    };
+  }
+  
+  const distance = calculateDistance(
+    lastLocation.latitude, lastLocation.longitude,
+    currentLocation.latitude, currentLocation.longitude
+  );
+  
+  const timeSinceLastCheck = now - (globalProximityState.gracePeriodState.lastMovementCheck || now);
+  const significantMovement = distance >= SIGNIFICANT_MOVEMENT_THRESHOLD;
+  
+  // Update tracking state
+  globalProximityState.lastLocationForMovement = currentLocation;
+  globalProximityState.gracePeriodState.lastMovementCheck = now;
+  
+  // Determine if grace period should be cleared
+  const shouldClearGracePeriod = significantMovement && isInGracePeriod();
+  
+  if (significantMovement) {
+    console.log(`🚶 Significant movement detected: ${Math.round(distance)}m in ${Math.round(timeSinceLastCheck/1000)}s`);
+    if (shouldClearGracePeriod) {
+      console.log(`🕐 Clearing grace period due to significant movement`);
+    }
+  }
+  
+  return {
+    significantMovement,
+    distance,
+    timeSinceLastCheck,
+    shouldClearGracePeriod
+  };
+};
+
+// Smart app backgrounding detection
+const handleAppVisibilityChange = () => {
+  const now = Date.now();
+  const isVisible = !document.hidden;
+  
+  if (isVisible) {
+    // App resumed from background
+    const backgroundedAt = globalProximityState.gracePeriodState.backgroundedAt;
+    if (backgroundedAt) {
+      const backgroundDuration = now - backgroundedAt;
+      console.log(`📱 App resumed after ${Math.round(backgroundDuration/1000)}s in background`);
+      
+      // Set resume grace period if app was backgrounded for a reasonable time
+      if (backgroundDuration >= BACKGROUND_DETECTION_THRESHOLD) {
+        globalProximityState.gracePeriodState.resumedAt = now;
+        setGracePeriod('app_resume');
+      }
+      
+      globalProximityState.gracePeriodState.backgroundedAt = null;
+    }
+  } else {
+    // App went to background
+    console.log(`📱 App backgrounded at ${new Date(now).toISOString()}`);
+    globalProximityState.gracePeriodState.backgroundedAt = now;
+  }
+};
+
+// Load enhanced grace period state from localStorage
+const loadGracePeriodState = () => {
   try {
-    const saved = localStorage.getItem('proximity_initialization_timestamp');
+    const saved = localStorage.getItem('proximity_grace_period_state');
     if (saved) {
-      const timestamp = parseInt(saved, 10);
-      if (!isNaN(timestamp)) {
-        globalProximityState.initializationTimestamp = timestamp;
+      const state = JSON.parse(saved);
+      if (state.timestamp && state.reason) {
+        globalProximityState.gracePeriodState = {
+          initializationTimestamp: state.timestamp,
+          gracePeriodActive: true,
+          gracePeriodReason: state.reason,
+          lastMovementCheck: null,
+          backgroundedAt: state.backgroundedAt || null,
+          resumedAt: null
+        };
+        
         // Check if still in grace period
         if (isInGracePeriod()) {
-          globalProximityState.gracePeriodActive = true;
-          console.log('🕐 Restored grace period, remaining:', getGracePeriodRemainingMs() + 'ms');
+          const remaining = getGracePeriodRemainingMs();
+          console.log(`🕐 Restored grace period (${state.reason}), remaining: ${remaining}ms`);
         } else {
           // Grace period expired, clear it
           clearGracePeriod();
@@ -103,12 +262,18 @@ const loadInitializationTimestamp = () => {
       }
     }
   } catch (error) {
-    console.error('Failed to load initialization timestamp:', error);
+    console.error('Failed to load grace period state:', error);
+    clearGracePeriod();
   }
 };
 
-// Initialize grace period state on module load
-loadInitializationTimestamp();
+// Initialize smart grace period state on module load
+loadGracePeriodState();
+
+// Set up app visibility change listener for smart backgrounding detection
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', handleAppVisibilityChange);
+}
 
 const MINIMUM_GAP = 25; // minimum gap in meters between tiers
 const NOTIFICATION_OUTER_GAP = 50; // minimum gap between notification and outer distance
@@ -124,7 +289,6 @@ const notifySubscribers = (settings: ProximitySettings | null) => {
   globalProximityState.subscribers.forEach(callback => callback(settings));
 };
 
-// Phase 2: Update connection status and notify subscribers
 const updateConnectionStatus = (status: ConnectionStatus['status'], resetFailures = false) => {
   const now = Date.now();
   globalProximityState.connectionStatus.status = status;
@@ -143,7 +307,6 @@ const updateConnectionStatus = (status: ConnectionStatus['status'], resetFailure
   console.log(`🔗 Connection status updated to: ${status}`, globalProximityState.connectionStatus);
 };
 
-// Phase 2: Polling fallback mechanism
 const startPollingFallback = async (userId: string) => {
   console.log('🔄 Starting polling fallback for proximity settings');
   updateConnectionStatus('polling');
@@ -174,7 +337,6 @@ const startPollingFallback = async (userId: string) => {
           updated_at: data.updated_at,
         };
         
-        // Check if data has changed by comparing updated_at
         const currentSettings = globalProximityState.settings;
         const hasChanged = !currentSettings || 
           new Date(settings.updated_at || '').getTime() !== new Date(currentSettings.updated_at || '').getTime();
@@ -183,12 +345,10 @@ const startPollingFallback = async (userId: string) => {
           console.log('📊 Polling detected changes, notifying subscribers');
           notifySubscribers(settings);
           
-          // Switch to more frequent polling for a while
           if (globalProximityState.pollingInterval) {
             clearInterval(globalProximityState.pollingInterval);
             globalProximityState.pollingInterval = setInterval(pollData, ACTIVE_POLLING_INTERVAL);
             
-            // Switch back to normal polling after 2 minutes
             setTimeout(() => {
               if (globalProximityState.pollingInterval) {
                 clearInterval(globalProximityState.pollingInterval);
@@ -205,18 +365,15 @@ const startPollingFallback = async (userId: string) => {
     }
   };
 
-  // Start polling
-  await pollData(); // Initial poll
+  await pollData();
   globalProximityState.pollingInterval = setInterval(pollData, POLLING_INTERVAL);
   
-  // Attempt to reconnect to real-time every 2 minutes
   globalProximityState.reconnectionAttemptTimeout = setInterval(() => {
     console.log('🔄 Attempting to reconnect to real-time from polling mode...');
     attemptRealTimeReconnection(userId);
   }, RECONNECTION_ATTEMPT_INTERVAL);
 };
 
-// Phase 2: Stop polling fallback
 const stopPollingFallback = () => {
   console.log('🛑 Stopping polling fallback');
   
@@ -233,30 +390,23 @@ const stopPollingFallback = () => {
   globalProximityState.connectionStatus.isPollingActive = false;
 };
 
-// Phase 2: Attempt to reconnect to real-time
 const attemptRealTimeReconnection = (userId: string) => {
-  // Clean up existing channel
   if (globalProximityState.channel) {
     supabase.removeChannel(globalProximityState.channel);
     globalProximityState.channel = null;
     globalProximityState.isSubscribed = false;
   }
   
-  // Reset retry count for fresh attempt
   globalProximityState.retryCount = 0;
   
-  // Try to create new real-time subscription
   createProximitySettingsSubscription(userId, async () => {
-    // On successful reconnection, stop polling
     if (globalProximityState.connectionStatus.status === 'connected') {
       stopPollingFallback();
     }
   });
 };
 
-// Phase 1: Add exponential backoff reconnection function (enhanced in Phase 2)
 const reconnectWithBackoff = (userId: string, loadProximitySettingsFunc: () => Promise<void>) => {
-  // Phase 2: Check if we should switch to polling instead
   if (globalProximityState.connectionStatus.consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD) {
     console.log(`🚨 Circuit breaker triggered (${globalProximityState.connectionStatus.consecutiveFailures} failures), switching to polling fallback`);
     startPollingFallback(userId);
@@ -265,13 +415,11 @@ const reconnectWithBackoff = (userId: string, loadProximitySettingsFunc: () => P
 
   if (globalProximityState.retryCount >= globalProximityState.maxRetries) {
     console.error(`❌ Max retries (${globalProximityState.maxRetries}) exceeded for proximity settings subscription`);
-    // Phase 2: Fall back to polling after max retries
     startPollingFallback(userId);
     return;
   }
 
-  // Calculate exponential backoff delay: 1s, 2s, 4s, 8s, 16s, then cap at 30s
-  const baseDelay = 1000; // 1 second
+  const baseDelay = 1000;
   const delay = Math.min(baseDelay * Math.pow(2, globalProximityState.retryCount), 30000);
   
   console.log(`🔄 Scheduling proximity settings reconnection attempt ${globalProximityState.retryCount + 1}/${globalProximityState.maxRetries} in ${delay}ms`);
@@ -280,7 +428,6 @@ const reconnectWithBackoff = (userId: string, loadProximitySettingsFunc: () => P
   globalProximityState.retryTimeout = setTimeout(async () => {
     globalProximityState.retryCount++;
     
-    // Clean up existing failed channel
     if (globalProximityState.channel) {
       console.log('🧹 Cleaning up failed proximity settings channel before retry');
       supabase.removeChannel(globalProximityState.channel);
@@ -288,12 +435,10 @@ const reconnectWithBackoff = (userId: string, loadProximitySettingsFunc: () => P
       globalProximityState.isSubscribed = false;
     }
     
-    // Create new subscription
     createProximitySettingsSubscription(userId, loadProximitySettingsFunc);
   }, delay);
 };
 
-// Phase 1: Extract subscription creation logic (enhanced in Phase 2)
 const createProximitySettingsSubscription = (userId: string, loadProximitySettingsFunc: () => Promise<void>) => {
   console.log('📡 Creating new proximity settings subscription for user:', userId);
   updateConnectionStatus('connecting');
@@ -336,29 +481,24 @@ const createProximitySettingsSubscription = (userId: string, loadProximitySettin
       console.log('📡 Proximity settings subscription status:', status);
       if (status === 'SUBSCRIBED') {
         globalProximityState.isSubscribed = true;
-        // Phase 1: Reset retry count on successful connection
         globalProximityState.retryCount = 0;
         if (globalProximityState.retryTimeout) {
           clearTimeout(globalProximityState.retryTimeout);
           globalProximityState.retryTimeout = null;
         }
-        // Phase 2: Update connection status and stop any polling
         updateConnectionStatus('connected', true);
         stopPollingFallback();
         console.log('✅ Proximity settings subscription successful, retry count reset');
-        // Load initial data after successful subscription
         loadProximitySettingsFunc();
       } else if (status === 'CHANNEL_ERROR') {
         console.error('❌ Proximity settings channel subscription error');
         globalProximityState.isSubscribed = false;
         updateConnectionStatus('failed');
-        // Phase 1: Trigger reconnection on channel error
         reconnectWithBackoff(userId, loadProximitySettingsFunc);
       } else if (status === 'TIMED_OUT') {
         console.error('⏰ Proximity settings channel subscription timed out');
         globalProximityState.isSubscribed = false;
         updateConnectionStatus('failed');
-        // Phase 1: Trigger reconnection on timeout
         reconnectWithBackoff(userId, loadProximitySettingsFunc);
       }
     });
@@ -366,7 +506,6 @@ const createProximitySettingsSubscription = (userId: string, loadProximitySettin
   globalProximityState.channel = channel;
 };
 
-// Convert TopLandmark to Landmark format
 const convertTopLandmarkToLandmark = (topLandmark: any): Landmark => {
   return {
     id: `top-${topLandmark.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
@@ -385,17 +524,26 @@ export const useProximityAlerts = () => {
   const [isSaving, setIsSaving] = useState(false);
   const isMountedRef = useRef(true);
 
-  // Get landmarks from TOP_LANDMARKS array (includes tour landmarks)
   const combinedLandmarks = TOP_LANDMARKS.map(convertTopLandmarkToLandmark);
 
-  // Subscribe to global proximity settings state
+  const handleLocationUpdate = useCallback((location: UserLocation) => {
+    setUserLocation(location);
+    
+    const movementResult = checkForSignificantMovement(location);
+    if (movementResult.shouldClearGracePeriod) {
+      clearGracePeriod();
+    } else if (movementResult.significantMovement && !isInGracePeriod()) {
+      console.log(`🚶 Setting movement grace period due to ${Math.round(movementResult.distance)}m movement`);
+      setGracePeriod('movement');
+    }
+  }, []);
+
   useEffect(() => {
     if (!user) {
       setProximitySettings(null);
       return;
     }
 
-    // Add this component as a subscriber
     const updateSettings = (settings: ProximitySettings | null) => {
       if (isMountedRef.current) {
         console.log('🔄 Component received settings update:', settings);
@@ -405,7 +553,6 @@ export const useProximityAlerts = () => {
     
     globalProximityState.subscribers.add(updateSettings);
     
-    // Set initial state if already available and for the same user
     if (globalProximityState.settings && globalProximityState.currentUserId === user.id) {
       console.log('🔄 Setting initial state from global state:', globalProximityState.settings);
       setProximitySettings(globalProximityState.settings);
@@ -416,7 +563,6 @@ export const useProximityAlerts = () => {
     };
   }, [user]);
 
-  // Set up real-time subscription for proximity settings
   useEffect(() => {
     if (!user?.id) {
       setProximitySettings(null);
@@ -424,7 +570,6 @@ export const useProximityAlerts = () => {
       return;
     }
 
-    // If user changed, clean up previous subscription
     if (globalProximityState.currentUserId && globalProximityState.currentUserId !== user.id) {
       console.log('👤 User changed, cleaning up previous proximity settings subscription');
       if (globalProximityState.channel) {
@@ -432,13 +577,11 @@ export const useProximityAlerts = () => {
         globalProximityState.channel = null;
         globalProximityState.isSubscribed = false;
       }
-      // Phase 1: Reset retry state on user change
       globalProximityState.retryCount = 0;
       if (globalProximityState.retryTimeout) {
         clearTimeout(globalProximityState.retryTimeout);
         globalProximityState.retryTimeout = null;
       }
-      // Phase 2: Stop polling and reset connection status
       stopPollingFallback();
       updateConnectionStatus('disconnected', true);
       globalProximityState.settings = null;
@@ -446,12 +589,9 @@ export const useProximityAlerts = () => {
 
     globalProximityState.currentUserId = user.id;
 
-    // Only create subscription if none exists
     if (!globalProximityState.channel && !globalProximityState.isSubscribed && !globalProximityState.connectionStatus.isPollingActive) {
-      // Phase 1: Use new subscription creation function
       createProximitySettingsSubscription(user.id, loadProximitySettings);
     } else if (globalProximityState.isSubscribed && globalProximityState.currentUserId === user.id) {
-      // If subscription already exists for this user, just load data
       console.log('📡 Subscription already exists for current user, loading data');
       if (!globalProximityState.settings) {
         loadProximitySettings();
@@ -459,12 +599,10 @@ export const useProximityAlerts = () => {
     }
 
     return () => {
-      // Don't clean up the global subscription here - let it persist
       isMountedRef.current = false;
     };
   }, [user?.id]);
 
-  // Load proximity alerts on user change
   useEffect(() => {
     if (user) {
       loadProximityAlerts();
@@ -491,7 +629,6 @@ export const useProximityAlerts = () => {
       }
 
       if (data) {
-        // Cast the data to match our interface types
         const settings: ProximitySettings = {
           id: data.id,
           user_id: data.user_id,
@@ -533,7 +670,6 @@ export const useProximityAlerts = () => {
         return;
       }
 
-      // Cast the data to match our interface types
       const alerts: ProximityAlert[] = (data || []).map(item => ({
         id: item.id,
         user_id: item.user_id,
@@ -565,7 +701,6 @@ export const useProximityAlerts = () => {
     try {
       console.log('💾 Making database request to update proximity enabled status...');
       
-      // Get current settings or use database defaults
       const currentSettings = globalProximityState.settings;
       
       const updateData: any = {
@@ -574,22 +709,18 @@ export const useProximityAlerts = () => {
         updated_at: new Date().toISOString(),
       };
 
-      // Only include distance fields if they exist in current settings
       if (currentSettings) {
         updateData.notification_distance = currentSettings.notification_distance;
         updateData.outer_distance = currentSettings.outer_distance;
         updateData.card_distance = currentSettings.card_distance;
       }
 
-      // Grace period logic: track initialization when enabling proximity
       if (enabled && (!currentSettings || !currentSettings.is_enabled)) {
-        // Proximity is being enabled (was disabled or first time)
         const initTimestamp = Date.now();
-        setInitializationTimestamp(initTimestamp);
+        setGracePeriod('initialization', initTimestamp);
         updateData.initialization_timestamp = initTimestamp;
-        console.log('🕐 Proximity enabled - starting grace period');
+        console.log('🕐 Proximity enabled - starting initialization grace period');
       } else if (!enabled) {
-        // Proximity is being disabled - clear grace period
         clearGracePeriod();
         updateData.initialization_timestamp = null;
         console.log('🕐 Proximity disabled - clearing grace period');
@@ -607,7 +738,6 @@ export const useProximityAlerts = () => {
       }
 
       console.log('✅ Successfully updated proximity enabled status in database to:', enabled);
-      // The real-time subscription will update the state automatically
     } catch (error) {
       console.error('❌ Error in updateProximityEnabled:', error);
       throw error;
@@ -624,7 +754,6 @@ export const useProximityAlerts = () => {
       throw new Error('No user available');
     }
 
-    // Get current settings to validate against
     const currentSettings = globalProximityState.settings;
     
     if (!currentSettings) {
@@ -636,14 +765,12 @@ export const useProximityAlerts = () => {
     const currentOuter = currentSettings.outer_distance;
     const currentCard = currentSettings.card_distance;
 
-    // Create the new distance configuration
     const newDistances = {
       notification_distance: distanceType === 'notification_distance' ? distance : currentNotification,
       outer_distance: distanceType === 'outer_distance' ? distance : currentOuter,
       card_distance: distanceType === 'card_distance' ? distance : currentCard,
     };
 
-    // Enhanced validation with refined hierarchy: outer_distance ≥ notification_distance + 50m ≥ card_distance + 25m
     if (newDistances.outer_distance < newDistances.notification_distance + NOTIFICATION_OUTER_GAP) {
       const error = new Error(`Outer distance must be at least ${NOTIFICATION_OUTER_GAP}m greater than notification distance`);
       console.error('❌ Distance validation failed:', error.message);
@@ -683,7 +810,6 @@ export const useProximityAlerts = () => {
       }
 
       console.log('✅ Successfully updated distance setting in database:', distanceType, distance);
-      // The real-time subscription will update the state automatically
     } catch (error) {
       console.error('❌ Error in updateDistanceSetting:', error);
       throw error;
@@ -692,39 +818,32 @@ export const useProximityAlerts = () => {
     }
   }, [user]);
 
-  const updateUserLocation = (location: UserLocation) => {
-    setUserLocation(location);
-  };
+  const updateUserLocation = useCallback((location: UserLocation) => {
+    handleLocationUpdate(location);
+  }, [handleLocationUpdate]);
 
-  // Phase 2: Manual reconnection function
   const forceReconnect = useCallback(() => {
     if (!user?.id) return;
     
     console.log('🔄 Manual reconnection triggered');
     
-    // Stop any existing polling
     stopPollingFallback();
     
-    // Clean up existing connection
     if (globalProximityState.channel) {
       supabase.removeChannel(globalProximityState.channel);
       globalProximityState.channel = null;
       globalProximityState.isSubscribed = false;
     }
     
-    // Reset connection state
     globalProximityState.retryCount = 0;
     updateConnectionStatus('connecting', true);
     
-    // Attempt fresh connection
     createProximitySettingsSubscription(user.id, loadProximitySettings);
   }, [user?.id]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
-      // Clean up global subscription if no more subscribers
       const subscriberCount = globalProximityState.subscribers.size;
       if (subscriberCount === 0 && globalProximityState.channel) {
         console.log('🧹 No more proximity settings subscribers, cleaning up global subscription');
@@ -733,13 +852,11 @@ export const useProximityAlerts = () => {
         globalProximityState.isSubscribed = false;
         globalProximityState.currentUserId = null;
         globalProximityState.settings = null;
-        // Phase 1: Clean up retry state
         globalProximityState.retryCount = 0;
         if (globalProximityState.retryTimeout) {
           clearTimeout(globalProximityState.retryTimeout);
           globalProximityState.retryTimeout = null;
         }
-        // Phase 2: Clean up polling and connection state
         stopPollingFallback();
         updateConnectionStatus('disconnected', true);
       }
@@ -752,15 +869,17 @@ export const useProximityAlerts = () => {
     userLocation,
     isLoading,
     isSaving,
-    // Phase 2: Connection status and manual controls
     connectionStatus: globalProximityState.connectionStatus,
     forceReconnect,
-    // Grace period state
     isInGracePeriod: isInGracePeriod(),
     gracePeriodRemainingMs: getGracePeriodRemainingMs(),
-    initializationTimestamp: globalProximityState.initializationTimestamp,
-    gracePeriodActive: globalProximityState.gracePeriodActive,
-    // Keep these for compatibility
+    gracePeriodReason: globalProximityState.gracePeriodState.gracePeriodReason,
+    gracePeriodState: globalProximityState.gracePeriodState,
+    initializationTimestamp: globalProximityState.gracePeriodState.initializationTimestamp,
+    gracePeriodActive: globalProximityState.gracePeriodState.gracePeriodActive,
+    clearGracePeriod,
+    setGracePeriod: (reason: GracePeriodState['gracePeriodReason']) => setGracePeriod(reason),
+    checkForSignificantMovement,
     combinedLandmarks,
     setProximityAlerts,
     setProximitySettings: notifySubscribers,

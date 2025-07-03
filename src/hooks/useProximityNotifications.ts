@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
@@ -8,6 +7,7 @@ import { useTTSContext } from '@/contexts/TTSContext';
 import { useStreetView } from '@/hooks/useStreetView';
 import { TourLandmark } from '@/data/tourLandmarks';
 import { supabase } from '@/integrations/supabase/client';
+import { logGracePeriodEvent, formatGracePeriodDebugInfo } from '@/utils/smartGracePeriod';
 
 interface NotificationState {
   [placeId: string]: number; // timestamp of last notification
@@ -35,7 +35,13 @@ const PREP_ZONE_STORAGE_KEY = 'prep_zone_state';
 const CARD_STORAGE_KEY = 'proximity_cards_state';
 
 export const useProximityNotifications = () => {
-  const { proximitySettings, isInGracePeriod, gracePeriodRemainingMs } = useProximityAlerts();
+  const { 
+    proximitySettings, 
+    isInGracePeriod, 
+    gracePeriodRemainingMs,
+    gracePeriodReason,
+    gracePeriodState
+  } = useProximityAlerts();
   const { userLocation } = useLocationTracking();
   const { speak } = useTTSContext();
   const { preloadStreetView, getCachedData } = useStreetView();
@@ -123,29 +129,45 @@ export const useProximityNotifications = () => {
     return timeSinceLastCard >= CARD_COOLDOWN;
   }, []);
 
-  // ENHANCED: Check if we should show notifications (respects grace period)
+  // ENHANCED: Check if we should show notifications (respects smart grace period)
   const shouldShowNotification = useCallback((placeId: string): boolean => {
     // Check if we're in the grace period
     if (isInGracePeriod) {
-      console.log(`🕐 Grace period active (${Math.round(gracePeriodRemainingMs / 1000)}s remaining) - skipping notification for ${placeId}`);
+      logGracePeriodEvent(
+        `Notification blocked`, 
+        { 
+          placeId, 
+          reason: gracePeriodReason,
+          remaining: Math.round(gracePeriodRemainingMs / 1000),
+          debugInfo: formatGracePeriodDebugInfo(gracePeriodState)
+        }
+      );
       return false;
     }
 
     // Check normal cooldown
     return canNotify(placeId);
-  }, [isInGracePeriod, gracePeriodRemainingMs, canNotify]);
+  }, [isInGracePeriod, gracePeriodRemainingMs, gracePeriodReason, gracePeriodState]);
 
-  // ENHANCED: Check if we should show proximity cards (respects grace period)
+  // ENHANCED: Check if we should show proximity cards (respects smart grace period)
   const shouldShowCard = useCallback((placeId: string): boolean => {
     // Check if we're in the grace period
     if (isInGracePeriod) {
-      console.log(`🕐 Grace period active (${Math.round(gracePeriodRemainingMs / 1000)}s remaining) - skipping card for ${placeId}`);
+      logGracePeriodEvent(
+        `Card blocked`, 
+        { 
+          placeId, 
+          reason: gracePeriodReason,
+          remaining: Math.round(gracePeriodRemainingMs / 1000),
+          debugInfo: formatGracePeriodDebugInfo(gracePeriodState)
+        }
+      );
       return false;
     }
 
     // Check normal cooldown
     return canShowCard(placeId);
-  }, [isInGracePeriod, gracePeriodRemainingMs, canShowCard]);
+  }, [isInGracePeriod, gracePeriodRemainingMs, gracePeriodReason, gracePeriodState]);
 
   // Play notification sound
   const playNotificationSound = useCallback(() => {
@@ -442,7 +464,7 @@ export const useProximityNotifications = () => {
     previousCardZoneLandmarksRef.current = currentCardZoneIds;
   }, [cardZoneLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, shouldShowCard, showProximityCard, activeCards, closeProximityCard]);
 
-  // ENHANCED: Monitor for newly entered proximity zones with grace period check - only when settings are ready
+  // ENHANCED: Monitor for newly entered proximity zones with smart grace period check - only when settings are ready
   useEffect(() => {
     if (!isProximitySettingsReady || !proximitySettings.is_enabled || !userLocation || nearbyLandmarks.length === 0) {
       return;
@@ -455,6 +477,20 @@ export const useProximityNotifications = () => {
     const newlyEnteredIds = Array.from(currentNearbyIds).filter(id => !previousNearbyIds.has(id));
 
     console.log(`🎯 Proximity check: ${currentNearbyIds.size} nearby, ${newlyEnteredIds.length} newly entered`);
+    
+    // Enhanced logging for grace period debugging
+    if (isInGracePeriod) {
+      logGracePeriodEvent(
+        `Proximity check during grace period`, 
+        { 
+          nearbyCount: currentNearbyIds.size,
+          newlyEntered: newlyEnteredIds.length,
+          reason: gracePeriodReason,
+          remaining: Math.round(gracePeriodRemainingMs / 1000),
+          debugInfo: formatGracePeriodDebugInfo(gracePeriodState)
+        }
+      );
+    }
 
     // Show notification for ONLY the closest newly entered landmark that can be notified
     if (newlyEnteredIds.length > 0) {
@@ -467,14 +503,27 @@ export const useProximityNotifications = () => {
       if (closestNewLandmark) {
         showProximityToast(closestNewLandmark.landmark, closestNewLandmark.distance);
       } else {
-        const reason = isInGracePeriod ? 'grace period active' : 'all newly entered landmarks still in cooldown';
+        const reason = isInGracePeriod ? 
+          `grace period active (${gracePeriodReason}, ${Math.round(gracePeriodRemainingMs/1000)}s remaining)` : 
+          'all newly entered landmarks still in cooldown';
         console.log(`🔕 No notifications shown - ${reason}`);
       }
     }
 
     // Update previous nearby landmarks
     previousNearbyLandmarksRef.current = currentNearbyIds;
-  }, [nearbyLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, shouldShowNotification, isInGracePeriod, showProximityToast]);
+  }, [
+    nearbyLandmarks, 
+    isProximitySettingsReady, 
+    proximitySettings?.is_enabled, 
+    userLocation, 
+    shouldShowNotification, 
+    isInGracePeriod, 
+    gracePeriodReason,
+    gracePeriodRemainingMs,
+    gracePeriodState,
+    showProximityToast
+  ]);
 
   // Cleanup expired notifications from state
   useEffect(() => {
@@ -523,9 +572,12 @@ export const useProximityNotifications = () => {
     prepZoneState: prepZoneStateRef.current,
     cardState: cardStateRef.current,
     isEnabled: proximitySettings?.is_enabled || false,
-    // ENHANCED: Export grace period state for debugging/UI
+    // ENHANCED: Export smart grace period state for debugging/UI
     isInGracePeriod,
     gracePeriodRemainingMs,
+    gracePeriodReason,
+    gracePeriodState,
+    gracePeriodDebugInfo: formatGracePeriodDebugInfo(gracePeriodState),
     closeProximityCard,
     showRouteToService
   };

@@ -59,3 +59,21 @@ export interface ProximityDetectionResult {
   hasEntered: boolean;
   hasExited: boolean;
 }
+
+// Enhanced grace period state
+export interface GracePeriodState {
+  initializationTimestamp: number | null;
+  gracePeriodActive: boolean;
+  gracePeriodReason: 'initialization' | 'movement' | 'app_resume' | null;
+  lastMovementCheck: number | null;
+  backgroundedAt: number | null;
+  resumedAt: number | null;
+}
+
+// Movement detection for smart grace period
+export interface MovementDetectionResult {
+  significantMovement: boolean;
+  distance: number;
+  timeSinceLastCheck: number;
+  shouldClearGracePeriod: boolean;
+}
