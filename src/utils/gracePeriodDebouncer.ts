@@ -1,4 +1,3 @@
-
 import { ProximitySettings } from '@/types/proximityAlerts';
 
 export interface DebounceOperation {
@@ -123,11 +122,12 @@ export class GracePeriodDebouncer {
     this.debounceTimeouts.delete(userId);
 
     try {
-      // Build combined update object
+      // Build combined update object with proper typing
       const updates: Partial<ProximitySettings> = {};
       
       operations.forEach(operation => {
-        updates[operation.settingType] = operation.value;
+        // Use type assertion to handle the dynamic property assignment
+        (updates as any)[operation.settingType] = operation.value;
       });
 
       // Perform single database update
