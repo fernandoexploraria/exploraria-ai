@@ -24,8 +24,8 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
   const { proximityAlerts, proximitySettings, userLocation, connectionStatus, forceReconnect,
     isInGracePeriod, gracePeriodRemainingMs, gracePeriodReason
   } = useProximityAlerts();
-  const { tourState, currentTour, startTour, stopTour, nextStep, previousStep, resetTour } = useTourPlanner();
-  const { isConnected, isRealtimeConnected, lastRealtimeEvent, lastRealtimeError } = useConnectionMonitor();
+  const { tourPlan, plannedLandmarks, isLoading, error, generateTour, progressState } = useTourPlanner();
+  const { connectionHealth, performHealthCheck } = useConnectionMonitor();
   const { isOnline, effectiveType, downlink, connectionType } = useNetworkStatus();
   const [refreshKey, setRefreshKey] = useState(0);
   const [simulatedNetwork, setSimulatedNetwork] = useState<string | null>(null);
@@ -222,23 +222,32 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                 <CardContent>
                   <div className="space-y-2">
                     <p className="text-gray-400 text-xs">
-                      Is Active: {tourState.isActive ? 'Yes' : 'No'}
+                      Is Loading: {isLoading ? 'Yes' : 'No'}
                     </p>
                     <p className="text-gray-400 text-xs">
-                      Current Step: {tourState.currentStepIndex}
+                      Current Phase: {progressState.phase}
                     </p>
                     <p className="text-gray-400 text-xs">
-                      Total Steps: {tourState.totalSteps}
+                      Progress: {progressState.percentage}%
                     </p>
-                    {currentTour && (
+                    <p className="text-gray-400 text-xs">
+                      Current Step: {progressState.currentStep}
+                    </p>
+                    {tourPlan && (
                       <div className="mt-2">
-                        <h4 className="text-sm font-semibold">Current Tour</h4>
+                        <h4 className="text-sm font-semibold">Current Tour Plan</h4>
                         <p className="text-gray-400 text-xs">
-                          Name: {currentTour.name}
+                          Destination: {tourPlan.destination}
                         </p>
                         <p className="text-gray-400 text-xs">
-                          Description: {currentTour.description}
+                          Landmarks: {tourPlan.landmarks.length}
                         </p>
+                      </div>
+                    )}
+                    {error && (
+                      <div className="mt-2">
+                        <h4 className="text-sm font-semibold text-red-400">Error</h4>
+                        <p className="text-gray-400 text-xs">{error}</p>
                       </div>
                     )}
                   </div>
@@ -249,42 +258,24 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={startTour}
-                  disabled={tourState.isActive}
+                  onClick={() => generateTour('Test Destination')}
+                  disabled={isLoading}
                 >
-                  Start Tour
+                  Test Generate Tour
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={stopTour}
-                  disabled={!tourState.isActive}
+                  onClick={() => console.log('Tour Plan:', tourPlan)}
                 >
-                  Stop Tour
+                  Log Tour Plan
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={nextStep}
-                  disabled={!tourState.isActive}
+                  onClick={() => console.log('Planned Landmarks:', plannedLandmarks)}
                 >
-                  Next Step
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={previousStep}
-                  disabled={!tourState.isActive}
-                >
-                  Previous Step
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={resetTour}
-                  disabled={!tourState.isActive}
-                >
-                  Reset Tour
+                  Log Landmarks
                 </Button>
               </div>
             </TabsContent>
@@ -292,22 +283,27 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
             <TabsContent value="connection" className="space-y-4">
               <Card className="bg-gray-800 border-gray-700">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Connection Status</CardTitle>
+                  <CardTitle className="text-sm">Connection Health</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
                     <p className="text-gray-400 text-xs">
-                      Connected: {isConnected ? 'Yes' : 'No'}
+                      Is Healthy: {connectionHealth.isHealthy ? 'Yes' : 'No'}
                     </p>
                     <p className="text-gray-400 text-xs">
-                      Realtime Connected: {isRealtimeConnected ? 'Yes' : 'No'}
+                      Issues Count: {connectionHealth.issues.length}
                     </p>
                     <p className="text-gray-400 text-xs">
-                      Last Realtime Event: {lastRealtimeEvent}
+                      Last Check: {new Date(connectionHealth.lastHealthCheck).toLocaleTimeString()}
                     </p>
-                    <p className="text-gray-400 text-xs">
-                      Last Realtime Error: {lastRealtimeError}
-                    </p>
+                    {connectionHealth.issues.length > 0 && (
+                      <div className="mt-2">
+                        <h4 className="text-sm font-semibold text-red-400">Issues</h4>
+                        {connectionHealth.issues.map((issue, index) => (
+                          <p key={index} className="text-gray-400 text-xs">• {issue}</p>
+                        ))}
+                      </div>
+                    )}
                     <p className="text-gray-400 text-xs">
                       Consecutive Failures: {connectionStatus.consecutiveFailures}
                     </p>
@@ -317,9 +313,14 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                   </div>
                 </CardContent>
               </Card>
-              <Button variant="outline" size="sm" onClick={forceReconnect}>
-                Force Reconnect
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={forceReconnect}>
+                  Force Reconnect
+                </Button>
+                <Button variant="outline" size="sm" onClick={performHealthCheck}>
+                  Health Check
+                </Button>
+              </div>
             </TabsContent>
 
             <TabsContent value="grace-period" className="space-y-4">
