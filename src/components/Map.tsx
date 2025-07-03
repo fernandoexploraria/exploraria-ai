@@ -176,7 +176,8 @@ const MapComponent: React.FC<MapProps> = ({
             ...landmark,
             coordinates: landmark.coordinates
           })),
-          profile: 'walking'
+          profile: 'walking',
+          mapboxToken: mapboxToken // Pass token from frontend
         }
       });
 

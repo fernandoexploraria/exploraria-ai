@@ -15,26 +15,24 @@ serve(async (req) => {
   }
 
   try {
-    const { userLocation, landmarks, profile = 'walking' } = await req.json()
+    const { userLocation, landmarks, profile = 'walking', mapboxToken } = await req.json()
     
     console.log('🚀 Request received:', {
       userLocation,
       landmarkCount: landmarks?.length,
       profile,
+      hasMapboxToken: !!mapboxToken,
       landmarks: landmarks?.map((l: any) => ({ name: l.name, coordinates: l.coordinates }))
     })
     
-    const mapboxToken = Deno.env.get('MAPBOX_PUBLIC_TOKEN')
+    if (!mapboxToken) {
+      console.error('❌ Mapbox token not provided in request')
+      throw new Error('Mapbox token is required but was not provided in the request payload.')
+    }
     
-    console.log('🔑 Mapbox token check:', { 
-      hasToken: !!mapboxToken, 
+    console.log('🔑 Using Mapbox token from request payload:', { 
       tokenLength: mapboxToken?.length 
     })
-    
-    if (!mapboxToken) {
-      console.error('❌ MAPBOX_PUBLIC_TOKEN not found in environment variables')
-      throw new Error('Mapbox token not configured. Please set MAPBOX_PUBLIC_TOKEN in edge function secrets.')
-    }
 
     if (!userLocation || !landmarks || landmarks.length === 0) {
       console.error('❌ Invalid input data:', { userLocation, landmarks })
