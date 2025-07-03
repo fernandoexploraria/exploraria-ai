@@ -29,6 +29,17 @@ interface EnabledCallTracker {
   source: string | null;
 }
 
+// Enhanced source priority system
+type UpdateSource = 'Manual' | 'GeolocateControl' | 'System' | 'SettingsSync' | 'UserAction';
+
+const UPDATE_SOURCE_PRIORITIES: Record<UpdateSource, number> = {
+  Manual: 5,
+  UserAction: 4,
+  GeolocateControl: 3,
+  SettingsSync: 2,
+  System: 1
+};
+
 const DEFAULT_PROXIMITY_SETTINGS: Omit<ProximitySettings, 'id' | 'user_id' | 'created_at' | 'updated_at'> = {
   is_enabled: false,
   notification_distance: 100,
@@ -68,6 +79,7 @@ export const useProximityAlerts = () => {
     timestamp: number;
     source: string;
     processed: boolean;
+    priority: number;
   }>>([]);
   
   const rapidCallDetectionRef = useRef<{
@@ -80,9 +92,13 @@ export const useProximityAlerts = () => {
     lastWarning: 0
   });
   
-  // Multi-source update prevention flags (enhanced for Step 2.3.1)
+  // Enhanced multi-source update prevention flags
   const isUpdatingFromGeolocateControl = useRef<boolean>(false);
   const geolocateEventInProgress = useRef<boolean>(false);
+  const manualUserActionInProgress = useRef<boolean>(false);
+  const proximitySettingsSyncInProgress = useRef<boolean>(false);
+  const lastUpdateSource = useRef<string>('System');
+  const lastUpdatePriority = useRef<number>(1);
   
   // Grace period state management
   const [gracePeriodState, setGracePeriodState] = useState<GracePeriodState>({
@@ -101,19 +117,75 @@ export const useProximityAlerts = () => {
   const appBackgroundedAtRef = useRef<number | null>(null);
   const proximityWasEnabledRef = useRef<boolean>(false);
 
-  // Enhanced call tracking functions with GeolocateControl awareness
+  // Enhanced source priority detection
+  const getSourcePriority = useCallback((source: string): number => {
+    if (source.includes('Manual') || source.includes('UserAction')) return UPDATE_SOURCE_PRIORITIES.Manual;
+    if (source.includes('GeolocateControl')) return UPDATE_SOURCE_PRIORITIES.GeolocateControl;
+    if (source.includes('SettingsSync') || source.includes('DatabaseSync')) return UPDATE_SOURCE_PRIORITIES.SettingsSync;
+    return UPDATE_SOURCE_PRIORITIES.System;
+  }, []);
+
+  // Enhanced multi-source conflict detection
+  const shouldSkipUpdate = useCallback((enabled: boolean, source: string): boolean => {
+    const now = Date.now();
+    const priority = getSourcePriority(source);
+    const timeSinceLastUpdate = lastEnabledCallRef.current.lastTimestamp ? 
+      now - lastEnabledCallRef.current.lastTimestamp : Infinity;
+
+    // Check for active higher priority operations
+    if (priority < lastUpdatePriority.current && timeSinceLastUpdate < 2000) {
+      console.log(`🚫 [ProximityAlerts] Skipping ${source} update (priority: ${priority}) - higher priority operation in progress (${lastUpdateSource.current}, priority: ${lastUpdatePriority.current})`);
+      return true;
+    }
+
+    // Enhanced GeolocateControl conflict detection
+    if (source.includes('GeolocateControl')) {
+      if (manualUserActionInProgress.current) {
+        console.log(`🚫 [ProximityAlerts] Skipping GeolocateControl update - manual user action in progress`);
+        return true;
+      }
+    }
+
+    // Enhanced Manual action conflict detection
+    if (source.includes('Manual') || source.includes('UserAction')) {
+      if (geolocateEventInProgress.current && timeSinceLastUpdate < 1000) {
+        console.log(`🚫 [ProximityAlerts] Skipping manual update - geolocation event in progress`);
+        return true;
+      }
+    }
+
+    // Settings sync conflict detection
+    if (source.includes('SettingsSync')) {
+      if (isUpdatingFromGeolocateControl.current || manualUserActionInProgress.current) {
+        console.log(`🚫 [ProximityAlerts] Skipping settings sync - higher priority operation in progress`);
+        return true;
+      }
+    }
+
+    return false;
+  }, [getSourcePriority]);
+
+  // Enhanced call tracking functions with priority awareness
   const trackEnabledCall = useCallback((enabled: boolean, source: string) => {
     const now = Date.now();
+    const priority = getSourcePriority(source);
     const tracker = lastEnabledCallRef.current;
     
-    // Detect if this is a GeolocateControl event
+    // Enhanced source detection and flag management
     const isGeolocateEvent = source.includes('GeolocateControl');
+    const isManualEvent = source.includes('Manual') || source.includes('UserAction');
+    const isSettingsSync = source.includes('SettingsSync') || source.includes('DatabaseSync');
+    
+    // Update appropriate flags
     if (isGeolocateEvent) {
       isUpdatingFromGeolocateControl.current = true;
-      // Reset after a short delay to allow event processing
-      setTimeout(() => {
-        isUpdatingFromGeolocateControl.current = false;
-      }, 1000);
+      setTimeout(() => { isUpdatingFromGeolocateControl.current = false; }, 1000);
+    } else if (isManualEvent) {
+      manualUserActionInProgress.current = true;
+      setTimeout(() => { manualUserActionInProgress.current = false; }, 1000);
+    } else if (isSettingsSync) {
+      proximitySettingsSyncInProgress.current = true;
+      setTimeout(() => { proximitySettingsSyncInProgress.current = false; }, 500);
     }
     
     // Update call tracker
@@ -122,13 +194,18 @@ export const useProximityAlerts = () => {
     tracker.callCount++;
     tracker.source = source;
     
-    // Add to call history
+    // Update last update tracking
+    lastUpdateSource.current = source;
+    lastUpdatePriority.current = priority;
+    
+    // Add to enhanced call history
     const history = enabledCallHistoryRef.current;
     history.push({
       value: enabled,
       timestamp: now,
       source,
-      processed: false
+      processed: false,
+      priority
     });
     
     // Keep only last 10 calls
@@ -139,62 +216,69 @@ export const useProximityAlerts = () => {
     // Update rapid call detection
     const rapid = rapidCallDetectionRef.current;
     if (now - rapid.windowStart > 1000) {
-      // Reset window
       rapid.windowStart = now;
       rapid.callCount = 1;
     } else {
       rapid.callCount++;
     }
     
-    // Log warning for rapid calls (but be more lenient for GeolocateControl events)
-    const rapidThreshold = isGeolocateEvent ? 6 : 3; // Higher threshold for geolocate events
+    // Enhanced rapid call detection with priority awareness
+    const rapidThreshold = isGeolocateEvent ? 6 : (isManualEvent ? 2 : 3);
     if (rapid.callCount > rapidThreshold && now - rapid.lastWarning > 5000) {
       console.warn('🚨 [ProximityAlerts] Rapid updateProximityEnabled calls detected:', {
         callsInLastSecond: rapid.callCount,
         source,
+        priority,
         isGeolocateEvent,
+        isManualEvent,
         recentHistory: history.slice(-5)
       });
       rapid.lastWarning = now;
     }
     
-    // Log structured call information
+    // Enhanced structured logging
     console.group('📞 [ProximityAlerts] updateProximityEnabled Call');
     console.log('📋 Call Details:', {
       enabled,
       source,
+      priority,
       isGeolocateEvent,
+      isManualEvent,
+      isSettingsSync,
       timestamp: new Date(now).toISOString().slice(11, 23),
       callCount: tracker.callCount,
       timeSinceLastCall: tracker.lastTimestamp ? now - tracker.lastTimestamp : 'N/A'
     });
-    console.log('📊 Recent History:', history.slice(-3));
-    console.log('⚡ Rapid Detection:', {
-      callsInWindow: rapid.callCount,
-      windowDuration: now - rapid.windowStart,
-      threshold: rapidThreshold
+    console.log('🏴 Flag States:', {
+      isUpdatingFromGeolocateControl: isUpdatingFromGeolocateControl.current,
+      geolocateEventInProgress: geolocateEventInProgress.current,
+      manualUserActionInProgress: manualUserActionInProgress.current,
+      proximitySettingsSyncInProgress: proximitySettingsSyncInProgress.current
     });
+    console.log('📊 Recent History:', history.slice(-3));
     console.groupEnd();
-  }, []);
+  }, [getSourcePriority]);
 
-  // Enhanced duplicate call detection with GeolocateControl awareness
+  // Enhanced duplicate call detection with priority awareness
   const checkForDuplicateCall = useCallback((enabled: boolean, source: string): boolean => {
     const tracker = lastEnabledCallRef.current;
     const now = Date.now();
+    const priority = getSourcePriority(source);
     
-    // More lenient duplicate detection for GeolocateControl events
-    const isGeolocateEvent = source.includes('GeolocateControl');
-    const duplicateWindow = isGeolocateEvent ? 100 : 500; // Shorter window for geolocate events
+    // Priority-aware duplicate detection
+    const duplicateWindow = priority >= UPDATE_SOURCE_PRIORITIES.Manual ? 100 : 
+                           priority >= UPDATE_SOURCE_PRIORITIES.GeolocateControl ? 200 : 500;
     
     // Check for exact duplicate within the appropriate window
     if (tracker.lastValue === enabled && 
         tracker.lastTimestamp && 
-        now - tracker.lastTimestamp < duplicateWindow) {
+        now - tracker.lastTimestamp < duplicateWindow &&
+        tracker.source === source) {
       
       console.warn('🔄 [ProximityAlerts] Duplicate call detected and skipped:', {
         enabled,
         source,
-        isGeolocateEvent,
+        priority,
         timeSinceLastCall: now - tracker.lastTimestamp,
         lastSource: tracker.source
       });
@@ -203,7 +287,7 @@ export const useProximityAlerts = () => {
     }
     
     return false; // Not duplicate
-  }, []);
+  }, [getSourcePriority]);
 
   // Auto-create proximity settings for authenticated users
   const createDefaultProximitySettings = useCallback(async () => {
@@ -363,7 +447,7 @@ export const useProximityAlerts = () => {
     }
   }, [proximitySettings, user, queryClient, validateAndCorrectSettings, handleDatabaseError]);
 
-  // Enhanced updateProximityEnabled with comprehensive tracking and deduplication
+  // Enhanced updateProximityEnabled with comprehensive multi-source prevention
   const updateProximityEnabled = useCallback(async (enabled: boolean, source: string = 'Manual') => {
     if (!user) {
       console.warn('Cannot update proximity enabled: no authenticated user');
@@ -373,19 +457,25 @@ export const useProximityAlerts = () => {
     // Track the call
     trackEnabledCall(enabled, source);
 
+    // Enhanced multi-source conflict detection
+    if (shouldSkipUpdate(enabled, source)) {
+      return; // Skip conflicting update
+    }
+
     // Check for duplicate calls
     if (checkForDuplicateCall(enabled, source)) {
       return; // Skip duplicate call
     }
 
-    // Use the enhanced debouncer with source tracking
+    // Use the enhanced debouncer with source tracking and priority
     const wasQueued = proximityEnabledDebouncer.debounceEnabledUpdate(
       user.id,
       enabled,
       async (debouncedEnabled: boolean) => {
         console.log('⚡ [ProximityAlerts] Executing debounced enabled update:', { 
           enabled: debouncedEnabled, 
-          source 
+          source,
+          priority: getSourcePriority(source)
         });
         
         // Mark as processed in history
@@ -401,15 +491,20 @@ export const useProximityAlerts = () => {
     );
 
     if (wasQueued) {
-      console.log('⚡ [ProximityAlerts] Proximity enabled update queued:', { enabled, source });
+      console.log('⚡ [ProximityAlerts] Proximity enabled update queued:', { 
+        enabled, 
+        source, 
+        priority: getSourcePriority(source) 
+      });
     } else {
       console.log('⚡ [ProximityAlerts] Proximity enabled update skipped:', { 
         enabled, 
         source,
-        reason: 'Debouncer rejected (duplicate/cooldown/rapid calls)'
+        priority: getSourcePriority(source),
+        reason: 'Debouncer rejected (duplicate/cooldown/rapid calls/conflict)'
       });
     }
-  }, [updateProximitySettings, user, trackEnabledCall, checkForDuplicateCall]);
+  }, [updateProximitySettings, user, trackEnabledCall, checkForDuplicateCall, shouldSkipUpdate, getSourcePriority]);
 
   // Helper function to update distance settings
   const updateDistanceSetting = useCallback(async (field: 'notification_distance' | 'outer_distance' | 'card_distance', value: number) => {
@@ -628,9 +723,16 @@ export const useProximityAlerts = () => {
       return {
         callTracker: lastEnabledCallRef.current,
         callHistory: enabledCallHistoryRef.current,
-        rapidDetection: rapidCallDetectionRef.current,
-        debouncerHistory: proximityEnabledDebouncer.getCallHistory(user.id),
-        debouncerMetrics: proximityEnabledDebouncer.getMetrics()
+        flagStates: {
+          isUpdatingFromGeolocateControl: isUpdatingFromGeolocateControl.current,
+          geolocateEventInProgress: geolocateEventInProgress.current,
+          manualUserActionInProgress: manualUserActionInProgress.current,
+          proximitySettingsSyncInProgress: proximitySettingsSyncInProgress.current
+        },
+        lastUpdate: {
+          source: lastUpdateSource.current,
+          priority: lastUpdatePriority.current
+        }
       };
     }
     return null;
@@ -667,11 +769,22 @@ export const useProximityAlerts = () => {
     gracePeriodState,
     setGracePeriod,
     clearGracePeriod,
-    // Debugging utilities (development only)
+    // Enhanced debugging utilities (development only)
     ...(process.env.NODE_ENV === 'development' && { 
-      debugInfo: getDebugInfo(),
-      callTracker: lastEnabledCallRef.current,
-      callHistory: enabledCallHistoryRef.current 
+      debugInfo: {
+        callTracker: lastEnabledCallRef.current,
+        callHistory: enabledCallHistoryRef.current,
+        flagStates: {
+          isUpdatingFromGeolocateControl: isUpdatingFromGeolocateControl.current,
+          geolocateEventInProgress: geolocateEventInProgress.current,
+          manualUserActionInProgress: manualUserActionInProgress.current,
+          proximitySettingsSyncInProgress: proximitySettingsSyncInProgress.current
+        },
+        lastUpdate: {
+          source: lastUpdateSource.current,
+          priority: lastUpdatePriority.current
+        }
+      }
     })
   };
 };
