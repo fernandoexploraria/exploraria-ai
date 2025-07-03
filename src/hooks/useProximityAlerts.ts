@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,6 +20,13 @@ interface ConnectionStatus {
   status: 'connected' | 'connecting' | 'polling' | 'failed' | 'disconnected';
   lastDataUpdate: number | null;
   consecutiveFailures: number;
+}
+
+interface EnabledCallTracker {
+  lastValue: boolean | null;
+  lastTimestamp: number | null;
+  callCount: number;
+  source: string | null;
 }
 
 const DEFAULT_PROXIMITY_SETTINGS: Omit<ProximitySettings, 'id' | 'user_id' | 'created_at' | 'updated_at'> = {
@@ -48,6 +54,31 @@ export const useProximityAlerts = () => {
     lastDataUpdate: null,
     consecutiveFailures: 0
   });
+
+  // Enhanced call tracking refs
+  const lastEnabledCallRef = useRef<EnabledCallTracker>({
+    lastValue: null,
+    lastTimestamp: null,
+    callCount: 0,
+    source: null
+  });
+  
+  const enabledCallHistoryRef = useRef<Array<{
+    value: boolean;
+    timestamp: number;
+    source: string;
+    processed: boolean;
+  }>>([]);
+  
+  const rapidCallDetectionRef = useRef<{
+    windowStart: number;
+    callCount: number;
+    lastWarning: number;
+  }>({
+    windowStart: Date.now(),
+    callCount: 0,
+    lastWarning: 0
+  });
   
   // Grace period state management
   const [gracePeriodState, setGracePeriodState] = useState<GracePeriodState>({
@@ -65,6 +96,90 @@ export const useProximityAlerts = () => {
   const lastLocationRef = useRef<{ latitude: number; longitude: number } | null>(null);
   const appBackgroundedAtRef = useRef<number | null>(null);
   const proximityWasEnabledRef = useRef<boolean>(false);
+
+  // Enhanced call tracking functions
+  const trackEnabledCall = useCallback((enabled: boolean, source: string) => {
+    const now = Date.now();
+    const tracker = lastEnabledCallRef.current;
+    
+    // Update call tracker
+    tracker.lastValue = enabled;
+    tracker.lastTimestamp = now;
+    tracker.callCount++;
+    tracker.source = source;
+    
+    // Add to call history
+    const history = enabledCallHistoryRef.current;
+    history.push({
+      value: enabled,
+      timestamp: now,
+      source,
+      processed: false
+    });
+    
+    // Keep only last 10 calls
+    if (history.length > 10) {
+      history.shift();
+    }
+    
+    // Update rapid call detection
+    const rapid = rapidCallDetectionRef.current;
+    if (now - rapid.windowStart > 1000) {
+      // Reset window
+      rapid.windowStart = now;
+      rapid.callCount = 1;
+    } else {
+      rapid.callCount++;
+    }
+    
+    // Log warning for rapid calls
+    if (rapid.callCount > 3 && now - rapid.lastWarning > 5000) {
+      console.warn('🚨 [ProximityAlerts] Rapid updateProximityEnabled calls detected:', {
+        callsInLastSecond: rapid.callCount,
+        source,
+        recentHistory: history.slice(-5)
+      });
+      rapid.lastWarning = now;
+    }
+    
+    // Log structured call information
+    console.group('📞 [ProximityAlerts] updateProximityEnabled Call');
+    console.log('📋 Call Details:', {
+      enabled,
+      source,
+      timestamp: new Date(now).toISOString().slice(11, 23),
+      callCount: tracker.callCount,
+      timeSinceLastCall: tracker.lastTimestamp ? now - tracker.lastTimestamp : 'N/A'
+    });
+    console.log('📊 Recent History:', history.slice(-3));
+    console.log('⚡ Rapid Detection:', {
+      callsInWindow: rapid.callCount,
+      windowDuration: now - rapid.windowStart
+    });
+    console.groupEnd();
+  }, []);
+
+  const checkForDuplicateCall = useCallback((enabled: boolean, source: string): boolean => {
+    const tracker = lastEnabledCallRef.current;
+    const now = Date.now();
+    
+    // Check for exact duplicate within 500ms
+    if (tracker.lastValue === enabled && 
+        tracker.lastTimestamp && 
+        now - tracker.lastTimestamp < 500) {
+      
+      console.warn('🔄 [ProximityAlerts] Duplicate call detected and skipped:', {
+        enabled,
+        source,
+        timeSinceLastCall: now - tracker.lastTimestamp,
+        lastSource: tracker.source
+      });
+      
+      return true; // Is duplicate
+    }
+    
+    return false; // Not duplicate
+  }, []);
 
   // Auto-create proximity settings for authenticated users
   const createDefaultProximitySettings = useCallback(async () => {
@@ -224,29 +339,53 @@ export const useProximityAlerts = () => {
     }
   }, [proximitySettings, user, queryClient, validateAndCorrectSettings, handleDatabaseError]);
 
-  // Enhanced updateProximityEnabled with debouncing and deduplication
-  const updateProximityEnabled = useCallback(async (enabled: boolean) => {
+  // Enhanced updateProximityEnabled with comprehensive tracking and deduplication
+  const updateProximityEnabled = useCallback(async (enabled: boolean, source: string = 'Manual') => {
     if (!user) {
       console.warn('Cannot update proximity enabled: no authenticated user');
       return;
     }
 
-    // Use the dedicated enabled debouncer
+    // Track the call
+    trackEnabledCall(enabled, source);
+
+    // Check for duplicate calls
+    if (checkForDuplicateCall(enabled, source)) {
+      return; // Skip duplicate call
+    }
+
+    // Use the enhanced debouncer with source tracking
     const wasQueued = proximityEnabledDebouncer.debounceEnabledUpdate(
       user.id,
       enabled,
       async (debouncedEnabled: boolean) => {
-        console.log('⚡ [ProximityAlerts] Executing debounced enabled update:', { enabled: debouncedEnabled });
+        console.log('⚡ [ProximityAlerts] Executing debounced enabled update:', { 
+          enabled: debouncedEnabled, 
+          source 
+        });
+        
+        // Mark as processed in history
+        const history = enabledCallHistoryRef.current;
+        const lastCall = history[history.length - 1];
+        if (lastCall && !lastCall.processed) {
+          lastCall.processed = true;
+        }
+        
         await updateProximitySettings({ is_enabled: debouncedEnabled });
-      }
+      },
+      source
     );
 
     if (wasQueued) {
-      console.log('⚡ [ProximityAlerts] Proximity enabled update queued:', { enabled });
+      console.log('⚡ [ProximityAlerts] Proximity enabled update queued:', { enabled, source });
     } else {
-      console.log('⚡ [ProximityAlerts] Proximity enabled update skipped (duplicate/cooldown):', { enabled });
+      console.log('⚡ [ProximityAlerts] Proximity enabled update skipped:', { 
+        enabled, 
+        source,
+        reason: 'Debouncer rejected (duplicate/cooldown/rapid calls)'
+      });
     }
-  }, [updateProximitySettings, user]);
+  }, [updateProximitySettings, user, trackEnabledCall, checkForDuplicateCall]);
 
   // Helper function to update distance settings
   const updateDistanceSetting = useCallback(async (field: 'notification_distance' | 'outer_distance' | 'card_distance', value: number) => {
@@ -388,7 +527,7 @@ export const useProximityAlerts = () => {
   }, [proximitySettings]);
 
   // Handle proximity setting changes - only reset on enable/disable
-  const handleProximityToggle = useCallback(async (newEnabled: boolean) => {
+  const handleProximityToggle = useCallback(async (newEnabled: boolean, source: string = 'System') => {
     const wasEnabled = proximityWasEnabledRef.current;
     proximityWasEnabledRef.current = newEnabled;
 
@@ -453,9 +592,36 @@ export const useProximityAlerts = () => {
   // Proximity setting toggle effect
   useEffect(() => {
     if (proximitySettings) {
-      handleProximityToggle(proximitySettings.is_enabled);
+      // Determine the source of the change
+      const source = proximitySettings.is_enabled !== proximityWasEnabledRef.current ? 'DatabaseSync' : 'InitialLoad';
+      handleProximityToggle(proximitySettings.is_enabled, source);
     }
-  }, [proximitySettings?.is_enabled, handleProximityToggle]);
+  }, [proximitySettings?.is_enabled]);
+
+  // Development mode debugging utilities
+  const getDebugInfo = useCallback(() => {
+    if (process.env.NODE_ENV === 'development' && user) {
+      return {
+        callTracker: lastEnabledCallRef.current,
+        callHistory: enabledCallHistoryRef.current,
+        rapidDetection: rapidCallDetectionRef.current,
+        debouncerHistory: proximityEnabledDebouncer.getCallHistory(user.id),
+        debouncerMetrics: proximityEnabledDebouncer.getMetrics()
+      };
+    }
+    return null;
+  }, [user]);
+
+  // Expose debugging function to window in development
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+      (window as any).proximityAlertsDebug = {
+        getDebugInfo,
+        dumpCallHistory: () => proximityEnabledDebouncer.dumpDebugInfo(user?.id),
+        emergencyBrake: () => user && proximityEnabledDebouncer.emergencyBrake(user.id)
+      };
+    }
+  }, [getDebugInfo, user]);
 
   return {
     proximitySettings,
@@ -477,5 +643,11 @@ export const useProximityAlerts = () => {
     gracePeriodState,
     setGracePeriod,
     clearGracePeriod,
+    // Debugging utilities (development only)
+    ...(process.env.NODE_ENV === 'development' && { 
+      debugInfo: getDebugInfo(),
+      callTracker: lastEnabledCallRef.current,
+      callHistory: enabledCallHistoryRef.current 
+    })
   };
 };
