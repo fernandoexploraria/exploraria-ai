@@ -9,6 +9,19 @@ const DEFAULT_COORDS = {
   timestamp: Date.now()
 };
 
+// Geolocation configuration with longer timeout and better error handling
+const GEOLOCATION_OPTIONS = {
+  enableHighAccuracy: true,
+  timeout: 30000, // Increased from 10 seconds to 30 seconds
+  maximumAge: 60000 // 1 minute cache
+};
+
+const TRACKING_OPTIONS = {
+  enableHighAccuracy: true,
+  timeout: 30000, // Increased timeout for tracking as well
+  maximumAge: 30000 // 30 second cache for tracking
+};
+
 export const useLocationTracking = () => {
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [locationState, setLocationState] = useState<LocationTrackingState>({
@@ -20,11 +33,33 @@ export const useLocationTracking = () => {
     pollInterval: 5000, // Default 5 second interval
   });
 
+  const handleGeolocationError = useCallback((error: GeolocationPositionError) => {
+    let errorMessage = 'Location access failed';
+    
+    switch (error.code) {
+      case error.PERMISSION_DENIED:
+        errorMessage = 'Location permission denied. Please enable location access in your browser settings.';
+        break;
+      case error.POSITION_UNAVAILABLE:
+        errorMessage = 'Location information unavailable. Please check your device settings.';
+        break;
+      case error.TIMEOUT:
+        errorMessage = 'Location request timed out. Please try again or check your connection.';
+        break;
+      default:
+        errorMessage = `Location error: ${error.message}`;
+    }
+    
+    console.warn('Geolocation error:', { code: error.code, message: error.message });
+    return errorMessage;
+  }, []);
+
   const requestLocationPermission = useCallback(async () => {
     if (!navigator.geolocation) {
+      const errorMsg = 'Geolocation is not supported by this browser';
       setLocationState(prev => ({
         ...prev,
-        error: 'Geolocation is not supported by this browser',
+        error: errorMsg,
         isPermissionGranted: false
       }));
       return false;
@@ -32,11 +67,7 @@ export const useLocationTracking = () => {
 
     try {
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 60000
-        });
+        navigator.geolocation.getCurrentPosition(resolve, reject, GEOLOCATION_OPTIONS);
       });
 
       const newLocation: UserLocation = {
@@ -55,22 +86,30 @@ export const useLocationTracking = () => {
         lastUpdate: new Date()
       }));
 
+      console.log('✅ Location permission granted and location obtained:', {
+        lat: newLocation.latitude.toFixed(6),
+        lng: newLocation.longitude.toFixed(6),
+        accuracy: newLocation.accuracy
+      });
+
       return true;
     } catch (error) {
-      console.error('Location permission denied or error:', error);
+      const geolocationError = error as GeolocationPositionError;
+      const errorMessage = handleGeolocationError(geolocationError);
       
       // Fallback to default location
       setUserLocation(DEFAULT_COORDS);
       setLocationState(prev => ({
         ...prev,
         isPermissionGranted: false,
-        error: 'Location access denied. Using default location.',
+        error: errorMessage,
         lastUpdate: new Date()
       }));
       
+      console.log('📍 Using fallback location (San Francisco) due to:', errorMessage);
       return false;
     }
-  }, []);
+  }, [handleGeolocationError]);
 
   const startTracking = useCallback(() => {
     if (!navigator.geolocation) {
@@ -84,7 +123,7 @@ export const useLocationTracking = () => {
 
     setLocationState(prev => ({ ...prev, isTracking: true }));
     
-    // Start polling for location updates
+    // Start polling for location updates with retry logic
     const intervalId = setInterval(() => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -103,30 +142,34 @@ export const useLocationTracking = () => {
           }));
         },
         (error) => {
-          console.error('Location tracking error:', error);
-          setLocationState(prev => ({
-            ...prev,
-            error: error.message
-          }));
+          const errorMessage = handleGeolocationError(error);
+          console.warn('Location tracking error:', errorMessage);
+          
+          // Don't update state on every error to avoid excessive re-renders
+          // Only update if this is a new type of error
+          setLocationState(prev => {
+            if (prev.error !== errorMessage) {
+              return { ...prev, error: errorMessage };
+            }
+            return prev;
+          });
         },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 30000
-        }
+        TRACKING_OPTIONS
       );
     }, locationState.pollInterval);
 
     return () => clearInterval(intervalId);
-  }, [locationState.pollInterval]);
+  }, [locationState.pollInterval, handleGeolocationError]);
 
   const stopTracking = useCallback(() => {
     setLocationState(prev => ({ ...prev, isTracking: false }));
   }, []);
 
-  // Auto-start tracking on mount
+  // Auto-start tracking on mount with better error handling
   useEffect(() => {
-    requestLocationPermission();
+    requestLocationPermission().catch((error) => {
+      console.error('Failed to initialize location tracking:', error);
+    });
   }, [requestLocationPermission]);
 
   return {
@@ -135,6 +178,6 @@ export const useLocationTracking = () => {
     requestLocationPermission,
     startTracking,
     stopTracking,
-    setUserLocation // Add this function that was being called
+    setUserLocation,
   };
 };
