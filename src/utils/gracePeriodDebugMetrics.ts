@@ -1,6 +1,6 @@
 import { gracePeriodHistory } from '@/utils/gracePeriodHistory';
 import { gracePeriodErrorRecovery } from '@/utils/gracePeriodErrorRecovery';
-import { validateGracePeriodRanges, getGracePeriodValidationRules } from '@/utils/gracePeriodValidation';
+import { validateGracePeriodRanges, GRACE_PERIOD_VALIDATION_RULES, autoCorrectGracePeriodValues } from '@/utils/gracePeriodValidation';
 import { ProximitySettings } from '@/types/proximityAlerts';
 import { gracePeriodLazyLoader } from '@/utils/gracePeriodLazyLoader';
 import { gracePeriodStorage } from '@/utils/gracePeriodStorage';
@@ -240,7 +240,7 @@ class GracePeriodDebugMetrics {
         name: 'Test Validation Performance',
         description: 'Measure validation performance with various settings',
         testFunction: async () => {
-          const testCases = [
+          const testCases: Array<{ name: string; settings: Partial<ProximitySettings> }> = [
             { name: 'valid-balanced', settings: { grace_period_initialization: 15000, grace_period_movement: 8000 } },
             { name: 'valid-conservative', settings: { grace_period_initialization: 20000, grace_period_movement: 12000 } },
             { name: 'invalid-extreme', settings: { grace_period_initialization: 999999, grace_period_movement: -1000 } },
@@ -356,7 +356,7 @@ class GracePeriodDebugMetrics {
         name: 'System Health Check',
         description: 'Comprehensive system health and performance check',
         testFunction: async () => {
-          const validationRules = getGracePeriodValidationRules();
+          const validationRules = GRACE_PERIOD_VALIDATION_RULES;
           const gracePeriodMetrics = gracePeriodHistory.getMetrics();
           const recoveryHealth = gracePeriodErrorRecovery.getHealthStatus();
           

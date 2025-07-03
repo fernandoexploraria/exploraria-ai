@@ -26,6 +26,7 @@ export const GRACE_PERIOD_PRESETS = {
     appResume: 8000, // 8s
     movementThreshold: 200, // 200m
     locationSettling: 8000, // 8s
+    enabled: true,
   },
   balanced: {
     initialization: 15000, // 15s
@@ -33,6 +34,7 @@ export const GRACE_PERIOD_PRESETS = {
     appResume: 5000, // 5s
     movementThreshold: 150, // 150m
     locationSettling: 5000, // 5s
+    enabled: true,
   },
   aggressive: {
     initialization: 10000, // 10s
@@ -40,6 +42,7 @@ export const GRACE_PERIOD_PRESETS = {
     appResume: 3000, // 3s
     movementThreshold: 100, // 100m
     locationSettling: 3000, // 3s
+    enabled: true,
   }
 };
 
@@ -61,6 +64,34 @@ export const getGracePeriodPresetName = (settings: ProximitySettings | null): st
   }
   
   return 'custom';
+};
+
+// Get available presets for UI display
+export const getAvailablePresets = () => {
+  return Object.entries(GRACE_PERIOD_PRESETS).map(([key, preset]) => ({
+    key: key as keyof typeof GRACE_PERIOD_PRESETS,
+    name: key.charAt(0).toUpperCase() + key.slice(1),
+    description: `${preset.initialization/1000}s init, ${preset.movement/1000}s move, ${preset.appResume/1000}s resume`,
+    ...preset
+  }));
+};
+
+// Apply a preset to existing settings
+export const applyGracePeriodPreset = (
+  presetName: keyof typeof GRACE_PERIOD_PRESETS,
+  currentSettings: ProximitySettings
+): ProximitySettings => {
+  const preset = GRACE_PERIOD_PRESETS[presetName];
+  
+  return {
+    ...currentSettings,
+    grace_period_initialization: preset.initialization,
+    grace_period_movement: preset.movement,
+    grace_period_app_resume: preset.appResume,
+    significant_movement_threshold: preset.movementThreshold,
+    location_settling_grace_period: preset.locationSettling,
+    grace_period_enabled: preset.enabled,
+  };
 };
 
 // Smart grace period activation logic
@@ -148,11 +179,11 @@ export const logGracePeriodEvent = (
 export const formatGracePeriodDebugInfo = (
   gracePeriodState: GracePeriodState,
   settings: ProximitySettings | null = null
-) => {
+): string => {
   const constants = getGracePeriodConstants(settings);
   const movementConstants = getMovementConstants(settings);
   
-  return {
+  const debugInfo = {
     state: gracePeriodState,
     constants: {
       ...constants,
@@ -164,4 +195,6 @@ export const formatGracePeriodDebugInfo = (
     timeRemaining: gracePeriodState.initializationTimestamp ? 
       Math.max(0, (gracePeriodState.initializationTimestamp + constants.INITIALIZATION) - Date.now()) : 0
   };
+  
+  return JSON.stringify(debugInfo, null, 2);
 };

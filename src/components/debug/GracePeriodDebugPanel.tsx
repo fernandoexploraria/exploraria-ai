@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -46,7 +45,6 @@ const GracePeriodDebugPanel: React.FC<GracePeriodDebugPanelProps> = ({
     gracePeriodState,
     setGracePeriod,
     clearGracePeriod,
-    gracePeriodDebugInfo
   } = useProximityAlerts();
 
   const [refreshKey, setRefreshKey] = useState(0);
@@ -138,6 +136,14 @@ const GracePeriodDebugPanel: React.FC<GracePeriodDebugPanelProps> = ({
   const currentPreset = getGracePeriodPresetName(proximitySettings);
   const availablePresets = getAvailablePresets();
 
+  // Format debug info as string instead of object
+  const gracePeriodDebugInfo = gracePeriodState ? JSON.stringify({
+    active: isInGracePeriod,
+    reason: gracePeriodReason,
+    remaining: gracePeriodRemainingMs,
+    preset: currentPreset
+  }, null, 2) : 'No debug info available';
+
   if (!isVisible) {
     return (
       <Button
@@ -217,7 +223,7 @@ const GracePeriodDebugPanel: React.FC<GracePeriodDebugPanelProps> = ({
                 </div>
                 
                 <div className="text-xs text-white/70 font-mono">
-                  {gracePeriodDebugInfo}
+                  <pre>{gracePeriodDebugInfo}</pre>
                 </div>
               </div>
             </TabsContent>

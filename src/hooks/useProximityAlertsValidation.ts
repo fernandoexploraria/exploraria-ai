@@ -26,13 +26,13 @@ export const useProximityAlertsValidation = () => {
 
   const validateAndCorrectSettings = useCallback(async (
     settings: Partial<ProximitySettings>
-  ): Promise<{ correctedSettings: Partial<ProximitySettings>; validationResult: GracePeriodValidationResult }> => {
+  ): Promise<{ correctedSettings: ProximitySettings; validationResult: GracePeriodValidationResult }> => {
     console.log('🔍 [Validation] Starting grace period validation:', settings);
     
     const validationResult = validateGracePeriodRanges(settings);
     const autoCorrections: Record<string, number> = {};
     
-    let correctedSettings = { ...settings };
+    let correctedSettings: ProximitySettings;
     
     // Auto-correct invalid values if validation fails
     if (!validationResult.isValid) {
@@ -57,6 +57,8 @@ export const useProximityAlertsValidation = () => {
         preset: 'auto-corrected',
         userLocation: undefined
       });
+    } else {
+      correctedSettings = autoCorrectGracePeriodValues(settings);
     }
     
     // Update validation state
