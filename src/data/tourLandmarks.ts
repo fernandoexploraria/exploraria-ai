@@ -24,20 +24,6 @@ export interface TourLandmark {
 // Mutable array that gets cleared and repopulated for each new tour
 export const TOUR_LANDMARKS: TourLandmark[] = [];
 
-// Global flag to track tour generation state
-export let isTourGenerationInProgress = false;
-
-// Function to set tour generation state
-export const setTourGenerationInProgress = (inProgress: boolean) => {
-  console.log('🎯 Tour generation flag set to:', inProgress);
-  isTourGenerationInProgress = inProgress;
-};
-
-// Function to get tour generation state
-export const getTourGenerationInProgress = () => {
-  return isTourGenerationInProgress;
-};
-
 // Enhanced function to clear tour landmarks - now only handles GeoJSON layer cleanup
 export const clearTourMarkers = () => {
   console.log('🧹 Enhanced clearing of tour landmarks...');

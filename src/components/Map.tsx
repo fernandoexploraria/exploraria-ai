@@ -18,8 +18,6 @@ import { PhotoData } from '@/hooks/useEnhancedPhotos';
 import { PhotoCarousel } from './photo-carousel';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { getEnhancedLandmarkText } from '@/utils/landmarkPromptUtils';
-import { getTourGenerationInProgress } from '@/data/tourLandmarks';
-import { UserLocation } from '@/types/proximityAlerts';
 
 interface MapProps {
   mapboxToken: string;
@@ -57,14 +55,14 @@ const MapComponent: React.FC<MapProps> = ({
   
   const [tourLandmarks, setTourLandmarks] = useState<TourLandmark[]>([]);
   
-  const geolocateControlRef = useRef<mapboxgl.GeolocateControl | null>(null);
+  const geolocateControl = useRef<mapboxgl.GeolocateControl | null>(null);
   const isUpdatingFromProximitySettings = useRef<boolean>(false);
   const userInitiatedLocationRequest = useRef<boolean>(false);
   const lastLocationEventTime = useRef<number>(0);
   const processedPlannedLandmarks = useRef<string[]>([]);
   
   const { user } = useAuth();
-  const { updateProximityEnabled, proximitySettings, setUserLocation } = useProximityAlerts();
+  const { updateProximityEnabled, proximitySettings } = useProximityAlerts();
   const { fetchLandmarkPhotos: fetchPhotosWithHook } = useLandmarkPhotos();
   const { locationState } = useLocationTracking();
   
@@ -100,7 +98,7 @@ const MapComponent: React.FC<MapProps> = ({
           name: tourLandmark.name,
           coordinates: tourLandmark.coordinates,
           description: tourLandmark.description,
-          placeId: tourLandmark.placeId
+          placeId: tourLandmark.placeId // 🔥 PRESERVE PLACE_ID FOR DATABASE LOOKUP
         };
         
       case 'top':
@@ -116,7 +114,7 @@ const MapComponent: React.FC<MapProps> = ({
           name: topLandmark.name,
           coordinates: topLandmark.coordinates,
           description: topLandmark.description,
-          placeId: topLandmark.place_id
+          placeId: topLandmark.place_id // Include place_id for enhanced photo fetching
         };
         
       case 'base':
@@ -196,7 +194,9 @@ const MapComponent: React.FC<MapProps> = ({
     
     console.log('🗺️ [Base Layer] Updating base landmarks GeoJSON layer with', landmarks.length, 'landmarks');
     
+    // Filter out tour landmarks from base landmarks to avoid duplicates
     const baseLandmarksOnly = landmarks.filter(landmark => {
+      // Check if this landmark exists in tour landmarks by name and coordinates
       return !tourLandmarks.some(tourLandmark => 
         tourLandmark.name === landmark.name &&
         Math.abs(tourLandmark.coordinates[0] - landmark.coordinates[0]) < 0.0001 &&
@@ -321,27 +321,26 @@ const MapComponent: React.FC<MapProps> = ({
       if (user) {
         console.log('🗺️ [Map] Adding GeolocateControl for authenticated user');
         
-        const geolocateControl = new mapboxgl.GeolocateControl({
+        const geoControl = new mapboxgl.GeolocateControl({
           positionOptions: {
             enableHighAccuracy: true,
             timeout: 10000,
-            maximumAge: 300000
+            maximumAge: 600000 // 10 minutes
           },
           trackUserLocation: true,
           showUserHeading: true,
           showAccuracyCircle: true,
           fitBoundsOptions: {
-            maxZoom: 15,
-            padding: 50
+            maxZoom: 16
           }
         });
         
-        geolocateControlRef.current = geolocateControl;
+        geolocateControl.current = geoControl;
         
-        const controlElement = geolocateControl._container;
+        const controlElement = geoControl._container;
         if (controlElement) {
           controlElement.addEventListener('click', () => {
-            const currentState = (geolocateControl as any)._watchState;
+            const currentState = (geoControl as any)._watchState;
             console.log('🌍 GeolocateControl: Button clicked, current state:', currentState);
             userInitiatedLocationRequest.current = true;
             lastLocationEventTime.current = Date.now();
@@ -349,58 +348,50 @@ const MapComponent: React.FC<MapProps> = ({
           });
         }
         
-        geolocateControl.on('geolocate', (position: GeolocationPosition) => {
-          console.log('🎯 GeolocateControl: User location found', position.coords);
+        geoControl.on('geolocate', (e) => {
+          const currentState = (geoControl as any)._watchState;
+          console.log('🌍 GeolocateControl: Location found', { 
+            coordinates: [e.coords.longitude, e.coords.latitude],
+            state: currentState,
+            userInitiated: userInitiatedLocationRequest.current
+          });
           
-          const location: UserLocation = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            timestamp: Date.now()
-          };
+          lastLocationEventTime.current = Date.now();
           
-          setUserLocation(location);
-          
-          if (proximitySettings && !proximitySettings.is_enabled) {
-            console.log('🎯 Auto-enabling proximity monitoring after successful geolocation');
-            updateProximityEnabled(true).catch(error => {
-              console.error('❌ Failed to auto-enable proximity monitoring:', error);
-            });
+          if (!isUpdatingFromProximitySettings.current) {
+            console.log('🌍 GeolocateControl: Enabling proximity (user initiated location)');
+            updateProximityEnabled(true);
           }
         });
         
-        geolocateControl.on('trackuserlocationstart', () => {
-          console.log('🎯 GeolocateControl: Started tracking user location');
-        });
-        
-        geolocateControl.on('trackuserlocationend', () => {
-          console.log('🎯 GeolocateControl: Stopped tracking user location');
+        geoControl.on('trackuserlocationstart', () => {
+          console.log('🌍 GeolocateControl: Started tracking user location (ACTIVE state)');
+          lastLocationEventTime.current = Date.now();
           
-          if (!getTourGenerationInProgress()) {
-            console.log('🎯 Disabling proximity monitoring due to location tracking end');
-            updateProximityEnabled(false).catch(error => {
-              console.error('❌ Failed to disable proximity monitoring:', error);
-            });
-          } else {
-            console.log('🎯 Skipping proximity state change - tour generation in progress');
+          if (!isUpdatingFromProximitySettings.current) {
+            console.log('🌍 GeolocateControl: Enabling proximity (tracking started)');
+            updateProximityEnabled(true);
           }
         });
         
-        geolocateControl.on('error', (error: GeolocationPositionError) => {
-          console.error('❌ GeolocateControl error:', error);
-          
-          if (!getTourGenerationInProgress()) {
-            console.log('🎯 Disabling proximity monitoring due to geolocation error');
-            updateProximityEnabled(false).catch(updateError => {
-              console.error('❌ Failed to disable proximity monitoring after geolocation error:', updateError);
-            });
-          } else {
-            console.log('🎯 Skipping proximity state change - tour generation in progress');
+        geoControl.on('trackuserlocationend', () => {
+          console.log('🌍 GeolocateControl: Stopped tracking user location (PASSIVE/INACTIVE state)');
+          if (!isUpdatingFromProximitySettings.current) {
+            console.log('🌍 GeolocateControl: Disabling proximity (tracking ended)');
+            updateProximityEnabled(false);
           }
         });
         
-        map.current.addControl(geolocateControl, 'top-right');
-        geolocateControlRef.current = geolocateControl;
+        geoControl.on('error', (e) => {
+          console.error('🌍 GeolocateControl: Error occurred', e);
+          userInitiatedLocationRequest.current = false;
+          if (!isUpdatingFromProximitySettings.current) {
+            console.log('🌍 GeolocateControl: Disabling proximity (error occurred)');
+            updateProximityEnabled(false);
+          }
+        });
+        
+        map.current.addControl(geoControl, 'top-right');
 
         setTimeout(() => {
           const controlContainer = document.querySelector('.mapboxgl-ctrl-top-right');
@@ -574,7 +565,7 @@ const MapComponent: React.FC<MapProps> = ({
       return () => {
         console.log('🗺️ [Map] Cleanup function called');
         stopCurrentAudio();
-        geolocateControlRef.current = null;
+        geolocateControl.current = null;
         map.current?.remove();
         map.current = null;
       };
@@ -596,13 +587,7 @@ const MapComponent: React.FC<MapProps> = ({
   }, [updateBaseLandmarksLayer]);
 
   useEffect(() => {
-    if (!geolocateControlRef.current || !proximitySettings) {
-      return;
-    }
-
-    // 🔒 PROTECTION: Skip proximity sync during tour generation
-    if (getTourGenerationInProgress()) {
-      console.log('🔒 Skipping proximity settings sync - tour generation in progress');
+    if (!geolocateControl.current || !proximitySettings) {
       return;
     }
 
@@ -629,7 +614,7 @@ const MapComponent: React.FC<MapProps> = ({
     isUpdatingFromProximitySettings.current = true;
     
     try {
-      const currentWatchState = (geolocateControlRef.current as any)._watchState;
+      const currentWatchState = (geolocateControl.current as any)._watchState;
       const isCurrentlyTracking = currentWatchState === 'ACTIVE_LOCK';
       const isTransitioning = currentWatchState === 'WAITING_ACTIVE' || currentWatchState === 'BACKGROUND';
       const shouldBeTracking = proximitySettings.is_enabled;
@@ -652,14 +637,7 @@ const MapComponent: React.FC<MapProps> = ({
       
       setTimeout(() => {
         try {
-          // 🔒 PROTECTION: Block trigger() calls during tour generation
-          if (getTourGenerationInProgress()) {
-            console.log('🔒 Blocking trigger() call - tour generation in progress');
-            isUpdatingFromProximitySettings.current = false;
-            return;
-          }
-
-          const finalWatchState = (geolocateControlRef.current as any)._watchState;
+          const finalWatchState = (geolocateControl.current as any)._watchState;
           const finalIsTracking = finalWatchState === 'ACTIVE_LOCK';
           
           console.log('🔄 Final state check before sync:', {
@@ -670,22 +648,10 @@ const MapComponent: React.FC<MapProps> = ({
           
           if (shouldBeTracking && !finalIsTracking && !isTransitioning) {
             console.log('🔄 Starting GeolocateControl tracking (proximity enabled)');
-            
-            // 🔒 PROTECTION: Double-check before trigger() call
-            if (!getTourGenerationInProgress()) {
-              geolocateControlRef.current?.trigger();
-            } else {
-              console.log('🔒 Blocked trigger() call at execution time - tour generation in progress');
-            }
+            geolocateControl.current?.trigger();
           } else if (!shouldBeTracking && finalIsTracking) {
             console.log('🔄 Stopping GeolocateControl tracking (proximity disabled)');
-            
-            // 🔒 PROTECTION: Double-check before trigger() call
-            if (!getTourGenerationInProgress()) {
-              geolocateControlRef.current?.trigger();
-            } else {
-              console.log('🔒 Blocked trigger() call at execution time - tour generation in progress');
-            }
+            geolocateControl.current?.trigger();
           } else {
             console.log('🔄 No sync needed - states already match');
           }
@@ -733,6 +699,7 @@ const MapComponent: React.FC<MapProps> = ({
     });
   };
 
+  // Enhanced photo fetching function that optimally uses place_id with fallbacks
   const fetchLandmarkPhotos = async (landmark: Landmark) => {
     try {
       console.log(`🖼️ Fetching photos for landmark: ${landmark.name}`, {
@@ -742,6 +709,7 @@ const MapComponent: React.FC<MapProps> = ({
         coordinates: landmark.coordinates
       });
 
+      // Strategy 1: Use place_id if available (optimal path)
       if (landmark.placeId) {
         console.log(`🎯 Using place_id for ${landmark.name}: ${landmark.placeId}`);
         
@@ -765,14 +733,16 @@ const MapComponent: React.FC<MapProps> = ({
         console.log(`⚠️ No photos found with place_id, trying fallback methods for ${landmark.name}`);
       }
 
+      // Strategy 2: Fallback to coordinate-based search using Google Places Nearby API
       if (landmark.coordinates && landmark.coordinates.length === 2) {
         console.log(`🗺️ Trying coordinate-based search for ${landmark.name} at [${landmark.coordinates[0]}, ${landmark.coordinates[1]}]`);
         
         try {
+          // Use the supabase function for nearby search to find place_id
           const { data: nearbyData, error: nearbyError } = await supabase.functions.invoke('google-places-nearby', {
             body: {
-              coordinates: [landmark.coordinates[0], landmark.coordinates[1]],
-              radius: 50,
+              coordinates: [landmark.coordinates[0], landmark.coordinates[1]], // [longitude, latitude]
+              radius: 50, // Small radius for precise matching
               type: 'tourist_attraction'
             }
           });
@@ -805,6 +775,7 @@ const MapComponent: React.FC<MapProps> = ({
         }
       }
 
+      // Strategy 3: Fallback to text search using landmark name
       console.log(`🔍 Trying text search fallback for ${landmark.name}`);
       
       try {
@@ -815,7 +786,7 @@ const MapComponent: React.FC<MapProps> = ({
               lat: landmark.coordinates[1],
               lng: landmark.coordinates[0]
             } : undefined,
-            radius: landmark.coordinates ? 1000 : undefined
+            radius: landmark.coordinates ? 1000 : undefined // 1km radius if we have coordinates
           }
         });
 
@@ -846,6 +817,7 @@ const MapComponent: React.FC<MapProps> = ({
         console.warn(`⚠️ Text search fallback failed for ${landmark.name}:`, searchError);
       }
 
+      // Strategy 4: Final fallback - try with just the landmark data we have
       console.log(`🔄 Final fallback attempt for ${landmark.name} using available data`);
       
       try {
@@ -999,6 +971,7 @@ const MapComponent: React.FC<MapProps> = ({
     });
 
     try {
+      // Use enhanced photo fetching with place_id optimization
       const photos = await fetchLandmarkPhotos(landmark);
       const firstPhotoUrl = photos.length > 0 ? photos[0].urls.medium : undefined;
       

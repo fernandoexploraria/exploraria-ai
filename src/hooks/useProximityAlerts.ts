@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProximityAlert, ProximitySettings, UserLocation } from '@/types/proximityAlerts';
@@ -490,7 +489,7 @@ export const useProximityAlerts = () => {
     setIsSaving(true);
     
     try {
-      console.log('💾 [DEBUG] Database update DISABLED - would update proximity enabled status to:', enabled);
+      console.log('💾 Making database request to update proximity enabled status...');
       
       // Get current settings or use database defaults
       const currentSettings = globalProximityState.settings;
@@ -508,11 +507,6 @@ export const useProximityAlerts = () => {
         updateData.card_distance = currentSettings.card_distance;
       }
 
-      console.log('💾 [DEBUG] Would have sent this data to database:', updateData);
-
-      // 🚧 DEBUGGING: Database update temporarily disabled
-      // Commenting out the actual database upsert for debugging purposes
-      /*
       const { error } = await supabase
         .from('proximity_settings')
         .upsert(updateData, {
@@ -523,10 +517,9 @@ export const useProximityAlerts = () => {
         console.error('❌ Database error updating proximity enabled status:', error);
         throw error;
       }
-      */
 
-      console.log('✅ [DEBUG] Database update skipped - proximity enabled status would have been set to:', enabled);
-      // The real-time subscription will update the state automatically (if there were actual database changes)
+      console.log('✅ Successfully updated proximity enabled status in database to:', enabled);
+      // The real-time subscription will update the state automatically
     } catch (error) {
       console.error('❌ Error in updateProximityEnabled:', error);
       throw error;

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Landmark, EnhancedLandmark } from '@/data/landmarks';
-import { setTourLandmarks, clearTourMarkers, setTourGenerationInProgress } from '@/data/tourLandmarks';
+import { setTourLandmarks, clearTourMarkers } from '@/data/tourLandmarks';
 import { toast } from "sonner";
 import { supabase } from '@/integrations/supabase/client';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -82,57 +82,54 @@ export const useTourPlanner = () => {
 
     console.log('Generating enhanced tour for user:', user.id);
 
-    // Set tour generation flag to prevent location button state changes
-    setTourGenerationInProgress(true);
+    // Clear existing tour markers first
+    clearTourMarkers();
+
+    // Check if user is subscribed or within free tour limit
+    const FREE_TOUR_LIMIT = 3;
+    const toursUsed = tourStats?.tour_count || 0;
+    const isSubscribed = subscriptionData?.subscribed || false;
+    
+    console.log('Tour generation check:', { toursUsed, isSubscribed, FREE_TOUR_LIMIT, userId: user.id });
+    
+    if (!isSubscribed && toursUsed >= FREE_TOUR_LIMIT) {
+      toast.error("You've reached your free tour limit. Please subscribe to generate more tours.");
+      return;
+    }
+    
+    setIsLoading(true);
+    setError(null);
+    setTourPlan(null);
+    
+    // Initialize progress tracking
+    updateProgress({
+      phase: 'generating',
+      percentage: 0,
+      currentStep: 'Initializing tour generation...',
+      processedLandmarks: 0,
+      totalLandmarks: 0,
+      errors: []
+    });
+
+    // Local variable to track current progress for continuous animation
+    let currentProgress = 0;
+
+    const animateProgress = async (targetPercentage: number, currentStep: string, phase: ProgressState['phase']) => {
+      const steps = 8; // More steps for smoother animation
+      const increment = (targetPercentage - currentProgress) / steps;
+      
+      for (let i = 1; i <= steps; i++) {
+        await new Promise(resolve => setTimeout(resolve, 300)); // Slower delay
+        currentProgress = Math.min(currentProgress + increment, targetPercentage);
+        updateProgress({
+          phase,
+          percentage: currentProgress,
+          currentStep
+        });
+      }
+    };
 
     try {
-      // Clear existing tour markers first
-      clearTourMarkers();
-
-      // Check if user is subscribed or within free tour limit
-      const FREE_TOUR_LIMIT = 3;
-      const toursUsed = tourStats?.tour_count || 0;
-      const isSubscribed = subscriptionData?.subscribed || false;
-      
-      console.log('Tour generation check:', { toursUsed, isSubscribed, FREE_TOUR_LIMIT, userId: user.id });
-      
-      if (!isSubscribed && toursUsed >= FREE_TOUR_LIMIT) {
-        toast.error("You've reached your free tour limit. Please subscribe to generate more tours.");
-        return;
-      }
-      
-      setIsLoading(true);
-      setError(null);
-      setTourPlan(null);
-      
-      // Initialize progress tracking
-      updateProgress({
-        phase: 'generating',
-        percentage: 0,
-        currentStep: 'Initializing tour generation...',
-        processedLandmarks: 0,
-        totalLandmarks: 0,
-        errors: []
-      });
-
-      // Local variable to track current progress for continuous animation
-      let currentProgress = 0;
-
-      const animateProgress = async (targetPercentage: number, currentStep: string, phase: ProgressState['phase']) => {
-        const steps = 8; // More steps for smoother animation
-        const increment = (targetPercentage - currentProgress) / steps;
-        
-        for (let i = 1; i <= steps; i++) {
-          await new Promise(resolve => setTimeout(resolve, 300)); // Slower delay
-          currentProgress = Math.min(currentProgress + increment, targetPercentage);
-          updateProgress({
-            phase,
-            percentage: currentProgress,
-            currentStep
-          });
-        }
-      };
-
       console.log('Calling enhanced tour generation edge function...');
       
       // Phase 1: Generate landmark list with slower, more granular progress
@@ -349,8 +346,6 @@ export const useTourPlanner = () => {
       setTourPlan(null);
     } finally {
       setIsLoading(false);
-      // Clear tour generation flag when done (success or failure)
-      setTourGenerationInProgress(false);
     }
   };
 
