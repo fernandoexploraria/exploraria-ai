@@ -1,5 +1,5 @@
-
 import { UserLocation, MovementDetectionResult, GracePeriodState, ProximitySettings } from '@/types/proximityAlerts';
+import { validateGracePeriodRanges, isGracePeriodConfigurationValid } from './gracePeriodValidation';
 
 // Default constants (fallback values if settings not available)
 export const DEFAULT_GRACE_PERIOD_CONSTANTS = {
@@ -54,22 +54,30 @@ export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2
   return R * c;
 };
 
-// Enhanced logging for grace period debugging
+// Enhanced logging for grace period debugging with validation awareness
 export const logGracePeriodEvent = (
   event: string, 
   details: any = {}, 
-  level: 'info' | 'warn' | 'error' = 'info'
+  level: 'info' | 'warn' | 'error' = 'info',
+  settings?: ProximitySettings | null
 ) => {
   const timestamp = new Date().toISOString();
   const prefix = level === 'error' ? '❌' : level === 'warn' ? '⚠️' : '🕐';
   
-  console[level](`${prefix} [Grace Period] ${event}`, {
+  // Add validation status to debug info
+  let validationInfo = '';
+  if (settings) {
+    const isValid = isGracePeriodConfigurationValid(settings);
+    validationInfo = isValid ? '[VALID]' : '[INVALID CONFIG]';
+  }
+  
+  console[level](`${prefix} [Grace Period] ${validationInfo} ${event}`, {
     timestamp,
     ...details
   });
 };
 
-// Smart grace period decision making with configurable settings
+// Smart grace period decision making with validation checks
 export const shouldActivateGracePeriod = (
   reason: GracePeriodState['gracePeriodReason'],
   context: {
@@ -84,13 +92,24 @@ export const shouldActivateGracePeriod = (
 
   // Check if grace period is globally disabled
   if (settings && !settings.grace_period_enabled) {
-    logGracePeriodEvent(`Grace period globally disabled`, { reason, context }, 'info');
+    logGracePeriodEvent(`Grace period globally disabled`, { reason, context }, 'info', settings);
     return false;
+  }
+
+  // Validate grace period configuration before proceeding
+  if (settings && !isGracePeriodConfigurationValid(settings)) {
+    const validation = validateGracePeriodRanges(settings);
+    logGracePeriodEvent(`Grace period configuration invalid`, { 
+      reason, 
+      context,
+      errors: validation.errors.map(e => e.message)
+    }, 'warn', settings);
+    // Still allow grace period with invalid config, but log warning
   }
 
   // Don't stack grace periods unless it's a more important reason
   if (currentlyInGracePeriod) {
-    logGracePeriodEvent(`Grace period activation blocked - already active`, { reason, context }, 'warn');
+    logGracePeriodEvent(`Grace period activation blocked - already active`, { reason, context }, 'warn', settings);
     return false;
   }
 
@@ -100,7 +119,7 @@ export const shouldActivateGracePeriod = (
     logGracePeriodEvent(`Grace period activation blocked - too soon`, { 
       reason, 
       timeSince: timeSinceLastGracePeriod 
-    }, 'warn');
+    }, 'warn', settings);
     return false;
   }
 
@@ -118,7 +137,7 @@ export const shouldActivateGracePeriod = (
         logGracePeriodEvent(`Movement grace period activated`, { 
           distance: movementDistance,
           threshold: movementConstants.SIGNIFICANT_THRESHOLD
-        });
+        }, 'info', settings);
         return true;
       }
       return false;
@@ -126,7 +145,7 @@ export const shouldActivateGracePeriod = (
     case 'app_resume':
       // Only activate if app was backgrounded for a reasonable time
       if (backgroundDuration && backgroundDuration >= movementConstants.BACKGROUND_DETECTION) {
-        logGracePeriodEvent(`App resume grace period activated`, { backgroundDuration });
+        logGracePeriodEvent(`App resume grace period activated`, { backgroundDuration }, 'info', settings);
         return true;
       }
       return false;
@@ -136,13 +155,14 @@ export const shouldActivateGracePeriod = (
   }
 };
 
-// Debug information formatter with configurable settings
+// Debug information formatter with validation status
 export const formatGracePeriodDebugInfo = (
   gracePeriodState: GracePeriodState, 
   settings: ProximitySettings | null = null
 ) => {
   if (!gracePeriodState.gracePeriodActive) {
-    return 'Grace period: Inactive';
+    const configStatus = settings ? (isGracePeriodConfigurationValid(settings) ? '' : ' (CONFIG INVALID)') : '';
+    return `Grace period: Inactive${configStatus}`;
   }
 
   const now = Date.now();
@@ -161,6 +181,7 @@ export const formatGracePeriodDebugInfo = (
 
   const remaining = Math.max(0, duration - elapsed);
   const enabledStatus = settings?.grace_period_enabled !== false ? '' : ' (DISABLED)';
+  const configStatus = settings ? (isGracePeriodConfigurationValid(settings) ? '' : ' (CONFIG INVALID)') : '';
 
-  return `Grace period: ${gracePeriodState.gracePeriodReason} (${Math.round(remaining/1000)}s remaining)${enabledStatus}`;
+  return `Grace period: ${gracePeriodState.gracePeriodReason} (${Math.round(remaining/1000)}s remaining)${enabledStatus}${configStatus}`;
 };

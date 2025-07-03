@@ -1,4 +1,3 @@
-
 export interface ProximityAlert {
   id: string;
   user_id: string;
@@ -82,4 +81,46 @@ export interface MovementDetectionResult {
   distance: number;
   timeSinceLastCheck: number;
   shouldClearGracePeriod: boolean;
+}
+
+// Grace Period Validation Types
+export interface GracePeriodValidationError {
+  field: 'grace_period_initialization' | 'grace_period_movement' | 'grace_period_app_resume' | 'significant_movement_threshold' | 'grace_period_logic';
+  message: string;
+  currentValue?: number;
+  recommendedValue?: number;
+}
+
+export interface GracePeriodValidationResult {
+  isValid: boolean;
+  errors: GracePeriodValidationError[];
+  warnings: GracePeriodValidationError[];
+}
+
+export interface GracePeriodValidationRules {
+  initialization: { min: number; max: number };
+  movement: { min: number; max: number };
+  appResume: { min: number; max: number };
+  movementThreshold: { min: number; max: number };
+}
+
+export interface GracePeriodRecommendations {
+  conservative: {
+    initialization: number;
+    movement: number;
+    appResume: number;
+    movementThreshold: number;
+  };
+  balanced: {
+    initialization: number;
+    movement: number;
+    appResume: number;
+    movementThreshold: number;
+  };
+  aggressive: {
+    initialization: number;
+    movement: number;
+    appResume: number;
+    movementThreshold: number;
+  };
 }

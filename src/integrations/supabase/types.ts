@@ -375,10 +375,15 @@ export type Database = {
         Row: {
           card_distance: number
           created_at: string
+          grace_period_app_resume: number
+          grace_period_enabled: boolean
+          grace_period_initialization: number
+          grace_period_movement: number
           id: string
           is_enabled: boolean
           notification_distance: number
           outer_distance: number
+          significant_movement_threshold: number
           unit: string
           updated_at: string
           user_id: string
@@ -386,10 +391,15 @@ export type Database = {
         Insert: {
           card_distance?: number
           created_at?: string
+          grace_period_app_resume?: number
+          grace_period_enabled?: boolean
+          grace_period_initialization?: number
+          grace_period_movement?: number
           id?: string
           is_enabled?: boolean
           notification_distance?: number
           outer_distance?: number
+          significant_movement_threshold?: number
           unit?: string
           updated_at?: string
           user_id: string
@@ -397,10 +407,15 @@ export type Database = {
         Update: {
           card_distance?: number
           created_at?: string
+          grace_period_app_resume?: number
+          grace_period_enabled?: boolean
+          grace_period_initialization?: number
+          grace_period_movement?: number
           id?: string
           is_enabled?: boolean
           notification_distance?: number
           outer_distance?: number
+          significant_movement_threshold?: number
           unit?: string
           updated_at?: string
           user_id?: string
