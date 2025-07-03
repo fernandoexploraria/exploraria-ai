@@ -5,6 +5,8 @@ import { useAuth } from '@/components/AuthProvider';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { Landmark } from '@/data/landmarks';
 import { getGracePeriodConstants, getMovementConstants } from '@/utils/smartGracePeriod';
+import { validateGracePeriodRanges, autoCorrectGracePeriodValues } from '@/utils/gracePeriodValidation';
+import { useToast } from '@/hooks/use-toast';
 
 // Grace period constants - enhanced for smart logic
 const INITIALIZATION_GRACE_PERIOD = 15000; // 15 seconds
@@ -536,12 +538,19 @@ const convertTopLandmarkToLandmark = (topLandmark: any): Landmark => {
 
 export const useProximityAlerts = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [proximityAlerts, setProximityAlerts] = useState<ProximityAlert[]>([]);
   const [proximitySettings, setProximitySettings] = useState<ProximitySettings | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const isMountedRef = useRef(true);
+
+  // Debounce timeouts for auto-save
+  const gracePeriodInitializationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const gracePeriodMovementTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const gracePeriodAppResumeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const movementThresholdTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const combinedLandmarks = TOP_LANDMARKS.map(convertTopLandmarkToLandmark);
 
@@ -739,6 +748,12 @@ export const useProximityAlerts = () => {
         updateData.notification_distance = currentSettings.notification_distance;
         updateData.outer_distance = currentSettings.outer_distance;
         updateData.card_distance = currentSettings.card_distance;
+        // Preserve existing grace period settings
+        updateData.grace_period_initialization = currentSettings.grace_period_initialization;
+        updateData.grace_period_movement = currentSettings.grace_period_movement;
+        updateData.grace_period_app_resume = currentSettings.grace_period_app_resume;
+        updateData.significant_movement_threshold = currentSettings.significant_movement_threshold;
+        updateData.grace_period_enabled = currentSettings.grace_period_enabled;
       }
 
       if (enabled && (!currentSettings || !currentSettings.is_enabled)) {
@@ -844,6 +859,304 @@ export const useProximityAlerts = () => {
     }
   }, [user]);
 
+  // New grace period setting update functions
+  const updateGracePeriodSetting = useCallback(async (
+    settingType: 'grace_period_initialization' | 'grace_period_movement' | 'grace_period_app_resume',
+    value: number
+  ) => {
+    console.log('🎯 updateGracePeriodSetting called with:', { settingType, value, userId: user?.id });
+    
+    if (!user) {
+      console.log('❌ No user available for updateGracePeriodSetting');
+      throw new Error('No user available');
+    }
+
+    const currentSettings = globalProximityState.settings;
+    
+    if (!currentSettings) {
+      console.log('❌ No current settings available for updateGracePeriodSetting');
+      throw new Error('No proximity settings found');
+    }
+
+    // Create updated settings for validation
+    const updatedSettings = {
+      ...currentSettings,
+      [settingType]: value
+    };
+
+    // Validate the new settings
+    const validation = validateGracePeriodRanges(updatedSettings);
+    if (!validation.isValid) {
+      const errorMessage = validation.errors.map(e => e.message).join('; ');
+      console.error('❌ Grace period validation failed:', errorMessage);
+      
+      toast({
+        title: "Invalid Grace Period Setting",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      
+      throw new Error(errorMessage);
+    }
+
+    setIsSaving(true);
+    try {
+      console.log('💾 Making database request to update grace period setting...');
+      
+      const updateData = {
+        user_id: user.id,
+        is_enabled: currentSettings.is_enabled,
+        notification_distance: currentSettings.notification_distance,
+        outer_distance: currentSettings.outer_distance,
+        card_distance: currentSettings.card_distance,
+        grace_period_initialization: updatedSettings.grace_period_initialization,
+        grace_period_movement: updatedSettings.grace_period_movement,
+        grace_period_app_resume: updatedSettings.grace_period_app_resume,
+        significant_movement_threshold: currentSettings.significant_movement_threshold,
+        grace_period_enabled: currentSettings.grace_period_enabled,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase
+        .from('proximity_settings')
+        .upsert(updateData, {
+          onConflict: 'user_id'
+        });
+
+      if (error) {
+        console.error('❌ Database error updating grace period setting:', error);
+        throw error;
+      }
+
+      console.log('✅ Successfully updated grace period setting in database:', settingType, value);
+      
+      // Show success message with warnings if any
+      if (validation.warnings.length > 0) {
+        const warningMessage = validation.warnings.map(w => w.message).join('; ');
+        toast({
+          title: "Grace Period Updated",
+          description: `Setting updated successfully. Note: ${warningMessage}`,
+          variant: "default",
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error in updateGracePeriodSetting:', error);
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [user, toast]);
+
+  const updateMovementThreshold = useCallback(async (threshold: number) => {
+    console.log('🎯 updateMovementThreshold called with:', { threshold, userId: user?.id });
+    
+    if (!user) {
+      console.log('❌ No user available for updateMovementThreshold');
+      throw new Error('No user available');
+    }
+
+    const currentSettings = globalProximityState.settings;
+    
+    if (!currentSettings) {
+      console.log('❌ No current settings available for updateMovementThreshold');
+      throw new Error('No proximity settings found');
+    }
+
+    // Create updated settings for validation
+    const updatedSettings = {
+      ...currentSettings,
+      significant_movement_threshold: threshold
+    };
+
+    // Validate the new settings
+    const validation = validateGracePeriodRanges(updatedSettings);
+    if (!validation.isValid) {
+      const errorMessage = validation.errors.map(e => e.message).join('; ');
+      console.error('❌ Movement threshold validation failed:', errorMessage);
+      
+      toast({
+        title: "Invalid Movement Threshold",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      
+      throw new Error(errorMessage);
+    }
+
+    setIsSaving(true);
+    try {
+      console.log('💾 Making database request to update movement threshold...');
+      
+      const updateData = {
+        user_id: user.id,
+        is_enabled: currentSettings.is_enabled,
+        notification_distance: currentSettings.notification_distance,
+        outer_distance: currentSettings.outer_distance,
+        card_distance: currentSettings.card_distance,
+        grace_period_initialization: currentSettings.grace_period_initialization,
+        grace_period_movement: currentSettings.grace_period_movement,
+        grace_period_app_resume: currentSettings.grace_period_app_resume,
+        significant_movement_threshold: threshold,
+        grace_period_enabled: currentSettings.grace_period_enabled,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase
+        .from('proximity_settings')
+        .upsert(updateData, {
+          onConflict: 'user_id'
+        });
+
+      if (error) {
+        console.error('❌ Database error updating movement threshold:', error);
+        throw error;
+      }
+
+      console.log('✅ Successfully updated movement threshold in database:', threshold);
+    } catch (error) {
+      console.error('❌ Error in updateMovementThreshold:', error);
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [user, toast]);
+
+  const updateGracePeriodEnabled = useCallback(async (enabled: boolean) => {
+    console.log('🎯 updateGracePeriodEnabled called with:', { enabled, userId: user?.id });
+    
+    if (!user) {
+      console.log('❌ No user available for updateGracePeriodEnabled');
+      throw new Error('No user available');
+    }
+
+    const currentSettings = globalProximityState.settings;
+    
+    if (!currentSettings) {
+      console.log('❌ No current settings available for updateGracePeriodEnabled');
+      throw new Error('No proximity settings found');
+    }
+
+    setIsSaving(true);
+    try {
+      console.log('💾 Making database request to update grace period enabled status...');
+      
+      const updateData = {
+        user_id: user.id,
+        is_enabled: currentSettings.is_enabled,
+        notification_distance: currentSettings.notification_distance,
+        outer_distance: currentSettings.outer_distance,
+        card_distance: currentSettings.card_distance,
+        grace_period_initialization: currentSettings.grace_period_initialization,
+        grace_period_movement: currentSettings.grace_period_movement,
+        grace_period_app_resume: currentSettings.grace_period_app_resume,
+        significant_movement_threshold: currentSettings.significant_movement_threshold,
+        grace_period_enabled: enabled,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase
+        .from('proximity_settings')
+        .upsert(updateData, {
+          onConflict: 'user_id'
+        });
+
+      if (error) {
+        console.error('❌ Database error updating grace period enabled status:', error);
+        throw error;
+      }
+
+      console.log('✅ Successfully updated grace period enabled status in database:', enabled);
+      
+      // Clear grace period if disabled
+      if (!enabled) {
+        clearGracePeriod();
+        console.log('🕐 Grace period disabled - clearing active grace period');
+      }
+    } catch (error) {
+      console.error('❌ Error in updateGracePeriodEnabled:', error);
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [user]);
+
+  // Auto-save logic with debouncing for grace period settings
+  useEffect(() => {
+    if (!proximitySettings || !user || isSaving) return;
+
+    if (gracePeriodInitializationTimeoutRef.current) {
+      clearTimeout(gracePeriodInitializationTimeoutRef.current);
+    }
+
+    gracePeriodInitializationTimeoutRef.current = setTimeout(() => {
+      // This will be triggered by external changes to proximitySettings
+      // The actual auto-save will be handled by the UI components
+    }, 500);
+
+    return () => {
+      if (gracePeriodInitializationTimeoutRef.current) {
+        clearTimeout(gracePeriodInitializationTimeoutRef.current);
+      }
+    };
+  }, [proximitySettings?.grace_period_initialization, user, isSaving]);
+
+  useEffect(() => {
+    if (!proximitySettings || !user || isSaving) return;
+
+    if (gracePeriodMovementTimeoutRef.current) {
+      clearTimeout(gracePeriodMovementTimeoutRef.current);
+    }
+
+    gracePeriodMovementTimeoutRef.current = setTimeout(() => {
+      // This will be triggered by external changes to proximitySettings
+      // The actual auto-save will be handled by the UI components
+    }, 500);
+
+    return () => {
+      if (gracePeriodMovementTimeoutRef.current) {
+        clearTimeout(gracePeriodMovementTimeoutRef.current);
+      }
+    };
+  }, [proximitySettings?.grace_period_movement, user, isSaving]);
+
+  useEffect(() => {
+    if (!proximitySettings || !user || isSaving) return;
+
+    if (gracePeriodAppResumeTimeoutRef.current) {
+      clearTimeout(gracePeriodAppResumeTimeoutRef.current);
+    }
+
+    gracePeriodAppResumeTimeoutRef.current = setTimeout(() => {
+      // This will be triggered by external changes to proximitySettings
+      // The actual auto-save will be handled by the UI components
+    }, 500);
+
+    return () => {
+      if (gracePeriodAppResumeTimeoutRef.current) {
+        clearTimeout(gracePeriodAppResumeTimeoutRef.current);
+      }
+    };
+  }, [proximitySettings?.grace_period_app_resume, user, isSaving]);
+
+  useEffect(() => {
+    if (!proximitySettings || !user || isSaving) return;
+
+    if (movementThresholdTimeoutRef.current) {
+      clearTimeout(movementThresholdTimeoutRef.current);
+    }
+
+    movementThresholdTimeoutRef.current = setTimeout(() => {
+      // This will be triggered by external changes to proximitySettings
+      // The actual auto-save will be handled by the UI components
+    }, 500);
+
+    return () => {
+      if (movementThresholdTimeoutRef.current) {
+        clearTimeout(movementThresholdTimeoutRef.current);
+      }
+    };
+  }, [proximitySettings?.significant_movement_threshold, user, isSaving]);
+
   const updateUserLocation = useCallback((location: UserLocation) => {
     handleLocationUpdate(location);
   }, [handleLocationUpdate]);
@@ -914,5 +1227,9 @@ export const useProximityAlerts = () => {
     loadProximityAlerts,
     updateProximityEnabled,
     updateDistanceSetting,
+    // New grace period update functions
+    updateGracePeriodSetting,
+    updateMovementThreshold,
+    updateGracePeriodEnabled,
   };
 };
