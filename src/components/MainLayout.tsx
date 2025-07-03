@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Map from '@/components/Map';
 import TopControls from '@/components/TopControls';
 import UserControls from '@/components/UserControls';
@@ -68,7 +68,19 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 }) => {
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
   const { userLocation } = useLocationTracking();
-  const { activeCards, closeProximityCard, showRouteToService } = useProximityNotifications();
+  const { activeCards, closeProximityCard, showRouteToService, isActiveInstance } = useProximityNotifications();
+  
+  // Instance tracking for debugging
+  const instanceIdRef = useRef(`layout-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+  
+  useEffect(() => {
+    console.log(`🏗️ MainLayout instance ${instanceIdRef.current} mounted`);
+    console.log(`🎯 Proximity notifications active instance: ${isActiveInstance}`);
+    
+    return () => {
+      console.log(`🏗️ MainLayout instance ${instanceIdRef.current} unmounted`);
+    };
+  }, [isActiveInstance]);
   
   // Debug state for test proximity card
   const [debugProximityCard, setDebugProximityCard] = useState<Landmark | null>(null);
@@ -102,14 +114,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
   // Handle test proximity card display
   const handleTestProximityCard = () => {
-    console.log('🧪 Debug: Creating test proximity card for Fuente de los Coyotes');
+    console.log(`🧪 [${instanceIdRef.current}] Debug: Creating test proximity card for Fuente de los Coyotes`);
     const testLandmark = createTestLandmark();
     setDebugProximityCard(testLandmark);
   };
 
   // Close debug proximity card
   const closeDebugProximityCard = () => {
-    console.log('🧪 Debug: Closing test proximity card');
+    console.log(`🧪 [${instanceIdRef.current}] Debug: Closing test proximity card`);
     setDebugProximityCard(null);
   };
 
@@ -215,7 +227,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       )}
 
       {/* Regular Floating Proximity Cards - Convert TourLandmark to Landmark */}
-      {Object.entries(activeCards).map(([landmarkId, tourLandmark], index) => (
+      {/* Only render if this is the active proximity instance */}
+      {isActiveInstance && Object.entries(activeCards).map(([landmarkId, tourLandmark], index) => (
         <div
           key={landmarkId}
           style={{
