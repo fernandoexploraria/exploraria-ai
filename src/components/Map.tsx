@@ -18,6 +18,7 @@ import { PhotoData } from '@/hooks/useEnhancedPhotos';
 import { PhotoCarousel } from './photo-carousel';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { getEnhancedLandmarkText } from '@/utils/landmarkPromptUtils';
+import OptimalRouteButton from './OptimalRouteButton';
 
 interface MapProps {
   mapboxToken: string;
@@ -33,6 +34,8 @@ const TOP_LANDMARKS_SOURCE_ID = 'top-landmarks-source';
 const TOP_LANDMARKS_LAYER_ID = 'top-landmarks-layer';
 const BASE_LANDMARKS_SOURCE_ID = 'base-landmarks-source';
 const BASE_LANDMARKS_LAYER_ID = 'base-landmarks-layer';
+const OPTIMAL_ROUTE_SOURCE_ID = 'optimal-route-source';
+const OPTIMAL_ROUTE_LAYER_ID = 'optimal-route-layer';
 
 const MapComponent: React.FC<MapProps> = ({ 
   mapboxToken, 
@@ -52,8 +55,11 @@ const MapComponent: React.FC<MapProps> = ({
   const currentAudio = useRef<HTMLAudioElement | null>(null);
   const navigationMarkers = useRef<{ marker: mapboxgl.Marker; interaction: any }[]>([]);
   const currentRouteLayer = useRef<string | null>(null);
+  const optimalRouteButton = useRef<HTMLDivElement | null>(null);
   
   const [tourLandmarks, setTourLandmarks] = useState<TourLandmark[]>([]);
+  const [loadingOptimalRoute, setLoadingOptimalRoute] = useState(false);
+  const [optimalRouteData, setOptimalRouteData] = useState<any>(null);
   
   const geolocateControl = useRef<mapboxgl.GeolocateControl | null>(null);
   const isUpdatingFromProximitySettings = useRef<boolean>(false);
@@ -64,7 +70,7 @@ const MapComponent: React.FC<MapProps> = ({
   const { user } = useAuth();
   const { updateProximityEnabled, proximitySettings } = useProximityAlerts();
   const { fetchLandmarkPhotos: fetchPhotosWithHook } = useLandmarkPhotos();
-  const { locationState } = useLocationTracking();
+  const { locationState, userLocation } = useLocationTracking();
   
   const { getCachedData } = useStreetView();
   const { getStreetViewWithOfflineSupport } = useEnhancedStreetView();
@@ -128,6 +134,85 @@ const MapComponent: React.FC<MapProps> = ({
         return null;
     }
   }, [landmarks]);
+
+  const calculateOptimalRoute = useCallback(async () => {
+    if (!user || !map.current || tourLandmarks.length === 0) {
+      console.log('Cannot calculate optimal route: missing requirements');
+      return;
+    }
+
+    const currentUserLocation = userLocation;
+    if (!currentUserLocation) {
+      console.log('User location not available for optimal route');
+      return;
+    }
+
+    setLoadingOptimalRoute(true);
+    
+    // Clear existing optimal route
+    const routeSource = map.current.getSource(OPTIMAL_ROUTE_SOURCE_ID) as mapboxgl.GeoJSONSource;
+    if (routeSource) {
+      routeSource.setData({ type: 'FeatureCollection', features: [] });
+    }
+
+    try {
+      console.log('Calculating optimal route for', tourLandmarks.length, 'landmarks');
+      
+      const { data, error } = await supabase.functions.invoke('mapbox-optimization', {
+        body: {
+          userLocation: {
+            longitude: currentUserLocation.longitude,
+            latitude: currentUserLocation.latitude
+          },
+          landmarks: tourLandmarks.map(landmark => ({
+            ...landmark,
+            coordinates: landmark.coordinates
+          })),
+          profile: 'walking'
+        }
+      });
+
+      if (error) {
+        console.error('Error calculating optimal route:', error);
+        return;
+      }
+
+      if (!data?.success || !data?.route) {
+        console.error('Invalid optimal route response:', data);
+        return;
+      }
+
+      setOptimalRouteData(data);
+      
+      // Display the route on the map
+      if (routeSource && data.route.geometry) {
+        routeSource.setData({
+          type: 'Feature',
+          properties: {
+            distance: data.summary.totalDistance,
+            duration: data.summary.totalDuration
+          },
+          geometry: data.route.geometry
+        });
+
+        // Fit map to show the entire route
+        const bounds = new mapboxgl.LngLatBounds();
+        bounds.extend([currentUserLocation.longitude, currentUserLocation.latitude]);
+        data.route.geometry.coordinates.forEach((coord: [number, number]) => {
+          bounds.extend(coord);
+        });
+        
+        map.current.fitBounds(bounds, { padding: 50 });
+      }
+
+      console.log('Optimal route calculated:', data.summary);
+      
+    } catch (error) {
+      console.error('Failed to calculate optimal route:', error);
+    } finally {
+      setLoadingOptimalRoute(false);
+    }
+  }, [user, tourLandmarks, userLocation]);
 
   const updateTourLandmarksLayer = useCallback(() => {
     if (!map.current) return;
@@ -246,6 +331,20 @@ const MapComponent: React.FC<MapProps> = ({
 
     return () => clearInterval(interval);
   }, [tourLandmarks.length]);
+
+  // Update optimal route button when state changes
+  useEffect(() => {
+    if (optimalRouteButton.current) {
+      const root = ReactDOM.createRoot(optimalRouteButton.current);
+      root.render(
+        <OptimalRouteButton
+          onClick={calculateOptimalRoute}
+          loading={loadingOptimalRoute}
+          disabled={tourLandmarks.length === 0 || !user}
+        />
+      );
+    }
+  }, [loadingOptimalRoute, tourLandmarks.length, user, calculateOptimalRoute]);
 
   const storeMapMarkerInteraction = async (landmark: Landmark, imageUrl?: string) => {
     if (!user) {
@@ -393,10 +492,28 @@ const MapComponent: React.FC<MapProps> = ({
         
         map.current.addControl(geoControl, 'top-right');
 
+        // Add optimal route button below the geolocate control
         setTimeout(() => {
           const controlContainer = document.querySelector('.mapboxgl-ctrl-top-right');
           if (controlContainer) {
             (controlContainer as HTMLElement).style.top = '10px';
+            
+            // Create optimal route button container
+            const buttonContainer = document.createElement('div');
+            buttonContainer.style.marginTop = '10px';
+            optimalRouteButton.current = buttonContainer;
+            
+            // Render the OptimalRouteButton component
+            const root = ReactDOM.createRoot(buttonContainer);
+            root.render(
+              <OptimalRouteButton
+                onClick={calculateOptimalRoute}
+                loading={loadingOptimalRoute}
+                disabled={tourLandmarks.length === 0 || !user}
+              />
+            );
+            
+            controlContainer.appendChild(buttonContainer);
           }
         }, 100);
       }
@@ -459,6 +576,28 @@ const MapComponent: React.FC<MapProps> = ({
             'circle-color': '#a855f7',
             'circle-stroke-color': '#ffffff',
             'circle-stroke-width': 2
+          }
+        });
+        
+        // Add optimal route source and layer
+        map.current.addSource(OPTIMAL_ROUTE_SOURCE_ID, {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
+        
+        map.current.addLayer({
+          id: OPTIMAL_ROUTE_LAYER_ID,
+          type: 'line',
+          source: OPTIMAL_ROUTE_SOURCE_ID,
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': '#2563eb',
+            'line-width': 4,
+            'line-opacity': 0.8,
+            'line-dasharray': [2, 2]
           }
         });
         
@@ -566,6 +705,10 @@ const MapComponent: React.FC<MapProps> = ({
         console.log('🗺️ [Map] Cleanup function called');
         stopCurrentAudio();
         geolocateControl.current = null;
+        if (optimalRouteButton.current) {
+          optimalRouteButton.current.remove();
+          optimalRouteButton.current = null;
+        }
         map.current?.remove();
         map.current = null;
       };
