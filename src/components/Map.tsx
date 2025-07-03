@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
 import mapboxgl from 'mapbox-gl';
@@ -653,6 +652,13 @@ const MapComponent: React.FC<MapProps> = ({
       
       setTimeout(() => {
         try {
+          // 🔒 PROTECTION: Block trigger() calls during tour generation
+          if (getTourGenerationInProgress()) {
+            console.log('🔒 Blocking trigger() call - tour generation in progress');
+            isUpdatingFromProximitySettings.current = false;
+            return;
+          }
+
           const finalWatchState = (geolocateControlRef.current as any)._watchState;
           const finalIsTracking = finalWatchState === 'ACTIVE_LOCK';
           
@@ -664,10 +670,22 @@ const MapComponent: React.FC<MapProps> = ({
           
           if (shouldBeTracking && !finalIsTracking && !isTransitioning) {
             console.log('🔄 Starting GeolocateControl tracking (proximity enabled)');
-            geolocateControlRef.current?.trigger();
+            
+            // 🔒 PROTECTION: Double-check before trigger() call
+            if (!getTourGenerationInProgress()) {
+              geolocateControlRef.current?.trigger();
+            } else {
+              console.log('🔒 Blocked trigger() call at execution time - tour generation in progress');
+            }
           } else if (!shouldBeTracking && finalIsTracking) {
             console.log('🔄 Stopping GeolocateControl tracking (proximity disabled)');
-            geolocateControlRef.current?.trigger();
+            
+            // 🔒 PROTECTION: Double-check before trigger() call
+            if (!getTourGenerationInProgress()) {
+              geolocateControlRef.current?.trigger();
+            } else {
+              console.log('🔒 Blocked trigger() call at execution time - tour generation in progress');
+            }
           } else {
             console.log('🔄 No sync needed - states already match');
           }
