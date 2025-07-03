@@ -312,15 +312,6 @@ export const useProximityNotifications = () => {
     }
   }, [preloadStreetView, saveNotificationState, isActiveInstance]);
 
-  // Check if card cooldown has passed
-  const canShowCard = useCallback((placeId: string): boolean => {
-    const lastCard = cardStateRef.current[placeId];
-    if (!lastCard) return true;
-    
-    const timeSinceLastCard = Date.now() - lastCard.timestamp;
-    return timeSinceLastCard >= CARD_COOLDOWN;
-  }, []);
-
   // Handle card zone entry - FIXED: Apply cooldown-first pattern
   const showProximityCard = useCallback((landmark: TourLandmark) => {
     if (!isActiveInstance) return;
