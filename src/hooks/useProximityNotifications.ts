@@ -43,8 +43,6 @@ export const useProximityNotifications = () => {
   const cardStateRef = useRef<CardState>({});
   const previousNearbyLandmarksRef = useRef<Set<string>>(new Set());
   const previousCardZoneLandmarksRef = useRef<Set<string>>(new Set());
-  // Add processing tracker to prevent duplicate notifications
-  const activelyProcessingRef = useRef<Set<string>>(new Set());
 
   // State for active proximity cards - use placeId as key
   const [activeCards, setActiveCards] = useState<{[placeId: string]: TourLandmark}>({});
@@ -227,12 +225,6 @@ export const useProximityNotifications = () => {
   // Handle prep zone entry and Street View pre-loading
   const handlePrepZoneEntry = useCallback(async (landmark: TourLandmark) => {
     const placeId = landmark.placeId;
-    
-    // Check if already processing
-    if (activelyProcessingRef.current.has(placeId)) {
-      return;
-    }
-    
     const prepState = prepZoneStateRef.current[placeId];
 
     // Check if we've already handled this landmark's prep zone
@@ -240,49 +232,41 @@ export const useProximityNotifications = () => {
       return;
     }
 
-    // Mark as processing
-    activelyProcessingRef.current.add(placeId);
+    console.log(`🎯 Entered prep zone for ${landmark.name} - starting Street View pre-load`);
 
+    // Update prep zone state
+    prepZoneStateRef.current[placeId] = {
+      entered: true,
+      streetViewPreloaded: false,
+      timestamp: Date.now()
+    };
+
+    // Start Street View pre-loading in the background - convert to Landmark format
     try {
-      console.log(`🎯 Entered prep zone for ${landmark.name} - starting Street View pre-load`);
-
-      // Update prep zone state
+      const landmarkForPreload = {
+        id: landmark.id || landmark.placeId,
+        name: landmark.name,
+        coordinates: landmark.coordinates,
+        description: landmark.description,
+        rating: landmark.rating,
+        photos: landmark.photos,
+        types: landmark.types,
+        placeId: landmark.placeId,
+        formattedAddress: landmark.formattedAddress
+      };
+      
+      await preloadStreetView(landmarkForPreload);
+      
+      // Update state to indicate Street View is preloaded
       prepZoneStateRef.current[placeId] = {
-        entered: true,
-        streetViewPreloaded: false,
-        timestamp: Date.now()
+        ...prepZoneStateRef.current[placeId],
+        streetViewPreloaded: true
       };
 
-      // Start Street View pre-loading in the background - convert to Landmark format
-      try {
-        const landmarkForPreload = {
-          id: landmark.id || landmark.placeId,
-          name: landmark.name,
-          coordinates: landmark.coordinates,
-          description: landmark.description,
-          rating: landmark.rating,
-          photos: landmark.photos,
-          types: landmark.types,
-          placeId: landmark.placeId,
-          formattedAddress: landmark.formattedAddress
-        };
-        
-        await preloadStreetView(landmarkForPreload);
-        
-        // Update state to indicate Street View is preloaded
-        prepZoneStateRef.current[placeId] = {
-          ...prepZoneStateRef.current[placeId],
-          streetViewPreloaded: true
-        };
-
-        console.log(`✅ Street View pre-loaded for ${landmark.name}`);
-        saveNotificationState();
-      } catch (error) {
-        console.error(`❌ Failed to pre-load Street View for ${landmark.name}:`, error);
-      }
-    } finally {
-      // Remove from processing set
-      activelyProcessingRef.current.delete(placeId);
+      console.log(`✅ Street View pre-loaded for ${landmark.name}`);
+      saveNotificationState();
+    } catch (error) {
+      console.error(`❌ Failed to pre-load Street View for ${landmark.name}:`, error);
     }
   }, [preloadStreetView, saveNotificationState]);
 
@@ -290,39 +274,26 @@ export const useProximityNotifications = () => {
   const showProximityCard = useCallback((landmark: TourLandmark) => {
     const placeId = landmark.placeId;
     
-    // Check if already processing
-    if (activelyProcessingRef.current.has(placeId)) {
-      return;
-    }
-    
     if (!canShowCard(placeId)) {
       console.log(`🏪 Card for ${landmark.name} still in cooldown`);
       return;
     }
 
-    // Mark as processing
-    activelyProcessingRef.current.add(placeId);
+    console.log(`🏪 Showing proximity card for ${landmark.name}`);
 
-    try {
-      console.log(`🏪 Showing proximity card for ${landmark.name}`);
+    // Update card state
+    cardStateRef.current[placeId] = {
+      shown: true,
+      timestamp: Date.now()
+    };
 
-      // Update card state
-      cardStateRef.current[placeId] = {
-        shown: true,
-        timestamp: Date.now()
-      };
+    // Add to active cards
+    setActiveCards(prev => ({
+      ...prev,
+      [placeId]: landmark
+    }));
 
-      // Add to active cards
-      setActiveCards(prev => ({
-        ...prev,
-        [placeId]: landmark
-      }));
-
-      saveNotificationState();
-    } finally {
-      // Remove from processing set
-      activelyProcessingRef.current.delete(placeId);
-    }
+    saveNotificationState();
   }, [canShowCard, saveNotificationState]);
 
   // Function to close a proximity card
@@ -338,58 +309,43 @@ export const useProximityNotifications = () => {
 
   // Show proximity toast notification with sound, TTS, and Street View
   const showProximityToast = useCallback(async (landmark: TourLandmark, distance: number) => {
-    const placeId = landmark.placeId;
-    
-    // Check if already processing
-    if (activelyProcessingRef.current.has(placeId)) {
-      return;
-    }
+    const formattedDistance = distance >= 1000 
+      ? `${(distance / 1000).toFixed(1)} km` 
+      : `${Math.round(distance)} m`;
 
-    // Mark as processing
-    activelyProcessingRef.current.add(placeId);
+    console.log(`🔔 Showing proximity notification for ${landmark.name} at ${formattedDistance}`);
 
+    // Play notification sound first
+    playNotificationSound();
+
+    // Speak landmark name with TTS (brief announcement)
+    const ttsText = `Approaching ${landmark.name}`;
     try {
-      const formattedDistance = distance >= 1000 
-        ? `${(distance / 1000).toFixed(1)} km` 
-        : `${Math.round(distance)} m`;
-
-      console.log(`🔔 Showing proximity notification for ${landmark.name} at ${formattedDistance}`);
-
-      // Play notification sound first
-      playNotificationSound();
-
-      // Speak landmark name with TTS (brief announcement)
-      const ttsText = `Approaching ${landmark.name}`;
-      try {
-        await speak(ttsText, false);
-      } catch (error) {
-        console.log('TTS announcement failed:', error);
-      }
-
-      // Check if Street View is pre-loaded for enhanced toast
-      const streetViewData = getCachedData(landmark.id || landmark.placeId);
-      const hasStreetView = !!streetViewData;
-
-      // Show visual toast with optional Street View enhancement
-      toast(`🗺️ ${landmark.name}`, {
-        description: `You're ${formattedDistance} away${hasStreetView ? ' • Street View ready' : ''} • ${landmark.description.substring(0, 100)}${landmark.description.length > 100 ? '...' : ''}`,
-        duration: 8000,
-        action: {
-          label: 'Get Me There',
-          onClick: () => {
-            console.log(`User clicked "Get Me There" for ${landmark.name}`);
-            showRouteToLandmark(landmark);
-          }
-        }
-      });
-
-      // Record notification
-      notificationStateRef.current[landmark.placeId] = Date.now();
-      saveNotificationState();
-    } finally {
-      // Remove from processing set
-      activelyProcessingRef.current.delete(placeId);
+      await speak(ttsText, false);
+    } catch (error) {
+      console.log('TTS announcement failed:', error);
     }
+
+    // Check if Street View is pre-loaded for enhanced toast
+    const streetViewData = getCachedData(landmark.id || landmark.placeId);
+    const hasStreetView = !!streetViewData;
+
+    // Show visual toast with optional Street View enhancement
+    toast(`🗺️ ${landmark.name}`, {
+      description: `You're ${formattedDistance} away${hasStreetView ? ' • Street View ready' : ''} • ${landmark.description.substring(0, 100)}${landmark.description.length > 100 ? '...' : ''}`,
+      duration: 8000,
+      action: {
+        label: 'Get Me There',
+        onClick: () => {
+          console.log(`User clicked "Get Me There" for ${landmark.name}`);
+          showRouteToLandmark(landmark);
+        }
+      }
+    });
+
+    // Record notification
+    notificationStateRef.current[landmark.placeId] = Date.now();
+    saveNotificationState();
   }, [saveNotificationState, showRouteToLandmark, playNotificationSound, speak, getCachedData]);
 
   // Monitor prep zone entries - only when settings are ready
