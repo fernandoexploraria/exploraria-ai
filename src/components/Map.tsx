@@ -30,7 +30,6 @@ const UPDATE_PRIORITIES: Record<UpdateSource, number> = {
 };
 
 interface MapProps {
-  mapboxToken?: string;
   landmarks?: Landmark[];
   onSelectLandmark?: (landmark: Landmark) => void;
   selectedLandmark?: Landmark | null;
@@ -66,8 +65,8 @@ const Map: React.FC<MapProps> = ({
   const lastUpdateSource = useRef<UpdateSource>('System');
   const lastUpdateTimestamp = useRef<number>(0);
 
-  // Tracking state
-  const isTracking = locationState === 'tracking';
+  // Fix: Access the correct property from locationState
+  const isTracking = locationState.isTracking;
 
   // Debug and monitoring state
   const [debugInfo, setDebugInfo] = useState<{
@@ -79,6 +78,10 @@ const Map: React.FC<MapProps> = ({
     lastEventType: 'none',
     flagStates: {}
   });
+
+  // Add state for ProximityAutocomplete
+  const [autocompleteQuery, setAutocompleteQuery] = useState('');
+  const [showProximitySearch, setShowProximitySearch] = useState(false);
 
   // Priority-based update coordination
   const getUpdatePriority = useCallback((source: string): number => {
@@ -355,12 +358,6 @@ const Map: React.FC<MapProps> = ({
           .setLngLat([longitude, latitude])
           .addTo(map.current);
       }
-
-      // Optionally, center the map on the user's location
-      // map.current.flyTo({
-      //   center: [longitude, latitude],
-      //   essential: true // this animation is considered essential with respect to prefers-reduced-motion
-      // });
     }
 
     return () => {
@@ -396,6 +393,18 @@ const Map: React.FC<MapProps> = ({
       proximityMarkers.current = [];
     };
   }, [nearbyLandmarks]);
+
+  // Handler for autocomplete suggestion selection
+  const handleSuggestionSelect = useCallback((suggestion: any) => {
+    console.log('Selected suggestion:', suggestion);
+    // Handle the selected suggestion here
+  }, []);
+
+  // Handler for proximity search place selection
+  const handlePlaceSelect = useCallback((place: any) => {
+    console.log('Selected place:', place);
+    setShowProximitySearch(false);
+  }, []);
 
   // Debug panel in development
   const DebugPanel = () => {
@@ -435,16 +444,42 @@ const Map: React.FC<MapProps> = ({
         </Button>
       </div>
 
-      {/* Floating Proximity Card */}
-      <FloatingProximityCard />
+      {/* Floating Proximity Card - Only show if we have nearby landmarks */}
+      {nearbyLandmarks && nearbyLandmarks.length > 0 && userLocation && (
+        <FloatingProximityCard 
+          landmark={nearbyLandmarks[0].landmark}
+          userLocation={userLocation}
+          onClose={() => console.log('Closing proximity card')}
+          onGetDirections={(landmark) => console.log('Getting directions to:', landmark)}
+        />
+      )}
       
       {/* Bottom Controls */}
       <div className="absolute bottom-4 left-4 right-4 z-10">
-        <ProximityAutocomplete />
+        <ProximityAutocomplete 
+          onSuggestionSelect={handleSuggestionSelect}
+          value={autocompleteQuery}
+          onChange={setAutocompleteQuery}
+          locationBias={userLocation ? {
+            circle: {
+              center: {
+                latitude: userLocation.latitude,
+                longitude: userLocation.longitude
+              },
+              radius: 1000
+            }
+          } : undefined}
+        />
       </div>
       
       {/* Proximity Search */}
-      <ProximitySearch />
+      {showProximitySearch && userLocation && (
+        <ProximitySearch 
+          coordinates={[userLocation.longitude, userLocation.latitude]}
+          onClose={() => setShowProximitySearch(false)}
+          onSelectPlace={handlePlaceSelect}
+        />
+      )}
       
       {/* Offline Indicator */}
       <OfflineIndicator />
