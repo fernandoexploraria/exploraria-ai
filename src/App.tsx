@@ -31,6 +31,9 @@ const App = () => {
     }
   };
 
+  // Add console logging to detect StrictMode double-mounting
+  console.log('🔧 App component mounting/rendering at:', new Date().toISOString());
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

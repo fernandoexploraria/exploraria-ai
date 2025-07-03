@@ -1,20 +1,18 @@
-
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React from 'react';
+import { X, MapPin, Eye, Timer, Target, Route, Bell, Camera, TestTube, Loader2, Database, Wifi, WifiOff, CreditCard } from 'lucide-react';
+import { useProximityAlerts } from '@/hooks/useProximityAlerts';
+import { useLocationTracking } from '@/hooks/useLocationTracking';
+import { useNearbyLandmarks } from '@/hooks/useNearbyLandmarks';
+import { useStreetViewNavigation } from '@/hooks/useStreetViewNavigation';
+import { useEnhancedStreetViewMulti } from '@/hooks/useEnhancedStreetViewMulti';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useProximityNotifications } from '@/hooks/useProximityNotifications';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { X, RefreshCw, Activity, Timer, History } from 'lucide-react';
-import { useProximityAlerts } from '@/hooks/useProximityAlerts';
-import { useTourPlanner } from '@/hooks/useTourPlanner';
-import { useConnectionMonitor } from '@/hooks/useConnectionMonitor';
-import GracePeriodDebugPanel from '@/components/debug/GracePeriodDebugPanel';
-import { useDebugWindow } from '@/hooks/useDebugWindow';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { networkSimulator, NETWORK_CONDITIONS, testStrategySelection, performanceTimer } from '@/utils/networkSimulator';
-import { CacheTestUtils, performanceBenchmark } from '@/utils/streetViewTestUtils';
-import { gracePeriodHistory, GracePeriodHistoryEntry } from '@/utils/gracePeriodHistory';
-import { getGracePeriodPresetName, formatGracePeriodDebugInfo } from '@/utils/smartGracePeriod';
+import EnhancedStreetViewModal from '@/components/EnhancedStreetViewModal';
+import PlacesApiTestPanel from '@/components/PlacesApiTestPanel';
+import NetworkTestingPanel from '@/components/NetworkTestingPanel';
 
 interface DebugWindowProps {
   isVisible: boolean;
@@ -22,593 +20,580 @@ interface DebugWindowProps {
 }
 
 const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
-  const { proximityAlerts, proximitySettings, userLocation, connectionStatus, forceReconnect,
-    isInGracePeriod, gracePeriodRemainingMs, gracePeriodReason
-  } = useProximityAlerts();
-  const { tourPlan, plannedLandmarks, isLoading, error, generateTour, progressState } = useTourPlanner();
-  const { connectionHealth, performHealthCheck } = useConnectionMonitor();
-  const { isOnline, effectiveType, downlink, connectionType } = useNetworkStatus();
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [simulatedNetwork, setSimulatedNetwork] = useState<string | null>(null);
-  const cacheTestUtils = CacheTestUtils.getInstance();
+  const { proximitySettings, combinedLandmarks } = useProximityAlerts();
+  const { locationState, userLocation } = useLocationTracking();
+  const { effectiveType } = useNetworkStatus();
+  const { cardZoneLandmarks, activeCards, cardState } = useProximityNotifications();
+  
+  // Get landmarks within notification zone (for toast notifications)
+  const notificationZoneLandmarks = useNearbyLandmarks({
+    userLocation,
+    notificationDistance: proximitySettings?.notification_distance || 100
+  });
 
-  const [gracePeriodMetrics, setGracePeriodMetrics] = useState(gracePeriodHistory.getMetrics());
-  const [gracePeriodRecentHistory, setGracePeriodRecentHistory] = useState<GracePeriodHistoryEntry[]>([]);
+  // Get landmarks within Street View prep zone (outer distance)
+  const prepZoneLandmarks = useNearbyLandmarks({
+    userLocation,
+    notificationDistance: proximitySettings?.outer_distance || 250
+  });
 
-  useEffect(() => {
-    if (!isVisible) return;
-    
-    const interval = setInterval(() => {
-      setRefreshKey(prev => prev + 1);
-    }, 2000);
-    
-    return () => clearInterval(interval);
-  }, [isVisible]);
+  // Street View navigation hook for interactive modal
+  const {
+    isModalOpen,
+    streetViewItems,
+    openStreetViewModal,
+    closeStreetViewModal,
+    getViewpointStrategy
+  } = useStreetViewNavigation();
 
-  // Grace period data refresh
-  useEffect(() => {
-    if (!isVisible) return;
+  // Enhanced Street View multi hook for strategy and cache info
+  const {
+    getCachedData,
+    isKnownUnavailable,
+    getCacheStats,
+    isLoading
+  } = useEnhancedStreetViewMulti();
+
+  // Helper function to get strategy info for a landmark
+  const getStrategyInfo = (landmark: any, distance: number) => {
+    const strategy = getViewpointStrategy(distance, effectiveType);
+    const strategyKey = `${strategy.strategy}-${strategy.quality}`;
+    const cached = getCachedData(landmark.id || landmark.placeId, strategyKey);
+    const isUnavailable = isKnownUnavailable(landmark.id || landmark.placeId);
+    const loading = isLoading[landmark.id || landmark.placeId];
+
+    // Determine viewpoint count based on strategy
+    let viewpointCount = 1;
+    switch (strategy.strategy) {
+      case 'single':
+        viewpointCount = 1;
+        break;
+      case 'cardinal':
+        viewpointCount = 4;
+        break;
+      case 'smart':
+        viewpointCount = 3;
+        break;
+      case 'all':
+        viewpointCount = 4;
+        break;
+    }
+
+    // If we have cached data, use actual viewpoint count
+    if (cached && 'viewpoints' in cached) {
+      viewpointCount = cached.viewpoints.length;
+    }
+
+    return {
+      strategy: strategy.strategy,
+      quality: strategy.quality,
+      viewpointCount,
+      cached: !!cached,
+      isUnavailable,
+      loading,
+      dataUsage: cached && 'metadata' in cached ? cached.metadata.dataUsage : null
+    };
+  };
+
+  // Handle landmark card clicks to open Street View
+  const handleLandmarkClick = async (clickedLandmark: any, landmarks: any[]) => {
+    console.log(`🔍 Opening Street View for ${clickedLandmark.landmark.name} from debug window`);
     
-    const refreshGracePeriodData = () => {
-      setGracePeriodMetrics(gracePeriodHistory.getMetrics());
-      setGracePeriodRecentHistory(gracePeriodHistory.getRecentHistory(10));
+    // Extract just the landmark objects from NearbyLandmark array and convert to Landmark format
+    const landmarkObjects = landmarks.map(nearby => ({
+      id: nearby.landmark.id || nearby.landmark.placeId,
+      name: nearby.landmark.name,
+      coordinates: nearby.landmark.coordinates,
+      description: nearby.landmark.description,
+      rating: nearby.landmark.rating,
+      photos: nearby.landmark.photos,
+      types: nearby.landmark.types,
+      placeId: nearby.landmark.placeId,
+      formattedAddress: nearby.landmark.formattedAddress
+    }));
+    
+    const clickedLandmarkConverted = {
+      id: clickedLandmark.landmark.id || clickedLandmark.landmark.placeId,
+      name: clickedLandmark.landmark.name,
+      coordinates: clickedLandmark.landmark.coordinates,
+      description: clickedLandmark.landmark.description,
+      rating: clickedLandmark.landmark.rating,
+      photos: clickedLandmark.landmark.photos,
+      types: clickedLandmark.landmark.types,
+      placeId: clickedLandmark.landmark.placeId,
+      formattedAddress: clickedLandmark.landmark.formattedAddress
     };
     
-    refreshGracePeriodData();
-    const interval = setInterval(refreshGracePeriodData, 2000);
-    
-    return () => clearInterval(interval);
-  }, [isVisible]);
-
-  const handleNetworkSimulation = (condition: string) => {
-    if (simulatedNetwork === condition) {
-      networkSimulator.restore();
-      setSimulatedNetwork(null);
-    } else {
-      networkSimulator.simulate(condition as keyof typeof NETWORK_CONDITIONS);
-      setSimulatedNetwork(condition);
-    }
-  };
-
-  const testAllStrategies = () => {
-    const distances = [50, 200, 750, 1500];
-    console.log('🧪 Testing strategy selection for all distances:');
-    
-    distances.forEach(distance => {
-      console.log(`\n📏 Distance: ${distance}m`);
-      const results = testStrategySelection(distance);
-      console.table(results);
-    });
-  };
-
-  const clearAllCaches = () => {
-    // This would need to be implemented in the actual hooks
-    cacheTestUtils.reset();
-    performanceBenchmark.clear();
-    console.log('🗑️ All caches and metrics cleared');
-  };
-
-  const formatGracePeriodTimestamp = (timestamp: number) => {
-    const date = new Date(timestamp);
-    return `${date.toLocaleTimeString()} ${date.toLocaleDateString()}`;
-  };
-
-  const getActionColor = (action: string) => {
-    switch (action) {
-      case 'activated': return 'text-green-400';
-      case 'cleared': return 'text-red-400';
-      case 'expired': return 'text-yellow-400';
-      default: return 'text-gray-400';
-    }
+    await openStreetViewModal(landmarkObjects, clickedLandmarkConverted);
   };
 
   if (!isVisible) return null;
 
+  const formatDistance = (distance: number) => {
+    return `${Math.round(distance)}m`;
+  };
+
+  const formatCoordinate = (coord: number) => {
+    return coord.toFixed(6);
+  };
+
+  // Get strategy color for badges
+  const getStrategyColor = (strategy: string) => {
+    switch (strategy) {
+      case 'single':
+        return 'bg-gray-500';
+      case 'cardinal':
+        return 'bg-blue-500';
+      case 'smart':
+        return 'bg-purple-500';
+      case 'all':
+        return 'bg-green-500';
+      default:
+        return 'bg-gray-500';
+    }
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex z-50 p-4">
-      <Card className="w-full max-w-6xl h-[80vh] bg-gray-900 text-white border-gray-700 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-xl font-bold flex items-center gap-2">
-            <Activity className="h-5 w-5 text-blue-400" />
-            Debug Console
-          </CardTitle>
+    <>
+      <div className="p-4 max-h-[75vh] overflow-auto">
+        <div className="flex items-center justify-between mb-4 pb-3 border-b">
+          <div className="flex items-center gap-2">
+            <Eye className="w-4 h-4" />
+            <span className="font-mono text-sm font-semibold">Debug Window</span>
+          </div>
           <Button
             variant="ghost"
             size="sm"
             onClick={onClose}
-            className="text-gray-400 hover:text-white"
+            className="p-1"
           >
-            <X className="h-4 w-4" />
+            <X className="w-4 h-4" />
           </Button>
-        </CardHeader>
+        </div>
 
-        <CardContent className="overflow-auto h-[calc(100%-80px)]">
-          <Tabs defaultValue="proximity" className="w-full">
-            <TabsList className="grid w-full grid-cols-5 bg-gray-800">
-              <TabsTrigger value="proximity">Proximity</TabsTrigger>
-              <TabsTrigger value="tours">Tours</TabsTrigger>
-              <TabsTrigger value="connection">Connection</TabsTrigger>
-              <TabsTrigger value="grace-period">Grace Period</TabsTrigger>
-              <TabsTrigger value="system">System</TabsTrigger>
-            </TabsList>
+        <Tabs defaultValue="proximity" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="proximity">Proximity Debug</TabsTrigger>
+            <TabsTrigger value="api-tests">API Tests</TabsTrigger>
+          </TabsList>
 
-            <TabsContent value="proximity" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card className="bg-gray-800 border-gray-700">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">User Location</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {userLocation ? (
-                      <div className="space-y-1">
-                        <p className="text-gray-400 text-xs">
-                          Latitude: {userLocation.latitude}
-                        </p>
-                        <p className="text-gray-400 text-xs">
-                          Longitude: {userLocation.longitude}
-                        </p>
-                        <p className="text-gray-400 text-xs">
-                          Accuracy: {userLocation.accuracy}
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="text-gray-500 text-sm">
-                        No location data available.
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-gray-800 border-gray-700">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Proximity Settings</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {proximitySettings ? (
-                      <div className="space-y-1">
-                        <p className="text-gray-400 text-xs">
-                          Enabled: {proximitySettings.is_enabled ? 'Yes' : 'No'}
-                        </p>
-                        <p className="text-gray-400 text-xs">
-                          Notification Distance:{' '}
-                          {proximitySettings.notification_distance}m
-                        </p>
-                        <p className="text-gray-400 text-xs">
-                          Outer Distance: {proximitySettings.outer_distance}m
-                        </p>
-                        <p className="text-gray-400 text-xs">
-                          Card Distance: {proximitySettings.card_distance}m
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="text-gray-500 text-sm">
-                        No proximity settings available.
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
+          <TabsContent value="proximity" className="space-y-4 font-mono text-xs">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-green-600">
+                <MapPin className="w-3 h-3" />
+                <span className="font-semibold">Location Status</span>
               </div>
-
-              <Card className="bg-gray-800 border-gray-700">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Proximity Alerts</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {proximityAlerts.length > 0 ? (
-                    <ul className="space-y-2">
-                      {proximityAlerts.map((alert) => (
-                        <li
-                          key={alert.id}
-                          className="text-gray-400 text-xs border-b border-gray-700 pb-2"
-                        >
-                          {alert.landmark_id} - {alert.distance}m{' '}
-                          {alert.is_enabled ? '(Enabled)' : '(Disabled)'}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-gray-500 text-sm">
-                      No proximity alerts available.
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="tours" className="space-y-4">
-              <Card className="bg-gray-800 border-gray-700">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Tour State</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <p className="text-gray-400 text-xs">
-                      Is Loading: {isLoading ? 'Yes' : 'No'}
-                    </p>
-                    <p className="text-gray-400 text-xs">
-                      Current Phase: {progressState.phase}
-                    </p>
-                    <p className="text-gray-400 text-xs">
-                      Progress: {progressState.percentage}%
-                    </p>
-                    <p className="text-gray-400 text-xs">
-                      Current Step: {progressState.currentStep}
-                    </p>
-                    {tourPlan && (
-                      <div className="mt-2">
-                        <h4 className="text-sm font-semibold">Current Tour Plan</h4>
-                        <p className="text-gray-400 text-xs">
-                          Destination: {tourPlan.destination}
-                        </p>
-                        <p className="text-gray-400 text-xs">
-                          Landmarks: {tourPlan.landmarks.length}
-                        </p>
-                      </div>
-                    )}
-                    {error && (
-                      <div className="mt-2">
-                        <h4 className="text-sm font-semibold text-red-400">Error</h4>
-                        <p className="text-gray-400 text-xs">{error}</p>
-                      </div>
-                    )}
+              <div className="pl-5 space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Tracking:</span>
+                  <Badge variant={locationState.isTracking ? "default" : "secondary"} className="text-xs">
+                    {locationState.isTracking ? "Active" : "Inactive"}
+                  </Badge>
+                </div>
+                {locationState.error && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Error:</span>
+                    <span className="text-red-500">{locationState.error}</span>
                   </div>
-                </CardContent>
-              </Card>
-
-              <div className="flex justify-around mt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => generateTour('Test Destination')}
-                  disabled={isLoading}
-                >
-                  Test Generate Tour
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => console.log('Tour Plan:', tourPlan)}
-                >
-                  Log Tour Plan
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => console.log('Planned Landmarks:', plannedLandmarks)}
-                >
-                  Log Landmarks
-                </Button>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="connection" className="space-y-4">
-              <Card className="bg-gray-800 border-gray-700">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Connection Health</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <p className="text-gray-400 text-xs">
-                      Is Healthy: {connectionHealth.isHealthy ? 'Yes' : 'No'}
-                    </p>
-                    <p className="text-gray-400 text-xs">
-                      Issues Count: {connectionHealth.issues.length}
-                    </p>
-                    <p className="text-gray-400 text-xs">
-                      Last Check: {new Date(connectionHealth.lastHealthCheck).toLocaleTimeString()}
-                    </p>
-                    {connectionHealth.issues.length > 0 && (
-                      <div className="mt-2">
-                        <h4 className="text-sm font-semibold text-red-400">Issues</h4>
-                        {connectionHealth.issues.map((issue, index) => (
-                          <p key={index} className="text-gray-400 text-xs">• {issue}</p>
-                        ))}
-                      </div>
-                    )}
-                    <p className="text-gray-400 text-xs">
-                      Consecutive Failures: {connectionStatus.consecutiveFailures}
-                    </p>
-                    <p className="text-gray-400 text-xs">
-                      Status: {connectionStatus.status}
-                    </p>
+                )}
+                {locationState.lastUpdate && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Last Update:</span>
+                    <span className="text-blue-600">{locationState.lastUpdate.toLocaleTimeString()}</span>
                   </div>
-                </CardContent>
-              </Card>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={forceReconnect}>
-                  Force Reconnect
-                </Button>
-                <Button variant="outline" size="sm" onClick={performHealthCheck}>
-                  Health Check
-                </Button>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Poll Interval:</span>
+                  <span className="text-yellow-600">{locationState.pollInterval}ms</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Movement State:</span>
+                  <Badge variant={locationState.movementState.isMoving ? "default" : "secondary"} className="text-xs">
+                    {locationState.movementState.isMoving ? "Moving" : "Stationary"}
+                  </Badge>
+                </div>
+                {locationState.movementState.averageSpeed > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Speed:</span>
+                    <span className="text-purple-600">{locationState.movementState.averageSpeed.toFixed(1)} m/s</span>
+                  </div>
+                )}
               </div>
-            </TabsContent>
+            </div>
 
-            <TabsContent value="grace-period" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Current State */}
-                <Card className="bg-gray-800 border-gray-700">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Timer className="h-4 w-4" />
-                      Current State
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
+            {userLocation && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-blue-600">
+                  <Target className="w-3 h-3" />
+                  <span className="font-semibold">Current Location</span>
+                </div>
+                <div className="pl-5 space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Latitude:</span>
+                    <span className="text-blue-600">{formatCoordinate(userLocation.latitude)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Longitude:</span>
+                    <span className="text-blue-600">{formatCoordinate(userLocation.longitude)}</span>
+                  </div>
+                  {userLocation.accuracy && (
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-400">Status:</span>
-                      <Badge variant={isInGracePeriod ? "default" : "secondary"}>
-                        {isInGracePeriod ? "Active" : "Inactive"}
-                      </Badge>
+                      <span className="text-muted-foreground">Accuracy:</span>
+                      <span className="text-green-600">{formatDistance(userLocation.accuracy)}</span>
                     </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Timestamp:</span>
+                    <span className="text-purple-600">{new Date(userLocation.timestamp).toLocaleTimeString()}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {proximitySettings && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-purple-600">
+                  <Timer className="w-3 h-3" />
+                  <span className="font-semibold">Proximity Settings</span>
+                </div>
+                <div className="pl-5 space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Enabled:</span>
+                    <Badge variant={proximitySettings.is_enabled ? "default" : "secondary"} className="text-xs">
+                      {proximitySettings.is_enabled ? "Yes" : "No"}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Outer Distance (Prep):</span>
+                    <span className="text-yellow-600">{formatDistance(proximitySettings.outer_distance)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Notification Distance:</span>
+                    <span className="text-orange-600">{formatDistance(proximitySettings.notification_distance)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Card Distance:</span>
+                    <span className="text-green-600">{formatDistance(proximitySettings.card_distance)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-yellow-600">
+                <MapPin className="w-3 h-3" />
+                <span className="font-semibold">Landmarks Summary</span>
+              </div>
+              <div className="pl-5 space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total Landmarks:</span>
+                  <span className="text-blue-600">{combinedLandmarks.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Street View Prep Zone:</span>
+                  <span className="text-yellow-600">{prepZoneLandmarks.length} (≤{formatDistance(proximitySettings?.outer_distance || 250)})</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Notification Zone:</span>
+                  <span className="text-orange-600">{notificationZoneLandmarks.length} (≤{formatDistance(proximitySettings?.notification_distance || 100)})</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Card Zone:</span>
+                  <span className="text-green-600">{cardZoneLandmarks.length} (≤{formatDistance(proximitySettings?.card_distance || 75)})</span>
+                </div>
+              </div>
+            </div>
+
+            {cardZoneLandmarks.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-green-600">
+                  <CreditCard className="w-3 h-3" />
+                  <span className="font-semibold">Tourist Services Card Zone ({cardZoneLandmarks.length})</span>
+                </div>
+                <div className="text-xs text-muted-foreground pl-5 mb-2">
+                  Landmarks within {formatDistance(proximitySettings?.card_distance || 75)} - Tourist services cards shown (Click to view)
+                </div>
+                <div className="pl-5 space-y-2 max-h-40 overflow-y-auto">
+                  {cardZoneLandmarks.map((nearby, index) => {
+                    const placeId = nearby.landmark.placeId;
+                    const isActive = !!activeCards[placeId];
+                    const cardInfo = cardState[placeId];
                     
-                    {isInGracePeriod && (
-                      <>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-400">Reason:</span>
-                          <span className="text-sm">{gracePeriodReason}</span>
+                    return (
+                      <div 
+                        key={placeId} 
+                        className="border border-green-200 dark:border-green-800 rounded p-2 space-y-1 bg-green-100 dark:bg-green-900/20 cursor-pointer hover:bg-green-200 dark:hover:bg-green-900/30 transition-colors relative group"
+                        onClick={() => handleLandmarkClick(nearby, cardZoneLandmarks)}
+                      >
+                        <div className="flex justify-between items-start">
+                          <span className="font-semibold text-xs leading-tight text-green-900 dark:text-green-100">
+                            {nearby.landmark.name}
+                          </span>
+                          <div className="flex gap-1 ml-2 flex-shrink-0">
+                            <Badge variant="outline" className="text-xs border-green-300 dark:border-green-700 text-green-800 dark:text-green-200">
+                              #{index + 1}
+                            </Badge>
+                            {isActive && (
+                              <Badge variant="default" className="text-xs bg-green-600 hover:bg-green-700 text-white">
+                                <CreditCard className="w-2 h-2 mr-1" />
+                                Active
+                              </Badge>
+                            )}
+                            <Eye className="w-3 h-3 text-green-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
                         </div>
                         
                         <div className="flex justify-between">
-                          <span className="text-sm text-gray-400">Remaining:</span>
-                          <span className="text-sm font-mono">
-                            {Math.round(gracePeriodRemainingMs / 1000)}s
-                          </span>
+                          <span className="text-green-700 dark:text-green-300">Distance:</span>
+                          <span className="text-green-800 dark:text-green-200 font-medium">{formatDistance(nearby.distance)}</span>
                         </div>
-                      </>
-                    )}
-                    
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-400">Preset:</span>
-                      <span className="text-sm">{getGracePeriodPresetName(proximitySettings)}</span>
-                    </div>
-                    
-                    {proximitySettings && (
-                      <div className="text-xs text-gray-500 font-mono mt-2 p-2 bg-gray-900 rounded">
-                        Init: {proximitySettings.grace_period_initialization}ms<br/>
-                        Move: {proximitySettings.grace_period_movement}ms<br/>
-                        Resume: {proximitySettings.grace_period_app_resume}ms<br/>
-                        Threshold: {proximitySettings.significant_movement_threshold}m
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
 
-                {/* Metrics */}
-                <Card className="bg-gray-800 border-gray-700">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Activity className="h-4 w-4" />
-                      Performance Metrics
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div className="text-center p-2 bg-gray-900 rounded">
-                        <div className="text-lg font-bold text-green-400">
-                          {gracePeriodMetrics.totalActivations}
-                        </div>
-                        <div className="text-xs text-gray-400">Activations</div>
-                      </div>
-                      
-                      <div className="text-center p-2 bg-gray-900 rounded">
-                        <div className="text-lg font-bold text-blue-400">
-                          {gracePeriodMetrics.effectivenessRate.toFixed(1)}%
-                        </div>
-                        <div className="text-xs text-gray-400">Effectiveness</div>
-                      </div>
-                      
-                      <div className="text-center p-2 bg-gray-900 rounded">
-                        <div className="text-lg font-bold text-yellow-400">
-                          {gracePeriodMetrics.totalExpired}
-                        </div>
-                        <div className="text-xs text-gray-400">Expired</div>
-                      </div>
-                      
-                      <div className="text-center p-2 bg-gray-900 rounded">
-                        <div className="text-lg font-bold text-red-400">
-                          {gracePeriodMetrics.totalClears}
-                        </div>
-                        <div className="text-xs text-gray-400">Cleared</div>
-                      </div>
-                    </div>
-                    
-                    <div className="text-xs text-gray-400 mt-2">
-                      Avg Duration: {(gracePeriodMetrics.averageDuration / 1000).toFixed(1)}s
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Recent History */}
-              <Card className="bg-gray-800 border-gray-700">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <History className="h-4 w-4" />
-                    Recent Activity
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setGracePeriodMetrics(gracePeriodHistory.getMetrics());
-                        setGracePeriodRecentHistory(gracePeriodHistory.getRecentHistory(10));
-                      }}
-                      className="ml-auto h-6 w-6 p-0"
-                    >
-                      <RefreshCw className="h-3 w-3" />
-                    </Button>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-1 max-h-40 overflow-y-auto">
-                    {gracePeriodRecentHistory.length === 0 ? (
-                      <div className="text-sm text-gray-500 text-center py-4">
-                        No grace period activity recorded
-                      </div>
-                    ) : (
-                      gracePeriodRecentHistory.map((entry, index) => (
-                        <div
-                          key={entry.id}
-                          className="flex items-center justify-between text-xs p-2 bg-gray-900/50 rounded hover:bg-gray-900"
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${
-                              entry.action === 'activated' ? 'bg-green-400' :
-                              entry.action === 'cleared' ? 'bg-red-400' : 'bg-yellow-400'
-                            }`} />
-                            <span className={getActionColor(entry.action)}>
-                              {entry.action}
+                        {cardInfo && (
+                          <div className="flex justify-between">
+                            <span className="text-green-700 dark:text-green-300">Last Card:</span>
+                            <span className="text-blue-700 dark:text-blue-300 text-xs">
+                              {new Date(cardInfo.timestamp).toLocaleTimeString()}
                             </span>
-                            {entry.reason && (
-                              <Badge variant="outline" className="text-xs px-1 py-0">
-                                {entry.reason}
-                              </Badge>
-                            )}
-                            <Badge variant="secondary" className="text-xs px-1 py-0">
-                              {entry.trigger}
-                            </Badge>
                           </div>
-                          <span className="text-gray-500">
-                            {formatGracePeriodTimestamp(entry.timestamp)}
+                        )}
+                        
+                        <div className="flex justify-between">
+                          <span className="text-green-700 dark:text-green-300">Coordinates:</span>
+                          <span className="text-blue-700 dark:text-blue-300 text-xs font-mono">
+                            [{formatCoordinate(nearby.landmark.coordinates[0])}, {formatCoordinate(nearby.landmark.coordinates[1])}]
                           </span>
                         </div>
-                      ))
-                    )}
-                  </div>
-                  
-                  <div className="flex gap-2 mt-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const analysis = gracePeriodHistory.analyzePerformance();
-                        console.log('📊 Grace Period Performance Analysis:', analysis);
-                      }}
-                      className="text-xs"
-                    >
-                      Analyze Performance
-                    </Button>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const exported = gracePeriodHistory.exportHistory();
-                        console.log('📤 Grace Period History Export:', exported);
-                      }}
-                      className="text-xs"
-                    >
-                      Export History
-                    </Button>
-                    
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => {
-                        gracePeriodHistory.clearHistory();
-                        setGracePeriodMetrics(gracePeriodHistory.getMetrics());
-                        setGracePeriodRecentHistory([]);
-                      }}
-                      className="text-xs"
-                    >
-                      Clear History
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="system" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card className="bg-gray-800 border-gray-700">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Network Status</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <p className="text-gray-400 text-xs">
-                        Online: {isOnline ? 'Yes' : 'No'}
-                      </p>
-                      <p className="text-gray-400 text-xs">
-                        Effective Type: {effectiveType || 'Unknown'}
-                      </p>
-                      <p className="text-gray-400 text-xs">
-                        Downlink Speed: {downlink} Mbps
-                      </p>
-                      {simulatedNetwork && (
-                        <p className="text-gray-400 text-xs">
-                          Simulated Network: {simulatedNetwork}
-                        </p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-gray-800 border-gray-700">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Cache Metrics</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <p className="text-gray-400 text-xs">
-                        Hit Rate: {(cacheTestUtils.getMetrics().hitRate * 100).toFixed(1)}%
-                      </p>
-                      <p className="text-gray-400 text-xs">
-                        Total Operations: {cacheTestUtils.getMetrics().totalOperations}
-                      </p>
-                      <p className="text-gray-400 text-xs">
-                        Total Size: {(cacheTestUtils.getMetrics().totalSize / 1024).toFixed(1)} KB
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="flex justify-around mt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={testAllStrategies}
-                >
-                  Test All Strategies
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => cacheTestUtils.logSummary()}
-                >
-                  Log Cache Summary
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={clearAllCaches}
-                >
-                  Clear All Caches
-                </Button>
-              </div>
-
-              <div className="space-y-1 mt-4">
-                <span className="text-xs text-white/70">Network Simulation:</span>
-                <div className="grid grid-cols-3 gap-1">
-                  {Object.keys(NETWORK_CONDITIONS).map(condition => (
-                    <Button
-                      key={condition}
-                      variant={simulatedNetwork === condition ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => handleNetworkSimulation(condition)}
-                      className="text-xs h-7"
-                    >
-                      {condition}
-                    </Button>
-                  ))}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-    </div>
+            )}
+
+            {prepZoneLandmarks.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-yellow-600">
+                  <Camera className="w-3 h-3" />
+                  <span className="font-semibold">Street View Prep Zone ({prepZoneLandmarks.length})</span>
+                </div>
+                <div className="text-xs text-muted-foreground pl-5 mb-2">
+                  Landmarks within {formatDistance(proximitySettings?.outer_distance || 250)} - Street View gets pre-loaded (Click to view)
+                </div>
+                <div className="pl-5 space-y-2 max-h-40 overflow-y-auto">
+                  {prepZoneLandmarks.map((nearby, index) => {
+                    const placeId = nearby.landmark.placeId;
+                    const isInNotificationZone = notificationZoneLandmarks.some(n => n.landmark.placeId === placeId);
+                    const isInCardZone = cardZoneLandmarks.some(n => n.landmark.placeId === placeId);
+                    const strategyInfo = getStrategyInfo(nearby.landmark, nearby.distance);
+                    
+                    return (
+                      <div 
+                        key={placeId} 
+                        className="border border-yellow-200 dark:border-yellow-800 rounded p-2 space-y-1 bg-yellow-100 dark:bg-yellow-900/20 cursor-pointer hover:bg-yellow-200 dark:hover:bg-yellow-900/30 transition-colors relative group"
+                        onClick={() => handleLandmarkClick(nearby, prepZoneLandmarks)}
+                      >
+                        <div className="flex justify-between items-start">
+                          <span className="font-semibold text-xs leading-tight text-yellow-900 dark:text-yellow-100">
+                            {nearby.landmark.name}
+                          </span>
+                          <div className="flex gap-1 ml-2 flex-shrink-0">
+                            <Badge variant="outline" className="text-xs border-yellow-300 dark:border-yellow-700 text-yellow-800 dark:text-yellow-200">
+                              #{index + 1}
+                            </Badge>
+                            {isInCardZone && (
+                              <Badge variant="default" className="text-xs bg-green-600 hover:bg-green-700 text-white">
+                                <CreditCard className="w-2 h-2 mr-1" />
+                                Card
+                              </Badge>
+                            )}
+                            {isInNotificationZone && (
+                              <Badge variant="default" className="text-xs bg-orange-600 hover:bg-orange-700 text-white">
+                                <Bell className="w-2 h-2 mr-1" />
+                                Notify
+                              </Badge>
+                            )}
+                            <Eye className="w-3 h-3 text-yellow-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                        </div>
+                        
+                        {/* Enhanced Multi-Viewpoint Indicators */}
+                        <div className="flex justify-between items-center">
+                          <span className="text-yellow-700 dark:text-yellow-300">Strategy:</span>
+                          <div className="flex items-center gap-1">
+                            <Badge className={`text-xs text-white ${getStrategyColor(strategyInfo.strategy)}`}>
+                              {strategyInfo.strategy.toUpperCase()}
+                            </Badge>
+                            <Badge className="text-xs bg-cyan-600 text-white font-bold">
+                              {strategyInfo.viewpointCount}v
+                            </Badge>
+                            {strategyInfo.loading && <Loader2 className="w-3 h-3 animate-spin text-blue-500" />}
+                            {strategyInfo.cached && <Database className="w-3 h-3 text-green-500" />}
+                            {strategyInfo.isUnavailable && <WifiOff className="w-3 h-3 text-red-500" />}
+                          </div>
+                        </div>
+                        
+                        <div className="flex justify-between">
+                          <span className="text-yellow-700 dark:text-yellow-300">Distance:</span>
+                          <span className="text-yellow-800 dark:text-yellow-200 font-medium">{formatDistance(nearby.distance)}</span>
+                        </div>
+                        
+                        {strategyInfo.dataUsage && (
+                          <div className="flex justify-between">
+                            <span className="text-yellow-700 dark:text-yellow-300">Data Usage:</span>
+                            <span className="text-blue-700 dark:text-blue-300 text-xs">{strategyInfo.dataUsage}</span>
+                          </div>
+                        )}
+                        
+                        <div className="flex justify-between">
+                          <span className="text-yellow-700 dark:text-yellow-300">Coordinates:</span>
+                          <span className="text-blue-700 dark:text-blue-300 text-xs font-mono">
+                            [{formatCoordinate(nearby.landmark.coordinates[0])}, {formatCoordinate(nearby.landmark.coordinates[1])}]
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {notificationZoneLandmarks.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-orange-600">
+                  <Bell className="w-3 h-3" />
+                  <span className="font-semibold">Notification Zone ({notificationZoneLandmarks.length})</span>
+                </div>
+                <div className="text-xs text-muted-foreground pl-5 mb-2">
+                  Landmarks within {formatDistance(proximitySettings?.notification_distance || 100)} - Toast notifications triggered (Click to view)
+                </div>
+                <div className="pl-5 space-y-2 max-h-40 overflow-y-auto">
+                  {notificationZoneLandmarks.map((nearby, index) => {
+                    const placeId = nearby.landmark.placeId;
+                    const isInCardZone = cardZoneLandmarks.some(n => n.landmark.placeId === placeId);
+                    const strategyInfo = getStrategyInfo(nearby.landmark, nearby.distance);
+                    
+                    return (
+                      <div 
+                        key={placeId} 
+                        className="border border-orange-200 dark:border-orange-800 rounded p-2 space-y-1 bg-orange-100 dark:bg-orange-900/20 cursor-pointer hover:bg-orange-200 dark:hover:bg-orange-900/30 transition-colors relative group"
+                        onClick={() => handleLandmarkClick(nearby, notificationZoneLandmarks)}
+                      >
+                        <div className="flex justify-between items-start">
+                          <span className="font-semibold text-xs leading-tight text-orange-900 dark:text-orange-100">
+                            {nearby.landmark.name}
+                          </span>
+                          <div className="flex gap-1 ml-2 flex-shrink-0">
+                            <Badge variant="outline" className="text-xs border-orange-300 dark:border-orange-700 text-orange-800 dark:text-orange-200">
+                              #{index + 1}
+                            </Badge>
+                            {isInCardZone && (
+                              <Badge variant="default" className="text-xs bg-green-600 hover:bg-green-700 text-white">
+                                <CreditCard className="w-2 h-2 mr-1" />
+                                Card
+                              </Badge>
+                            )}
+                            <Eye className="w-3 h-3 text-orange-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                        </div>
+                        
+                        {/* Enhanced Multi-Viewpoint Indicators */}
+                        <div className="flex justify-between items-center">
+                          <span className="text-orange-700 dark:text-orange-300">Strategy:</span>
+                          <div className="flex items-center gap-1">
+                            <Badge className={`text-xs text-white ${getStrategyColor(strategyInfo.strategy)}`}>
+                              {strategyInfo.strategy.toUpperCase()}
+                            </Badge>
+                            <Badge className="text-xs bg-cyan-600 text-white font-bold">
+                              {strategyInfo.viewpointCount}v
+                            </Badge>
+                            {strategyInfo.loading && <Loader2 className="w-3 h-3 animate-spin text-blue-500" />}
+                            {strategyInfo.cached && <Database className="w-3 h-3 text-green-500" />}
+                            {strategyInfo.isUnavailable && <WifiOff className="w-3 h-3 text-red-500" />}
+                          </div>
+                        </div>
+                        
+                        <div className="flex justify-between">
+                          <span className="text-orange-700 dark:text-orange-300">Distance:</span>
+                          <span className="text-orange-800 dark:text-orange-200 font-medium">{formatDistance(nearby.distance)}</span>
+                        </div>
+                        
+                        {strategyInfo.dataUsage && (
+                          <div className="flex justify-between">
+                            <span className="text-orange-700 dark:text-orange-300">Data Usage:</span>
+                            <span className="text-blue-700 dark:text-blue-300 text-xs">{strategyInfo.dataUsage}</span>
+                          </div>
+                        )}
+                        
+                        <div className="text-orange-700 dark:text-orange-300 text-xs leading-tight">
+                          {nearby.landmark.description.substring(0, 60)}
+                          {nearby.landmark.description.length > 60 && '...'}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {prepZoneLandmarks.length === 0 && notificationZoneLandmarks.length === 0 && cardZoneLandmarks.length === 0 && userLocation && proximitySettings?.is_enabled && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Target className="w-3 h-3" />
+                  <span className="font-semibold">No Nearby Landmarks</span>
+                </div>
+                <div className="pl-5 space-y-1 text-muted-foreground text-xs">
+                  <div>No landmarks found within Street View prep zone ({formatDistance(proximitySettings?.outer_distance || 250)})</div>
+                  <div>No landmarks found within notification zone ({formatDistance(proximitySettings?.notification_distance || 100)})</div>
+                  <div>No landmarks found within card zone ({formatDistance(proximitySettings?.card_distance || 75)})</div>
+                </div>
+              </div>
+            )}
+
+            <div className="border-t pt-2 space-y-1">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Route className="w-3 h-3" />
+                <span className="font-semibold text-xs">Zone Logic</span>
+              </div>
+              <div className="text-muted-foreground text-xs leading-tight">
+                <div>• Tourist services cards show when landmarks enter card zone (closest)</div>
+                <div>• Street View pre-loads when landmarks enter outer zone</div>
+                <div>• Toast notifications trigger when landmarks enter notification zone</div>
+                <div>• Card zone ⊆ Notification zone ⊆ Prep zone</div>
+                <div>• Click landmark cards to open Street View modal</div>
+                <div>• Strategy auto-adjusts: Single (&gt;1km) → Cardinal (500m-1km) → Smart (100m-500m) → All (&lt;100m)</div>
+              </div>
+            </div>
+
+            <div className="border-t pt-2 text-muted-foreground text-xs">
+              Press Ctrl+D to close this debug window
+            </div>
+          </TabsContent>
+
+          <TabsContent value="api-tests" className="space-y-4">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <TestTube className="w-4 h-4" />
+                <span className="font-semibold text-sm">API Testing Suite</span>
+              </div>
+              
+              <PlacesApiTestPanel />
+              
+              <div className="mt-6">
+                <NetworkTestingPanel />
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      {/* Enhanced Street View Modal */}
+      <EnhancedStreetViewModal
+        isOpen={isModalOpen}
+        onClose={closeStreetViewModal}
+        streetViewItems={streetViewItems}
+        initialIndex={0}
+      />
+    </>
   );
 };
 
