@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
@@ -15,15 +16,6 @@ interface EnhancedStreetViewRequest {
   size?: string;
 }
 
-interface PanoramaData {
-  pano_id: string;
-  position: { lat: number; lng: number };
-  links: Array<{ heading: number; pano_id: string; description?: string }>;
-  copyright?: string;
-  date?: string;
-  status: 'OK' | 'ZERO_RESULTS' | 'OVER_QUERY_LIMIT' | 'REQUEST_DENIED';
-}
-
 interface StreetViewData {
   imageUrl: string;
   heading: number;
@@ -38,8 +30,6 @@ interface StreetViewData {
     status: string;
     copyright?: string;
   };
-  panorama?: PanoramaData;
-  panoramaAvailable: boolean;
 }
 
 interface MultiViewpointResponse {
@@ -57,12 +47,6 @@ interface MultiViewpointResponse {
     networkOptimized?: boolean;
     availableHeadings?: number[];
     coverage?: string;
-    panoramaStats?: {
-      availableCount: number;
-      totalRequested: number;
-      panoramaIds: string[];
-      hasConnectedViews: boolean;
-    };
     fallbackInfo?: {
       requestedHeadings: number[];
       successfulHeadings: number[];
@@ -71,43 +55,6 @@ interface MultiViewpointResponse {
     };
   };
 }
-
-// Extract panorama data from Street View Metadata API response
-const extractPanoramaData = (metadata: any): PanoramaData | null => {
-  try {
-    if (!metadata || metadata.status !== 'OK') {
-      console.log('❌ Metadata not available or invalid status');
-      return null;
-    }
-
-    const panoramaData: PanoramaData = {
-      pano_id: metadata.pano_id || 'unknown',
-      position: {
-        lat: metadata.location?.lat || 0,
-        lng: metadata.location?.lng || 0
-      },
-      links: [],
-      copyright: metadata.copyright,
-      date: metadata.date,
-      status: metadata.status as PanoramaData['status']
-    };
-
-    // Extract panorama links if available
-    if (metadata.links && Array.isArray(metadata.links)) {
-      panoramaData.links = metadata.links.map((link: any) => ({
-        heading: link.heading || 0,
-        pano_id: link.pano || link.pano_id || '',
-        description: link.description
-      }));
-    }
-
-    console.log(`🔗 Extracted panorama data: ${panoramaData.pano_id} with ${panoramaData.links.length} links`);
-    return panoramaData;
-  } catch (error) {
-    console.error('❌ Error extracting panorama data:', error);
-    return null;
-  }
-};
 
 // Smart heading calculation based on landmark type and surroundings
 const getSmartHeadings = (landmarkType: string = 'building'): number[] => {
@@ -178,7 +125,7 @@ const generateFallbackHeadings = (targetHeading: number, toleranceSteps: number[
   return fallbacks;
 };
 
-// Enhanced function with panorama data extraction
+// Enhanced function with fallback strategy
 const fetchStreetViewWithFallback = async (
   lat: number,
   lng: number,
@@ -215,10 +162,6 @@ const fetchStreetViewWithFallback = async (
         continue;
       }
 
-      // Extract panorama data from metadata
-      const panoramaData = extractPanoramaData(metadata);
-      const panoramaAvailable = panoramaData !== null && panoramaData.pano_id !== 'unknown';
-
       // Build the Street View Static API URL
       const streetViewUrl = `https://maps.googleapis.com/maps/api/streetview?` +
         `location=${lat},${lng}&` +
@@ -241,16 +184,14 @@ const fetchStreetViewWithFallback = async (
         metadata: {
           status: metadata.status,
           copyright: metadata.copyright
-        },
-        panorama: panoramaData || undefined,
-        panoramaAvailable
+        }
       };
 
       const fallbackUsed = heading !== targetHeading;
       if (fallbackUsed) {
-        console.log(`✅ Fallback successful: ${targetHeading}° → ${heading}° for ${landmarkName} (panorama: ${panoramaAvailable ? 'YES' : 'NO'})`);
+        console.log(`✅ Fallback successful: ${targetHeading}° → ${heading}° for ${landmarkName}`);
       } else {
-        console.log(`✅ Direct hit: ${heading}° for ${landmarkName} (panorama: ${panoramaAvailable ? 'YES' : 'NO'})`);
+        console.log(`✅ Direct hit: ${heading}° for ${landmarkName}`);
       }
 
       return { data: streetViewData, actualHeading: heading, fallbackUsed };
@@ -388,14 +329,6 @@ serve(async (req) => {
       coveragePercent: 0
     };
 
-    // Panorama statistics tracking
-    const panoramaStats = {
-      availableCount: 0,
-      totalRequested: requestedHeadings.length,
-      panoramaIds: [] as string[],
-      hasConnectedViews: false
-    };
-
     // First pass: Try all requested headings with fallbacks
     for (let i = 0; i < requestedHeadings.length; i++) {
       const heading = requestedHeadings[i];
@@ -410,12 +343,6 @@ serve(async (req) => {
         fallbackInfo.successfulHeadings.push(result.actualHeading);
         if (result.fallbackUsed) {
           fallbackInfo.fallbacksUsed++;
-        }
-
-        // Track panorama statistics
-        if (result.data.panoramaAvailable && result.data.panorama?.pano_id) {
-          panoramaStats.availableCount++;
-          panoramaStats.panoramaIds.push(result.data.panorama.pano_id);
         }
       }
     }
@@ -439,24 +366,7 @@ serve(async (req) => {
         successfulViewpoints.push(result.data);
         fallbackInfo.successfulHeadings.push(result.actualHeading);
         fallbackInfo.fallbacksUsed++;
-
-        // Track panorama statistics for alternatives too
-        if (result.data.panoramaAvailable && result.data.panorama?.pano_id) {
-          panoramaStats.availableCount++;
-          panoramaStats.panoramaIds.push(result.data.panorama.pano_id);
-        }
       }
-    }
-
-    // Check if panoramas are connected (have common pano_ids in links)
-    if (panoramaStats.panoramaIds.length > 1) {
-      const allLinks = successfulViewpoints
-        .filter(vp => vp.panorama?.links)
-        .flatMap(vp => vp.panorama!.links.map(link => link.pano_id));
-      
-      panoramaStats.hasConnectedViews = panoramaStats.panoramaIds.some(id => 
-        allLinks.includes(id)
-      );
     }
 
     // Filter viewpoints to ensure minimum spacing
@@ -469,8 +379,7 @@ serve(async (req) => {
         landmarkName,
         attemptedHeadings: Array.from(attemptedHeadings),
         strategy: viewpoints,
-        fallbackInfo,
-        panoramaStats
+        fallbackInfo
       }), { 
         status: 404, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -498,9 +407,7 @@ serve(async (req) => {
       successful: filteredViewpoints.length,
       fallbacks: fallbackInfo.fallbacksUsed,
       coverage: `${fallbackInfo.coveragePercent}%`,
-      dataUsage: `${totalDataKb}KB`,
-      panoramas: `${panoramaStats.availableCount}/${panoramaStats.totalRequested}`,
-      connected: panoramaStats.hasConnectedViews
+      dataUsage: `${totalDataKb}KB`
     });
 
     const response: MultiViewpointResponse = {
@@ -519,7 +426,6 @@ serve(async (req) => {
           networkOptimized: quality === 'low' || quality === 'medium',
           availableHeadings: filteredViewpoints.map(vp => vp.heading),
           coverage: `${fallbackInfo.coveragePercent}%`,
-          panoramaStats,
           fallbackInfo
         })
       }

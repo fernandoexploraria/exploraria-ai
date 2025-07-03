@@ -17,7 +17,6 @@ import { useLandmarkPhotos } from '@/hooks/useLandmarkPhotos';
 import { PhotoData } from '@/hooks/useEnhancedPhotos';
 import { PhotoCarousel } from './photo-carousel';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
-import { calculateDistance } from '@/utils/proximityUtils';
 import { getEnhancedLandmarkText } from '@/utils/landmarkPromptUtils';
 
 interface MapProps {
@@ -65,7 +64,7 @@ const MapComponent: React.FC<MapProps> = ({
   const { user } = useAuth();
   const { updateProximityEnabled, proximitySettings } = useProximityAlerts();
   const { fetchLandmarkPhotos: fetchPhotosWithHook } = useLandmarkPhotos();
-  const { locationState, userLocation } = useLocationTracking();
+  const { locationState } = useLocationTracking();
   
   const { getCachedData } = useStreetView();
   const { getStreetViewWithOfflineSupport } = useEnhancedStreetView();
@@ -944,6 +943,8 @@ const MapComponent: React.FC<MapProps> = ({
     } catch (error) {
       console.log('❌ Error getting Street View from enhanced hook:', error);
     }
+    
+    const hasStreetView = streetViewDataFromUseStreetView !== null || streetViewDataFromEnhanced !== null;
 
     const popupContainer = document.createElement('div');
     popupContainer.style.width = '450px';
@@ -979,40 +980,6 @@ const MapComponent: React.FC<MapProps> = ({
       const root = ReactDOM.createRoot(popupContainer);
 
       const PopupContent = () => {
-        // Enhanced eye icon handler with user location context
-        const handleEnhancedStreetViewOpen = async () => {
-          try {
-            // Calculate distance if user location available
-            const distance = userLocation ? calculateDistance(
-              userLocation.latitude,
-              userLocation.longitude,
-              landmark.coordinates[1], // latitude
-              landmark.coordinates[0]  // longitude
-            ) : undefined;
-
-            // Enhanced logging with panorama strategy
-            console.log(`👁️ Enhanced eye icon clicked for ${landmark.name}`, {
-              distance: distance ? `${Math.round(distance)}m` : 'unknown',
-              willUsePanorama: distance && distance < 500,
-              userLocation: userLocation ? 'available' : 'unavailable',
-              strategy: distance ? 
-                (distance < 100 ? 'all (comprehensive)' : 
-                 distance < 500 ? 'smart (optimal)' : 
-                 distance < 1000 ? 'cardinal (4-direction)' : 'single (basic)') : 'default'
-            });
-
-            // Trigger proximity-based panorama preloading for very close landmarks
-            if (distance && distance < 200) {
-              console.log(`🔄 Triggering panorama preloading for very close landmark: ${landmark.name} (${Math.round(distance)}m)`);
-            }
-
-            // Open modal with enhanced panorama support and user location context
-            await openStreetViewModal([landmark], landmark, userLocation);
-          } catch (error) {
-            console.error('❌ Error opening enhanced Street View:', error);
-          }
-        };
-
         return (
           <div className="relative">
             <button
@@ -1030,13 +997,21 @@ const MapComponent: React.FC<MapProps> = ({
             </div>
 
             <div className="absolute bottom-16 right-4 z-40 flex gap-2">
-              <button
-                onClick={handleEnhancedStreetViewOpen}
-                className="bg-blue-500/95 hover:bg-blue-600 text-white border-2 border-white/90 rounded-full w-12 h-12 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg"
-                title="View Enhanced Street View with Panorama"
-              >
-                <Eye className="w-5 h-5" />
-              </button>
+              {hasStreetView && (
+                <button
+                  onClick={async () => {
+                    try {
+                      await openStreetViewModal([landmark], landmark);
+                    } catch (error) {
+                      console.error('❌ Error opening Street View:', error);
+                    }
+                  }}
+                  className="bg-blue-500/95 hover:bg-blue-600 text-white border-2 border-white/90 rounded-full w-12 h-12 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg"
+                  title="View Street View"
+                >
+                  <Eye className="w-5 h-5" />
+                </button>
+              )}
               
               <button
                 onClick={() => handleTextToSpeech(landmark)}
@@ -1078,35 +1053,6 @@ const MapComponent: React.FC<MapProps> = ({
       const root = ReactDOM.createRoot(popupContainer);
 
       const FallbackContent = () => {
-        // Enhanced eye icon handler for fallback content as well
-        const handleEnhancedStreetViewOpen = async () => {
-          try {
-            // Calculate distance if user location available
-            const distance = userLocation ? calculateDistance(
-              userLocation.latitude,
-              userLocation.longitude,
-              landmark.coordinates[1], // latitude
-              landmark.coordinates[0]  // longitude
-            ) : undefined;
-
-            // Enhanced logging with panorama strategy
-            console.log(`👁️ Enhanced eye icon clicked (fallback) for ${landmark.name}`, {
-              distance: distance ? `${Math.round(distance)}m` : 'unknown',
-              willUsePanorama: distance && distance < 500,
-              userLocation: userLocation ? 'available' : 'unavailable',
-              strategy: distance ? 
-                (distance < 100 ? 'all (comprehensive)' : 
-                 distance < 500 ? 'smart (optimal)' : 
-                 distance < 1000 ? 'cardinal (4-direction)' : 'single (basic)') : 'default'
-            });
-
-            // Open modal with enhanced panorama support
-            await openStreetViewModal([landmark], landmark, userLocation);
-          } catch (error) {
-            console.error('❌ Error opening enhanced Street View:', error);
-          }
-        };
-
         return (
           <div className="relative">
             <button
@@ -1125,13 +1071,21 @@ const MapComponent: React.FC<MapProps> = ({
                 </div>
                 
                 <div className="absolute bottom-2 right-2 flex gap-2">
-                  <button
-                    onClick={handleEnhancedStreetViewOpen}
-                    className="bg-blue-500/95 hover:bg-blue-600 text-white border-2 border-white/90 rounded-full w-10 h-10 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg"
-                    title="View Enhanced Street View with Panorama"
-                  >
-                    <Eye className="w-4 h-4" />
-                  </button>
+                  {hasStreetView && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          await openStreetViewModal([landmark], landmark);
+                        } catch (error) {
+                          console.error('❌ Error opening Street View:', error);
+                        }
+                      }}
+                      className="bg-blue-500/95 hover:bg-blue-600 text-white border-2 border-white/90 rounded-full w-10 h-10 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg"
+                      title="View Street View"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                  )}
                   
                   <button
                     onClick={() => handleTextToSpeech(landmark)}
@@ -1532,7 +1486,7 @@ const MapComponent: React.FC<MapProps> = ({
       if (targetLandmark) {
         console.log(`🔍 Opening Street View modal for ${targetLandmark.name} from layer click`);
         try {
-          await openStreetViewModal([targetLandmark], targetLandmark, userLocation);
+          await openStreetViewModal([targetLandmark], targetLandmark);
           console.log('✅ openStreetViewModal call completed');
         } catch (error) {
           console.error('❌ Error calling openStreetViewModal:', error);
