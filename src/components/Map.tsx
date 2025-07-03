@@ -601,6 +601,12 @@ const MapComponent: React.FC<MapProps> = ({
       return;
     }
 
+    // 🔒 PROTECTION: Skip proximity sync during tour generation
+    if (getTourGenerationInProgress()) {
+      console.log('🔒 Skipping proximity settings sync - tour generation in progress');
+      return;
+    }
+
     console.log('🔄 Proximity settings changed:', proximitySettings);
     
     const timeSinceLastLocationEvent = Date.now() - lastLocationEventTime.current;
