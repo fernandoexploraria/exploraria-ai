@@ -49,8 +49,10 @@ export const useConnectionMonitor = () => {
     } else if (proximityStatus.status === 'polling') {
       issues.push('Proximity Alerts: Using polling fallback (real-time unavailable)');
     } else if (proximityStatus.status === 'connecting') {
-      // Note: proximityStatus doesn't have lastConnectionTime, so we'll skip this check
-      // or use a different approach to determine if connecting is taking too long
+      const connectingTime = proximityStatus.lastConnectionTime ? now - proximityStatus.lastConnectionTime : 0;
+      if (connectingTime > 30000) { // 30 seconds
+        issues.push('Proximity Alerts: Connection taking too long');
+      }
     }
 
     // Check for stale data

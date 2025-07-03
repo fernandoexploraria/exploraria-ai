@@ -7,7 +7,6 @@ import { useTTSContext } from '@/contexts/TTSContext';
 import { useStreetView } from '@/hooks/useStreetView';
 import { TourLandmark } from '@/data/tourLandmarks';
 import { supabase } from '@/integrations/supabase/client';
-import { logGracePeriodEvent, formatGracePeriodDebugInfo } from '@/utils/smartGracePeriod';
 
 interface NotificationState {
   [placeId: string]: number; // timestamp of last notification
@@ -33,26 +32,17 @@ const CARD_COOLDOWN = 10 * 60 * 1000; // 10 minutes in milliseconds for cards
 const STORAGE_KEY = 'proximity_notifications_state';
 const PREP_ZONE_STORAGE_KEY = 'prep_zone_state';
 const CARD_STORAGE_KEY = 'proximity_cards_state';
-const INITIALIZATION_NEARBY_KEY = 'initialization_nearby_landmarks';
 
 export const useProximityNotifications = () => {
-  const { 
-    proximitySettings, 
-    isInGracePeriod, 
-    gracePeriodRemainingMs,
-    gracePeriodReason,
-    gracePeriodState
-  } = useProximityAlerts();
+  const { proximitySettings } = useProximityAlerts();
   const { userLocation } = useLocationTracking();
   const { speak } = useTTSContext();
   const { preloadStreetView, getCachedData } = useStreetView();
   const notificationStateRef = useRef<NotificationState>({});
   const prepZoneStateRef = useRef<PrepZoneState>({});
   const cardStateRef = useRef<CardState>({});
-  const initializationNearbyLandmarksRef = useRef<Set<string>>(new Set());
   const previousNearbyLandmarksRef = useRef<Set<string>>(new Set());
   const previousCardZoneLandmarksRef = useRef<Set<string>>(new Set());
-  const hasInitializedRef = useRef<boolean>(false);
 
   // State for active proximity cards - use placeId as key
   const [activeCards, setActiveCards] = useState<{[placeId: string]: TourLandmark}>({});
@@ -81,7 +71,7 @@ export const useProximityNotifications = () => {
     notificationDistance: isProximitySettingsReady ? proximitySettings.card_distance : 75
   });
 
-  // Load state from localStorage
+  // Load notification state from localStorage
   useEffect(() => {
     try {
       const savedState = localStorage.getItem(STORAGE_KEY);
@@ -98,66 +88,20 @@ export const useProximityNotifications = () => {
       if (savedCardState) {
         cardStateRef.current = JSON.parse(savedCardState);
       }
-
-      const savedInitializationNearby = localStorage.getItem(INITIALIZATION_NEARBY_KEY);
-      if (savedInitializationNearby) {
-        initializationNearbyLandmarksRef.current = new Set(JSON.parse(savedInitializationNearby));
-        console.log('🏗️ Loaded initialization nearby landmarks:', Array.from(initializationNearbyLandmarksRef.current));
-      }
     } catch (error) {
       console.error('Failed to load notification state:', error);
     }
   }, []);
 
-  // Save state to localStorage
+  // Save notification state to localStorage
   const saveNotificationState = useCallback(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(notificationStateRef.current));
       localStorage.setItem(PREP_ZONE_STORAGE_KEY, JSON.stringify(prepZoneStateRef.current));
       localStorage.setItem(CARD_STORAGE_KEY, JSON.stringify(cardStateRef.current));
-      localStorage.setItem(INITIALIZATION_NEARBY_KEY, JSON.stringify(Array.from(initializationNearbyLandmarksRef.current)));
     } catch (error) {
       console.error('Failed to save notification state:', error);
     }
-  }, []);
-
-  // Track initialization nearby landmarks when proximity is first enabled
-  useEffect(() => {
-    if (!isProximitySettingsReady || !proximitySettings.is_enabled || !userLocation) {
-      if (proximitySettings && !proximitySettings.is_enabled) {
-        // Clear initialization nearby landmarks when proximity is disabled
-        console.log('🏗️ Clearing initialization nearby landmarks (proximity disabled)');
-        initializationNearbyLandmarksRef.current.clear();
-        hasInitializedRef.current = false;
-        saveNotificationState();
-      }
-      return;
-    }
-
-    // If this is the first time proximity is enabled, capture nearby landmarks
-    if (!hasInitializedRef.current && nearbyLandmarks.length > 0) {
-      const nearbyPlaceIds = nearbyLandmarks.map(nl => nl.landmark.placeId);
-      initializationNearbyLandmarksRef.current = new Set(nearbyPlaceIds);
-      hasInitializedRef.current = true;
-      
-      console.log('🏗️ Captured initialization nearby landmarks:', nearbyPlaceIds);
-      logGracePeriodEvent(
-        'Initialization nearby landmarks captured',
-        { 
-          count: nearbyPlaceIds.length,
-          landmarks: nearbyPlaceIds
-        },
-        'info',
-        proximitySettings
-      );
-      
-      saveNotificationState();
-    }
-  }, [isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, nearbyLandmarks, saveNotificationState]);
-
-  // Check if landmark was nearby during initialization
-  const wasNearbyDuringInitialization = useCallback((placeId: string): boolean => {
-    return initializationNearbyLandmarksRef.current.has(placeId);
   }, []);
 
   // Check if notification cooldown has passed
@@ -177,38 +121,6 @@ export const useProximityNotifications = () => {
     const timeSinceLastCard = Date.now() - lastCard.timestamp;
     return timeSinceLastCard >= CARD_COOLDOWN;
   }, []);
-
-  // ENHANCED: Check if we should show notifications (respects smart grace period and initialization context)
-  const shouldShowNotification = useCallback((placeId: string): boolean => {
-    // Check if landmark was nearby during initialization (permanent skip)
-    if (wasNearbyDuringInitialization(placeId)) {
-      console.log(`🏗️ Notification skipped - landmark ${placeId} was nearby during initialization`);
-      return false;
-    }
-
-    // Check if we're in the grace period (ONLY blocks notifications, not cards)
-    if (isInGracePeriod) {
-      logGracePeriodEvent(
-        `Notification blocked`, 
-        { 
-          placeId, 
-          reason: gracePeriodReason,
-          remaining: Math.round(gracePeriodRemainingMs / 1000),
-          debugInfo: formatGracePeriodDebugInfo(gracePeriodState, proximitySettings)
-        }
-      );
-      return false;
-    }
-
-    // Check normal cooldown
-    return canNotify(placeId);
-  }, [isInGracePeriod, gracePeriodRemainingMs, gracePeriodReason, gracePeriodState, proximitySettings, wasNearbyDuringInitialization, canNotify]);
-
-  // CONFIRMED: Cards are NOT blocked by grace period - they show immediately
-  const shouldShowCard = useCallback((placeId: string): boolean => {
-    // Cards are NOT blocked by grace period - only respect cooldown
-    return canShowCard(placeId);
-  }, [canShowCard]);
 
   // Play notification sound
   const playNotificationSound = useCallback(() => {
@@ -310,7 +222,7 @@ export const useProximityNotifications = () => {
     }
   }, [userLocation]);
 
-  // Handle prep zone entry and Street View pre-loading (UNAFFECTED by grace period)
+  // Handle prep zone entry and Street View pre-loading
   const handlePrepZoneEntry = useCallback(async (landmark: TourLandmark) => {
     const placeId = landmark.placeId;
     const prepState = prepZoneStateRef.current[placeId];
@@ -358,11 +270,11 @@ export const useProximityNotifications = () => {
     }
   }, [preloadStreetView, saveNotificationState]);
 
-  // FIXED: Handle card zone entry with NO grace period check
+  // Handle card zone entry
   const showProximityCard = useCallback((landmark: TourLandmark) => {
     const placeId = landmark.placeId;
     
-    if (!shouldShowCard(placeId)) {
+    if (!canShowCard(placeId)) {
       console.log(`🏪 Card for ${landmark.name} still in cooldown`);
       return;
     }
@@ -382,7 +294,7 @@ export const useProximityNotifications = () => {
     }));
 
     saveNotificationState();
-  }, [shouldShowCard, saveNotificationState]);
+  }, [canShowCard, saveNotificationState]);
 
   // Function to close a proximity card
   const closeProximityCard = useCallback((placeId: string) => {
@@ -395,7 +307,7 @@ export const useProximityNotifications = () => {
     });
   }, []);
 
-  // ENHANCED: Show proximity toast notification with grace period and initialization context checks
+  // Show proximity toast notification with sound, TTS, and Street View
   const showProximityToast = useCallback(async (landmark: TourLandmark, distance: number) => {
     const formattedDistance = distance >= 1000 
       ? `${(distance / 1000).toFixed(1)} km` 
@@ -463,7 +375,7 @@ export const useProximityNotifications = () => {
     });
   }, [prepZoneLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, handlePrepZoneEntry, saveNotificationState]);
 
-  // FIXED: Monitor card zone entries with NO grace period check - only when settings are ready
+  // Monitor card zone entries - only when settings are ready
   useEffect(() => {
     if (!isProximitySettingsReady || !proximitySettings.is_enabled || !userLocation || cardZoneLandmarks.length === 0) {
       return;
@@ -483,7 +395,7 @@ export const useProximityNotifications = () => {
         newlyEnteredCardIds.includes(nl.landmark.placeId)
       );
 
-      if (closestNewCardLandmark && shouldShowCard(closestNewCardLandmark.landmark.placeId)) {
+      if (closestNewCardLandmark && canShowCard(closestNewCardLandmark.landmark.placeId)) {
         showProximityCard(closestNewCardLandmark.landmark);
       }
     }
@@ -499,9 +411,9 @@ export const useProximityNotifications = () => {
 
     // Update previous card zone landmarks
     previousCardZoneLandmarksRef.current = currentCardZoneIds;
-  }, [cardZoneLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, shouldShowCard, showProximityCard, activeCards, closeProximityCard]);
+  }, [cardZoneLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, canShowCard, showProximityCard, activeCards, closeProximityCard]);
 
-  // ENHANCED: Monitor for newly entered proximity zones with smart grace period and initialization context checks - only when settings are ready
+  // Monitor for newly entered proximity zones - only when settings are ready
   useEffect(() => {
     if (!isProximitySettingsReady || !proximitySettings.is_enabled || !userLocation || nearbyLandmarks.length === 0) {
       return;
@@ -514,66 +426,25 @@ export const useProximityNotifications = () => {
     const newlyEnteredIds = Array.from(currentNearbyIds).filter(id => !previousNearbyIds.has(id));
 
     console.log(`🎯 Proximity check: ${currentNearbyIds.size} nearby, ${newlyEnteredIds.length} newly entered`);
-    
-    // Enhanced logging for grace period and initialization context debugging
-    if (isInGracePeriod || newlyEnteredIds.some(id => wasNearbyDuringInitialization(id))) {
-      const initializationBlocked = newlyEnteredIds.filter(id => wasNearbyDuringInitialization(id));
-      const gracePeriodBlocked = newlyEnteredIds.filter(id => !wasNearbyDuringInitialization(id));
-      
-      logGracePeriodEvent(
-        `Proximity check with blocking conditions`, 
-        { 
-          nearbyCount: currentNearbyIds.size,
-          newlyEntered: newlyEnteredIds.length,
-          initializationBlocked: initializationBlocked.length,
-          gracePeriodBlocked: gracePeriodBlocked.length,
-          reason: gracePeriodReason,
-          remaining: Math.round(gracePeriodRemainingMs / 1000),
-          debugInfo: formatGracePeriodDebugInfo(gracePeriodState, proximitySettings)
-        }
-      );
-    }
 
     // Show notification for ONLY the closest newly entered landmark that can be notified
     if (newlyEnteredIds.length > 0) {
       // Find the first (closest) newly entered landmark that can be notified
       // nearbyLandmarks is already sorted by distance (closest first)
       const closestNewLandmark = nearbyLandmarks.find(nl => 
-        newlyEnteredIds.includes(nl.landmark.placeId) && shouldShowNotification(nl.landmark.placeId)
+        newlyEnteredIds.includes(nl.landmark.placeId) && canNotify(nl.landmark.placeId)
       );
 
       if (closestNewLandmark) {
         showProximityToast(closestNewLandmark.landmark, closestNewLandmark.distance);
       } else {
-        const initializationSkipped = newlyEnteredIds.filter(id => wasNearbyDuringInitialization(id)).length;
-        const gracePeriodSkipped = newlyEnteredIds.filter(id => !wasNearbyDuringInitialization(id) && isInGracePeriod).length;
-        const cooldownSkipped = newlyEnteredIds.length - initializationSkipped - gracePeriodSkipped;
-        
-        const reasons = [
-          initializationSkipped > 0 && `${initializationSkipped} skipped (initialization context)`,
-          gracePeriodSkipped > 0 && `${gracePeriodSkipped} skipped (grace period: ${gracePeriodReason}, ${Math.round(gracePeriodRemainingMs/1000)}s remaining)`,
-          cooldownSkipped > 0 && `${cooldownSkipped} skipped (cooldown)`
-        ].filter(Boolean).join(', ');
-        
-        console.log(`🔕 No notifications shown - ${reasons}`);
+        console.log(`🔕 No notifications shown - all newly entered landmarks still in cooldown`);
       }
     }
 
     // Update previous nearby landmarks
     previousNearbyLandmarksRef.current = currentNearbyIds;
-  }, [
-    nearbyLandmarks, 
-    isProximitySettingsReady, 
-    proximitySettings?.is_enabled, 
-    userLocation, 
-    shouldShowNotification, 
-    isInGracePeriod, 
-    gracePeriodReason,
-    gracePeriodRemainingMs,
-    gracePeriodState,
-    wasNearbyDuringInitialization,
-    showProximityToast
-  ]);
+  }, [nearbyLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, canNotify, showProximityToast]);
 
   // Cleanup expired notifications from state
   useEffect(() => {
@@ -622,13 +493,6 @@ export const useProximityNotifications = () => {
     prepZoneState: prepZoneStateRef.current,
     cardState: cardStateRef.current,
     isEnabled: proximitySettings?.is_enabled || false,
-    // ENHANCED: Export smart grace period state and initialization context for debugging/UI
-    isInGracePeriod,
-    gracePeriodRemainingMs,
-    gracePeriodReason,
-    gracePeriodState,
-    gracePeriodDebugInfo: formatGracePeriodDebugInfo(gracePeriodState, proximitySettings),
-    initializationNearbyLandmarks: Array.from(initializationNearbyLandmarksRef.current),
     closeProximityCard,
     showRouteToService
   };
