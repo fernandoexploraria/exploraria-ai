@@ -1,8 +1,11 @@
-
 import { gracePeriodHistory } from '@/utils/gracePeriodHistory';
 import { gracePeriodErrorRecovery } from '@/utils/gracePeriodErrorRecovery';
 import { validateGracePeriodRanges, getGracePeriodValidationRules } from '@/utils/gracePeriodValidation';
 import { ProximitySettings } from '@/types/proximityAlerts';
+import { gracePeriodLazyLoader } from '@/utils/gracePeriodLazyLoader';
+import { gracePeriodStorage } from '@/utils/gracePeriodStorage';
+import { gracePeriodDebouncer } from '@/utils/gracePeriodDebouncer';
+import { gracePeriodTimerManager } from '@/utils/gracePeriodTimerManager';
 
 export interface ValidationMetrics {
   totalValidations: number;
@@ -22,6 +25,33 @@ export interface ErrorRecoveryMetrics {
   recoverySuccessRate: number;
 }
 
+export interface PerformanceMetrics {
+  lazyLoader: {
+    isLoaded: boolean;
+    loadTime: number | null;
+    cacheHits: number;
+    cacheMisses: number;
+  };
+  storage: {
+    totalOperations: number;
+    batchOperations: number;
+    cacheHitRate: number;
+    errorRate: number;
+  };
+  debouncer: {
+    totalUpdates: number;
+    batchedUpdates: number;
+    databaseCallsSaved: number;
+    pendingOperations: number;
+  };
+  timers: {
+    activeTimers: number;
+    totalTimersCreated: number;
+    memoryLeakWarnings: number;
+    averageTimerLifetime: number;
+  };
+}
+
 export interface DebugTestScenarios {
   name: string;
   description: string;
@@ -30,6 +60,7 @@ export interface DebugTestScenarios {
 
 class GracePeriodDebugMetrics {
   private static instance: GracePeriodDebugMetrics;
+  
   private validationMetrics: ValidationMetrics = {
     totalValidations: 0,
     successfulValidations: 0,
@@ -125,6 +156,40 @@ class GracePeriodDebugMetrics {
     };
   }
 
+  getPerformanceMetrics(): PerformanceMetrics {
+    const lazyLoaderState = gracePeriodLazyLoader.getLoadState();
+    const storageMetrics = gracePeriodStorage.getMetrics();
+    const debouncerMetrics = gracePeriodDebouncer.getMetrics();
+    const timerMetrics = gracePeriodTimerManager.getMetrics();
+
+    return {
+      lazyLoader: {
+        isLoaded: lazyLoaderState.isLoaded,
+        loadTime: lazyLoaderState.lastLoadTime,
+        cacheHits: 0, // Will be implemented in lazy loader
+        cacheMisses: 0, // Will be implemented in lazy loader
+      },
+      storage: {
+        totalOperations: storageMetrics.totalOperations,
+        batchOperations: storageMetrics.batchOperations,
+        cacheHitRate: storageMetrics.cacheHitRate,
+        errorRate: storageMetrics.errorRate,
+      },
+      debouncer: {
+        totalUpdates: debouncerMetrics.totalUpdates,
+        batchedUpdates: debouncerMetrics.batchedUpdates,
+        databaseCallsSaved: debouncerMetrics.databaseCallsSaved,
+        pendingOperations: gracePeriodDebouncer.getPendingOperationsCount(),
+      },
+      timers: {
+        activeTimers: timerMetrics.activeTimers,
+        totalTimersCreated: timerMetrics.totalTimersCreated,
+        memoryLeakWarnings: timerMetrics.memoryLeakWarnings,
+        averageTimerLifetime: timerMetrics.averageTimerLifetime,
+      },
+    };
+  }
+
   getTestScenarios(): DebugTestScenarios[] {
     return [
       {
@@ -203,6 +268,91 @@ class GracePeriodDebugMetrics {
         },
       },
       {
+        name: 'Test Performance Optimization',
+        description: 'Test lazy loading, storage batching, and debouncing performance',
+        testFunction: async () => {
+          console.log('🧪 [Performance Test] Starting performance optimization test');
+          
+          const startTime = performance.now();
+          
+          // Test lazy loading
+          const lazyLoadStart = performance.now();
+          const settings = gracePeriodLazyLoader.getCachedSettings();
+          const lazyLoadTime = performance.now() - lazyLoadStart;
+          
+          // Test storage batching
+          const storageStart = performance.now();
+          await gracePeriodStorage.setItem('test-key', { test: 'value' });
+          const storageTime = performance.now() - storageStart;
+          
+          // Test debouncing (simulate multiple rapid updates)
+          const debounceStart = performance.now();
+          const mockUpdate = async (updates: any) => {
+            console.log('Mock update:', updates);
+          };
+          
+          gracePeriodDebouncer.debounceUpdate('test-user', 'grace_period_initialization', 15000, mockUpdate);
+          gracePeriodDebouncer.debounceUpdate('test-user', 'grace_period_movement', 8000, mockUpdate);
+          
+          // Wait for debounce to complete
+          await new Promise(resolve => setTimeout(resolve, 1200));
+          const debounceTime = performance.now() - debounceStart;
+          
+          const totalTime = performance.now() - startTime;
+          
+          return {
+            totalTime,
+            lazyLoadTime,
+            storageTime,
+            debounceTime,
+            performanceMetrics: this.getPerformanceMetrics(),
+            settings: settings ? 'loaded' : 'not-loaded',
+          };
+        },
+      },
+      {
+        name: 'Test Memory Management',
+        description: 'Test timer cleanup and memory leak prevention',
+        testFunction: async () => {
+          console.log('🧪 [Memory Test] Starting memory management test');
+          
+          const initialTimerCount = gracePeriodTimerManager.getMetrics().activeTimers;
+          
+          // Create several test timers
+          const timerIds: string[] = [];
+          for (let i = 0; i < 5; i++) {
+            const id = gracePeriodTimerManager.createTimer(
+              'grace-period',
+              1000,
+              () => console.log('Test timer callback', i),
+              `Test timer ${i}`
+            );
+            timerIds.push(id);
+          }
+          
+          const afterCreateCount = gracePeriodTimerManager.getMetrics().activeTimers;
+          
+          // Clear all test timers
+          let clearedCount = 0;
+          for (const id of timerIds) {
+            if (gracePeriodTimerManager.clearTimer(id)) {
+              clearedCount++;
+            }
+          }
+          
+          const finalTimerCount = gracePeriodTimerManager.getMetrics().activeTimers;
+          
+          return {
+            initialTimerCount,
+            afterCreateCount,
+            finalTimerCount,
+            clearedCount,
+            timerMetrics: gracePeriodTimerManager.getMetrics(),
+            memoryCleanupSuccessful: finalTimerCount === initialTimerCount,
+          };
+        },
+      },
+      {
         name: 'System Health Check',
         description: 'Comprehensive system health and performance check',
         testFunction: async () => {
@@ -265,6 +415,70 @@ class GracePeriodDebugMetrics {
     };
     
     gracePeriodErrorRecovery.clearRetryHistory();
+    
+    // Reset performance-related components
+    gracePeriodStorage.clearCache();
+    gracePeriodDebouncer.clearPendingOperations();
+    gracePeriodLazyLoader.clearCache();
+    
+    // Note: We don't reset timer manager as it may have active timers for the system
+  }
+
+  getComprehensiveHealthReport(): any {
+    return {
+      timestamp: Date.now(),
+      validation: this.getValidationMetrics(),
+      errorRecovery: this.getErrorRecoveryMetrics(),
+      performance: this.getPerformanceMetrics(),
+      gracePeriodHistory: gracePeriodHistory.getMetrics(),
+      systemHealth: {
+        isHealthy: this.isSystemHealthy(),
+        issues: this.getHealthIssues(),
+      },
+    };
+  }
+
+  private isSystemHealthy(): boolean {
+    const performance = this.getPerformanceMetrics();
+    const validation = this.getValidationMetrics();
+    
+    // Check for concerning metrics
+    const healthChecks = [
+      performance.storage.errorRate < 0.1, // Less than 10% error rate
+      performance.timers.memoryLeakWarnings < 5, // Less than 5 memory leak warnings
+      validation.validationSuccessRate > 80, // At least 80% validation success rate
+      performance.timers.activeTimers < 50, // Less than 50 active timers
+    ];
+    
+    return healthChecks.every(check => check);
+  }
+
+  private getHealthIssues(): string[] {
+    const issues: string[] = [];
+    const performance = this.getPerformanceMetrics();
+    const validation = this.getValidationMetrics();
+    
+    if (performance.storage.errorRate >= 0.1) {
+      issues.push(`High storage error rate: ${(performance.storage.errorRate * 100).toFixed(1)}%`);
+    }
+    
+    if (performance.timers.memoryLeakWarnings >= 5) {
+      issues.push(`Memory leak warnings: ${performance.timers.memoryLeakWarnings}`);
+    }
+    
+    if (validation.validationSuccessRate <= 80) {
+      issues.push(`Low validation success rate: ${validation.validationSuccessRate.toFixed(1)}%`);
+    }
+    
+    if (performance.timers.activeTimers >= 50) {
+      issues.push(`High active timer count: ${performance.timers.activeTimers}`);
+    }
+    
+    if (performance.debouncer.pendingOperations >= 20) {
+      issues.push(`High pending operations: ${performance.debouncer.pendingOperations}`);
+    }
+    
+    return issues;
   }
 }
 
