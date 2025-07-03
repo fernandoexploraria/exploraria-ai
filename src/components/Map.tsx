@@ -18,6 +18,7 @@ import { PhotoData } from '@/hooks/useEnhancedPhotos';
 import { PhotoCarousel } from './photo-carousel';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { getEnhancedLandmarkText } from '@/utils/landmarkPromptUtils';
+import { geolocateControlDebouncer } from '@/utils/geolocateControlDebouncer';
 
 interface MapProps {
   mapboxToken: string;
@@ -348,6 +349,7 @@ const MapComponent: React.FC<MapProps> = ({
           });
         }
         
+        // Enhanced event handling with GeolocateControl-specific debouncer
         geoControl.on('geolocate', (e) => {
           const currentState = (geoControl as any)._watchState;
           console.log('🌍 GeolocateControl: Location found', { 
@@ -358,36 +360,77 @@ const MapComponent: React.FC<MapProps> = ({
           
           lastLocationEventTime.current = Date.now();
           
-          if (!isUpdatingFromProximitySettings.current) {
-            console.log('🌍 GeolocateControl: Enabling proximity (user initiated location)');
-            updateProximityEnabled(true);
+          if (!isUpdatingFromProximitySettings.current && user) {
+            console.log('🌍 GeolocateControl: Processing geolocate event through debouncer');
+            geolocateControlDebouncer.debounceGeolocateEvent(
+              user.id,
+              'geolocate',
+              true, // Enable proximity when location is found
+              async (enabled) => {
+                console.log('🌍 GeolocateControl: Executing debounced geolocate update:', enabled);
+                await updateProximityEnabled(enabled, 'GeolocateControl-geolocate');
+              },
+              currentState
+            );
           }
         });
         
         geoControl.on('trackuserlocationstart', () => {
+          const currentState = (geoControl as any)._watchState;
           console.log('🌍 GeolocateControl: Started tracking user location (ACTIVE state)');
           lastLocationEventTime.current = Date.now();
           
-          if (!isUpdatingFromProximitySettings.current) {
-            console.log('🌍 GeolocateControl: Enabling proximity (tracking started)');
-            updateProximityEnabled(true);
+          if (!isUpdatingFromProximitySettings.current && user) {
+            console.log('🌍 GeolocateControl: Processing trackuserlocationstart event through debouncer');
+            geolocateControlDebouncer.debounceGeolocateEvent(
+              user.id,
+              'trackuserlocationstart',
+              true, // Enable proximity when tracking starts
+              async (enabled) => {
+                console.log('🌍 GeolocateControl: Executing debounced trackuserlocationstart update:', enabled);
+                await updateProximityEnabled(enabled, 'GeolocateControl-trackuserlocationstart');
+              },
+              currentState
+            );
           }
         });
         
         geoControl.on('trackuserlocationend', () => {
+          const currentState = (geoControl as any)._watchState;
           console.log('🌍 GeolocateControl: Stopped tracking user location (PASSIVE/INACTIVE state)');
-          if (!isUpdatingFromProximitySettings.current) {
-            console.log('🌍 GeolocateControl: Disabling proximity (tracking ended)');
-            updateProximityEnabled(false);
+          
+          if (!isUpdatingFromProximitySettings.current && user) {
+            console.log('🌍 GeolocateControl: Processing trackuserlocationend event through debouncer');
+            geolocateControlDebouncer.debounceGeolocateEvent(
+              user.id,
+              'trackuserlocationend',
+              false, // Disable proximity when tracking ends
+              async (enabled) => {
+                console.log('🌍 GeolocateControl: Executing debounced trackuserlocationend update:', enabled);
+                await updateProximityEnabled(enabled, 'GeolocateControl-trackuserlocationend');
+              },
+              currentState
+            );
           }
         });
         
         geoControl.on('error', (e) => {
+          const currentState = (geoControl as any)._watchState;
           console.error('🌍 GeolocateControl: Error occurred', e);
           userInitiatedLocationRequest.current = false;
-          if (!isUpdatingFromProximitySettings.current) {
-            console.log('🌍 GeolocateControl: Disabling proximity (error occurred)');
-            updateProximityEnabled(false);
+          
+          if (!isUpdatingFromProximitySettings.current && user) {
+            console.log('🌍 GeolocateControl: Processing error event through debouncer');
+            geolocateControlDebouncer.debounceGeolocateEvent(
+              user.id,
+              'error',
+              false, // Disable proximity on error
+              async (enabled) => {
+                console.log('🌍 GeolocateControl: Executing debounced error update:', enabled);
+                await updateProximityEnabled(enabled, 'GeolocateControl-error');
+              },
+              currentState
+            );
           }
         });
         
@@ -565,6 +608,12 @@ const MapComponent: React.FC<MapProps> = ({
       return () => {
         console.log('🗺️ [Map] Cleanup function called');
         stopCurrentAudio();
+        
+        // Emergency cleanup for GeolocateControl debouncer
+        if (user) {
+          geolocateControlDebouncer.emergencyBrake(user.id);
+        }
+        
         geolocateControl.current = null;
         map.current?.remove();
         map.current = null;

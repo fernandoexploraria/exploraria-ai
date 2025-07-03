@@ -80,6 +80,10 @@ export const useProximityAlerts = () => {
     lastWarning: 0
   });
   
+  // Multi-source update prevention flags (enhanced for Step 2.3.1)
+  const isUpdatingFromGeolocateControl = useRef<boolean>(false);
+  const geolocateEventInProgress = useRef<boolean>(false);
+  
   // Grace period state management
   const [gracePeriodState, setGracePeriodState] = useState<GracePeriodState>({
     isInGracePeriod: false,
@@ -97,10 +101,20 @@ export const useProximityAlerts = () => {
   const appBackgroundedAtRef = useRef<number | null>(null);
   const proximityWasEnabledRef = useRef<boolean>(false);
 
-  // Enhanced call tracking functions
+  // Enhanced call tracking functions with GeolocateControl awareness
   const trackEnabledCall = useCallback((enabled: boolean, source: string) => {
     const now = Date.now();
     const tracker = lastEnabledCallRef.current;
+    
+    // Detect if this is a GeolocateControl event
+    const isGeolocateEvent = source.includes('GeolocateControl');
+    if (isGeolocateEvent) {
+      isUpdatingFromGeolocateControl.current = true;
+      // Reset after a short delay to allow event processing
+      setTimeout(() => {
+        isUpdatingFromGeolocateControl.current = false;
+      }, 1000);
+    }
     
     // Update call tracker
     tracker.lastValue = enabled;
@@ -132,11 +146,13 @@ export const useProximityAlerts = () => {
       rapid.callCount++;
     }
     
-    // Log warning for rapid calls
-    if (rapid.callCount > 3 && now - rapid.lastWarning > 5000) {
+    // Log warning for rapid calls (but be more lenient for GeolocateControl events)
+    const rapidThreshold = isGeolocateEvent ? 6 : 3; // Higher threshold for geolocate events
+    if (rapid.callCount > rapidThreshold && now - rapid.lastWarning > 5000) {
       console.warn('🚨 [ProximityAlerts] Rapid updateProximityEnabled calls detected:', {
         callsInLastSecond: rapid.callCount,
         source,
+        isGeolocateEvent,
         recentHistory: history.slice(-5)
       });
       rapid.lastWarning = now;
@@ -147,6 +163,7 @@ export const useProximityAlerts = () => {
     console.log('📋 Call Details:', {
       enabled,
       source,
+      isGeolocateEvent,
       timestamp: new Date(now).toISOString().slice(11, 23),
       callCount: tracker.callCount,
       timeSinceLastCall: tracker.lastTimestamp ? now - tracker.lastTimestamp : 'N/A'
@@ -154,23 +171,30 @@ export const useProximityAlerts = () => {
     console.log('📊 Recent History:', history.slice(-3));
     console.log('⚡ Rapid Detection:', {
       callsInWindow: rapid.callCount,
-      windowDuration: now - rapid.windowStart
+      windowDuration: now - rapid.windowStart,
+      threshold: rapidThreshold
     });
     console.groupEnd();
   }, []);
 
+  // Enhanced duplicate call detection with GeolocateControl awareness
   const checkForDuplicateCall = useCallback((enabled: boolean, source: string): boolean => {
     const tracker = lastEnabledCallRef.current;
     const now = Date.now();
     
-    // Check for exact duplicate within 500ms
+    // More lenient duplicate detection for GeolocateControl events
+    const isGeolocateEvent = source.includes('GeolocateControl');
+    const duplicateWindow = isGeolocateEvent ? 100 : 500; // Shorter window for geolocate events
+    
+    // Check for exact duplicate within the appropriate window
     if (tracker.lastValue === enabled && 
         tracker.lastTimestamp && 
-        now - tracker.lastTimestamp < 500) {
+        now - tracker.lastTimestamp < duplicateWindow) {
       
       console.warn('🔄 [ProximityAlerts] Duplicate call detected and skipped:', {
         enabled,
         source,
+        isGeolocateEvent,
         timeSinceLastCall: now - tracker.lastTimestamp,
         lastSource: tracker.source
       });
