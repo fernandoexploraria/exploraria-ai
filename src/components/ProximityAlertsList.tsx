@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
@@ -10,24 +10,81 @@ import { formatDistance } from '@/utils/proximityUtils';
 import { landmarks } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { TOUR_LANDMARKS } from '@/data/tourLandmarks';
+import { supabase } from '@/integrations/supabase/client';
+import { ProximityAlert } from '@/types/proximityAlerts';
 
 const ProximityAlertsList: React.FC = () => {
-  const { proximityAlerts, setProximityAlerts } = useProximityAlerts();
+  const { proximitySettings } = useProximityAlerts();
+  const [proximityAlerts, setProximityAlerts] = useState<ProximityAlert[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch proximity alerts from Supabase
+  useEffect(() => {
+    const fetchProximityAlerts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('proximity_alerts')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching proximity alerts:', error);
+          return;
+        }
+
+        setProximityAlerts(data || []);
+      } catch (err) {
+        console.error('Failed to fetch proximity alerts:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProximityAlerts();
+  }, []);
 
   const handleToggleAlert = async (alertId: string, enabled: boolean) => {
-    setProximityAlerts(prevAlerts =>
-      prevAlerts.map(alert =>
-        alert.id === alertId
-          ? { ...alert, is_enabled: enabled, updated_at: new Date().toISOString() }
-          : alert
-      )
-    );
+    try {
+      const { error } = await supabase
+        .from('proximity_alerts')
+        .update({ is_enabled: enabled, updated_at: new Date().toISOString() })
+        .eq('id', alertId);
+
+      if (error) {
+        console.error('Error updating proximity alert:', error);
+        return;
+      }
+
+      setProximityAlerts(prevAlerts =>
+        prevAlerts.map(alert =>
+          alert.id === alertId
+            ? { ...alert, is_enabled: enabled, updated_at: new Date().toISOString() }
+            : alert
+        )
+      );
+    } catch (err) {
+      console.error('Failed to update proximity alert:', err);
+    }
   };
 
   const handleRemoveAlert = async (alertId: string) => {
-    setProximityAlerts(prevAlerts =>
-      prevAlerts.filter(alert => alert.id !== alertId)
-    );
+    try {
+      const { error } = await supabase
+        .from('proximity_alerts')
+        .delete()
+        .eq('id', alertId);
+
+      if (error) {
+        console.error('Error deleting proximity alert:', error);
+        return;
+      }
+
+      setProximityAlerts(prevAlerts =>
+        prevAlerts.filter(alert => alert.id !== alertId)
+      );
+    } catch (err) {
+      console.error('Failed to delete proximity alert:', err);
+    }
   };
 
   const getLandmarkName = (landmarkId: string) => {
@@ -43,6 +100,19 @@ const ProximityAlertsList: React.FC = () => {
 
     return 'Unknown Landmark';
   };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="text-center text-muted-foreground">
+            <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p>Loading proximity alerts...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (proximityAlerts.length === 0) {
     return (

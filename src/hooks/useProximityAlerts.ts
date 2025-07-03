@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,10 +15,23 @@ import {
 } from '@/utils/smartGracePeriod';
 import { ProximitySettings, GracePeriodState } from '@/types/proximityAlerts';
 
+interface ConnectionStatus {
+  status: 'connected' | 'connecting' | 'polling' | 'failed' | 'disconnected';
+  lastDataUpdate: number | null;
+  consecutiveFailures: number;
+}
+
 export const useProximityAlerts = () => {
   const queryClient = useQueryClient();
   const { userLocation } = useLocationTracking();
   const { validateAndCorrectSettings, handleDatabaseError } = useProximityAlertsValidation();
+  
+  // Connection status state
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({
+    status: 'connecting',
+    lastDataUpdate: null,
+    consecutiveFailures: 0
+  });
   
   // Grace period state management
   const [gracePeriodState, setGracePeriodState] = useState<GracePeriodState>({
@@ -34,28 +48,47 @@ export const useProximityAlerts = () => {
   const proximityWasEnabledRef = useRef<boolean>(false);
 
   // Fetch proximity settings from Supabase
-  const { data: proximitySettings, isLoading, error, refetch: updateProximitySettings } = useQuery<ProximitySettings | null>(
-    ['proximitySettings'],
-    async () => {
-      const { data, error } = await supabase
-        .from('proximity_settings')
-        .select('*')
-        .single();
+  const { data: proximitySettings, isLoading, error, refetch } = useQuery<ProximitySettings | null>({
+    queryKey: ['proximitySettings'],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .from('proximity_settings')
+          .select('*')
+          .single();
 
-      if (error) {
-        console.error('Error fetching proximity settings:', error);
-        throw error;
+        if (error) {
+          console.error('Error fetching proximity settings:', error);
+          setConnectionStatus(prev => ({
+            ...prev,
+            status: 'failed',
+            consecutiveFailures: prev.consecutiveFailures + 1
+          }));
+          throw error;
+        }
+
+        setConnectionStatus(prev => ({
+          ...prev,
+          status: 'connected',
+          lastDataUpdate: Date.now(),
+          consecutiveFailures: 0
+        }));
+
+        return data as ProximitySettings;
+      } catch (err) {
+        setConnectionStatus(prev => ({
+          ...prev,
+          status: 'failed',
+          consecutiveFailures: prev.consecutiveFailures + 1
+        }));
+        throw err;
       }
-
-      return data as ProximitySettings;
     },
-    {
-      retry: false,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
-    }
-  );
+    retry: 3,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
+  });
 
   // Function to update proximity settings in Supabase
   const updateProximitySettings = useCallback(async (updates: Partial<ProximitySettings>) => {
@@ -94,6 +127,18 @@ export const useProximityAlerts = () => {
       console.error('Failed to update proximity settings:', err);
     }
   }, [proximitySettings, queryClient, validateAndCorrectSettings, handleDatabaseError]);
+
+  // Helper function to update proximity enabled status
+  const updateProximityEnabled = useCallback(async (enabled: boolean) => {
+    await updateProximitySettings({ is_enabled: enabled });
+  }, [updateProximitySettings]);
+
+  // Force reconnect function
+  const forceReconnect = useCallback(() => {
+    console.log('🔄 Force reconnecting proximity alerts...');
+    setConnectionStatus(prev => ({ ...prev, status: 'connecting' }));
+    refetch();
+  }, [refetch]);
 
   // Grace period expiration effect
   useEffect(() => {
@@ -142,49 +187,38 @@ export const useProximityAlerts = () => {
       currentLocation.longitude
     );
 
-    const movementConstants = getMovementConstants(proximitySettings);
-    const significantMovement = movementDistance >= movementConstants.SIGNIFICANT_THRESHOLD;
     const shouldClearGracePeriod = shouldClearGracePeriodOnMovement(movementDistance, proximitySettings);
 
-    if (significantMovement) {
-      console.log(`🚶 Significant movement detected: ${Math.round(movementDistance)}m`);
-      
+    // Clear grace period on movement >100m, but don't activate new one
+    if (shouldClearGracePeriod && gracePeriodState.isInGracePeriod) {
+      logGracePeriodEvent(
+        `Grace period cleared due to significant movement`, 
+        { 
+          movementDistance: Math.round(movementDistance),
+          clearThreshold: getMovementConstants(proximitySettings).GRACE_PERIOD_CLEAR_THRESHOLD,
+          previousReason: gracePeriodState.gracePeriodReason
+        },
+        'info',
+        proximitySettings
+      );
+
       setGracePeriodState(prev => ({
         ...prev,
-        lastMovementTimestamp: Date.now(),
+        isInGracePeriod: false,
+        gracePeriodReason: null,
+        initializationTimestamp: null,
       }));
 
-      // UPDATED: Clear grace period on movement >100m, but don't activate new one
-      if (shouldClearGracePeriod && gracePeriodState.isInGracePeriod) {
-        logGracePeriodEvent(
-          `Grace period cleared due to significant movement`, 
-          { 
-            movementDistance: Math.round(movementDistance),
-            clearThreshold: movementConstants.GRACE_PERIOD_CLEAR_THRESHOLD,
-            previousReason: gracePeriodState.gracePeriodReason
-          },
-          'info',
-          proximitySettings
-        );
-
-        setGracePeriodState(prev => ({
-          ...prev,
-          isInGracePeriod: false,
-          gracePeriodReason: null,
-          initializationTimestamp: null,
-        }));
-
-        trackGracePeriodActivation('movement_clear', 'user', {
-          preset: 'movement_clear',
-          userLocation: currentLocation
-        });
-      }
+      trackGracePeriodActivation('movement_clear', 'user', {
+        preset: 'movement_clear',
+        userLocation: currentLocation
+      });
     }
 
     lastLocationRef.current = currentLocation;
   }, [proximitySettings, gracePeriodState.isInGracePeriod, gracePeriodState.gracePeriodReason]);
 
-  // UPDATED: Handle app visibility changes - remove grace period activation
+  // Handle app visibility changes - for logging only, no grace period activation
   const handleAppVisibilityChange = useCallback(() => {
     if (document.hidden) {
       // App is being backgrounded
@@ -208,12 +242,11 @@ export const useProximityAlerts = () => {
         lastAppResumeTimestamp: Date.now(),
       }));
 
-      // REMOVED: No longer activate grace period on app resume
       appBackgroundedAtRef.current = null;
     }
   }, [proximitySettings]);
 
-  // UPDATED: Handle proximity setting changes - only reset on enable/disable
+  // Handle proximity setting changes - only reset on enable/disable
   const handleProximityToggle = useCallback(async (newEnabled: boolean) => {
     const wasEnabled = proximityWasEnabledRef.current;
     proximityWasEnabledRef.current = newEnabled;
@@ -288,6 +321,10 @@ export const useProximityAlerts = () => {
     isLoading,
     error,
     updateProximitySettings,
+    updateProximityEnabled,
+    connectionStatus,
+    forceReconnect,
+    userLocation,
     isInGracePeriod: gracePeriodState.isInGracePeriod,
     gracePeriodRemainingMs: gracePeriodState.isInGracePeriod && gracePeriodState.initializationTimestamp
       ? Math.max(0, (gracePeriodState.initializationTimestamp + getGracePeriodConstants(proximitySettings).INITIALIZATION) - Date.now())
