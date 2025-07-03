@@ -5,6 +5,10 @@ import { useAuth } from '@/components/AuthProvider';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { Landmark } from '@/data/landmarks';
 
+// Grace period constants
+const INITIALIZATION_GRACE_PERIOD = 15000; // 15 seconds
+const LOCATION_SETTLING_GRACE_PERIOD = 5000; // 5 seconds for location to stabilize
+
 // Enhanced connection status tracking
 interface ConnectionStatus {
   status: 'connected' | 'connecting' | 'disconnected' | 'failed' | 'polling';
@@ -14,7 +18,7 @@ interface ConnectionStatus {
   lastDataUpdate: number | null;
 }
 
-// Global state management for proximity settings with enhanced connection tracking
+// Global state management for proximity settings with enhanced connection tracking and grace period
 const globalProximityState = {
   settings: null as ProximitySettings | null,
   subscribers: new Set<(settings: ProximitySettings | null) => void>(),
@@ -35,8 +39,76 @@ const globalProximityState = {
     lastDataUpdate: null
   } as ConnectionStatus,
   pollingInterval: null as NodeJS.Timeout | null,
-  reconnectionAttemptTimeout: null as NodeJS.Timeout | null
+  reconnectionAttemptTimeout: null as NodeJS.Timeout | null,
+  // Grace period state
+  initializationTimestamp: null as number | null,
+  gracePeriodActive: false
 };
+
+// Grace period helper functions
+const isInGracePeriod = (): boolean => {
+  if (!globalProximityState.initializationTimestamp) return false;
+  const elapsed = Date.now() - globalProximityState.initializationTimestamp;
+  return elapsed < INITIALIZATION_GRACE_PERIOD;
+};
+
+const setInitializationTimestamp = (timestamp: number) => {
+  console.log('🕐 Setting initialization timestamp:', new Date(timestamp).toISOString());
+  globalProximityState.initializationTimestamp = timestamp;
+  globalProximityState.gracePeriodActive = true;
+  
+  // Save to localStorage
+  try {
+    localStorage.setItem('proximity_initialization_timestamp', timestamp.toString());
+  } catch (error) {
+    console.error('Failed to save initialization timestamp:', error);
+  }
+};
+
+const clearGracePeriod = () => {
+  console.log('🕐 Clearing grace period');
+  globalProximityState.initializationTimestamp = null;
+  globalProximityState.gracePeriodActive = false;
+  
+  // Remove from localStorage
+  try {
+    localStorage.removeItem('proximity_initialization_timestamp');
+  } catch (error) {
+    console.error('Failed to clear initialization timestamp:', error);
+  }
+};
+
+const getGracePeriodRemainingMs = (): number => {
+  if (!globalProximityState.initializationTimestamp) return 0;
+  const elapsed = Date.now() - globalProximityState.initializationTimestamp;
+  return Math.max(0, INITIALIZATION_GRACE_PERIOD - elapsed);
+};
+
+// Load initialization timestamp from localStorage
+const loadInitializationTimestamp = () => {
+  try {
+    const saved = localStorage.getItem('proximity_initialization_timestamp');
+    if (saved) {
+      const timestamp = parseInt(saved, 10);
+      if (!isNaN(timestamp)) {
+        globalProximityState.initializationTimestamp = timestamp;
+        // Check if still in grace period
+        if (isInGracePeriod()) {
+          globalProximityState.gracePeriodActive = true;
+          console.log('🕐 Restored grace period, remaining:', getGracePeriodRemainingMs() + 'ms');
+        } else {
+          // Grace period expired, clear it
+          clearGracePeriod();
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load initialization timestamp:', error);
+  }
+};
+
+// Initialize grace period state on module load
+loadInitializationTimestamp();
 
 const MINIMUM_GAP = 25; // minimum gap in meters between tiers
 const NOTIFICATION_OUTER_GAP = 50; // minimum gap between notification and outer distance
@@ -248,6 +320,7 @@ const createProximitySettingsSubscription = (userId: string, loadProximitySettin
             notification_distance: payload.new.notification_distance,
             outer_distance: payload.new.outer_distance,
             card_distance: payload.new.card_distance,
+            initialization_timestamp: payload.new.initialization_timestamp,
             created_at: payload.new.created_at,
             updated_at: payload.new.updated_at,
           };
@@ -426,6 +499,7 @@ export const useProximityAlerts = () => {
           notification_distance: data.notification_distance,
           outer_distance: data.outer_distance,
           card_distance: data.card_distance,
+          initialization_timestamp: data.initialization_timestamp,
           created_at: data.created_at,
           updated_at: data.updated_at,
         };
@@ -505,6 +579,20 @@ export const useProximityAlerts = () => {
         updateData.notification_distance = currentSettings.notification_distance;
         updateData.outer_distance = currentSettings.outer_distance;
         updateData.card_distance = currentSettings.card_distance;
+      }
+
+      // Grace period logic: track initialization when enabling proximity
+      if (enabled && (!currentSettings || !currentSettings.is_enabled)) {
+        // Proximity is being enabled (was disabled or first time)
+        const initTimestamp = Date.now();
+        setInitializationTimestamp(initTimestamp);
+        updateData.initialization_timestamp = initTimestamp;
+        console.log('🕐 Proximity enabled - starting grace period');
+      } else if (!enabled) {
+        // Proximity is being disabled - clear grace period
+        clearGracePeriod();
+        updateData.initialization_timestamp = null;
+        console.log('🕐 Proximity disabled - clearing grace period');
       }
 
       const { error } = await supabase
@@ -667,6 +755,11 @@ export const useProximityAlerts = () => {
     // Phase 2: Connection status and manual controls
     connectionStatus: globalProximityState.connectionStatus,
     forceReconnect,
+    // Grace period state
+    isInGracePeriod: isInGracePeriod(),
+    gracePeriodRemainingMs: getGracePeriodRemainingMs(),
+    initializationTimestamp: globalProximityState.initializationTimestamp,
+    gracePeriodActive: globalProximityState.gracePeriodActive,
     // Keep these for compatibility
     combinedLandmarks,
     setProximityAlerts,

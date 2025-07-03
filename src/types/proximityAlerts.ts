@@ -17,6 +17,7 @@ export interface ProximitySettings {
   notification_distance: number; // in meters - for toast notifications
   outer_distance: number; // in meters - for Street View prep zone
   card_distance: number; // in meters - for floating card notifications
+  initialization_timestamp?: number; // timestamp when proximity was first enabled for current session
   created_at?: string;
   updated_at?: string;
 }
