@@ -20,13 +20,6 @@ interface MapProps {
 const PROXIMITY_UPDATE_DEBOUNCE = 1000; // 1 second debounce for proximity updates
 const SETTINGS_UPDATE_THROTTLE = 500; // 0.5 second throttle for settings updates
 
-// Access global proximity state for subscription management
-declare global {
-  var globalProximityState: {
-    subscribers: Set<(settings: ProximitySettings | null) => void>;
-  };
-}
-
 const Map = ({ landmarks, onLandmarkClick, userCoordinate, plannedLandmarks }: MapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -216,8 +209,9 @@ const Map = ({ landmarks, onLandmarkClick, userCoordinate, plannedLandmarks }: M
       throttledSettingsChangeHandler(settings);
     };
 
-    // Subscribe to proximity settings changes
-    if (globalProximityState.subscribers) {
+    // Subscribe to proximity settings changes using the global state
+    const globalProximityState = (window as any).globalProximityState;
+    if (globalProximityState?.subscribers) {
       globalProximityState.subscribers.add(handleProximitySettingsChange);
     }
 
@@ -228,7 +222,8 @@ const Map = ({ landmarks, onLandmarkClick, userCoordinate, plannedLandmarks }: M
       }
       
       // Unsubscribe from proximity settings changes
-      if (globalProximityState.subscribers) {
+      const globalProximityState = (window as any).globalProximityState;
+      if (globalProximityState?.subscribers) {
         globalProximityState.subscribers.delete(handleProximitySettingsChange);
       }
     };

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProximityAlert, ProximitySettings, UserLocation } from '@/types/proximityAlerts';
@@ -42,6 +41,11 @@ const globalProximityState = {
   lastUpdateHash: null as string | null,
   isUpdating: false
 };
+
+// Make globalProximityState available globally for Map component
+if (typeof window !== 'undefined') {
+  (window as any).globalProximityState = globalProximityState;
+}
 
 const MINIMUM_GAP = 25; // minimum gap in meters between tiers
 const NOTIFICATION_OUTER_GAP = 50; // minimum gap between notification and outer distance
