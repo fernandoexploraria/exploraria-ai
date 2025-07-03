@@ -4,7 +4,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { Landmark } from '@/data/landmarks';
 import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 import { ProximitySettings } from '@/types/proximityAlerts';
-import { debounce } from '@/utils/debounceUtils';
+import { debounce, throttle } from '@/utils/debounceUtils';
 
 // Set Mapbox access token
 mapboxgl.accessToken = 'pk.eyJ1IjoibG92ZWxhY2VhaSIsImEiOiJjbTNkdGgwZGcwMGZzMmtzN2JqNjBqcjBuIn0.A_1Eb6taGVH7dxXLNJP7Uw';
@@ -16,8 +16,9 @@ interface MapProps {
   plannedLandmarks?: Landmark[];
 }
 
-// NEW: Debounce delay for proximity updates from map
-const PROXIMITY_UPDATE_DEBOUNCE = 1000; // 1 second debounce
+// NEW: Debounce delays for different operations
+const PROXIMITY_UPDATE_DEBOUNCE = 1000; // 1 second debounce for proximity updates
+const SETTINGS_UPDATE_THROTTLE = 500; // 0.5 second throttle for settings updates
 
 // Access global proximity state for subscription management
 declare global {
@@ -47,6 +48,38 @@ const Map = ({ landmarks, onLandmarkClick, userCoordinate, plannedLandmarks }: M
       }
     }, PROXIMITY_UPDATE_DEBOUNCE),
     [updateProximityEnabled]
+  );
+
+  // NEW: Throttled settings change handler to prevent rapid-fire updates
+  const throttledSettingsChangeHandler = useCallback(
+    throttle((settings: ProximitySettings | null) => {
+      if (!map.current) return;
+
+      const geolocateControl = (map.current as any)._geolocateControl;
+      if (!geolocateControl) return;
+
+      console.log('🔄 Throttled proximity settings change:', settings);
+
+      const isCurrentlyTracking = geolocateControl._watchState === 'ACTIVE_LOCK' || geolocateControl._watchState === 'ACTIVE_ERROR';
+      const isTransitioning = geolocateControl._watchState === 'WAITING_ACTIVE';
+      const shouldBeTracking = Boolean(settings?.is_enabled);
+
+      console.log('🔄 GeolocateControl sync check:', {
+        isCurrentlyTracking,
+        isTransitioning,
+        shouldBeTracking,
+        watchState: geolocateControl._watchState
+      });
+
+      if (shouldBeTracking && !isCurrentlyTracking && !isTransitioning) {
+        console.log('🔄 Syncing GeolocateControl: Starting tracking (proximity enabled externally)');
+        geolocateControl.trigger();
+      } else if (!shouldBeTracking && isCurrentlyTracking) {
+        console.log('🔄 Syncing GeolocateControl: Stopping tracking (proximity disabled externally)');
+        // Note: MapboxGL doesn't provide a direct way to stop tracking programmatically
+      }
+    }, SETTINGS_UPDATE_THROTTLE),
+    []
   );
 
   // Initialize map
@@ -104,15 +137,15 @@ const Map = ({ landmarks, onLandmarkClick, userCoordinate, plannedLandmarks }: M
       },
       trackUserLocation: true,
       showUserHeading: true,
-      showAccuracy: true,
       fitBoundsOptions: {
         padding: { top: 50, right: 50, bottom: 50, left: 50 },
         maxZoom: 16
       }
     });
 
-    // Add the control to the map
+    // Add the control to the map and store reference for later access
     map.current.addControl(geolocateControl, 'top-right');
+    (map.current as any)._geolocateControl = geolocateControl;
 
     // Helper function to check recent location events
     const isRecentLocationEvent = (threshold = 200) => {
@@ -121,30 +154,33 @@ const Map = ({ landmarks, onLandmarkClick, userCoordinate, plannedLandmarks }: M
       return timeSinceLastEvent < threshold;
     };
 
-    // Listen for geolocate events
-    geolocateControl.on('geolocate', (e) => {
+    // NEW: Debounced geolocate handler to prevent rapid-fire updates
+    const debouncedGeolocateHandler = debounce((e: any) => {
       const now = Date.now();
       const coordinates = [e.coords.longitude, e.coords.latitude];
       lastLocationEventTime = now;
 
-      console.log('🌍 GeolocateControl: Location found', {
+      console.log('🌍 Debounced GeolocateControl: Location found', {
         coordinates,
         state: geolocateControl._watchState,
         userInitiated: !isRecentLocationEvent(500)
       });
 
-      // NEW: Only enable proximity on first successful location or user-initiated tracking
+      // Only enable proximity on first successful location or user-initiated tracking
       if (!hasTriggeredProximityEnable && geolocateControl._watchState === 'ACTIVE_LOCK') {
         console.log('🌍 GeolocateControl: First successful location lock - enabling proximity');
         hasTriggeredProximityEnable = true;
         debouncedUpdateProximityEnabled(true);
       }
-    });
+    }, 500);
+
+    // Listen for geolocate events with debouncing
+    geolocateControl.on('geolocate', debouncedGeolocateHandler);
 
     geolocateControl.on('trackuserlocationstart', () => {
       console.log('🌍 GeolocateControl: Started tracking user location (ACTIVE state)');
       
-      // NEW: Only enable if not already done
+      // Only enable if not already done
       if (!hasTriggeredProximityEnable) {
         console.log('🌍 GeolocateControl: Enabling proximity (tracking started)');
         hasTriggeredProximityEnable = true;
@@ -163,54 +199,21 @@ const Map = ({ landmarks, onLandmarkClick, userCoordinate, plannedLandmarks }: M
       hasTriggeredProximityEnable = false; // Reset on error
     });
 
-    // Listen for proximity settings changes and sync with GeolocateControl
+    // Listen for proximity settings changes and sync with GeolocateControl (throttled)
     const handleProximitySettingsChange = (settings: ProximitySettings | null) => {
       if (isUpdatingFromProximitySettings) return;
-
-      console.log('🔄 Proximity settings changed:', settings);
 
       const now = Date.now();
       const timeSinceLastLocationEvent = now - lastLocationEventTime;
       const isRecentLocationEvent = timeSinceLastLocationEvent < 200;
-
-      console.log('🔄 Timing check:', {
-        timeSinceLastLocationEvent,
-        isRecentLocationEvent,
-        userInitiated: !isRecentLocationEvent
-      });
 
       if (isRecentLocationEvent) {
         console.log('🔄 Skipping GeolocateControl sync - recent location event detected (likely triggered by this control)');
         return;
       }
 
-      const isCurrentlyTracking = geolocateControl._watchState === 'ACTIVE_LOCK' || geolocateControl._watchState === 'ACTIVE_ERROR';
-      const isTransitioning = geolocateControl._watchState === 'WAITING_ACTIVE' || geolocateControl._watchState === 'REQUESTING_PERMISSION';
-      const shouldBeTracking = Boolean(settings?.is_enabled);
-      const watchState = geolocateControl._watchState;
-
-      console.log('🔄 GeolocateControl sync check:', {
-        isCurrentlyTracking,
-        isTransitioning,
-        shouldBeTracking,
-        watchState,
-        willInterfere: isRecentLocationEvent
-      });
-
-      if (shouldBeTracking && !isCurrentlyTracking && !isTransitioning) {
-        console.log('🔄 Syncing GeolocateControl: Starting tracking (proximity enabled externally)');
-        isUpdatingFromProximitySettings = true;
-        hasTriggeredProximityEnable = true; // Prevent loop
-        geolocateControl.trigger();
-        setTimeout(() => { isUpdatingFromProximitySettings = false; }, 1000);
-      } else if (!shouldBeTracking && isCurrentlyTracking) {
-        console.log('🔄 Syncing GeolocateControl: Stopping tracking (proximity disabled externally)');
-        isUpdatingFromProximitySettings = true;
-        hasTriggeredProximityEnable = false;
-        // Note: MapboxGL doesn't provide a direct way to stop tracking, 
-        // so we'll let the user manually stop it if needed
-        setTimeout(() => { isUpdatingFromProximitySettings = false; }, 1000);
-      }
+      // Use throttled handler to prevent rapid-fire updates
+      throttledSettingsChangeHandler(settings);
     };
 
     // Subscribe to proximity settings changes
@@ -221,6 +224,7 @@ const Map = ({ landmarks, onLandmarkClick, userCoordinate, plannedLandmarks }: M
     return () => {
       if (map.current && geolocateControl) {
         map.current.removeControl(geolocateControl);
+        delete (map.current as any)._geolocateControl;
       }
       
       // Unsubscribe from proximity settings changes
@@ -228,7 +232,7 @@ const Map = ({ landmarks, onLandmarkClick, userCoordinate, plannedLandmarks }: M
         globalProximityState.subscribers.delete(handleProximitySettingsChange);
       }
     };
-  }, [updateProximityEnabled, debouncedUpdateProximityEnabled]);
+  }, [updateProximityEnabled, debouncedUpdateProximityEnabled, throttledSettingsChangeHandler]);
 
   // Add navigation controls
   useEffect(() => {
