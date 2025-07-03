@@ -35,7 +35,7 @@ const CARD_STORAGE_KEY = 'proximity_cards_state';
 
 export const useProximityNotifications = () => {
   const { proximitySettings } = useProximityAlerts();
-  const { userLocation } = useLocationTracking();
+  const { userLocation, currentPollRound } = useLocationTracking();
   const { speak } = useTTSContext();
   const { preloadStreetView, getCachedData } = useStreetView();
   const notificationStateRef = useRef<NotificationState>({});
@@ -301,13 +301,14 @@ export const useProximityNotifications = () => {
   // Show proximity toast notification with sound, TTS, and Street View
   const showProximityToast = useCallback(async (landmark: TourLandmark, distance: number) => {
     const placeId = landmark.placeId;
+    const timestamp = new Date().toLocaleTimeString();
     
     // Check cooldown at the very beginning
     const lastNotification = notificationStateRef.current[placeId];
     if (lastNotification) {
       const timeSinceLastNotification = Date.now() - lastNotification;
       if (timeSinceLastNotification < NOTIFICATION_COOLDOWN) {
-        console.log(`🔕 Toast notification for ${landmark.name} still in cooldown (${Math.round((NOTIFICATION_COOLDOWN - timeSinceLastNotification) / 1000)}s remaining)`);
+        console.log(`🔕 Toast notification for ${landmark.name} still in cooldown (${Math.round((NOTIFICATION_COOLDOWN - timeSinceLastNotification) / 1000)}s remaining) - Round ${currentPollRound} at ${timestamp}`);
         return;
       }
     }
@@ -320,7 +321,7 @@ export const useProximityNotifications = () => {
       ? `${(distance / 1000).toFixed(1)} km` 
       : `${Math.round(distance)} m`;
 
-    console.log(`🔔 Showing proximity notification for ${landmark.name} at ${formattedDistance}`);
+    console.log(`🔔 Showing proximity notification for ${landmark.name} at ${formattedDistance} - Round ${currentPollRound} at ${timestamp}`);
 
     // Play notification sound first
     playNotificationSound();
@@ -337,19 +338,19 @@ export const useProximityNotifications = () => {
     const streetViewData = getCachedData(landmark.id || landmark.placeId);
     const hasStreetView = !!streetViewData;
 
-    // Show visual toast with optional Street View enhancement
+    // Show visual toast with optional Street View enhancement and debug info
     toast(`🗺️ ${landmark.name}`, {
-      description: `You're ${formattedDistance} away${hasStreetView ? ' • Street View ready' : ''} • ${landmark.description.substring(0, 100)}${landmark.description.length > 100 ? '...' : ''}`,
+      description: `You're ${formattedDistance} away${hasStreetView ? ' • Street View ready' : ''} • Round ${currentPollRound} at ${timestamp}`,
       duration: 8000,
       action: {
         label: 'Get Me There',
         onClick: () => {
-          console.log(`User clicked "Get Me There" for ${landmark.name}`);
+          console.log(`User clicked "Get Me There" for ${landmark.name} from Round ${currentPollRound}`);
           showRouteToLandmark(landmark);
         }
       }
     });
-  }, [saveNotificationState, showRouteToLandmark, playNotificationSound, speak, getCachedData]);
+  }, [saveNotificationState, showRouteToLandmark, playNotificationSound, speak, getCachedData, currentPollRound]);
 
   // Monitor prep zone entries - only when settings are ready
   useEffect(() => {
@@ -428,7 +429,7 @@ export const useProximityNotifications = () => {
     // Find newly entered landmarks (in current but not in previous)
     const newlyEnteredIds = Array.from(currentNearbyIds).filter(id => !previousNearbyIds.has(id));
 
-    console.log(`🎯 Proximity check: ${currentNearbyIds.size} nearby, ${newlyEnteredIds.length} newly entered`);
+    console.log(`🎯 Proximity check: ${currentNearbyIds.size} nearby, ${newlyEnteredIds.length} newly entered - Round ${currentPollRound}`);
 
     // Show notification for ONLY the closest newly entered landmark
     // Cooldown is now handled inside showProximityToast
@@ -446,7 +447,7 @@ export const useProximityNotifications = () => {
 
     // Update previous nearby landmarks
     previousNearbyLandmarksRef.current = currentNearbyIds;
-  }, [nearbyLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, showProximityToast]);
+  }, [nearbyLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, showProximityToast, currentPollRound]);
 
   // Cleanup expired notifications from state
   useEffect(() => {
