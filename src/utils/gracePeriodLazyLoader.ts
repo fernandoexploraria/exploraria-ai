@@ -125,6 +125,7 @@ export class GracePeriodLazyLoader {
       grace_period_app_resume: data.grace_period_app_resume ?? 5000,
       significant_movement_threshold: data.significant_movement_threshold ?? 150,
       grace_period_enabled: data.grace_period_enabled ?? true,
+      location_settling_grace_period: data.location_settling_grace_period ?? 5000,
       created_at: data.created_at,
       updated_at: data.updated_at,
     };

@@ -394,6 +394,7 @@ const startPollingFallback = async (userId: string) => {
           grace_period_app_resume: data.grace_period_app_resume ?? 5000,
           significant_movement_threshold: data.significant_movement_threshold ?? 150,
           grace_period_enabled: data.grace_period_enabled ?? true,
+          location_settling_grace_period: data.location_settling_grace_period ?? 5000,
           created_at: data.created_at,
           updated_at: data.updated_at,
         };
@@ -534,6 +535,7 @@ const createProximitySettingsSubscription = (userId: string, loadProximitySettin
             grace_period_app_resume: payload.new.grace_period_app_resume ?? 5000,
             significant_movement_threshold: payload.new.significant_movement_threshold ?? 150,
             grace_period_enabled: payload.new.grace_period_enabled ?? true,
+            location_settling_grace_period: payload.new.location_settling_grace_period ?? 5000,
             created_at: payload.new.created_at,
             updated_at: payload.new.updated_at,
           };
@@ -598,6 +600,7 @@ export const useProximityAlerts = () => {
   const gracePeriodMovementTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const gracePeriodAppResumeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const movementThresholdTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const locationSettlingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const combinedLandmarks = TOP_LANDMARKS.map(convertTopLandmarkToLandmark);
 
@@ -728,6 +731,7 @@ export const useProximityAlerts = () => {
           grace_period_app_resume: data.grace_period_app_resume ?? 5000,
           significant_movement_threshold: data.significant_movement_threshold ?? 150,
           grace_period_enabled: data.grace_period_enabled ?? true,
+          location_settling_grace_period: data.location_settling_grace_period ?? 5000,
           created_at: data.created_at,
           updated_at: data.updated_at,
         };
@@ -810,6 +814,7 @@ export const useProximityAlerts = () => {
         updateData.grace_period_app_resume = currentSettings.grace_period_app_resume;
         updateData.significant_movement_threshold = currentSettings.significant_movement_threshold;
         updateData.grace_period_enabled = currentSettings.grace_period_enabled;
+        updateData.location_settling_grace_period = currentSettings.location_settling_grace_period;
       }
 
       if (enabled && (!currentSettings || !currentSettings.is_enabled)) {
@@ -979,6 +984,7 @@ export const useProximityAlerts = () => {
         grace_period_app_resume: updatedSettings.grace_period_app_resume,
         significant_movement_threshold: currentSettings.significant_movement_threshold,
         grace_period_enabled: currentSettings.grace_period_enabled,
+        location_settling_grace_period: currentSettings.location_settling_grace_period,
         updated_at: new Date().toISOString(),
       };
 
@@ -1063,6 +1069,7 @@ export const useProximityAlerts = () => {
         grace_period_app_resume: currentSettings.grace_period_app_resume,
         significant_movement_threshold: threshold,
         grace_period_enabled: currentSettings.grace_period_enabled,
+        location_settling_grace_period: currentSettings.location_settling_grace_period,
         updated_at: new Date().toISOString(),
       };
 
@@ -1116,6 +1123,7 @@ export const useProximityAlerts = () => {
         grace_period_app_resume: currentSettings.grace_period_app_resume,
         significant_movement_threshold: currentSettings.significant_movement_threshold,
         grace_period_enabled: enabled,
+        location_settling_grace_period: currentSettings.location_settling_grace_period,
         updated_at: new Date().toISOString(),
       };
 
@@ -1144,6 +1152,81 @@ export const useProximityAlerts = () => {
       setIsSaving(false);
     }
   }, [user]);
+
+  const updateLocationSettlingPeriod = useCallback(async (period: number) => {
+    console.log('🎯 updateLocationSettlingPeriod called with:', { period, userId: user?.id });
+    
+    if (!user) {
+      console.log('❌ No user available for updateLocationSettlingPeriod');
+      throw new Error('No user available');
+    }
+
+    const currentSettings = globalProximityState.settings;
+    
+    if (!currentSettings) {
+      console.log('❌ No current settings available for updateLocationSettlingPeriod');
+      throw new Error('No proximity settings found');
+    }
+
+    // Create updated settings for validation
+    const updatedSettings = {
+      ...currentSettings,
+      location_settling_grace_period: period
+    };
+
+    // Validate the new settings
+    const validation = validateGracePeriodRanges(updatedSettings);
+    if (!validation.isValid) {
+      const errorMessage = validation.errors.map(e => e.message).join('; ');
+      console.error('❌ Location settling period validation failed:', errorMessage);
+      
+      toast({
+        title: "Invalid Location Settling Period",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      
+      throw new Error(errorMessage);
+    }
+
+    setIsSaving(true);
+    try {
+      console.log('💾 Making database request to update location settling period...');
+      
+      const updateData = {
+        user_id: user.id,
+        is_enabled: currentSettings.is_enabled,
+        notification_distance: currentSettings.notification_distance,
+        outer_distance: currentSettings.outer_distance,
+        card_distance: currentSettings.card_distance,
+        grace_period_initialization: currentSettings.grace_period_initialization,
+        grace_period_movement: currentSettings.grace_period_movement,
+        grace_period_app_resume: currentSettings.grace_period_app_resume,
+        significant_movement_threshold: currentSettings.significant_movement_threshold,
+        grace_period_enabled: currentSettings.grace_period_enabled,
+        location_settling_grace_period: period,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase
+        .from('proximity_settings')
+        .upsert(updateData, {
+          onConflict: 'user_id'
+        });
+
+      if (error) {
+        console.error('❌ Database error updating location settling period:', error);
+        throw error;
+      }
+
+      console.log('✅ Successfully updated location settling period in database:', period);
+    } catch (error) {
+      console.error('❌ Error in updateLocationSettlingPeriod:', error);
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [user, toast]);
 
   // Auto-save logic with debouncing for grace period settings
   useEffect(() => {
@@ -1222,6 +1305,25 @@ export const useProximityAlerts = () => {
     };
   }, [proximitySettings?.significant_movement_threshold, user, isSaving]);
 
+  useEffect(() => {
+    if (!proximitySettings || !user || isSaving) return;
+
+    if (locationSettlingTimeoutRef.current) {
+      clearTimeout(locationSettlingTimeoutRef.current);
+    }
+
+    locationSettlingTimeoutRef.current = setTimeout(() => {
+      // This will be triggered by external changes to proximitySettings
+      // The actual auto-save will be handled by the UI components
+    }, 500);
+
+    return () => {
+      if (locationSettlingTimeoutRef.current) {
+        clearTimeout(locationSettlingTimeoutRef.current);
+      }
+    };
+  }, [proximitySettings?.location_settling_grace_period, user, isSaving]);
+
   const updateUserLocation = useCallback((location: UserLocation) => {
     handleLocationUpdate(location);
   }, [handleLocationUpdate]);
@@ -1296,6 +1398,7 @@ export const useProximityAlerts = () => {
     updateGracePeriodSetting,
     updateMovementThreshold,
     updateGracePeriodEnabled,
+    updateLocationSettlingPeriod,
     // Enhanced debug information
     gracePeriodDebugInfo: formatGracePeriodDebugInfo(globalProximityState.gracePeriodState, globalProximityState.settings),
   };

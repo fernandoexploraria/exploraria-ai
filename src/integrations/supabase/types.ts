@@ -381,6 +381,7 @@ export type Database = {
           grace_period_movement: number
           id: string
           is_enabled: boolean
+          location_settling_grace_period: number
           notification_distance: number
           outer_distance: number
           significant_movement_threshold: number
@@ -397,6 +398,7 @@ export type Database = {
           grace_period_movement?: number
           id?: string
           is_enabled?: boolean
+          location_settling_grace_period?: number
           notification_distance?: number
           outer_distance?: number
           significant_movement_threshold?: number
@@ -413,6 +415,7 @@ export type Database = {
           grace_period_movement?: number
           id?: string
           is_enabled?: boolean
+          location_settling_grace_period?: number
           notification_distance?: number
           outer_distance?: number
           significant_movement_threshold?: number

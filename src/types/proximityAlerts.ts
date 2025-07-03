@@ -23,6 +23,7 @@ export interface ProximitySettings {
   grace_period_app_resume: number; // in milliseconds, default 5000
   significant_movement_threshold: number; // in meters, default 150
   grace_period_enabled: boolean; // default true
+  location_settling_grace_period: number; // in milliseconds, default 5000
   created_at?: string;
   updated_at?: string;
 }
@@ -85,7 +86,7 @@ export interface MovementDetectionResult {
 
 // Grace Period Validation Types
 export interface GracePeriodValidationError {
-  field: 'grace_period_initialization' | 'grace_period_movement' | 'grace_period_app_resume' | 'significant_movement_threshold' | 'grace_period_logic';
+  field: 'grace_period_initialization' | 'grace_period_movement' | 'grace_period_app_resume' | 'significant_movement_threshold' | 'location_settling_grace_period' | 'grace_period_logic';
   message: string;
   currentValue?: number;
   recommendedValue?: number;
@@ -102,6 +103,7 @@ export interface GracePeriodValidationRules {
   movement: { min: number; max: number };
   appResume: { min: number; max: number };
   movementThreshold: { min: number; max: number };
+  locationSettling: { min: number; max: number };
 }
 
 export interface GracePeriodRecommendations {
@@ -110,17 +112,20 @@ export interface GracePeriodRecommendations {
     movement: number;
     appResume: number;
     movementThreshold: number;
+    locationSettling: number;
   };
   balanced: {
     initialization: number;
     movement: number;
     appResume: number;
     movementThreshold: number;
+    locationSettling: number;
   };
   aggressive: {
     initialization: number;
     movement: number;
     appResume: number;
     movementThreshold: number;
+    locationSettling: number;
   };
 }
