@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -406,6 +405,21 @@ const Map: React.FC<MapProps> = ({
     setShowProximitySearch(false);
   }, []);
 
+  // Helper function to convert TourLandmark to Landmark
+  const convertTourLandmarkToLandmark = useCallback((tourLandmark: any): Landmark => {
+    return {
+      id: tourLandmark.id || tourLandmark.placeId || `landmark-${Date.now()}`, // Ensure id exists
+      name: tourLandmark.name,
+      coordinates: tourLandmark.coordinates,
+      description: tourLandmark.description,
+      rating: tourLandmark.rating,
+      photos: tourLandmark.photos,
+      types: tourLandmark.types,
+      placeId: tourLandmark.placeId,
+      formattedAddress: tourLandmark.formattedAddress
+    };
+  }, []);
+
   // Debug panel in development
   const DebugPanel = () => {
     if (process.env.NODE_ENV !== 'development') return null;
@@ -447,7 +461,7 @@ const Map: React.FC<MapProps> = ({
       {/* Floating Proximity Card - Only show if we have nearby landmarks */}
       {nearbyLandmarks && nearbyLandmarks.length > 0 && userLocation && (
         <FloatingProximityCard 
-          landmark={nearbyLandmarks[0].landmark}
+          landmark={convertTourLandmarkToLandmark(nearbyLandmarks[0].landmark)}
           userLocation={userLocation}
           onClose={() => console.log('Closing proximity card')}
           onGetDirections={(landmark) => console.log('Getting directions to:', landmark)}
