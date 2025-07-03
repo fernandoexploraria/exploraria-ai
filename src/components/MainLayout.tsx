@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Map from '@/components/Map';
 import TopControls from '@/components/TopControls';
@@ -42,6 +43,7 @@ interface MainLayoutProps {
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({
+  mapboxToken,
   allLandmarks,
   selectedLandmark,
   smartTourLandmarks,
@@ -186,9 +188,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       />
 
       <Map 
+        mapboxToken={mapboxToken}
         landmarks={allLandmarks}
-        onLandmarkClick={onSelectLandmark}
-        userCoordinate={userLocation ? [userLocation.longitude, userLocation.latitude] : null}
+        onSelectLandmark={onSelectLandmark}
+        selectedLandmark={selectedLandmark}
         plannedLandmarks={[...smartTourLandmarks]}
       />
 

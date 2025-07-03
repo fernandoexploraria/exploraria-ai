@@ -4,7 +4,6 @@ import { ProximityAlert, ProximitySettings, UserLocation } from '@/types/proximi
 import { useAuth } from '@/components/AuthProvider';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { Landmark } from '@/data/landmarks';
-import { debounce, throttle } from '@/utils/debounceUtils';
 
 // Enhanced connection status tracking
 interface ConnectionStatus {
@@ -36,16 +35,8 @@ const globalProximityState = {
     lastDataUpdate: null
   } as ConnectionStatus,
   pollingInterval: null as NodeJS.Timeout | null,
-  reconnectionAttemptTimeout: null as NodeJS.Timeout | null,
-  // NEW: Debouncing and deduplication state
-  lastUpdateHash: null as string | null,
-  isUpdating: false
+  reconnectionAttemptTimeout: null as NodeJS.Timeout | null
 };
-
-// Make globalProximityState available globally for Map component
-if (typeof window !== 'undefined') {
-  (window as any).globalProximityState = globalProximityState;
-}
 
 const MINIMUM_GAP = 25; // minimum gap in meters between tiers
 const NOTIFICATION_OUTER_GAP = 50; // minimum gap between notification and outer distance
@@ -54,43 +45,11 @@ const ACTIVE_POLLING_INTERVAL = 10000; // 10 seconds when changes detected
 const RECONNECTION_ATTEMPT_INTERVAL = 120000; // 2 minutes
 const CIRCUIT_BREAKER_THRESHOLD = 3; // Switch to polling after 3 consecutive failures
 
-// NEW: Debouncing constants
-const UPDATE_DEBOUNCE_DELAY = 500; // 500ms debounce for updates
-const SETTINGS_DEDUP_WINDOW = 1000; // 1 second window for deduplication
-
 const notifySubscribers = (settings: ProximitySettings | null) => {
   console.log('📢 Notifying all subscribers with settings:', settings);
   globalProximityState.settings = settings;
   globalProximityState.connectionStatus.lastDataUpdate = Date.now();
   globalProximityState.subscribers.forEach(callback => callback(settings));
-};
-
-// NEW: Create settings hash for deduplication
-const createSettingsHash = (settings: ProximitySettings | null): string => {
-  if (!settings) return 'null';
-  return `${settings.id}-${settings.is_enabled}-${settings.notification_distance}-${settings.outer_distance}-${settings.card_distance}-${settings.updated_at}`;
-};
-
-// NEW: Deduplicated notify function
-const notifySubscribersDeduped = (settings: ProximitySettings | null) => {
-  const newHash = createSettingsHash(settings);
-  const now = Date.now();
-  
-  // Check if this is a duplicate within the deduplication window
-  if (globalProximityState.lastUpdateHash === newHash) {
-    console.log('🔄 Skipping duplicate settings update');
-    return;
-  }
-  
-  globalProximityState.lastUpdateHash = newHash;
-  notifySubscribers(settings);
-  
-  // Clear hash after deduplication window
-  setTimeout(() => {
-    if (globalProximityState.lastUpdateHash === newHash) {
-      globalProximityState.lastUpdateHash = null;
-    }
-  }, SETTINGS_DEDUP_WINDOW);
 };
 
 // Phase 2: Update connection status and notify subscribers
@@ -150,7 +109,7 @@ const startPollingFallback = async (userId: string) => {
         
         if (hasChanged) {
           console.log('📊 Polling detected changes, notifying subscribers');
-          notifySubscribersDeduped(settings);
+          notifySubscribers(settings);
           
           // Switch to more frequent polling for a while
           if (globalProximityState.pollingInterval) {
@@ -167,7 +126,7 @@ const startPollingFallback = async (userId: string) => {
           }
         }
       } else {
-        notifySubscribersDeduped(null);
+        notifySubscribers(null);
       }
     } catch (error) {
       console.error('❌ Polling failed:', error);
@@ -293,10 +252,10 @@ const createProximitySettingsSubscription = (userId: string, loadProximitySettin
             updated_at: payload.new.updated_at,
           };
           console.log('🔄 Parsed settings from real-time update:', settings);
-          notifySubscribersDeduped(settings);
+          notifySubscribers(settings);
         } else if (payload.eventType === 'DELETE') {
           console.log('🗑️ Settings deleted via real-time update');
-          notifySubscribersDeduped(null);
+          notifySubscribers(null);
         }
       }
     )
@@ -410,9 +369,6 @@ export const useProximityAlerts = () => {
       stopPollingFallback();
       updateConnectionStatus('disconnected', true);
       globalProximityState.settings = null;
-      // NEW: Reset deduplication state
-      globalProximityState.lastUpdateHash = null;
-      globalProximityState.isUpdating = false;
     }
 
     globalProximityState.currentUserId = user.id;
@@ -474,10 +430,10 @@ export const useProximityAlerts = () => {
           updated_at: data.updated_at,
         };
         console.log('📥 Loaded proximity settings:', settings);
-        notifySubscribersDeduped(settings);
+        notifySubscribers(settings);
       } else {
         console.log('📭 No proximity settings found for user');
-        notifySubscribersDeduped(null);
+        notifySubscribers(null);
       }
     } catch (error) {
       console.error('❌ Error in loadProximitySettings:', error);
@@ -521,72 +477,56 @@ export const useProximityAlerts = () => {
     }
   };
 
-  // NEW: Debounced version of updateProximityEnabled
-  const debouncedUpdateProximityEnabled = useCallback(
-    debounce(async (enabled: boolean) => {
-      console.log('🎯 Debounced updateProximityEnabled function called with:', { enabled, userId: user?.id });
-      
-      if (!user) {
-        console.log('❌ No user available for updateProximityEnabled');
-        throw new Error('No user available');
-      }
-
-      // Prevent concurrent updates
-      if (globalProximityState.isUpdating) {
-        console.log('⏸️ Update already in progress, skipping');
-        return;
-      }
-
-      globalProximityState.isUpdating = true;
-      console.log('📡 updateProximityEnabled proceeding with user:', user.id);
-      setIsSaving(true);
-      
-      try {
-        console.log('💾 Making database request to update proximity enabled status...');
-        
-        // Get current settings or use database defaults
-        const currentSettings = globalProximityState.settings;
-        
-        const updateData: any = {
-          user_id: user.id,
-          is_enabled: enabled,
-          updated_at: new Date().toISOString(),
-        };
-
-        // Only include distance fields if they exist in current settings
-        if (currentSettings) {
-          updateData.notification_distance = currentSettings.notification_distance;
-          updateData.outer_distance = currentSettings.outer_distance;
-          updateData.card_distance = currentSettings.card_distance;
-        }
-
-        const { error } = await supabase
-          .from('proximity_settings')
-          .upsert(updateData, {
-            onConflict: 'user_id'
-          });
-
-        if (error) {
-          console.error('❌ Database error updating proximity enabled status:', error);
-          throw error;
-        }
-
-        console.log('✅ Successfully updated proximity enabled status in database to:', enabled);
-        // The real-time subscription will update the state automatically
-      } catch (error) {
-        console.error('❌ Error in updateProximityEnabled:', error);
-        throw error;
-      } finally {
-        globalProximityState.isUpdating = false;
-        setIsSaving(false);
-      }
-    }, UPDATE_DEBOUNCE_DELAY),
-    [user]
-  );
-
   const updateProximityEnabled = useCallback(async (enabled: boolean) => {
-    return debouncedUpdateProximityEnabled(enabled);
-  }, [debouncedUpdateProximityEnabled]);
+    console.log('🎯 updateProximityEnabled function called with:', { enabled, userId: user?.id });
+    
+    if (!user) {
+      console.log('❌ No user available for updateProximityEnabled');
+      throw new Error('No user available');
+    }
+
+    console.log('📡 updateProximityEnabled proceeding with user:', user.id);
+    setIsSaving(true);
+    
+    try {
+      console.log('💾 Making database request to update proximity enabled status...');
+      
+      // Get current settings or use database defaults
+      const currentSettings = globalProximityState.settings;
+      
+      const updateData: any = {
+        user_id: user.id,
+        is_enabled: enabled,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Only include distance fields if they exist in current settings
+      if (currentSettings) {
+        updateData.notification_distance = currentSettings.notification_distance;
+        updateData.outer_distance = currentSettings.outer_distance;
+        updateData.card_distance = currentSettings.card_distance;
+      }
+
+      const { error } = await supabase
+        .from('proximity_settings')
+        .upsert(updateData, {
+          onConflict: 'user_id'
+        });
+
+      if (error) {
+        console.error('❌ Database error updating proximity enabled status:', error);
+        throw error;
+      }
+
+      console.log('✅ Successfully updated proximity enabled status in database to:', enabled);
+      // The real-time subscription will update the state automatically
+    } catch (error) {
+      console.error('❌ Error in updateProximityEnabled:', error);
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [user]);
 
   const updateDistanceSetting = useCallback(async (distanceType: 'notification_distance' | 'outer_distance' | 'card_distance', distance: number) => {
     console.log('🎯 updateDistanceSetting called with:', { distanceType, distance, userId: user?.id });
@@ -686,8 +626,6 @@ export const useProximityAlerts = () => {
     
     // Reset connection state
     globalProximityState.retryCount = 0;
-    globalProximityState.lastUpdateHash = null;
-    globalProximityState.isUpdating = false;
     updateConnectionStatus('connecting', true);
     
     // Attempt fresh connection
@@ -716,9 +654,6 @@ export const useProximityAlerts = () => {
         // Phase 2: Clean up polling and connection state
         stopPollingFallback();
         updateConnectionStatus('disconnected', true);
-        // NEW: Clean up deduplication state
-        globalProximityState.lastUpdateHash = null;
-        globalProximityState.isUpdating = false;
       }
     };
   }, []);
@@ -735,7 +670,7 @@ export const useProximityAlerts = () => {
     // Keep these for compatibility
     combinedLandmarks,
     setProximityAlerts,
-    setProximitySettings: notifySubscribersDeduped,
+    setProximitySettings: notifySubscribers,
     setUserLocation: updateUserLocation,
     loadProximitySettings,
     loadProximityAlerts,
