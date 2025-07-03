@@ -17,6 +17,14 @@ export interface ProximitySettings {
   notification_distance: number; // in meters - for toast notifications
   outer_distance: number; // in meters - for Street View prep zone
   card_distance: number; // in meters - for floating card notifications
+  initialization_timestamp?: number; // timestamp when proximity was first enabled for current session
+  // New grace period configuration fields
+  grace_period_initialization: number; // in milliseconds, default 15000
+  grace_period_movement: number; // in milliseconds, default 8000
+  grace_period_app_resume: number; // in milliseconds, default 5000
+  significant_movement_threshold: number; // in meters, default 150
+  grace_period_enabled: boolean; // default true
+  location_settling_grace_period: number; // in milliseconds, default 5000
   created_at?: string;
   updated_at?: string;
 }
@@ -57,4 +65,67 @@ export interface ProximityDetectionResult {
   isWithinRange: boolean;
   hasEntered: boolean;
   hasExited: boolean;
+}
+
+// Enhanced grace period state - updated to include isInGracePeriod
+export interface GracePeriodState {
+  isInGracePeriod: boolean;
+  gracePeriodReason: 'initialization' | 'movement' | 'app_resume' | null;
+  initializationTimestamp: number | null;
+  lastMovementTimestamp: number | null;
+  lastAppResumeTimestamp: number | null;
+}
+
+// Movement detection for smart grace period
+export interface MovementDetectionResult {
+  significantMovement: boolean;
+  distance: number;
+  timeSinceLastCheck: number;
+  shouldClearGracePeriod: boolean;
+}
+
+// Grace Period Validation Types
+export interface GracePeriodValidationError {
+  field: 'grace_period_initialization' | 'grace_period_movement' | 'grace_period_app_resume' | 'significant_movement_threshold' | 'location_settling_grace_period' | 'grace_period_logic';
+  message: string;
+  currentValue?: number;
+  recommendedValue?: number;
+}
+
+export interface GracePeriodValidationResult {
+  isValid: boolean;
+  errors: GracePeriodValidationError[];
+  warnings: GracePeriodValidationError[];
+}
+
+export interface GracePeriodValidationRules {
+  initialization: { min: number; max: number };
+  movement: { min: number; max: number };
+  appResume: { min: number; max: number };
+  movementThreshold: { min: number; max: number };
+  locationSettling: { min: number; max: number };
+}
+
+export interface GracePeriodRecommendations {
+  conservative: {
+    initialization: number;
+    movement: number;
+    appResume: number;
+    movementThreshold: number;
+    locationSettling: number;
+  };
+  balanced: {
+    initialization: number;
+    movement: number;
+    appResume: number;
+    movementThreshold: number;
+    locationSettling: number;
+  };
+  aggressive: {
+    initialization: number;
+    movement: number;
+    appResume: number;
+    movementThreshold: number;
+    locationSettling: number;
+  };
 }

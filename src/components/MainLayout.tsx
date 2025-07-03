@@ -1,5 +1,4 @@
-
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import Map from '@/components/Map';
 import TopControls from '@/components/TopControls';
 import UserControls from '@/components/UserControls';
@@ -9,6 +8,7 @@ import FloatingTourGuideFAB from '@/components/FloatingTourGuideFAB';
 import ProximityControlPanel from '@/components/ProximityControlPanel';
 import FloatingProximityCard from '@/components/FloatingProximityCard';
 import DebugWindow from '@/components/DebugWindow';
+import GracePeriodDebugPanel from '@/components/debug/GracePeriodDebugPanel';
 import { useDebugWindow } from '@/hooks/useDebugWindow';
 import { useProximityNotifications } from '@/hooks/useProximityNotifications';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
@@ -66,21 +66,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   onTourReadyForVoice,
   voiceTourData,
 }) => {
-  const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
+  const { 
+    isVisible: isDebugVisible, 
+    toggle: toggleDebug,
+    isGracePeriodDebugVisible,
+    toggleGracePeriodDebug
+  } = useDebugWindow();
   const { userLocation } = useLocationTracking();
-  const { activeCards, closeProximityCard, showRouteToService, isActiveInstance } = useProximityNotifications();
-  
-  // Instance tracking for debugging
-  const instanceIdRef = useRef(`layout-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
-  
-  useEffect(() => {
-    console.log(`🏗️ MainLayout instance ${instanceIdRef.current} mounted`);
-    console.log(`🎯 Proximity notifications active instance: ${isActiveInstance}`);
-    
-    return () => {
-      console.log(`🏗️ MainLayout instance ${instanceIdRef.current} unmounted`);
-    };
-  }, [isActiveInstance]);
+  const { activeCards, closeProximityCard, showRouteToService } = useProximityNotifications();
   
   // Debug state for test proximity card
   const [debugProximityCard, setDebugProximityCard] = useState<Landmark | null>(null);
@@ -114,14 +107,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
   // Handle test proximity card display
   const handleTestProximityCard = () => {
-    console.log(`🧪 [${instanceIdRef.current}] Debug: Creating test proximity card for Fuente de los Coyotes`);
+    console.log('🧪 Debug: Creating test proximity card for Fuente de los Coyotes');
     const testLandmark = createTestLandmark();
     setDebugProximityCard(testLandmark);
   };
 
   // Close debug proximity card
   const closeDebugProximityCard = () => {
-    console.log(`🧪 [${instanceIdRef.current}] Debug: Closing test proximity card`);
+    console.log('🧪 Debug: Closing test proximity card');
     setDebugProximityCard(null);
   };
 
@@ -180,7 +173,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   });
 
   return (
-    <div className="w-screen h-screen relative">
+    <div className="h-screen flex flex-col bg-gray-50">
       <TopControls
         allLandmarks={allLandmarks}
         onSelectLandmark={onSelectLandmark}
@@ -199,13 +192,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         onAuthDialogOpen={onAuthDialogOpen}
       />
 
-      <Map 
-        mapboxToken={mapboxToken}
-        landmarks={allLandmarks}
-        onSelectLandmark={onSelectLandmark}
-        selectedLandmark={selectedLandmark}
-        plannedLandmarks={[...smartTourLandmarks]}
-      />
+      {/* Updated Map component with simplified props */}
+      <Map />
 
       {/* Debug Proximity Card - positioned above regular cards */}
       {debugProximityCard && (
@@ -227,8 +215,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       )}
 
       {/* Regular Floating Proximity Cards - Convert TourLandmark to Landmark */}
-      {/* Only render if this is the active proximity instance */}
-      {isActiveInstance && Object.entries(activeCards).map(([landmarkId, tourLandmark], index) => (
+      {Object.entries(activeCards).map(([landmarkId, tourLandmark], index) => (
         <div
           key={landmarkId}
           style={{
@@ -277,9 +264,15 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         onSessionStateChange={handleSessionStateChange}
       />
 
-      <DebugWindow
-        isVisible={isDebugVisible}
-        onClose={toggleDebug}
+      {/* Debug Windows */}
+      <DebugWindow 
+        isVisible={isDebugVisible} 
+        onClose={toggleDebug} 
+      />
+      
+      <GracePeriodDebugPanel
+        isVisible={isGracePeriodDebugVisible}
+        onToggle={toggleGracePeriodDebug}
       />
     </div>
   );
