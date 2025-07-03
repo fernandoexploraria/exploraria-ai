@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -104,8 +105,8 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
   if (!isVisible) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-4xl max-h-[90vh] bg-gray-900 text-white border-gray-700">
+    <div className="fixed inset-0 bg-black/50 flex z-50 p-4">
+      <Card className="w-full max-w-6xl h-[80vh] bg-gray-900 text-white border-gray-700 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-xl font-bold flex items-center gap-2">
             <Activity className="h-5 w-5 text-blue-400" />
@@ -121,7 +122,7 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
           </Button>
         </CardHeader>
 
-        <CardContent className="overflow-auto max-h-[75vh]">
+        <CardContent className="overflow-auto h-[calc(100%-80px)]">
           <Tabs defaultValue="proximity" className="w-full">
             <TabsList className="grid w-full grid-cols-5 bg-gray-800">
               <TabsTrigger value="proximity">Proximity</TabsTrigger>
