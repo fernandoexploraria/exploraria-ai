@@ -192,8 +192,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         onAuthDialogOpen={onAuthDialogOpen}
       />
 
-      {/* Updated Map component with simplified props */}
-      <Map />
+      <Map 
+        mapboxToken={mapboxToken}
+        landmarks={allLandmarks}
+        onSelectLandmark={onSelectLandmark}
+        selectedLandmark={selectedLandmark}
+        plannedLandmarks={[...smartTourLandmarks]}
+      />
 
       {/* Debug Proximity Card - positioned above regular cards */}
       {debugProximityCard && (
