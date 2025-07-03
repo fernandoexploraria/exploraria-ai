@@ -104,15 +104,6 @@ export const useProximityNotifications = () => {
     }
   }, []);
 
-  // Check if notification cooldown has passed
-  const canNotify = useCallback((placeId: string): boolean => {
-    const lastNotification = notificationStateRef.current[placeId];
-    if (!lastNotification) return true;
-    
-    const timeSinceLastNotification = Date.now() - lastNotification;
-    return timeSinceLastNotification >= NOTIFICATION_COOLDOWN;
-  }, []);
-
   // Check if card cooldown has passed
   const canShowCard = useCallback((placeId: string): boolean => {
     const lastCard = cardStateRef.current[placeId];
@@ -309,6 +300,22 @@ export const useProximityNotifications = () => {
 
   // Show proximity toast notification with sound, TTS, and Street View
   const showProximityToast = useCallback(async (landmark: TourLandmark, distance: number) => {
+    const placeId = landmark.placeId;
+    
+    // Check cooldown at the very beginning
+    const lastNotification = notificationStateRef.current[placeId];
+    if (lastNotification) {
+      const timeSinceLastNotification = Date.now() - lastNotification;
+      if (timeSinceLastNotification < NOTIFICATION_COOLDOWN) {
+        console.log(`🔕 Toast notification for ${landmark.name} still in cooldown (${Math.round((NOTIFICATION_COOLDOWN - timeSinceLastNotification) / 1000)}s remaining)`);
+        return;
+      }
+    }
+
+    // Set cooldown immediately after check passes
+    notificationStateRef.current[placeId] = Date.now();
+    saveNotificationState();
+
     const formattedDistance = distance >= 1000 
       ? `${(distance / 1000).toFixed(1)} km` 
       : `${Math.round(distance)} m`;
@@ -342,10 +349,6 @@ export const useProximityNotifications = () => {
         }
       }
     });
-
-    // Record notification
-    notificationStateRef.current[landmark.placeId] = Date.now();
-    saveNotificationState();
   }, [saveNotificationState, showRouteToLandmark, playNotificationSound, speak, getCachedData]);
 
   // Monitor prep zone entries - only when settings are ready
@@ -427,24 +430,23 @@ export const useProximityNotifications = () => {
 
     console.log(`🎯 Proximity check: ${currentNearbyIds.size} nearby, ${newlyEnteredIds.length} newly entered`);
 
-    // Show notification for ONLY the closest newly entered landmark that can be notified
+    // Show notification for ONLY the closest newly entered landmark
+    // Cooldown is now handled inside showProximityToast
     if (newlyEnteredIds.length > 0) {
-      // Find the first (closest) newly entered landmark that can be notified
+      // Find the first (closest) newly entered landmark
       // nearbyLandmarks is already sorted by distance (closest first)
       const closestNewLandmark = nearbyLandmarks.find(nl => 
-        newlyEnteredIds.includes(nl.landmark.placeId) && canNotify(nl.landmark.placeId)
+        newlyEnteredIds.includes(nl.landmark.placeId)
       );
 
       if (closestNewLandmark) {
         showProximityToast(closestNewLandmark.landmark, closestNewLandmark.distance);
-      } else {
-        console.log(`🔕 No notifications shown - all newly entered landmarks still in cooldown`);
       }
     }
 
     // Update previous nearby landmarks
     previousNearbyLandmarksRef.current = currentNearbyIds;
-  }, [nearbyLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, canNotify, showProximityToast]);
+  }, [nearbyLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, showProximityToast]);
 
   // Cleanup expired notifications from state
   useEffect(() => {
