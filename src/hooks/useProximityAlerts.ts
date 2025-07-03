@@ -6,6 +6,7 @@ import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { useProximityAlertsValidation } from '@/hooks/useProximityAlertsValidation';
 import { trackGracePeriodActivation } from '@/utils/gracePeriodHistory';
 import { proximityEnabledDebouncer } from '@/utils/proximityEnabledDebouncer';
+import { geolocateControlDebouncer } from '@/utils/geolocateControlDebouncer';
 import { 
   shouldActivateGracePeriod, 
   shouldClearGracePeriodOnMovement,
@@ -339,29 +340,51 @@ export const useProximityAlerts = () => {
     }
   }, [proximitySettings, user, queryClient, validateAndCorrectSettings, handleDatabaseError]);
 
-  // Enhanced updateProximityEnabled with comprehensive tracking and deduplication
+  // Enhanced updateProximityEnabled with improved source tracking and conflict prevention
   const updateProximityEnabled = useCallback(async (enabled: boolean, source: string = 'Manual') => {
     if (!user) {
       console.warn('Cannot update proximity enabled: no authenticated user');
       return;
     }
 
-    // Track the call
-    trackEnabledCall(enabled, source);
+    // Check for active GeolocateControl flags to prevent conflicts
+    if (source !== 'GeolocateControl-Geolocate' && 
+        source !== 'GeolocateControl-TrackStart' && 
+        source !== 'GeolocateControl-TrackEnd' && 
+        source !== 'GeolocateControl-Error' &&
+        geolocateControlDebouncer.hasActiveFlag('isUpdatingFromGeolocateControl')) {
+      
+      console.log('⚠️ [ProximityAlerts] Skipping update - GeolocateControl operation in progress');
+      return;
+    }
 
-    // Check for duplicate calls
+    // Enhanced source classification
+    const sourceCategory = source.includes('GeolocateControl') ? 'GeolocateControl' :
+                          source.includes('User') || source === 'Manual' ? 'UserAction' :
+                          source.includes('System') ? 'SystemEvent' : 'Unknown';
+
+    // Track the call with enhanced source information
+    trackEnabledCall(enabled, `${source} (${sourceCategory})`);
+
+    // Check for duplicate calls with source awareness
     if (checkForDuplicateCall(enabled, source)) {
       return; // Skip duplicate call
     }
 
-    // Use the enhanced debouncer with source tracking
+    // For user actions, set the appropriate flag
+    if (sourceCategory === 'UserAction') {
+      geolocateControlDebouncer.setUpdateFlag('isUpdatingFromUserAction', 2000);
+    }
+
+    // Use the enhanced debouncer with comprehensive source tracking
     const wasQueued = proximityEnabledDebouncer.debounceEnabledUpdate(
       user.id,
       enabled,
       async (debouncedEnabled: boolean) => {
         console.log('⚡ [ProximityAlerts] Executing debounced enabled update:', { 
           enabled: debouncedEnabled, 
-          source 
+          source,
+          category: sourceCategory
         });
         
         // Mark as processed in history
@@ -377,11 +400,16 @@ export const useProximityAlerts = () => {
     );
 
     if (wasQueued) {
-      console.log('⚡ [ProximityAlerts] Proximity enabled update queued:', { enabled, source });
+      console.log('⚡ [ProximityAlerts] Proximity enabled update queued:', { 
+        enabled, 
+        source,
+        category: sourceCategory
+      });
     } else {
       console.log('⚡ [ProximityAlerts] Proximity enabled update skipped:', { 
         enabled, 
         source,
+        category: sourceCategory,
         reason: 'Debouncer rejected (duplicate/cooldown/rapid calls)'
       });
     }
@@ -606,19 +634,26 @@ export const useProximityAlerts = () => {
         callHistory: enabledCallHistoryRef.current,
         rapidDetection: rapidCallDetectionRef.current,
         debouncerHistory: proximityEnabledDebouncer.getCallHistory(user.id),
-        debouncerMetrics: proximityEnabledDebouncer.getMetrics()
+        debouncerMetrics: proximityEnabledDebouncer.getMetrics(),
+        // GeolocateControl debug info
+        geolocateFlags: geolocateControlDebouncer.getActiveFlags(),
+        geolocateHistory: geolocateControlDebouncer.getEventHistory()
       };
     }
     return null;
   }, [user]);
 
-  // Expose debugging function to window in development
+  // Enhanced debugging utilities with GeolocateControl integration
   useEffect(() => {
     if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
       (window as any).proximityAlertsDebug = {
         getDebugInfo,
         dumpCallHistory: () => proximityEnabledDebouncer.dumpDebugInfo(user?.id),
-        emergencyBrake: () => user && proximityEnabledDebouncer.emergencyBrake(user.id)
+        emergencyBrake: () => user && proximityEnabledDebouncer.emergencyBrake(user.id),
+        // GeolocateControl debug functions
+        dumpGeolocateInfo: () => geolocateControlDebouncer.dumpDebugInfo(),
+        getGeolocateHistory: (eventType?: string) => geolocateControlDebouncer.getEventHistory(eventType),
+        clearGeolocateTimeouts: () => geolocateControlDebouncer.clearAllTimeouts()
       };
     }
   }, [getDebugInfo, user]);
