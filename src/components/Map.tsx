@@ -18,6 +18,7 @@ import { PhotoData } from '@/hooks/useEnhancedPhotos';
 import { PhotoCarousel } from './photo-carousel';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { getEnhancedLandmarkText } from '@/utils/landmarkPromptUtils';
+import { getTourGenerationInProgress } from '@/data/tourLandmarks';
 
 interface MapProps {
   mapboxToken: string;
@@ -55,7 +56,7 @@ const MapComponent: React.FC<MapProps> = ({
   
   const [tourLandmarks, setTourLandmarks] = useState<TourLandmark[]>([]);
   
-  const geolocateControl = useRef<mapboxgl.GeolocateControl | null>(null);
+  const geolocateControlRef = useRef<mapboxgl.GeolocateControl | null>(null);
   const isUpdatingFromProximitySettings = useRef<boolean>(false);
   const userInitiatedLocationRequest = useRef<boolean>(false);
   const lastLocationEventTime = useRef<number>(0);
@@ -321,26 +322,27 @@ const MapComponent: React.FC<MapProps> = ({
       if (user) {
         console.log('🗺️ [Map] Adding GeolocateControl for authenticated user');
         
-        const geoControl = new mapboxgl.GeolocateControl({
+        const geolocateControl = new mapboxgl.GeolocateControl({
           positionOptions: {
             enableHighAccuracy: true,
             timeout: 10000,
-            maximumAge: 600000 // 10 minutes
+            maximumAge: 300000
           },
           trackUserLocation: true,
           showUserHeading: true,
           showAccuracyCircle: true,
           fitBoundsOptions: {
-            maxZoom: 16
+            maxZoom: 15,
+            padding: 50
           }
         });
         
-        geolocateControl.current = geoControl;
+        geolocateControlRef.current = geolocateControl;
         
-        const controlElement = geoControl._container;
+        const controlElement = geolocateControl._container;
         if (controlElement) {
           controlElement.addEventListener('click', () => {
-            const currentState = (geoControl as any)._watchState;
+            const currentState = (geolocateControl as any)._watchState;
             console.log('🌍 GeolocateControl: Button clicked, current state:', currentState);
             userInitiatedLocationRequest.current = true;
             lastLocationEventTime.current = Date.now();
@@ -348,50 +350,62 @@ const MapComponent: React.FC<MapProps> = ({
           });
         }
         
-        geoControl.on('geolocate', (e) => {
-          const currentState = (geoControl as any)._watchState;
-          console.log('🌍 GeolocateControl: Location found', { 
-            coordinates: [e.coords.longitude, e.coords.latitude],
-            state: currentState,
-            userInitiated: userInitiatedLocationRequest.current
-          });
+        geolocateControl.on('geolocate', (position: GeolocationPosition) => {
+          console.log('🎯 GeolocateControl: User location found', position.coords);
           
-          lastLocationEventTime.current = Date.now();
+          const location: UserLocation = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            timestamp: Date.now()
+          };
           
-          if (!isUpdatingFromProximitySettings.current) {
-            console.log('🌍 GeolocateControl: Enabling proximity (user initiated location)');
-            updateProximityEnabled(true);
-          }
-        });
-        
-        geoControl.on('trackuserlocationstart', () => {
-          console.log('🌍 GeolocateControl: Started tracking user location (ACTIVE state)');
-          lastLocationEventTime.current = Date.now();
+          // Update location in proximity system
+          updateUserLocation(location);
           
-          if (!isUpdatingFromProximitySettings.current) {
-            console.log('🌍 GeolocateControl: Enabling proximity (tracking started)');
-            updateProximityEnabled(true);
+          // Enable proximity monitoring if not already enabled
+          if (proximitySettings && !proximitySettings.is_enabled) {
+            console.log('🎯 Auto-enabling proximity monitoring after successful geolocation');
+            updateProximityEnabled(true).catch(error => {
+              console.error('❌ Failed to auto-enable proximity monitoring:', error);
+            });
           }
         });
         
-        geoControl.on('trackuserlocationend', () => {
-          console.log('🌍 GeolocateControl: Stopped tracking user location (PASSIVE/INACTIVE state)');
-          if (!isUpdatingFromProximitySettings.current) {
-            console.log('🌍 GeolocateControl: Disabling proximity (tracking ended)');
-            updateProximityEnabled(false);
+        geolocateControl.on('trackuserlocationstart', () => {
+          console.log('🎯 GeolocateControl: Started tracking user location');
+        });
+        
+        geolocateControl.on('trackuserlocationend', () => {
+          console.log('🎯 GeolocateControl: Stopped tracking user location');
+          
+          // Check if we should update proximity state (don't change during tour generation)
+          if (!getTourGenerationInProgress()) {
+            console.log('🎯 Disabling proximity monitoring due to location tracking end');
+            updateProximityEnabled(false).catch(error => {
+              console.error('❌ Failed to disable proximity monitoring:', error);
+            });
+          } else {
+            console.log('🎯 Skipping proximity state change - tour generation in progress');
           }
         });
         
-        geoControl.on('error', (e) => {
-          console.error('🌍 GeolocateControl: Error occurred', e);
-          userInitiatedLocationRequest.current = false;
-          if (!isUpdatingFromProximitySettings.current) {
-            console.log('🌍 GeolocateControl: Disabling proximity (error occurred)');
-            updateProximityEnabled(false);
+        geolocateControl.on('error', (error: GeolocationPositionError) => {
+          console.error('❌ GeolocateControl error:', error);
+          
+          // Check if we should update proximity state (don't change during tour generation)
+          if (!getTourGenerationInProgress()) {
+            console.log('🎯 Disabling proximity monitoring due to geolocation error');
+            updateProximityEnabled(false).catch(updateError => {
+              console.error('❌ Failed to disable proximity monitoring after geolocation error:', updateError);
+            });
+          } else {
+            console.log('🎯 Skipping proximity state change - tour generation in progress');
           }
         });
         
-        map.current.addControl(geoControl, 'top-right');
+        map.current.addControl(geolocateControl, 'top-right');
+        geolocateControlRef.current = geolocateControl;
 
         setTimeout(() => {
           const controlContainer = document.querySelector('.mapboxgl-ctrl-top-right');
@@ -565,7 +579,7 @@ const MapComponent: React.FC<MapProps> = ({
       return () => {
         console.log('🗺️ [Map] Cleanup function called');
         stopCurrentAudio();
-        geolocateControl.current = null;
+        geolocateControlRef.current = null;
         map.current?.remove();
         map.current = null;
       };
@@ -587,7 +601,7 @@ const MapComponent: React.FC<MapProps> = ({
   }, [updateBaseLandmarksLayer]);
 
   useEffect(() => {
-    if (!geolocateControl.current || !proximitySettings) {
+    if (!geolocateControlRef.current || !proximitySettings) {
       return;
     }
 
@@ -614,7 +628,7 @@ const MapComponent: React.FC<MapProps> = ({
     isUpdatingFromProximitySettings.current = true;
     
     try {
-      const currentWatchState = (geolocateControl.current as any)._watchState;
+      const currentWatchState = (geolocateControlRef.current as any)._watchState;
       const isCurrentlyTracking = currentWatchState === 'ACTIVE_LOCK';
       const isTransitioning = currentWatchState === 'WAITING_ACTIVE' || currentWatchState === 'BACKGROUND';
       const shouldBeTracking = proximitySettings.is_enabled;
@@ -637,7 +651,7 @@ const MapComponent: React.FC<MapProps> = ({
       
       setTimeout(() => {
         try {
-          const finalWatchState = (geolocateControl.current as any)._watchState;
+          const finalWatchState = (geolocateControlRef.current as any)._watchState;
           const finalIsTracking = finalWatchState === 'ACTIVE_LOCK';
           
           console.log('🔄 Final state check before sync:', {
@@ -648,10 +662,10 @@ const MapComponent: React.FC<MapProps> = ({
           
           if (shouldBeTracking && !finalIsTracking && !isTransitioning) {
             console.log('🔄 Starting GeolocateControl tracking (proximity enabled)');
-            geolocateControl.current?.trigger();
+            geolocateControlRef.current?.trigger();
           } else if (!shouldBeTracking && finalIsTracking) {
             console.log('🔄 Stopping GeolocateControl tracking (proximity disabled)');
-            geolocateControl.current?.trigger();
+            geolocateControlRef.current?.trigger();
           } else {
             console.log('🔄 No sync needed - states already match');
           }
