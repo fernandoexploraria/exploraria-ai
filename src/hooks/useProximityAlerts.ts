@@ -6,6 +6,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { useProximityAlertsValidation } from '@/hooks/useProximityAlertsValidation';
 import { trackGracePeriodActivation } from '@/utils/gracePeriodHistory';
+import { proximityEnabledDebouncer } from '@/utils/proximityEnabledDebouncer';
 import { 
   shouldActivateGracePeriod, 
   shouldClearGracePeriodOnMovement,
@@ -223,10 +224,29 @@ export const useProximityAlerts = () => {
     }
   }, [proximitySettings, user, queryClient, validateAndCorrectSettings, handleDatabaseError]);
 
-  // Helper function to update proximity enabled status
+  // Enhanced updateProximityEnabled with debouncing and deduplication
   const updateProximityEnabled = useCallback(async (enabled: boolean) => {
-    await updateProximitySettings({ is_enabled: enabled });
-  }, [updateProximitySettings]);
+    if (!user) {
+      console.warn('Cannot update proximity enabled: no authenticated user');
+      return;
+    }
+
+    // Use the dedicated enabled debouncer
+    const wasQueued = proximityEnabledDebouncer.debounceEnabledUpdate(
+      user.id,
+      enabled,
+      async (debouncedEnabled: boolean) => {
+        console.log('⚡ [ProximityAlerts] Executing debounced enabled update:', { enabled: debouncedEnabled });
+        await updateProximitySettings({ is_enabled: debouncedEnabled });
+      }
+    );
+
+    if (wasQueued) {
+      console.log('⚡ [ProximityAlerts] Proximity enabled update queued:', { enabled });
+    } else {
+      console.log('⚡ [ProximityAlerts] Proximity enabled update skipped (duplicate/cooldown):', { enabled });
+    }
+  }, [updateProximitySettings, user]);
 
   // Helper function to update distance settings
   const updateDistanceSetting = useCallback(async (field: 'notification_distance' | 'outer_distance' | 'card_distance', value: number) => {
