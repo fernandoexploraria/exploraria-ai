@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
 import mapboxgl from 'mapbox-gl';
@@ -64,7 +65,7 @@ const MapComponent: React.FC<MapProps> = ({
   const processedPlannedLandmarks = useRef<string[]>([]);
   
   const { user } = useAuth();
-  const { updateProximityEnabled, proximitySettings, updateUserLocation } = useProximityAlerts();
+  const { updateProximityEnabled, proximitySettings, setUserLocation } = useProximityAlerts();
   const { fetchLandmarkPhotos: fetchPhotosWithHook } = useLandmarkPhotos();
   const { locationState } = useLocationTracking();
   
@@ -359,7 +360,7 @@ const MapComponent: React.FC<MapProps> = ({
             timestamp: Date.now()
           };
           
-          updateUserLocation(location);
+          setUserLocation(location);
           
           if (proximitySettings && !proximitySettings.is_enabled) {
             console.log('🎯 Auto-enabling proximity monitoring after successful geolocation');
