@@ -3,6 +3,7 @@ import { useOptimalRoute } from '@/hooks/useOptimalRoute';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Route } from 'lucide-react';
+// Trigger redeploy to deploy mapbox-optimization edge function
 
 const OptimalRouteButton: React.FC = () => {
   const { 
