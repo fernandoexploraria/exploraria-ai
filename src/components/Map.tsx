@@ -32,6 +32,7 @@ interface MapProps {
   onSelectLandmark: (landmark: Landmark) => void;
   selectedLandmark: Landmark | null;
   plannedLandmarks: Landmark[];
+  onClearTransitRouteRef?: (clearFn: () => void) => void;
 }
 
 const TOUR_LANDMARKS_SOURCE_ID = 'tour-landmarks-source';
@@ -50,7 +51,8 @@ const MapComponent: React.FC<MapProps> = ({
   landmarks, 
   onSelectLandmark, 
   selectedLandmark, 
-  plannedLandmarks
+  plannedLandmarks,
+  onClearTransitRouteRef
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -114,6 +116,13 @@ const MapComponent: React.FC<MapProps> = ({
     planTransitRoute,
     clearRoute: clearTransitRoute
   } = useTransitRoute();
+
+  // Pass clearTransitRoute function to parent component
+  useEffect(() => {
+    if (onClearTransitRouteRef) {
+      onClearTransitRouteRef(clearTransitRoute);
+    }
+  }, [clearTransitRoute, onClearTransitRouteRef]);
 
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
 
@@ -1884,6 +1893,11 @@ const MapComponent: React.FC<MapProps> = ({
     if (mode) {
       setShowTravelModeSelector(false);
       
+      // Clear any existing transit route when selecting a different travel mode
+      if (mode !== 'TRANSIT') {
+        clearTransitRoute();
+      }
+      
       // Handle transit mode differently - show transit planner
       if (mode === 'TRANSIT') {
         setShowTransitPlanner(true);
@@ -1955,7 +1969,7 @@ const MapComponent: React.FC<MapProps> = ({
         toast.error("Failed to calculate optimal route. Please try again.");
       }
     }
-  }, [tourLandmarks, calculateOptimalRoute, userLocation, checkPermission, requestPermission]);
+  }, [tourLandmarks, calculateOptimalRoute, userLocation, checkPermission, requestPermission, clearTransitRoute]);
 
   const handleTravelModeCancel = useCallback(() => {
     setShowTravelModeSelector(false);

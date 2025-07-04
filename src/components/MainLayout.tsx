@@ -37,7 +37,7 @@ interface MainLayoutProps {
   onNewTourAssistantOpenChange: (open: boolean) => void;
   isIntelligentTourOpen: boolean;
   onIntelligentTourOpenChange: (open: boolean) => void;
-  onTourGenerated?: (landmarks: any[]) => void;
+  onTourGenerated?: (landmarks: any[], clearTransitRoute?: () => void) => void;
   onTourReadyForVoice?: (tourData: { destination: string; systemPrompt: string; landmarks: any[] }) => void;
   voiceTourData?: { destination: string; systemPrompt: string; landmarks: any[] } | null;
 }
@@ -88,6 +88,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   // New state for FAB management
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [assistantState, setAssistantState] = useState<AssistantState>('not-started');
+  
+  // State to track clearTransitRoute function from Map
+  const [clearTransitRoute, setClearTransitRoute] = useState<(() => void) | null>(null);
 
   const handleLocationSelect = () => {
     console.log('Location select called but no action taken');
@@ -205,6 +208,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         onSelectLandmark={onSelectLandmark}
         selectedLandmark={selectedLandmark}
         plannedLandmarks={[...smartTourLandmarks]}
+        onClearTransitRouteRef={(clearFn) => setClearTransitRoute(() => clearFn)}
       />
 
       {/* Debug Proximity Card - positioned above regular cards */}
@@ -263,7 +267,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         onLocationSelect={handleLocationSelect}
         isIntelligentTourOpen={isIntelligentTourOpen}
         onIntelligentTourOpenChange={onIntelligentTourOpenChange}
-        onTourGenerated={onTourGenerated}
+        onTourGenerated={(landmarks) => onTourGenerated?.(landmarks, clearTransitRoute || undefined)}
         onAuthRequired={handleAuthRequired}
         onTourReadyForVoice={onTourReadyForVoice}
       />
