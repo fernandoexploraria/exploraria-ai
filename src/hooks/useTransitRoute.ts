@@ -98,6 +98,18 @@ export const useTransitRoute = (): UseTransitRouteReturn => {
           throw new Error('Transit service access denied. Please contact support.');
         } else if (errorMsg.includes('UNKNOWN_ERROR')) {
           throw new Error('Transit service temporarily unavailable. Please try again later.');
+        } else if (errorMsg.includes('Google Routes API error: 400')) {
+          throw new Error('Invalid transit route request. Please check your locations and try again.');
+        } else if (errorMsg.includes('Google Routes API error: 403')) {
+          throw new Error('Transit service access denied. Please contact support.');
+        } else if (errorMsg.includes('Google Routes API error: 404')) {
+          throw new Error('Transit service not available for this location. Please try a different destination.');
+        } else if (errorMsg.includes('Google Routes API error: 429')) {
+          throw new Error('Transit service temporarily busy. Please try again in a few minutes.');
+        } else if (errorMsg.includes('Google Routes API error: 500') || errorMsg.includes('Google Routes API error: 503')) {
+          throw new Error('Transit service temporarily unavailable. Please try again later.');
+        } else if (errorMsg.includes('No routes found for the given waypoints')) {
+          throw new Error('No transit routes available between these locations. Try a different time or location.');
         } else {
           // For any other unknown errors, provide a generic user-friendly message
           throw new Error('Unable to plan transit route. Please check your locations and try again.');
