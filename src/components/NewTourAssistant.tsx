@@ -82,30 +82,55 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     }
   });
 
-  // 🎯 NEW: Contextual POI polling system
+  // 🎯 NEW: Contextual POI polling system with direct ElevenLabs WebSocket access
   const handleContextualUpdate = useCallback((update: any) => {
     if (!conversation || conversation.status !== 'connected') {
       console.log('⚠️ Skipping contextual update - conversation not connected');
       return;
     }
 
-    // Format contextual update message for the agent
-    const contextualMessage = `CONTEXTUAL_UPDATE: You are currently near the following places: ${update.pois.map((poi: any) => 
-      `${poi.name} (${poi.distance}m away, ${poi.types[0] || 'place'}${poi.rating ? ', rated ' + poi.rating + '/5' : ''})`
-    ).join(', ')}. Location update reason: ${update.updateReason}`;
+    // Get the most relevant POI (first one, as backend prioritizes by distance/relevance)
+    const nearestPOI = update.pois[0];
+    if (!nearestPOI) {
+      console.log('⚠️ No POIs in contextual update, skipping');
+      return;
+    }
 
-    console.log('📡 Sending contextual update to agent:', {
-      poisCount: update.pois.length,
-      reason: update.updateReason,
-      nearestPOI: update.pois[0]?.name || 'none'
+    // Format as SYSTEM_ALERT per Gemini's specification
+    const primaryType = nearestPOI.types?.[0] || 'place';
+    const keyFacts = nearestPOI.rating 
+      ? `Rated ${nearestPOI.rating}/5 stars` 
+      : `A notable ${primaryType} in the area`;
+    
+    const systemAlertMessage = `SYSTEM_ALERT: User is now near ${nearestPOI.name}. It is a ${primaryType}. Key facts: ${keyFacts}.`;
+
+    console.log('📡 Sending SYSTEM_ALERT to ElevenLabs agent:', {
+      poiName: nearestPOI.name,
+      primaryType,
+      distance: nearestPOI.distance,
+      reason: update.updateReason
     });
 
-    // Send contextual update to ElevenLabs agent
+    // Send contextual update using direct WebSocket access as suggested
     try {
-      if (conversation.sendContextualUpdate) {
-        conversation.sendContextualUpdate(contextualMessage);
+      // Type cast to access websocket property (may not be exposed in types)
+      const conversationWithWS = conversation as any;
+      
+      // Check if WebSocket is available and open
+      if (conversationWithWS.websocket && conversationWithWS.websocket.readyState === WebSocket.OPEN) {
+        const contextualUpdateMessage = {
+          type: 'contextual_update',
+          text: systemAlertMessage
+        };
+
+        console.log('📡 Sending contextual_update via WebSocket:', contextualUpdateMessage);
+        conversationWithWS.websocket.send(JSON.stringify(contextualUpdateMessage));
       } else {
-        console.warn('⚠️ sendContextualUpdate method not available on conversation');
+        console.warn('⚠️ ElevenLabs conversation WebSocket not active. Cannot send contextual_update.');
+        // Fallback: try SDK method if available
+        if ((conversation as any).sendContextualUpdate) {
+          (conversation as any).sendContextualUpdate(systemAlertMessage);
+        }
       }
     } catch (error) {
       console.error('❌ Failed to send contextual update:', error);

@@ -292,15 +292,10 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
     console.log('🗃️ Generating tour in database for user:', user.id);
 
     try {
-      // Create the "Alexis" template system prompt with contextual updates
+      // Create the "Alexis" template system prompt with Gemini's contextual updates
       const contextualUpdateSnippet = `
 
-CONTEXTUAL UPDATES: You will receive real-time updates about nearby points of interest as the user moves around. When you receive these updates, acknowledge them naturally and offer relevant information about nearby places when appropriate. The updates will include:
-- nearby_pois: Array of places near the user's current location
-- user_location: Current GPS coordinates
-- update_reason: Why the update was triggered (location_change, scheduled_poll, manual_refresh)
-
-Use this contextual information to enhance your tour guidance by mentioning relevant nearby places, suggesting detours, or providing location-specific insights.`;
+**Real-time Location Awareness (Contextual Updates):** You will receive occasional, non-interrupting system updates about nearby points of interest (POIs). These messages will appear in your conversation history in the following format: 'SYSTEM_ALERT: User is now near [POI Name]. It is a [primaryType]. Key facts: [brief summary/fact].' 'SYSTEM_ALERT: Next nearby POI: [POI Name]...' **Behavior for Nearby POIs:** - **Do NOT interrupt** the user or your current speaking turn when a 'SYSTEM_ALERT' arrives. Let the current conversational turn complete naturally. - **After the user has finished speaking, or during a natural pause in the conversation (when it's your turn to speak, and you are not in the middle of explaining a planned landmark), then:** - **Check your recent conversation history for any 'SYSTEM_ALERT' messages about new POIs that you have not yet mentioned.** - **If a new, significant POI is available:** - Gracefully introduce it. Start with an enthusiastic but non-disruptive phrase like: 'Oh, how fascinating! Speaking of our journey, it seems we're quite close to [POI Name].' - Share one or two interesting facts or a brief engaging detail about this [POI Name], drawing directly from the 'Key facts' provided in the 'SYSTEM_ALERT'. For example: 'Did you know that [fact]? It's truly a captivating spot.' - **Smoothly transition:** Ask a relevant follow-up question about the POI or connect it back to the tour if possible. For example: 'What are your thoughts on that, or shall we continue towards the next planned landmark?' - **If no new POI information is available in the 'SYSTEM_ALERT' or if you've already discussed all recent ones:** Continue the conversation as usual based on the main tour plan or user's questions. - **Avoid Repetition:** Once you introduce a POI to the user, consider it discussed for the remainder of this conversation session. Do not re-mention it, even if a new 'SYSTEM_ALERT' repeats information about it. - **Prioritize:** If multiple POIs arrive, prioritize the one that seems most relevant or closest (the backend already helps with this, but the LLM should understand this nuance).`;
 
       const alexisPrompt = `You are Alexis, an expert tour guide for ${destination.name}. 
 
