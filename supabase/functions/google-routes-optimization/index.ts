@@ -121,7 +121,16 @@ serve(async (req) => {
       ...(travelMode === 'DRIVE' && {
         routingPreference: "TRAFFIC_AWARE"
       }),
-      optimizeWaypointOrder: true,
+      // Add time and preferences for TRANSIT mode
+      ...(travelMode === 'TRANSIT' && {
+        departureTime: new Date().toISOString().split('T')[0] + 'T10:00:00Z', // 10:00 AM UTC
+        transitPreferences: {
+          routingPreference: "FEWER_TRANSFERS",
+          transitModes: ["SUBWAY", "BUS", "TRAIN", "TRAM"]
+        }
+      }),
+      // Disable waypoint optimization for TRANSIT as it may not work well with fixed schedules
+      optimizeWaypointOrder: travelMode !== 'TRANSIT',
       polylineEncoding: "ENCODED_POLYLINE",
       computeAlternativeRoutes: false
     };
