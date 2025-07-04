@@ -1671,6 +1671,76 @@ const MapComponent: React.FC<MapProps> = ({
     }
   }, [routeGeoJSON]);
 
+  // Transit route visualization effect
+  useEffect(() => {
+    if (!map.current) return;
+
+    // Add transit route source and layer if transit route exists
+    if (transitRouteGeoJSON) {
+      const sourceId = 'transit-route-source';
+      const layerId = 'transit-route-layer';
+
+      // Remove existing transit route if any
+      if (map.current.getLayer(layerId)) {
+        map.current.removeLayer(layerId);
+      }
+      if (map.current.getSource(sourceId)) {
+        map.current.removeSource(sourceId);
+      }
+
+      // Add new source
+      map.current.addSource(sourceId, {
+        type: 'geojson',
+        data: transitRouteGeoJSON
+      });
+
+      // Add new layer with transit-specific styling
+      map.current.addLayer({
+        id: layerId,
+        type: 'line',
+        source: sourceId,
+        paint: {
+          'line-color': '#7c3aed', // Purple for transit
+          'line-width': 6,
+          'line-opacity': 0.8
+        },
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        }
+      });
+
+      // Fit map to transit route bounds
+      if (transitRouteGeoJSON.coordinates.length > 1) {
+        const coordinates = transitRouteGeoJSON.coordinates as [number, number][];
+        const bounds = coordinates.reduce((bounds, coord) => {
+          return bounds.extend(coord);
+        }, new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
+
+        map.current.fitBounds(bounds, {
+          padding: 80,
+          duration: 1500,
+          maxZoom: 16
+        });
+      }
+
+      console.log('🚌 Transit route visualized on map');
+    } else {
+      // Clean up transit route when transitRouteGeoJSON is null
+      const sourceId = 'transit-route-source';
+      const layerId = 'transit-route-layer';
+      
+      if (map.current.getLayer(layerId)) {
+        map.current.removeLayer(layerId);
+      }
+      if (map.current.getSource(sourceId)) {
+        map.current.removeSource(sourceId);
+      }
+      
+      console.log('🧹 Transit route removed from map');
+    }
+  }, [transitRouteGeoJSON]);
+
   // Add new useEffect to manage route markers
   useEffect(() => {
     if (!map.current) return;
