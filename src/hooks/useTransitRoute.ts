@@ -84,7 +84,11 @@ export const useTransitRoute = (): UseTransitRouteReturn => {
       }
 
       if (!data.success) {
-        throw new Error(data.error || 'Transit route planning failed');
+        const errorMsg = data.error || 'Transit route planning failed';
+        if (errorMsg.includes('No routes found')) {
+          throw new Error('No transit routes available for this route. Try a different time or location.');
+        }
+        throw new Error(errorMsg);
       }
 
       console.log('✅ Transit route planned successfully:', data);
