@@ -36,6 +36,10 @@ const TOP_LANDMARKS_LAYER_ID = 'top-landmarks-layer';
 const BASE_LANDMARKS_SOURCE_ID = 'base-landmarks-source';
 const BASE_LANDMARKS_LAYER_ID = 'base-landmarks-layer';
 
+// Add new constants for route markers
+const ROUTE_MARKERS_SOURCE_ID = 'route-markers-source';
+const ROUTE_MARKERS_LAYER_ID = 'route-markers-layer';
+
 const MapComponent: React.FC<MapProps> = ({ 
   mapboxToken, 
   landmarks, 
@@ -478,7 +482,33 @@ const MapComponent: React.FC<MapProps> = ({
           }
         });
         
-        console.log('🗺️ [Layers] All GeoJSON layers initialized');
+        // Add route markers source and layer for numbered markers
+        map.current.addSource(ROUTE_MARKERS_SOURCE_ID, {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
+        
+        map.current.addLayer({
+          id: ROUTE_MARKERS_LAYER_ID,
+          type: 'symbol',
+          source: ROUTE_MARKERS_SOURCE_ID,
+          layout: {
+            'text-field': ['get', 'number'],
+            'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+            'text-size': 14,
+            'text-anchor': 'center',
+            'text-offset': [0, 0],
+            'text-allow-overlap': true,
+            'text-ignore-placement': true
+          },
+          paint: {
+            'text-color': '#ffffff',
+            'text-halo-color': '#4ade80',
+            'text-halo-width': 8
+          }
+        });
+        
+        console.log('🗺️ [Layers] All GeoJSON layers initialized including route markers');
         
         const addLayerClickHandler = (layerId: string, layerType: 'tour' | 'top' | 'base') => {
           map.current!.on('click', layerId, (e) => {
@@ -1592,6 +1622,39 @@ const MapComponent: React.FC<MapProps> = ({
     }
   }, [routeGeoJSON]);
 
+  // Add new useEffect to manage route markers
+  useEffect(() => {
+    if (!map.current) return;
+
+    console.log('🎯 Updating route markers, optimizedLandmarks count:', optimizedLandmarks.length);
+
+    // Create GeoJSON features for the numbered markers
+    const features = optimizedLandmarks.map((landmark, index) => ({
+      type: 'Feature' as const,
+      geometry: {
+        type: 'Point' as const,
+        coordinates: landmark.coordinates
+      },
+      properties: {
+        number: (index + 1).toString(),
+        landmarkId: landmark.placeId || `landmark-${index}`,
+        name: landmark.name
+      }
+    }));
+
+    const geojsonData = {
+      type: 'FeatureCollection' as const,
+      features
+    };
+
+    // Update the route markers source
+    const source = map.current.getSource(ROUTE_MARKERS_SOURCE_ID) as mapboxgl.GeoJSONSource;
+    if (source) {
+      source.setData(geojsonData);
+      console.log('🎯 Route markers updated:', features.length, 'markers');
+    }
+  }, [optimizedLandmarks]);
+
   const handleOptimalRoute = useCallback(async () => {
     if (!userLocation) {
       toast.error("Please enable location services first");
@@ -1663,45 +1726,6 @@ const MapComponent: React.FC<MapProps> = ({
             <div>📍 {routeStats.waypointCount} stops</div>
           </div>
         </div>
-      )}
-
-      {/* Add numbered markers for optimized route */}
-      {optimizedLandmarks.length > 0 && (
-        <>
-          {optimizedLandmarks.map((landmark, index) => (
-            <div
-              key={`optimized-${landmark.placeId}-${index}`}
-              style={{
-                position: 'absolute',
-                left: '50%',
-                top: '50%',
-                transform: 'translate(-50%, -50%)',
-                pointerEvents: 'none',
-                zIndex: 1000
-              }}
-              ref={(el) => {
-                if (el && map.current) {
-                  const marker = new mapboxgl.Marker({
-                    element: (() => {
-                      const div = document.createElement('div');
-                      div.className = 'w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold text-sm border-2 border-white shadow-lg';
-                      div.textContent = (index + 1).toString();
-                      return div;
-                    })(),
-                    anchor: 'center'
-                  })
-                    .setLngLat(landmark.coordinates)
-                    .addTo(map.current);
-                  
-                  // Store marker for cleanup
-                  if (!navigationMarkers.current.find(m => m.marker === marker)) {
-                    navigationMarkers.current.push({ marker, interaction: null });
-                  }
-                }
-              }}
-            />
-          ))}
-        </>
       )}
 
       <EnhancedStreetViewModal
