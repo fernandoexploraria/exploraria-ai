@@ -1,9 +1,8 @@
-
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { Volume2, Eye, MapPin } from 'lucide-react';
+import { Volume2, Eye, MapPin, Route } from 'lucide-react';
 import { toast } from 'sonner';
 import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
@@ -1603,50 +1602,53 @@ const MapComponent: React.FC<MapProps> = ({
     <>
       <div ref={mapContainer} className="absolute inset-0" />
       
-      {/* Add Optimal Route Controls */}
+      {/* Optimal Route Button - styled to match location button */}
       {tourLandmarks.length > 0 && (
-        <div className="absolute top-20 right-4 z-10 flex flex-col gap-2">
-          {/* Optimal Route Button */}
+        <div className="absolute top-[52px] right-4 z-10">
           <button
             onClick={handleOptimalRoute}
-            disabled={isCalculatingRoute || !userLocation}
-            className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg shadow-lg font-medium transition-colors flex items-center gap-2 min-w-[140px]"
-            title={!userLocation ? "Enable location services first" : "Calculate optimal walking route"}
+            disabled={isCalculatingRoute || !userLocation || tourLandmarks.length < 2}
+            className="w-8 h-8 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:opacity-50 rounded border border-gray-200 shadow-md flex items-center justify-center transition-all duration-200 disabled:cursor-not-allowed"
+            title={
+              !userLocation 
+                ? "Enable location services first" 
+                : tourLandmarks.length < 2
+                ? "At least 2 tour landmarks needed"
+                : routeGeoJSON
+                ? "Calculate new optimal route"
+                : "Calculate optimal walking route"
+            }
           >
             {isCalculatingRoute ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Calculating...
-              </>
+              <div className="w-4 h-4 border-2 border-gray-400 border-t-blue-500 rounded-full animate-spin"></div>
             ) : (
-              <>
-                🎯 Optimal Route
-              </>
+              <Route className="w-4 h-4 text-gray-700" />
             )}
           </button>
+        </div>
+      )}
 
-          {/* Clear Route Button */}
-          {routeGeoJSON && (
-            <button
-              onClick={clearRoute}
-              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow-lg font-medium transition-colors"
-              title="Clear optimal route"
-            >
-              Clear Route
-            </button>
-          )}
+      {/* Clear Route Button - only show when route exists */}
+      {routeGeoJSON && (
+        <div className="absolute top-[92px] right-4 z-10">
+          <button
+            onClick={clearRoute}
+            className="w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded border border-gray-200 shadow-md flex items-center justify-center transition-all duration-200"
+            title="Clear optimal route"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
-          {/* Route Stats */}
-          {routeStats && (
-            <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-3 text-sm">
-              <div className="font-semibold text-gray-800 mb-1">Route Info:</div>
-              <div className="text-gray-700">
-                <div>📏 {routeStats.distanceKm}km</div>
-                <div>⏱️ ~{routeStats.durationText}</div>
-                <div>📍 {routeStats.waypointCount} stops</div>
-              </div>
-            </div>
-          )}
+      {/* Route Stats - compact version */}
+      {routeStats && (
+        <div className="absolute top-[132px] right-4 z-10 bg-white/95 backdrop-blur-sm rounded border border-gray-200 shadow-md p-2 text-xs max-w-[120px]">
+          <div className="text-gray-800 space-y-1">
+            <div>📏 {routeStats.distanceKm}km</div>
+            <div>⏱️ {routeStats.durationText}</div>
+            <div>📍 {routeStats.waypointCount} stops</div>
+          </div>
         </div>
       )}
 
