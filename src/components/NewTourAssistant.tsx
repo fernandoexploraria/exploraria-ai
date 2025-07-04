@@ -40,9 +40,6 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
 
   // 🔥 NEW: Fetch tour details from database
   const { tourDetails, isLoading: isFetchingTourDetails, error: tourDetailsError } = useTourDetails(landmarks);
-  
-  // 🎯 NEW: Location-aware agent integration
-  const locationAwareAgent = useLocationAwareAgent(currentConversationId);
 
   // Notify parent of session state changes
   useEffect(() => {
@@ -196,6 +193,9 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     }
   });
 
+  // 🎯 NEW: Location-aware agent integration
+  const locationAwareAgent = useLocationAwareAgent(currentConversationId, conversation);
+
   // Update state based on conversation status
   useEffect(() => {
     console.log('Conversation status changed:', conversation.status, 'isSpeaking:', conversation.isSpeaking);
@@ -256,28 +256,6 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       
       // 🎯 Start location-aware agent
       setCurrentConversationId(conversationId);
-      
-      // 🎯 Set up global function for sending contextual updates
-      (window as any).sendElevenLabsContextualUpdate = (message: { type: string; text: string }) => {
-        console.log('📡 Attempting to send contextual update:', message);
-        
-        // Use the ElevenLabs conversation's sendContextualUpdate method directly
-        if (conversation && conversation.sendContextualUpdate) {
-          console.log('🎯 Using ElevenLabs sendContextualUpdate method');
-          try {
-            conversation.sendContextualUpdate(message.text);
-            console.log('✅ Contextual update sent successfully via ElevenLabs API');
-            return true;
-          } catch (error) {
-            console.error('❌ Error sending contextual update:', error);
-            return false;
-          }
-        } else {
-          console.warn('⚠️ ElevenLabs sendContextualUpdate method not available');
-          console.log('⚠️ Available methods:', Object.keys(conversation || {}));
-          return false;
-        }
-      };
       
       // 🔧 DEBUG: Send test POI immediately since session is started
       console.log('🔧 DEBUG: About to send test POI in 2 seconds...');

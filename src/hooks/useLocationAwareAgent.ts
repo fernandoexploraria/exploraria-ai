@@ -9,8 +9,10 @@ import { TourLandmark } from '@/data/tourLandmarks';
 interface LocationAwareAgentState {
   mentionedPOIs: Set<string>;
   lastPOIDistance: { [placeId: string]: number };
+  lastPeriodicPitch: { [placeId: string]: number };
   conversationId: string | null;
   isActive: boolean;
+  lastPeriodicUpdate: number;
 }
 
 interface POIContextData {
@@ -21,7 +23,7 @@ interface POIContextData {
   placeId: string;
 }
 
-export const useLocationAwareAgent = (conversationId: string | null) => {
+export const useLocationAwareAgent = (conversationId: string | null, conversation?: any) => {
   const { userLocation } = useLocationTracking();
   const { proximitySettings } = useProximityAlerts();
   const { isActiveInstance } = useProximityNotifications();
@@ -30,8 +32,10 @@ export const useLocationAwareAgent = (conversationId: string | null) => {
   const stateRef = useRef<LocationAwareAgentState>({
     mentionedPOIs: new Set(),
     lastPOIDistance: {},
+    lastPeriodicPitch: {},
     conversationId: null,
-    isActive: false
+    isActive: false,
+    lastPeriodicUpdate: 0
   });
 
   // Get nearby landmarks for POI discovery (using larger radius for contextual awareness)
@@ -42,41 +46,38 @@ export const useLocationAwareAgent = (conversationId: string | null) => {
   });
 
   // Callback function to send contextual update to ElevenLabs agent
-  const sendContextualUpdate = useCallback(async (poiData: POIContextData) => {
-    if (!conversationId || !stateRef.current.isActive) {
-      console.log('🚫 Skipping contextual update - no active conversation');
+  const sendContextualUpdate = useCallback(async (poiData: POIContextData, isPeriodic = false) => {
+    if (!conversationId || !stateRef.current.isActive || !conversation?.sendContextualUpdate) {
+      console.log('🚫 Skipping contextual update - no active conversation or method unavailable');
       return;
     }
 
     try {
-      const contextMessage = `System Alert: User is now near ${poiData.name}. It is a ${poiData.primaryType} located at [${poiData.coordinates[0]}, ${poiData.coordinates[1]}]. A key fact about it: ${poiData.briefSummary}`;
+      const updateType = isPeriodic ? 'Nearby Discovery' : 'System Alert';
+      const contextMessage = `${updateType}: User is now near ${poiData.name}. It is a ${poiData.primaryType} located at [${poiData.coordinates[0]}, ${poiData.coordinates[1]}]. A key fact about it: ${poiData.briefSummary}`;
       
       console.log('📡 Sending contextual update to ElevenLabs agent:', {
         conversationId,
         poiName: poiData.name,
-        messageLength: contextMessage.length
+        messageLength: contextMessage.length,
+        isPeriodic
       });
 
-      // Send contextual_update via ElevenLabs WebSocket
-      // This will be handled by the conversation instance in NewTourAssistant
-      if ((window as any).sendElevenLabsContextualUpdate) {
-        (window as any).sendElevenLabsContextualUpdate({
-          type: 'contextual_update',
-          text: contextMessage
-        });
-        
-        // Mark this POI as mentioned
-        stateRef.current.mentionedPOIs.add(poiData.placeId);
-        
-        console.log('✅ Contextual update sent successfully');
-      } else {
-        console.warn('⚠️ ElevenLabs contextual update function not available');
+      // Send directly via ElevenLabs conversation method
+      conversation.sendContextualUpdate(contextMessage);
+      
+      // Mark this POI as mentioned and track timing
+      stateRef.current.mentionedPOIs.add(poiData.placeId);
+      if (isPeriodic) {
+        stateRef.current.lastPeriodicPitch[poiData.placeId] = Date.now();
       }
+      
+      console.log('✅ Contextual update sent successfully via ElevenLabs API');
       
     } catch (error) {
       console.error('❌ Failed to send contextual update:', error);
     }
-  }, [conversationId]);
+  }, [conversationId, conversation]);
 
   // Enhanced POI processing with Google Places API for richer context
   const processNearbyPOI = useCallback(async (landmark: TourLandmark) => {
@@ -142,6 +143,111 @@ export const useLocationAwareAgent = (conversationId: string | null) => {
     }
   }, [sendContextualUpdate]);
 
+  // Periodic POI pitching function
+  const performPeriodicPitch = useCallback(async () => {
+    if (!stateRef.current.isActive || nearbyLandmarks.length === 0) {
+      return;
+    }
+
+    const now = Date.now();
+    const COOLDOWN_PERIOD = 10 * 60 * 1000; // 10 minutes
+    const PERIODIC_INTERVAL = 60 * 1000; // 1 minute between periodic pitches
+
+    // Check if enough time has passed since last periodic update
+    if (now - stateRef.current.lastPeriodicUpdate < PERIODIC_INTERVAL) {
+      return;
+    }
+
+    // Find POIs that haven't been pitched recently or at all
+    const availablePOIs = nearbyLandmarks.filter(({ landmark }) => {
+      const lastPitch = stateRef.current.lastPeriodicPitch[landmark.placeId];
+      const wasRecentlyMentioned = stateRef.current.mentionedPOIs.has(landmark.placeId) && 
+                                  lastPitch && (now - lastPitch < COOLDOWN_PERIOD);
+      
+      return !wasRecentlyMentioned;
+    });
+
+    if (availablePOIs.length === 0) {
+      console.log('🎯 No available POIs for periodic pitch');
+      return;
+    }
+
+    // Select the closest POI or a random one from the top 3 closest
+    const sortedPOIs = availablePOIs
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, 3);
+    
+    const selectedPOI = sortedPOIs[Math.floor(Math.random() * sortedPOIs.length)];
+    
+    console.log(`🎯 Performing periodic pitch for: ${selectedPOI.landmark.name} (${Math.round(selectedPOI.distance)}m away)`);
+    
+    // Update timing
+    stateRef.current.lastPeriodicUpdate = now;
+    
+    // Process the POI for contextual update
+    await processPeriodicPOI(selectedPOI.landmark);
+    
+  }, [nearbyLandmarks, sendContextualUpdate]);
+
+  // Enhanced POI processing for periodic pitches
+  const processPeriodicPOI = useCallback(async (landmark: TourLandmark) => {
+    const placeId = landmark.placeId;
+    
+    console.log(`🔍 Processing periodic POI pitch: ${landmark.name}`);
+
+    try {
+      // Get enhanced POI details from Google Places API
+      const { data, error } = await supabase.functions.invoke('google-places-details', {
+        body: {
+          placeId: placeId,
+          fields: [
+            'name',
+            'types',
+            'editorial_summary',
+            'formatted_address',
+            'geometry',
+            'rating',
+            'user_ratings_total'
+          ]
+        }
+      });
+
+      if (error) {
+        console.error('❌ Places API error for periodic POI:', error);
+        // Fallback to basic landmark data
+        const fallbackPOI: POIContextData = {
+          name: landmark.name,
+          primaryType: landmark.types?.[0] || 'point_of_interest',
+          coordinates: landmark.coordinates,
+          briefSummary: landmark.description || 'A notable location worth exploring.',
+          placeId: placeId
+        };
+        await sendContextualUpdate(fallbackPOI, true);
+        return;
+      }
+
+      if (data?.result) {
+        const place = data.result;
+        
+        // Create rich POI context for periodic pitch
+        const poiContext: POIContextData = {
+          name: place.name || landmark.name,
+          primaryType: place.types?.[0] || 'point_of_interest',
+          coordinates: landmark.coordinates,
+          briefSummary: place.editorial_summary?.text || 
+                       landmark.description || 
+                       `A ${place.types?.[0]?.replace(/_/g, ' ') || 'notable location'} with ${place.rating ? `a ${place.rating}/5 rating` : 'local significance'}.`,
+          placeId: placeId
+        };
+
+        await sendContextualUpdate(poiContext, true);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error processing periodic POI:', error);
+    }
+  }, [sendContextualUpdate]);
+
   // Monitor nearby landmarks and send contextual updates
   useEffect(() => {
     // Only proceed if conversation is active and we have location data
@@ -188,6 +294,19 @@ export const useLocationAwareAgent = (conversationId: string | null) => {
 
   }, [nearbyLandmarks, userLocation, isActiveInstance, processNearbyPOI, contextualDistance]);
 
+  // Periodic pitching effect - runs every minute when conversation is active
+  useEffect(() => {
+    if (!stateRef.current.isActive) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      performPeriodicPitch();
+    }, 45000); // Every 45 seconds
+
+    return () => clearInterval(interval);
+  }, [performPeriodicPitch, stateRef.current.isActive]);
+
   // Conversation lifecycle management
   const startLocationAwareness = useCallback((newConversationId: string) => {
     console.log('🎯 Starting location-aware agent for conversation:', newConversationId);
@@ -195,8 +314,10 @@ export const useLocationAwareAgent = (conversationId: string | null) => {
     stateRef.current = {
       mentionedPOIs: new Set(),
       lastPOIDistance: {},
+      lastPeriodicPitch: {},
       conversationId: newConversationId,
-      isActive: true
+      isActive: true,
+      lastPeriodicUpdate: 0
     };
   }, []);
 
@@ -206,8 +327,10 @@ export const useLocationAwareAgent = (conversationId: string | null) => {
     stateRef.current = {
       mentionedPOIs: new Set(),
       lastPOIDistance: {},
+      lastPeriodicPitch: {},
       conversationId: null,
-      isActive: false
+      isActive: false,
+      lastPeriodicUpdate: 0
     };
   }, []);
 
