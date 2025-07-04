@@ -15,7 +15,7 @@ interface RouteRequest {
   origin: { coordinates: [number, number] };
   waypoints: Waypoint[];
   returnToOrigin?: boolean;
-  travelMode?: 'WALK' | 'BICYCLE' | 'DRIVE';
+  travelMode?: 'WALK' | 'BICYCLE' | 'DRIVE' | 'TRANSIT';
 }
 
 // Validation function for waypoints

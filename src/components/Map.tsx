@@ -1882,6 +1882,8 @@ const MapComponent: React.FC<MapProps> = ({
         return '#3B82F6'; // Blue  
       case 'DRIVE':
         return '#EF4444'; // Red
+      case 'TRANSIT':
+        return '#A855F7'; // Purple
       default:
         return '#3B82F6'; // Default blue
     }
