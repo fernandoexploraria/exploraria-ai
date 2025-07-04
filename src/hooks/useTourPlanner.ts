@@ -84,6 +84,11 @@ export const useTourPlanner = () => {
 
     // Clear existing tour markers first
     clearTourMarkers();
+    
+    // Clear any existing optimal route when generating a new tour
+    if ((window as any).clearOptimalRoute) {
+      (window as any).clearOptimalRoute();
+    }
 
     // Check if user is subscribed or within free tour limit
     const FREE_TOUR_LIMIT = 3;

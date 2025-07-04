@@ -506,7 +506,12 @@ const MapComponent: React.FC<MapProps> = ({
           },
           paint: {
             'text-color': '#ffffff',
-            'text-halo-color': '#4ade80',
+            'text-halo-color': [
+              'case',
+              ['==', ['get', 'number'], '1'],
+              '#FF00FF', // Fluorescent magenta for marker 1
+              '#4ade80'  // Green for all other markers
+            ],
             'text-halo-width': 8
           }
         });
@@ -1489,6 +1494,7 @@ const MapComponent: React.FC<MapProps> = ({
     (window as any).navigateToMapCoordinates = navigateToCoordinates;
     (window as any).stopCurrentAudio = stopCurrentAudio;
     (window as any).showRouteOnMap = showRouteOnMap;
+    (window as any).clearOptimalRoute = clearRoute;
     
     (window as any).handleInteractionListen = (interactionId: string) => {
       const markerData = navigationMarkers.current.find(m => m.interaction?.id === interactionId);
@@ -1552,6 +1558,7 @@ const MapComponent: React.FC<MapProps> = ({
       delete (window as any).stopCurrentAudio;
       delete (window as any).showRouteOnMap;
       delete (window as any).handleStreetViewOpen;
+      delete (window as any).clearOptimalRoute;
     };
   }, [showRouteOnMap, navigateToCoordinates, openStreetViewModal, landmarks]);
 
