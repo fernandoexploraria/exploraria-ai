@@ -282,16 +282,26 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       // 🔧 DEBUG: Send test POI for debugging - wait for connection
       const sendDebugPOI = () => {
         console.log('🔧 DEBUG: Checking connection status...', conversation?.status);
-        if (conversation?.status === 'connected' && (window as any).sendElevenLabsContextualUpdate) {
+        console.log('🔧 DEBUG: Conversation object keys:', Object.keys(conversation || {}));
+        console.log('🔧 DEBUG: isSpeaking:', conversation?.isSpeaking);
+        
+        // Check both status and WebSocket directly
+        const websocket = (conversation as any)?.websocket;
+        const wsReady = websocket && websocket.readyState === WebSocket.OPEN;
+        
+        console.log('🔧 DEBUG: WebSocket ready:', wsReady, 'readyState:', websocket?.readyState);
+        
+        if (wsReady && (window as any).sendElevenLabsContextualUpdate) {
           console.log('🔧 DEBUG: Sending test POI to agent...');
           const success = (window as any).sendElevenLabsContextualUpdate({
             type: 'contextual_update',
             text: 'System Alert: User is now near Palacio de Bellas Artes. It is a cultural_center located at [-99.141, 19.435]. A key fact about it: A stunning Art Nouveau and Art Deco palace housing Mexico\'s most important cultural institutions, including opera, theater, and fine arts exhibitions.'
           });
           console.log('🔧 DEBUG: Test POI sent:', success);
+          return; // Stop retrying once sent
         } else {
-          console.log('🔧 DEBUG: Connection not ready, retrying in 1 second...');
-          setTimeout(sendDebugPOI, 1000);
+          console.log('🔧 DEBUG: Connection not ready, retrying in 2 seconds...');
+          setTimeout(sendDebugPOI, 2000);
         }
       };
       
