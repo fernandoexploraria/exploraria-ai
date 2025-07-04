@@ -20,6 +20,7 @@ import { PhotoCarousel } from './photo-carousel';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { getEnhancedLandmarkText } from '@/utils/landmarkPromptUtils';
 import { useOptimalRoute } from '@/hooks/useOptimalRoute';
+import { usePermissionMonitor } from '@/hooks/usePermissionMonitor';
 
 interface MapProps {
   mapboxToken: string;
@@ -71,6 +72,7 @@ const MapComponent: React.FC<MapProps> = ({
   const { updateProximityEnabled, proximitySettings } = useProximityAlerts();
   const { fetchLandmarkPhotos: fetchPhotosWithHook } = useLandmarkPhotos();
   const { locationState } = useLocationTracking();
+  const { permissionState, requestPermission, checkPermission } = usePermissionMonitor();
   
   const { getCachedData } = useStreetView();
   const { getStreetViewWithOfflineSupport } = useEnhancedStreetView();
@@ -1656,23 +1658,98 @@ const MapComponent: React.FC<MapProps> = ({
   }, [optimizedLandmarks]);
 
   const handleOptimalRoute = useCallback(async () => {
-    if (!userLocation) {
-      toast.error("Please enable location services first");
-      return;
-    }
-
+    // Check if we have enough tour landmarks first
     if (tourLandmarks.length < 2) {
       toast.error("At least 2 tour landmarks are needed for route optimization");
       return;
     }
 
-    console.log('🎯 Starting optimal route calculation with:', {
-      userLocation,
-      tourLandmarksCount: tourLandmarks.length
-    });
+    try {
+      // Check current permission status
+      const currentPermissionState = await checkPermission();
+      
+      if (currentPermissionState === 'denied') {
+        toast.error("Location permission is denied. Please enable location access in your browser settings.");
+        return;
+      }
 
-    await calculateOptimalRoute(userLocation, tourLandmarks);
-  }, [userLocation, tourLandmarks, calculateOptimalRoute]);
+      let currentLocation: [number, number] | null = userLocation;
+
+      // If we don't have a current location, request it on-demand
+      if (!currentLocation) {
+        console.log('🎯 Requesting location on-demand for optimal route');
+        
+        // Try to request permission if it's in prompt state
+        if (currentPermissionState === 'prompt') {
+          const permissionGranted = await requestPermission();
+          if (!permissionGranted) {
+            toast.error("Location permission is required for route optimization");
+            return;
+          }
+        }
+
+        // Get current position
+        try {
+          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(
+              resolve,
+              reject,
+              {
+                enableHighAccuracy: false,
+                timeout: 10000,
+                maximumAge: 300000 // Allow 5-minute old location
+              }
+            );
+          });
+
+          currentLocation = [position.coords.longitude, position.coords.latitude];
+          setUserLocation(currentLocation);
+          console.log('✅ Location obtained on-demand:', currentLocation);
+        } catch (error) {
+          console.error('❌ Failed to get location on-demand:', error);
+          toast.error("Could not get your current location. Please try again.");
+          return;
+        }
+      }
+
+      if (!currentLocation) {
+        toast.error("Unable to determine your location for route optimization");
+        return;
+      }
+
+      console.log('🎯 Starting optimal route calculation with on-demand location:', {
+        currentLocation,
+        tourLandmarksCount: tourLandmarks.length
+      });
+
+      await calculateOptimalRoute(currentLocation, tourLandmarks);
+    } catch (error) {
+      console.error('❌ Error in handleOptimalRoute:', error);
+      toast.error("Failed to calculate optimal route. Please try again.");
+    }
+  }, [tourLandmarks, calculateOptimalRoute, userLocation, checkPermission, requestPermission]);
+
+  // Determine if the optimal route button should be enabled
+  const isOptimalRouteButtonEnabled = !isCalculatingRoute && 
+                                    permissionState.state !== 'denied' && 
+                                    tourLandmarks.length >= 2;
+
+  // Generate tooltip text based on current conditions
+  const getOptimalRouteTooltip = () => {
+    if (permissionState.state === 'denied') {
+      return "Location permission denied - enable in browser settings";
+    }
+    if (isCalculatingRoute) {
+      return "Calculating route...";
+    }
+    if (tourLandmarks.length < 2) {
+      return "At least 2 tour landmarks needed";
+    }
+    if (routeGeoJSON) {
+      return "Calculate new optimal route";
+    }
+    return "Calculate optimal walking route";
+  };
 
   return (
     <>
@@ -1683,17 +1760,9 @@ const MapComponent: React.FC<MapProps> = ({
         <div className="absolute top-[58px] right-[10px] z-10">
           <button
             onClick={handleOptimalRoute}
-            disabled={isCalculatingRoute || !userLocation || tourLandmarks.length < 2}
+            disabled={!isOptimalRouteButtonEnabled}
             className="w-8 h-8 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:opacity-50 rounded border border-gray-200 shadow-md flex items-center justify-center transition-all duration-200 disabled:cursor-not-allowed"
-            title={
-              !userLocation 
-                ? "Enable location services first" 
-                : tourLandmarks.length < 2
-                ? "At least 2 tour landmarks needed"
-                : routeGeoJSON
-                ? "Calculate new optimal route"
-                : "Calculate optimal walking route"
-            }
+            title={getOptimalRouteTooltip()}
           >
             {isCalculatingRoute ? (
               <div className="w-4 h-4 border-2 border-gray-400 border-t-blue-500 rounded-full animate-spin"></div>
