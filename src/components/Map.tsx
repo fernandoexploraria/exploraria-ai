@@ -491,6 +491,29 @@ const MapComponent: React.FC<MapProps> = ({
           data: { type: 'FeatureCollection', features: [] }
         });
         
+        // Add pulsing circle layer specifically for marker 1
+        map.current.addLayer({
+          id: 'route-markers-pulse',
+          type: 'circle',
+          source: ROUTE_MARKERS_SOURCE_ID,
+          filter: ['==', ['get', 'number'], '1'], // Only show for marker 1
+          paint: {
+            'circle-radius': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              10, 20,
+              15, 25,
+              20, 30
+            ],
+            'circle-color': '#FF00FF',
+            'circle-opacity': 0.4,
+            'circle-stroke-color': '#FF00FF',
+            'circle-stroke-width': 2,
+            'circle-stroke-opacity': 0.6
+          }
+        });
+        
         map.current.addLayer({
           id: ROUTE_MARKERS_LAYER_ID,
           type: 'symbol',
@@ -1662,8 +1685,59 @@ const MapComponent: React.FC<MapProps> = ({
     if (source) {
       source.setData(geojsonData);
       console.log('🎯 Route markers updated:', features.length, 'markers');
+      
+      // Start pulsing animation for marker 1 if it exists
+      if (features.length > 0 && features[0].properties.number === '1') {
+        startMarker1PulseAnimation();
+      }
     }
   }, [optimizedLandmarks]);
+
+  // Animation function for marker 1 pulsing effect
+  const startMarker1PulseAnimation = useCallback(() => {
+    if (!map.current) return;
+    
+    let animationFrame: number;
+    let startTime: number;
+    
+    const animate = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const elapsed = timestamp - startTime;
+      
+      // Calculate pulsing radius based on time (2 second cycle)
+      const cycle = (elapsed % 2000) / 2000; // 0 to 1
+      const pulseRadius = 20 + Math.sin(cycle * Math.PI * 2) * 8; // 12 to 28
+      const pulseOpacity = 0.4 + Math.sin(cycle * Math.PI * 2) * 0.2; // 0.2 to 0.6
+      
+      try {
+        if (map.current?.getLayer('route-markers-pulse')) {
+          map.current.setPaintProperty('route-markers-pulse', 'circle-radius', [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            10, pulseRadius,
+            15, pulseRadius + 5,
+            20, pulseRadius + 10
+          ]);
+          map.current.setPaintProperty('route-markers-pulse', 'circle-opacity', pulseOpacity);
+        }
+      } catch (error) {
+        console.log('Animation stopped or layer not found');
+        return;
+      }
+      
+      animationFrame = requestAnimationFrame(animate);
+    };
+    
+    animationFrame = requestAnimationFrame(animate);
+    
+    // Clean up animation when component unmounts or route changes
+    return () => {
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+      }
+    };
+  }, []);
 
   const handleOptimalRoute = useCallback(async () => {
     // Check if we have enough tour landmarks first
