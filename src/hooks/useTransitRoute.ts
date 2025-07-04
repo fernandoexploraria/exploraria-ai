@@ -85,35 +85,10 @@ export const useTransitRoute = (): UseTransitRouteReturn => {
 
       if (!data.success) {
         const errorMsg = data.error || 'Transit route planning failed';
-        console.error('❌ Transit API error:', errorMsg);
-        
-        // Provide user-friendly error messages for common scenarios
-        if (errorMsg.includes('No routes found') || errorMsg.includes('ZERO_RESULTS')) {
+        if (errorMsg.includes('No routes found')) {
           throw new Error('No transit routes available for this route. Try a different time or location.');
-        } else if (errorMsg.includes('NOT_FOUND') || errorMsg.includes('INVALID_REQUEST')) {
-          throw new Error('Unable to find transit information for this location. Please try a different destination.');
-        } else if (errorMsg.includes('OVER_QUERY_LIMIT')) {
-          throw new Error('Transit service temporarily unavailable. Please try again in a few minutes.');
-        } else if (errorMsg.includes('REQUEST_DENIED')) {
-          throw new Error('Transit service access denied. Please contact support.');
-        } else if (errorMsg.includes('UNKNOWN_ERROR')) {
-          throw new Error('Transit service temporarily unavailable. Please try again later.');
-        } else if (errorMsg.includes('Google Routes API error: 400')) {
-          throw new Error('Invalid transit route request. Please check your locations and try again.');
-        } else if (errorMsg.includes('Google Routes API error: 403')) {
-          throw new Error('Transit service access denied. Please contact support.');
-        } else if (errorMsg.includes('Google Routes API error: 404')) {
-          throw new Error('Transit service not available for this location. Please try a different destination.');
-        } else if (errorMsg.includes('Google Routes API error: 429')) {
-          throw new Error('Transit service temporarily busy. Please try again in a few minutes.');
-        } else if (errorMsg.includes('Google Routes API error: 500') || errorMsg.includes('Google Routes API error: 503')) {
-          throw new Error('Transit service temporarily unavailable. Please try again later.');
-        } else if (errorMsg.includes('No routes found for the given waypoints')) {
-          throw new Error('No transit routes available between these locations. Try a different time or location.');
-        } else {
-          // For any other unknown errors, provide a generic user-friendly message
-          throw new Error('Unable to plan transit route. Please check your locations and try again.');
         }
+        throw new Error(errorMsg);
       }
 
       console.log('✅ Transit route planned successfully:', data);
