@@ -119,12 +119,61 @@ serve(async (req) => {
   }
 
   try {
-    const { coordinates, radius, type, destinationTypes } = await req.json()
+    const requestBody = await req.json()
     const googleApiKey = Deno.env.get('GOOGLE_API_KEY')
     
     if (!googleApiKey) {
       throw new Error('Google API key not configured')
     }
+
+    // Handle both legacy format (tour generation) and new format (POI polling)
+    const isNewFormat = requestBody.locationRestriction !== undefined
+    
+    if (isNewFormat) {
+      // New POI polling format - pass request directly to Google Places API
+      console.log('Processing POI polling request with new format:', {
+        center: requestBody.locationRestriction?.circle?.center,
+        radius: requestBody.locationRestriction?.circle?.radius,
+        maxResults: requestBody.maxResultCount,
+        includedTypes: requestBody.includedTypes?.length,
+        excludedTypes: requestBody.excludedTypes?.length
+      })
+      
+      // Use new Places API v1 searchNearby endpoint with exact request format
+      const searchUrl = 'https://places.googleapis.com/v1/places:searchNearby'
+      
+      const response = await fetch(searchUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': googleApiKey,
+          'X-Goog-FieldMask': 'places.id,places.displayName,places.primaryType,places.location,places.editorialSummary,places.rating,places.userRatingCount,places.types'
+        },
+        body: JSON.stringify({
+          ...requestBody,
+          languageCode: requestBody.languageCode || 'en'
+        })
+      })
+
+      if (!response.ok) {
+        console.error('Places API search error:', await response.text())
+        throw new Error(`Places API request failed: ${response.status}`)
+      }
+
+      const data = await response.json()
+      
+      // Return in format expected by POI polling system
+      return new Response(
+        JSON.stringify({ 
+          places: data.places || [],
+          success: true 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    
+    // Legacy format for tour generation
+    const { coordinates, radius, type, destinationTypes } = requestBody
 
     if (!coordinates || coordinates.length !== 2) {
       throw new Error('Valid coordinates [longitude, latitude] are required')
