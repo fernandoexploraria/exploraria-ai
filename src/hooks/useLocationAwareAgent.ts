@@ -144,8 +144,15 @@ export const useLocationAwareAgent = (conversationId: string | null) => {
 
   // Monitor nearby landmarks and send contextual updates
   useEffect(() => {
-    // Only proceed if this is the active proximity instance and conversation is active
-    if (!isActiveInstance || !stateRef.current.isActive || !userLocation || nearbyLandmarks.length === 0) {
+    // Only proceed if conversation is active and we have location data
+    // Note: We don't require isActiveInstance for contextual updates since the Tour Assistant should take priority
+    if (!stateRef.current.isActive || !userLocation || nearbyLandmarks.length === 0) {
+      console.log('🚫 Contextual updates blocked:', {
+        isActive: stateRef.current.isActive,
+        hasLocation: !!userLocation,
+        nearbyCount: nearbyLandmarks.length,
+        isActiveInstance
+      });
       return;
     }
 
