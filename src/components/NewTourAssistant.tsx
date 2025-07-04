@@ -270,22 +270,33 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
             
             console.log('🎯 Sending contextual_update via WebSocket:', contextualUpdateMessage);
             websocket.send(JSON.stringify(contextualUpdateMessage));
+            return true;
           } else {
             console.warn('⚠️ ElevenLabs WebSocket not ready. Cannot send contextual_update.');
+            return false;
           }
         }
+        return false;
       };
       
-      // 🔧 DEBUG: Send test POI for debugging
-      setTimeout(() => {
-        if ((window as any).sendElevenLabsContextualUpdate) {
+      // 🔧 DEBUG: Send test POI for debugging - wait for connection
+      const sendDebugPOI = () => {
+        console.log('🔧 DEBUG: Checking connection status...', conversation?.status);
+        if (conversation?.status === 'connected' && (window as any).sendElevenLabsContextualUpdate) {
           console.log('🔧 DEBUG: Sending test POI to agent...');
-          (window as any).sendElevenLabsContextualUpdate({
+          const success = (window as any).sendElevenLabsContextualUpdate({
             type: 'contextual_update',
             text: 'System Alert: User is now near Palacio de Bellas Artes. It is a cultural_center located at [-99.141, 19.435]. A key fact about it: A stunning Art Nouveau and Art Deco palace housing Mexico\'s most important cultural institutions, including opera, theater, and fine arts exhibitions.'
           });
+          console.log('🔧 DEBUG: Test POI sent:', success);
+        } else {
+          console.log('🔧 DEBUG: Connection not ready, retrying in 1 second...');
+          setTimeout(sendDebugPOI, 1000);
         }
-      }, 2000); // Wait 2 seconds for connection to be fully established
+      };
+      
+      // Start checking after a short delay
+      setTimeout(sendDebugPOI, 1000);
       
     } catch (error) {
       console.error('Error starting tour:', error);
