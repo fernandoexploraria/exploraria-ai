@@ -1,8 +1,10 @@
+
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Volume2, Eye, MapPin } from 'lucide-react';
+import { toast } from 'sonner';
 import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { TOUR_LANDMARKS, TourLandmark } from '@/data/tourLandmarks';
