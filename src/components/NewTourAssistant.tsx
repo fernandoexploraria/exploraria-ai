@@ -276,6 +276,17 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
         }
       };
       
+      // 🔧 DEBUG: Send test POI for debugging
+      setTimeout(() => {
+        if ((window as any).sendElevenLabsContextualUpdate) {
+          console.log('🔧 DEBUG: Sending test POI to agent...');
+          (window as any).sendElevenLabsContextualUpdate({
+            type: 'contextual_update',
+            text: 'System Alert: User is now near Palacio de Bellas Artes. It is a cultural_center located at [-99.141, 19.435]. A key fact about it: A stunning Art Nouveau and Art Deco palace housing Mexico\'s most important cultural institutions, including opera, theater, and fine arts exhibitions.'
+          });
+        }
+      }, 2000); // Wait 2 seconds for connection to be fully established
+      
     } catch (error) {
       console.error('Error starting tour:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
