@@ -8,7 +8,7 @@ import { useConversation } from '@11labs/react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthProvider';
 import { useTourDetails } from '@/hooks/useTourDetails';
-import { useLocationAwareAgent } from '@/hooks/useLocationAwareAgent';
+import { useConversationPOIPoller } from '@/hooks/useConversationPOIPoller';
 
 interface NewTourAssistantProps {
   open: boolean;
@@ -193,8 +193,8 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     }
   });
 
-  // 🎯 NEW: Location-aware agent integration
-  const locationAwareAgent = useLocationAwareAgent(currentConversationId, conversation);
+  // 🎯 NEW: POI polling integration
+  const poiPoller = useConversationPOIPoller(currentConversationId, conversation);
 
   // Update state based on conversation status
   useEffect(() => {
@@ -335,9 +335,9 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
                 Fetching tour details from database...
               </div>
             )}
-            {locationAwareAgent.isActive && (
+            {poiPoller.isActive && (
               <div className="text-center text-xs text-muted-foreground">
-                🎯 Location awareness: {locationAwareAgent.nearbyPOIsCount} nearby • {locationAwareAgent.mentionedPOIsCount} mentioned
+                🎯 POI Polling: {poiPoller.nearbyPOIsCount} nearby • {poiPoller.mentionedPOIsCount} mentioned
               </div>
             )}
           </div>
@@ -448,12 +448,12 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
             )}
            </div>
            
-           {/* Location awareness status */}
-           {locationAwareAgent.isActive && (
-             <div className="text-center text-xs text-muted-foreground mt-4">
-               🎯 Location awareness active • {locationAwareAgent.nearbyPOIsCount} nearby POIs • {locationAwareAgent.mentionedPOIsCount} mentioned
-             </div>
-           )}
+            {/* POI polling status */}
+            {poiPoller.isActive && (
+              <div className="text-center text-xs text-muted-foreground mt-4">
+                🎯 POI Polling active • {poiPoller.nearbyPOIsCount} nearby POIs • {poiPoller.mentionedPOIsCount} mentioned
+              </div>
+            )}
          </div>
        </CleanDialogContent>
      </CleanDialog>
