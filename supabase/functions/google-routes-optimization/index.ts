@@ -54,12 +54,15 @@ serve(async (req) => {
   try {
     const { origin, waypoints, returnToOrigin = true, travelMode = 'WALK' }: RouteRequest = await req.json();
     
-    console.log('🚀 Google Routes optimization request:', {
+    console.log('🚀 Google Routes optimization request received:', {
       origin,
-      waypointCount: waypoints.length,
+      waypointCount: waypoints?.length || 0,
       returnToOrigin,
-      travelMode
+      travelMode,
+      timestamp: new Date().toISOString()
     });
+
+    console.log('🚀 Full request body:', JSON.stringify({ origin, waypoints, returnToOrigin, travelMode }, null, 2));
 
     // Validate waypoints
     const validation = validateWaypoints(waypoints);
