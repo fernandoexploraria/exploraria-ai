@@ -1309,7 +1309,7 @@ const MapComponent: React.FC<MapProps> = ({
         'line-width': 4,
         'line-opacity': 0.8
       }
-    });
+    }, ROUTE_MARKERS_LAYER_ID); // Add beforeId to render route below markers
 
     const coordinates = route.geometry.coordinates;
     const bounds = new mapboxgl.LngLatBounds();
@@ -1591,7 +1591,7 @@ const MapComponent: React.FC<MapProps> = ({
           'line-width': 4,
           'line-opacity': 0.8
         }
-      });
+      }, ROUTE_MARKERS_LAYER_ID); // Add beforeId to render route below markers
 
       // Fit bounds to show the entire route
       const bounds = new mapboxgl.LngLatBounds();
