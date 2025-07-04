@@ -93,6 +93,7 @@ const MapComponent: React.FC<MapProps> = ({
     routeGeoJSON,
     optimizedLandmarks,
     routeStats,
+    isLocationBasedRoute,
     calculateOptimalRoute,
     clearRoute
   } = useOptimalRoute();
@@ -1665,9 +1666,6 @@ const MapComponent: React.FC<MapProps> = ({
     }
 
     try {
-      // Step 1: Always enable proximity first
-      console.log('🎯 Auto-enabling proximity for optimal route calculation');
-      updateProximityEnabled(true);
       
       // Check current permission status
       const currentPermissionState = await checkPermission();
@@ -1721,10 +1719,9 @@ const MapComponent: React.FC<MapProps> = ({
         return;
       }
 
-      console.log('🎯 Starting optimal route calculation with proximity enabled:', {
+      console.log('🎯 Starting optimal route calculation:', {
         currentLocation,
-        tourLandmarksCount: tourLandmarks.length,
-        proximityEnabled: true
+        tourLandmarksCount: tourLandmarks.length
       });
 
       await calculateOptimalRoute(currentLocation, tourLandmarks);
@@ -1732,7 +1729,19 @@ const MapComponent: React.FC<MapProps> = ({
       console.error('❌ Error in handleOptimalRoute:', error);
       toast.error("Failed to calculate optimal route. Please try again.");
     }
-  }, [tourLandmarks, calculateOptimalRoute, userLocation, checkPermission, requestPermission, updateProximityEnabled]);
+  }, [tourLandmarks, calculateOptimalRoute, userLocation, checkPermission, requestPermission]);
+
+  // Handle proximity settings based on route type
+  useEffect(() => {
+    if (routeGeoJSON && routeStats) {
+      if (isLocationBasedRoute) {
+        console.log('🎯 Enabling proximity for location-based route');
+        updateProximityEnabled(true);
+      } else {
+        console.log('🗺️ Skipping proximity enable for centroid-based route');
+      }
+    }
+  }, [routeGeoJSON, routeStats, isLocationBasedRoute, updateProximityEnabled]);
 
   // Determine if the optimal route button should be enabled
   const isOptimalRouteButtonEnabled = !isCalculatingRoute && 

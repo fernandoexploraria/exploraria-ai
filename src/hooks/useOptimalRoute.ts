@@ -14,6 +14,7 @@ interface OptimalRouteResult {
     durationText: string;
     waypointCount: number;
   } | null;
+  isLocationBasedRoute: boolean;
 }
 
 interface UseOptimalRouteReturn extends OptimalRouteResult {
@@ -32,6 +33,7 @@ export const useOptimalRoute = (): UseOptimalRouteReturn => {
   const [routeGeoJSON, setRouteGeoJSON] = useState<GeoJSON.LineString | null>(null);
   const [optimizedLandmarks, setOptimizedLandmarks] = useState<TourLandmark[]>([]);
   const [routeStats, setRouteStats] = useState<OptimalRouteResult['routeStats']>(null);
+  const [isLocationBasedRoute, setIsLocationBasedRoute] = useState(false);
 
   const calculateOptimalRoute = useCallback(async (
     userLocation: [number, number], 
@@ -78,11 +80,13 @@ export const useOptimalRoute = (): UseOptimalRouteReturn => {
       
       let routeOrigin: [number, number];
       let routeStartMessage: string;
+      let isLocationBased: boolean;
       
       if (distanceToCentroid <= TOUR_PROXIMITY_THRESHOLD) {
         // Use user location as origin
         routeOrigin = userLocation;
         routeStartMessage = `Starting route from your location (${formatDistance(distanceToCentroid)} from tour area)`;
+        isLocationBased = true;
         console.log('📍 User within tour area, starting from user location:', {
           userLocation,
           distanceToCentroid: formatDistance(distanceToCentroid)
@@ -96,6 +100,7 @@ export const useOptimalRoute = (): UseOptimalRouteReturn => {
         
         routeOrigin = nearest.landmark.coordinates;
         routeStartMessage = `Starting route from ${nearest.landmark.name} - you're ${formatDistance(distanceToCentroid)} away from the tour area`;
+        isLocationBased = false;
         console.log('📍 User far from tour area, starting from closest landmark:', {
           startingLandmark: nearest.landmark.name,
           landmarkCoordinates: routeOrigin,
@@ -174,6 +179,9 @@ export const useOptimalRoute = (): UseOptimalRouteReturn => {
         waypointCount: reorderedLandmarks.length
       });
 
+      // Set route type
+      setIsLocationBasedRoute(isLocationBased);
+
       // Show the route start message and success message
       toast.success(routeStartMessage);
       toast.success(`Optimal route calculated: ${distanceKm}km, ~${durationText} walking`);
@@ -192,6 +200,7 @@ export const useOptimalRoute = (): UseOptimalRouteReturn => {
     setRouteGeoJSON(null);
     setOptimizedLandmarks([]);
     setRouteStats(null);
+    setIsLocationBasedRoute(false);
     setError(null);
     console.log('🧹 Route cleared');
   }, []);
@@ -202,6 +211,7 @@ export const useOptimalRoute = (): UseOptimalRouteReturn => {
     routeGeoJSON,
     optimizedLandmarks,
     routeStats,
+    isLocationBasedRoute,
     calculateOptimalRoute,
     clearRoute
   };
