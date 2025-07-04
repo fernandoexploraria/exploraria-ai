@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { TourLandmark } from '@/data/tourLandmarks';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
+import { convertToDestinationTime } from '@/utils/timezoneUtils';
 
 interface TransitRoutePlannerProps {
   isOpen: boolean;
@@ -89,7 +90,7 @@ const TransitRoutePlanner: React.FC<TransitRoutePlannerProps> = ({
     }
   }, [selectedOrigin, selectedDestination]);
 
-  const handlePlanRoute = () => {
+  const handlePlanRoute = async () => {
     const originOption = locationOptions.find(option => option.id === selectedOrigin);
     const destinationOption = locationOptions.find(option => option.id === selectedDestination);
 
@@ -97,18 +98,41 @@ const TransitRoutePlanner: React.FC<TransitRoutePlannerProps> = ({
       return;
     }
 
-    // Convert time to ISO string for today
-    const today = new Date();
-    const [hours, minutes] = departureTime.split(':').map(Number);
-    today.setHours(hours, minutes, 0, 0);
-    
-    onPlanRoute(
-      originOption.coordinates,
-      destinationOption.coordinates,
-      today.toISOString(),
-      originOption.name,
-      destinationOption.name
-    );
+    try {
+      // Convert the departure time to the destination's local timezone
+      const destinationTime = await convertToDestinationTime(
+        departureTime,
+        destinationOption.coordinates
+      );
+      
+      console.log('🕐 Converted departure time:', {
+        inputTime: departureTime,
+        destinationCoordinates: destinationOption.coordinates,
+        convertedTime: destinationTime
+      });
+
+      onPlanRoute(
+        originOption.coordinates,
+        destinationOption.coordinates,
+        destinationTime,
+        originOption.name,
+        destinationOption.name
+      );
+    } catch (error) {
+      console.error('❌ Failed to convert timezone:', error);
+      // Fallback to current timezone if conversion fails
+      const today = new Date();
+      const [hours, minutes] = departureTime.split(':').map(Number);
+      today.setHours(hours, minutes, 0, 0);
+      
+      onPlanRoute(
+        originOption.coordinates,
+        destinationOption.coordinates,
+        today.toISOString(),
+        originOption.name,
+        destinationOption.name
+      );
+    }
   };
 
   const isFormValid = selectedOrigin && selectedDestination && departureTime;
@@ -234,6 +258,10 @@ const TransitRoutePlanner: React.FC<TransitRoutePlannerProps> = ({
         <div className="mt-4 p-3 bg-blue-50 rounded-lg">
           <p className="text-sm text-blue-700">
             Transit routes will show public transportation options including buses, trains, and walking connections.
+            <br />
+            <span className="text-xs mt-1 block font-medium">
+              ⏰ Departure time will be interpreted as local time at your destination.
+            </span>
           </p>
         </div>
       </div>
