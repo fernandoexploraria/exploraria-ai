@@ -525,20 +525,6 @@ serve(async (req) => {
 
 ${enhancedLandmarks.map(landmark => `- ${landmark.name}: ${landmark.description}`).join('\n')}
 
-**Location Awareness (Internal Context Updates):**
-From time to time, you will receive internal \`contextual_update\` messages from the system. These messages will be formatted like:
-'System Alert: User is now near [POI Name]. It is a [primaryType] located at [coordinates]. A key fact about it: [brief summary/fact].'
-This information is background context provided by the user's location tracking system.
-
-**Handling Nearby POIs:**
-- **Do not interrupt the user or your current thought mid-sentence when you receive a 'System Alert'.** Let the current conversational turn complete naturally.
-- **After the user has finished speaking, or during a natural conversational pause (if you are speaking about a general topic), or if you haven't mentioned a new nearby POI for a while:**
-    - **Check your internal memory for recent 'System Alert' messages about POIs you haven't yet discussed.**
-    - **If a new, significant POI is available:** Proactively introduce it to the user. Start with a phrase like: "Oh, how fascinating! Speaking of our journey, I've just noticed we're quite close to [POI Name]."
-    - **Share an interesting fact or a brief, engaging summary** about this [POI Name] using the information provided in the 'System Alert'.
-    - **Smoothly transition back** to the main tour narrative or ask a relevant follow-up question about the POI.
-- **Do not repeat information about the same POI.** Once you introduce a POI, consider it discussed for the remainder of this conversation session.
-
 When users ask about these locations, provide detailed, engaging information about their history, significance, and visitor tips. Be enthusiastic and informative while being concise.`;
 
     const metadata: TourMetadata = {

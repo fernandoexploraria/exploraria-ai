@@ -8,7 +8,6 @@ import { useConversation } from '@11labs/react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthProvider';
 import { useTourDetails } from '@/hooks/useTourDetails';
-import { useConversationPOIPoller } from '@/hooks/useConversationPOIPoller';
 
 interface NewTourAssistantProps {
   open: boolean;
@@ -36,7 +35,6 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   const [assistantState, setAssistantState] = useState<AssistantState>('not-started');
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isSessionActive, setIsSessionActive] = useState(false);
-  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
 
   // 🔥 NEW: Fetch tour details from database
   const { tourDetails, isLoading: isFetchingTourDetails, error: tourDetailsError } = useTourDetails(landmarks);
@@ -166,7 +164,6 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       console.log('Disconnected from ElevenLabs agent');
       setAssistantState('not-started');
       setIsSessionActive(false);
-      setCurrentConversationId(null); // 🎯 Clear conversation ID for location awareness
       toast({
         title: "Conversation Ended",
         description: "Your tour conversation has been saved.",
@@ -192,9 +189,6 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       setIsSessionActive(false);
     }
   });
-
-  // 🎯 NEW: POI polling integration
-  const poiPoller = useConversationPOIPoller(currentConversationId, conversation);
 
   // Update state based on conversation status
   useEffect(() => {
@@ -250,9 +244,6 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       });
       
       console.log('ElevenLabs session started successfully:', conversationId);
-      
-      // 🎯 Start location-aware agent
-      setCurrentConversationId(conversationId);
       
     } catch (error) {
       console.error('Error starting tour:', error);
@@ -333,11 +324,6 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
             {isFetchingTourDetails && (
               <div className="text-center text-sm text-muted-foreground">
                 Fetching tour details from database...
-              </div>
-            )}
-            {poiPoller.isActive && (
-              <div className="text-center text-xs text-muted-foreground">
-                🎯 POI Polling: {poiPoller.nearbyPOIsCount} nearby • {poiPoller.mentionedPOIsCount} mentioned
               </div>
             )}
           </div>
@@ -446,18 +432,11 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
                 }`} style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
               </>
             )}
-           </div>
-           
-            {/* POI polling status */}
-            {poiPoller.isActive && (
-              <div className="text-center text-xs text-muted-foreground mt-4">
-                🎯 POI Polling active • {poiPoller.nearbyPOIsCount} nearby POIs • {poiPoller.mentionedPOIsCount} mentioned
-              </div>
-            )}
-         </div>
-       </CleanDialogContent>
-     </CleanDialog>
-   );
+          </div>
+        </div>
+      </CleanDialogContent>
+    </CleanDialog>
+  );
 };
 
 export default NewTourAssistant;
