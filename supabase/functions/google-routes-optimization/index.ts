@@ -98,29 +98,9 @@ serve(async (req) => {
     });
 
     // Prepare Google Routes API request based on Gemini's guidance
-    let routeRequest: any = {
-      origin: {
-        location: {
-          latLng: {
-            latitude: origin.coordinates[1],
-            longitude: origin.coordinates[0]
-          }
-        }
-      },
-      destination: returnToOrigin ? {
-        location: {
-          latLng: {
-            latitude: origin.coordinates[1],
-            longitude: origin.coordinates[0]
-          }
-        }
-      } : undefined,
-      travelMode: travelMode,
-      polylineEncoding: "GEO_JSON_LINESTRING", // Use GeoJSON for easier Mapbox integration
-      computeAlternativeRoutes: false
-    };
+    let routeRequest: any;
 
-    // Handle TRANSIT mode specific requirements based on Gemini guidance
+    // Handle TRANSIT mode with specific structure per Gemini
     if (travelMode === 'TRANSIT') {
       // Create proper departure time (today at 10:00 AM JST = 01:00 AM UTC)
       const today = new Date();
@@ -129,25 +109,59 @@ serve(async (req) => {
       console.log('🚌 TRANSIT mode - departure time (10 AM JST):', departureTime.toISOString());
       
       routeRequest = {
-        ...routeRequest,
-        intermediateWaypoints: intermediateWaypoints, // Use correct property name for TRANSIT
-        departureTime: departureTime.toISOString(),
+        origin: {
+          location: {
+            latLng: {
+              latitude: origin.coordinates[1],
+              longitude: origin.coordinates[0]
+            }
+          }
+        },
+        destination: returnToOrigin ? {
+          location: {
+            latLng: {
+              latitude: origin.coordinates[1],
+              longitude: origin.coordinates[0]
+            }
+          }
+        } : undefined,
+        intermediateWaypoints: intermediateWaypoints, // Correct property for TRANSIT
+        travelMode: "TRANSIT",
         routingPreference: "FEWER_TRANSFERS",
+        departureTime: departureTime.toISOString(),
         transitPreferences: {
           routingPreference: "FEWER_TRANSFERS",
-          transitModes: [] // Empty array for all transit modes
+          transitModes: [] // Empty for all transit types
         },
-        // Per Gemini: optimizeWaypointOrder may not work well for TRANSIT, but we'll try
         optimizeWaypointOrder: true,
+        polylineEncoding: "GEO_JSON_LINESTRING",
+        computeAlternativeRoutes: false,
         languageCode: "en-US"
       };
     } else {
-      // For non-transit modes, use original structure
+      // For non-transit modes (WALK, BICYCLE, DRIVE)
       routeRequest = {
-        ...routeRequest,
+        origin: {
+          location: {
+            latLng: {
+              latitude: origin.coordinates[1],
+              longitude: origin.coordinates[0]
+            }
+          }
+        },
+        destination: returnToOrigin ? {
+          location: {
+            latLng: {
+              latitude: origin.coordinates[1],
+              longitude: origin.coordinates[0]
+            }
+          }
+        } : undefined,
         intermediates: intermediateWaypoints, // Use intermediates for non-transit
+        travelMode: travelMode,
         optimizeWaypointOrder: true,
-        polylineEncoding: "ENCODED_POLYLINE", // Keep encoded for non-transit
+        polylineEncoding: "ENCODED_POLYLINE",
+        computeAlternativeRoutes: false,
         // Add routingPreference for DRIVE mode only
         ...(travelMode === 'DRIVE' && {
           routingPreference: "TRAFFIC_AWARE"
@@ -225,18 +239,20 @@ serve(async (req) => {
 
     const route = data.routes[0];
     console.log('📍 Route details:', {
-      hasPolyline: !!route.polyline?.encodedPolyline,
+      hasPolylineEncoded: !!route.polyline?.encodedPolyline,
+      hasPolylineGeoJson: !!route.polyline?.geoJsonLinestring,
       optimizedOrder: route.optimizedIntermediateWaypointIndex,
       duration: route.duration,
       distance: route.distanceMeters,
       legsCount: route.legs?.length || 0
     });
     
-    // Extract key information
+    // Extract key information - handle both encoded and GeoJSON formats
     const result = {
       success: true,
       route: {
-        encodedPolyline: route.polyline?.encodedPolyline,
+        encodedPolyline: route.polyline?.encodedPolyline || null,
+        geoJsonPolyline: route.polyline?.geoJsonLinestring || null,
         optimizedWaypointOrder: route.optimizedIntermediateWaypointIndex || [],
         duration: route.duration,
         distanceMeters: route.distanceMeters,
