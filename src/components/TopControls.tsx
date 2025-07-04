@@ -171,18 +171,15 @@ const TopControls: React.FC<TopControlsProps> = ({
       ];
 
       const origin = { coordinates: mexicoCityLandmarks[0].coordinates };
-      const waypoints = mexicoCityLandmarks.slice(1).map(landmark => ({
-        placeId: landmark.placeId,
-        coordinates: landmark.coordinates
-      }));
+      const destination = { coordinates: mexicoCityLandmarks[1].coordinates };
 
-      console.log('🚇 Testing transit mode with waypoints:', waypoints);
+      console.log('🚇 Testing transit mode from:', mexicoCityLandmarks[0].name, 'to:', mexicoCityLandmarks[1].name);
 
       const { data, error } = await supabase.functions.invoke('google-routes-optimization', {
         body: { 
           origin,
-          waypoints,
-          returnToOrigin: true,
+          destination, // Use destination instead of waypoints for transit
+          returnToOrigin: false, // Point-to-point transit
           travelMode: 'TRANSIT'
         }
       });
@@ -198,7 +195,7 @@ const TopControls: React.FC<TopControlsProps> = ({
         console.log('🚇 Transit test success:', data);
         toast({
           title: "Transit Test Successful!",
-          description: `Route calculated with ${waypoints.length} waypoints`,
+          description: `Route calculated from ${mexicoCityLandmarks[0].name} to ${mexicoCityLandmarks[1].name}`,
         });
       }
     } catch (error) {

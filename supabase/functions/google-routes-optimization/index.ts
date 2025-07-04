@@ -13,7 +13,8 @@ interface Waypoint {
 
 interface RouteRequest {
   origin: { coordinates: [number, number] };
-  waypoints: Waypoint[];
+  waypoints?: Waypoint[];
+  destination?: { coordinates: [number, number] };
   returnToOrigin?: boolean;
   travelMode?: 'WALK' | 'BICYCLE' | 'DRIVE' | 'TRANSIT';
 }
@@ -52,11 +53,12 @@ serve(async (req) => {
   }
 
   try {
-    const { origin, waypoints, returnToOrigin = true, travelMode = 'WALK' }: RouteRequest = await req.json();
+    const { origin, waypoints = [], destination, returnToOrigin = true, travelMode = 'WALK' }: RouteRequest = await req.json();
     
     console.log('🚀 Google Routes optimization request:', {
       origin,
       waypointCount: waypoints.length,
+      hasDestination: !!destination,
       returnToOrigin,
       travelMode
     });
@@ -106,14 +108,21 @@ serve(async (req) => {
           }
         }
       },
-      destination: returnToOrigin ? {
+      destination: destination ? {
+        location: {
+          latLng: {
+            latitude: destination.coordinates[1],
+            longitude: destination.coordinates[0]
+          }
+        }
+      } : (returnToOrigin ? {
         location: {
           latLng: {
             latitude: origin.coordinates[1],
             longitude: origin.coordinates[0]
           }
         }
-      } : undefined,
+      } : undefined),
       intermediates: intermediateWaypoints,
       travelMode: travelMode,
       // Add routingPreference for DRIVE mode only
