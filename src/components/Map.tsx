@@ -1983,12 +1983,14 @@ const MapComponent: React.FC<MapProps> = ({
     originName: string,
     destinationName: string
   ) => {
-    setShowTransitPlanner(false);
     try {
       await planTransitRoute(origin, destination, departureTime, originName, destinationName);
+      // Only close the planner after route planning is complete
+      setShowTransitPlanner(false);
     } catch (error) {
       console.error('❌ Error planning transit route:', error);
       toast.error("Failed to plan transit route. Please try again.");
+      // Keep the planner open on error so user can retry
     }
   }, [planTransitRoute]);
 
