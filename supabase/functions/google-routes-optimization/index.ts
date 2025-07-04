@@ -125,8 +125,7 @@ serve(async (req) => {
       ...(travelMode === 'TRANSIT' && {
         departureTime: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 minutes from now
         transitPreferences: {
-          routingPreference: "FEWER_TRANSFERS",
-          transitModes: [] // Consider all transit modes
+          routingPreference: "FEWER_TRANSFERS"
         }
       }),
       optimizeWaypointOrder: true,
