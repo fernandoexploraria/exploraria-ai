@@ -13,10 +13,9 @@ interface Waypoint {
 
 interface RouteRequest {
   origin: { coordinates: [number, number] };
-  waypoints?: Waypoint[];
-  destination?: { coordinates: [number, number] };
+  waypoints: Waypoint[];
   returnToOrigin?: boolean;
-  travelMode?: 'WALK' | 'BICYCLE' | 'DRIVE' | 'TRANSIT';
+  travelMode?: 'WALK' | 'BICYCLE' | 'DRIVE';
 }
 
 // Validation function for waypoints
@@ -53,20 +52,20 @@ serve(async (req) => {
   }
 
   try {
-    const { origin, waypoints = [], destination, returnToOrigin = true, travelMode = 'WALK' }: RouteRequest = await req.json();
+    const { origin, waypoints, returnToOrigin = true, travelMode = 'WALK' }: RouteRequest = await req.json();
     
     console.log('🚀 Google Routes optimization request:', {
       origin,
       waypointCount: waypoints.length,
-      hasDestination: !!destination,
       returnToOrigin,
       travelMode
     });
 
-    // TRANSIT mode doesn't support intermediate waypoints in Google Routes API
-    if (travelMode === 'TRANSIT' && waypoints.length > 0) {
-      console.error('❌ TRANSIT mode does not support intermediate waypoints');
-      throw new Error('TRANSIT mode does not support intermediate waypoints. Please use WALK, BICYCLE, or DRIVE for multi-waypoint optimization.');
+    // Validate waypoints
+    const validation = validateWaypoints(waypoints);
+    if (!validation.isValid) {
+      console.error('❌ Waypoint validation failed:', validation.error);
+      throw new Error(validation.error!);
     }
 
     const googleApiKey = Deno.env.get('GOOGLE_API_KEY');
@@ -108,33 +107,19 @@ serve(async (req) => {
           }
         }
       },
-      destination: destination ? {
-        location: {
-          latLng: {
-            latitude: destination.coordinates[1],
-            longitude: destination.coordinates[0]
-          }
-        }
-      } : (returnToOrigin ? {
+      destination: returnToOrigin ? {
         location: {
           latLng: {
             latitude: origin.coordinates[1],
             longitude: origin.coordinates[0]
           }
         }
-      } : undefined),
+      } : undefined,
       intermediates: intermediateWaypoints,
       travelMode: travelMode,
       // Add routingPreference for DRIVE mode only
       ...(travelMode === 'DRIVE' && {
         routingPreference: "TRAFFIC_AWARE"
-      }),
-      // Add transit-specific options for TRANSIT mode
-      ...(travelMode === 'TRANSIT' && {
-        departureTime: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 minutes from now
-        transitPreferences: {
-          routingPreference: "FEWER_TRANSFERS"
-        }
       }),
       optimizeWaypointOrder: true,
       polylineEncoding: "ENCODED_POLYLINE",
