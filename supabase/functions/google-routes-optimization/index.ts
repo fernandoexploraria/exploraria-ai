@@ -100,62 +100,44 @@ serve(async (req) => {
       throw new Error(`Waypoint ${index} must have either placeId or coordinates`);
     });
 
-    // Implementation based on Gemini's exact guidance
+    // For TRANSIT mode, use simpler approach without optimization
     let routeRequest: any;
 
     if (travelMode === 'TRANSIT') {
-      console.log('🚌 TRANSIT mode - using Gemini\'s exact structure');
+      console.log('🚌 TRANSIT mode - using simple route structure');
       
-      // Use fixed Tokyo coordinates as Gemini suggested
-      const tokyoLandmarks = [
-        { latitude: 35.6762, longitude: 139.6503 }, // Tokyo Tower
-        { latitude: 35.6596, longitude: 139.7006 }, // Shibuya Crossing  
-        { latitude: 35.6852, longitude: 139.7528 }, // Imperial Palace
-        { latitude: 35.7141, longitude: 139.7966 }, // Senso-ji Temple
-        { latitude: 35.6812, longitude: 139.7671 }  // Tokyo Station
-      ];
-
-      // Gemini's exact request structure for TRANSIT
+      // For transit, just route from first waypoint to last waypoint
+      const firstWaypoint = intermediateWaypoints[0];
+      const lastWaypoint = intermediateWaypoints[intermediateWaypoints.length - 1];
+      
       routeRequest = {
-        origin: {
+        origin: firstWaypoint.placeId ? { placeId: firstWaypoint.placeId } : {
           location: {
             latLng: {
-              latitude: origin.coordinates[1],
-              longitude: origin.coordinates[0]
+              latitude: firstWaypoint.location.latLng.latitude,
+              longitude: firstWaypoint.location.latLng.longitude
             }
           }
         },
-        destination: {
+        destination: lastWaypoint.placeId ? { placeId: lastWaypoint.placeId } : {
           location: {
             latLng: {
-              latitude: origin.coordinates[1], // Round trip back to origin
-              longitude: origin.coordinates[0]
+              latitude: lastWaypoint.location.latLng.latitude,
+              longitude: lastWaypoint.location.latLng.longitude
             }
           }
         },
-        intermediateWaypoints: tokyoLandmarks.slice(0, 3).map(landmark => ({
-          location: {
-            latLng: {
-              latitude: landmark.latitude,
-              longitude: landmark.longitude
-            }
-          },
-          via: false
-        })),
         travelMode: "TRANSIT",
-        routingPreference: "FEWER_TRANSFERS",
-        departureTime: "2025-07-04T01:00:00Z", // Exact time from Gemini (10 AM JST)
+        routingPreference: "LESS_WALKING",
+        departureTime: new Date().toISOString(),
         transitPreferences: {
-          routingPreference: "FEWER_TRANSFERS",
-          transitModes: [] // Empty array for all transit modes per Gemini
+          routingPreference: "LESS_WALKING"
         },
-        polylineEncoding: "GEO_JSON_LINESTRING", // GeoJSON as Gemini suggested
-        optimizeWaypointOrder: true, // Gemini said to try this despite limitations
-        computeAlternativeRoutes: false,
-        languageCode: "en-US"
+        polylineEncoding: "ENCODED_POLYLINE",
+        computeAlternativeRoutes: false
       };
 
-      console.log('📡 TRANSIT request (Gemini structure):', JSON.stringify(routeRequest, null, 2));
+      console.log('📡 TRANSIT request (simple structure):', JSON.stringify(routeRequest, null, 2));
     } else {
       // Keep existing structure for non-transit modes
       routeRequest = {
