@@ -61,11 +61,10 @@ serve(async (req) => {
       travelMode
     });
 
-    // Validate waypoints
-    const validation = validateWaypoints(waypoints);
-    if (!validation.isValid) {
-      console.error('❌ Waypoint validation failed:', validation.error);
-      throw new Error(validation.error!);
+    // TRANSIT mode doesn't support intermediate waypoints in Google Routes API
+    if (travelMode === 'TRANSIT' && waypoints.length > 0) {
+      console.error('❌ TRANSIT mode does not support intermediate waypoints');
+      throw new Error('TRANSIT mode does not support intermediate waypoints. Please use WALK, BICYCLE, or DRIVE for multi-waypoint optimization.');
     }
 
     const googleApiKey = Deno.env.get('GOOGLE_API_KEY');
