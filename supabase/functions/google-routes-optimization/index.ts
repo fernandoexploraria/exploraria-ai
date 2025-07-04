@@ -97,16 +97,21 @@ serve(async (req) => {
       throw new Error(`Waypoint ${index} must have either placeId or coordinates`);
     });
 
-    // Prepare Google Routes API request based on Gemini's guidance
+    // Prepare route request based on travel mode
     let routeRequest: any;
 
-    // Handle TRANSIT mode with specific structure per Gemini
     if (travelMode === 'TRANSIT') {
+      console.log('🚌 TRANSIT mode - simplifying to basic route without waypoint optimization');
+      
+      // For transit, just route to the first landmark and back
+      const firstLandmark = waypoints[0];
+      if (!firstLandmark) {
+        throw new Error('No waypoints available for transit route');
+      }
+
       // Create proper departure time (today at 10:00 AM JST = 01:00 AM UTC)
       const today = new Date();
       const departureTime = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 1, 0, 0));
-      
-      console.log('🚌 TRANSIT mode - departure time (10 AM JST):', departureTime.toISOString());
       
       routeRequest = {
         origin: {
@@ -117,29 +122,30 @@ serve(async (req) => {
             }
           }
         },
-        destination: returnToOrigin ? {
+        destination: firstLandmark.placeId ? {
+          placeId: firstLandmark.placeId
+        } : {
           location: {
             latLng: {
-              latitude: origin.coordinates[1],
-              longitude: origin.coordinates[0]
+              latitude: firstLandmark.coordinates![1],
+              longitude: firstLandmark.coordinates![0]
             }
           }
-        } : undefined,
-        intermediateWaypoints: intermediateWaypoints, // Correct property for TRANSIT
+        },
         travelMode: "TRANSIT",
         routingPreference: "FEWER_TRANSFERS",
         departureTime: departureTime.toISOString(),
         transitPreferences: {
           routingPreference: "FEWER_TRANSFERS",
-          transitModes: [] // Empty for all transit types
+          transitModes: []
         },
-        optimizeWaypointOrder: true,
-        polylineEncoding: "GEO_JSON_LINESTRING",
-        computeAlternativeRoutes: false,
-        languageCode: "en-US"
+        polylineEncoding: "ENCODED_POLYLINE",
+        computeAlternativeRoutes: false
       };
+
+      console.log('📡 TRANSIT request:', JSON.stringify(routeRequest, null, 2));
     } else {
-      // For non-transit modes (WALK, BICYCLE, DRIVE)
+      // For non-transit modes, use original structure
       routeRequest = {
         origin: {
           location: {
@@ -157,12 +163,11 @@ serve(async (req) => {
             }
           }
         } : undefined,
-        intermediates: intermediateWaypoints, // Use intermediates for non-transit
+        intermediates: intermediateWaypoints,
         travelMode: travelMode,
         optimizeWaypointOrder: true,
         polylineEncoding: "ENCODED_POLYLINE",
         computeAlternativeRoutes: false,
-        // Add routingPreference for DRIVE mode only
         ...(travelMode === 'DRIVE' && {
           routingPreference: "TRAFFIC_AWARE"
         })
