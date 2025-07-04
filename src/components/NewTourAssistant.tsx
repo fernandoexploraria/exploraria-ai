@@ -256,42 +256,30 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       
       // 🎯 Set up global function for sending contextual updates
       (window as any).sendElevenLabsContextualUpdate = (message: { type: string; text: string }) => {
-        if (conversation?.status === 'connected') {
-          console.log('📡 Sending contextual update to ElevenLabs:', message);
-          
-          // Access the underlying WebSocket from the conversation instance
-          const websocket = (conversation as any).websocket;
-          
-          if (websocket && websocket.readyState === WebSocket.OPEN) {
-            const contextualUpdateMessage = {
-              type: 'contextual_update',
-              text: message.text
-            };
-            
-            console.log('🎯 Sending contextual_update via WebSocket:', contextualUpdateMessage);
-            websocket.send(JSON.stringify(contextualUpdateMessage));
+        console.log('📡 Attempting to send contextual update:', message);
+        
+        // Use the ElevenLabs conversation's sendContextualUpdate method directly
+        if (conversation && conversation.sendContextualUpdate) {
+          console.log('🎯 Using ElevenLabs sendContextualUpdate method');
+          try {
+            conversation.sendContextualUpdate(message.text);
+            console.log('✅ Contextual update sent successfully via ElevenLabs API');
             return true;
-          } else {
-            console.warn('⚠️ ElevenLabs WebSocket not ready. Cannot send contextual_update.');
+          } catch (error) {
+            console.error('❌ Error sending contextual update:', error);
             return false;
           }
+        } else {
+          console.warn('⚠️ ElevenLabs sendContextualUpdate method not available');
+          return false;
         }
-        return false;
       };
       
       // 🔧 DEBUG: Send test POI for debugging - wait for connection
       const sendDebugPOI = () => {
-        console.log('🔧 DEBUG: Checking connection status...', conversation?.status);
-        console.log('🔧 DEBUG: Conversation object keys:', Object.keys(conversation || {}));
-        console.log('🔧 DEBUG: isSpeaking:', conversation?.isSpeaking);
+        console.log('🔧 DEBUG: Checking for sendContextualUpdate method...', !!conversation?.sendContextualUpdate);
         
-        // Check both status and WebSocket directly
-        const websocket = (conversation as any)?.websocket;
-        const wsReady = websocket && websocket.readyState === WebSocket.OPEN;
-        
-        console.log('🔧 DEBUG: WebSocket ready:', wsReady, 'readyState:', websocket?.readyState);
-        
-        if (wsReady && (window as any).sendElevenLabsContextualUpdate) {
+        if (conversation?.sendContextualUpdate && (window as any).sendElevenLabsContextualUpdate) {
           console.log('🔧 DEBUG: Sending test POI to agent...');
           const success = (window as any).sendElevenLabsContextualUpdate({
             type: 'contextual_update',
@@ -300,7 +288,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
           console.log('🔧 DEBUG: Test POI sent:', success);
           return; // Stop retrying once sent
         } else {
-          console.log('🔧 DEBUG: Connection not ready, retrying in 2 seconds...');
+          console.log('🔧 DEBUG: sendContextualUpdate method not ready, retrying in 2 seconds...');
           setTimeout(sendDebugPOI, 2000);
         }
       };
