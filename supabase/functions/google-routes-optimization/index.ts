@@ -124,7 +124,7 @@ serve(async (req) => {
     if (travelMode === 'TRANSIT') {
       // Create proper departure time (today at 10:00 AM UTC)
       const today = new Date();
-      const departureTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 10, 0, 0);
+      const departureTime = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 10, 0, 0));
       
       routeRequest = {
         ...routeRequest,
