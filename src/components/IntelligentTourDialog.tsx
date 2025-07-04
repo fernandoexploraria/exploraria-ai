@@ -216,6 +216,12 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
     console.log('🧹 Clearing existing tour markers before new generation');
     clearTourMarkers();
     
+    // Clear any existing optimal route when generating a new tour
+    if ((window as any).clearOptimalRoute) {
+      console.log('🧹 Clearing existing optimal route before new tour generation');
+      (window as any).clearOptimalRoute();
+    }
+    
     // Wait a moment for cleanup to complete
     await new Promise(resolve => setTimeout(resolve, 200));
     
