@@ -126,6 +126,8 @@ serve(async (req) => {
       const today = new Date();
       const departureTime = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 10, 0, 0));
       
+      console.log('🚌 TRANSIT mode - departure time:', departureTime.toISOString());
+      
       routeRequest = {
         ...routeRequest,
         departureTime: departureTime.toISOString(),
@@ -134,8 +136,8 @@ serve(async (req) => {
           routingPreference: "FEWER_TRANSFERS",
           transitModes: ["SUBWAY", "BUS", "TRAIN", "TRAM", "RAIL"]
         },
-        // For TRANSIT, we'll use a simpler approach - single destination without intermediate optimization
-        intermediates: intermediateWaypoints.slice(0, 1), // Only take first waypoint for transit
+        // For TRANSIT, limit to first destination only (no multiple waypoints)
+        intermediates: [], // Remove intermediates for transit as they may cause issues
         optimizeWaypointOrder: false
       };
     } else {
@@ -237,7 +239,7 @@ serve(async (req) => {
         apiRequestSent: {
           waypointCount: intermediateWaypoints.length,
           travelMode: travelMode,
-          optimizeWaypointOrder: true
+          optimizeWaypointOrder: travelMode !== 'TRANSIT'
         }
       }
     };
