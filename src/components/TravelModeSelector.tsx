@@ -1,8 +1,8 @@
 import React from 'react';
-import { Car, PersonStanding, Bike, Bus } from 'lucide-react';
+import { Car, PersonStanding, Bike } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export type TravelMode = 'WALK' | 'BICYCLE' | 'DRIVE' | 'TRANSIT';
+export type TravelMode = 'WALK' | 'BICYCLE' | 'DRIVE';
 
 interface TravelModeSelectorProps {
   selectedMode: TravelMode | null;
@@ -39,14 +39,6 @@ const TravelModeSelector: React.FC<TravelModeSelectorProps> = ({
       color: 'text-red-600',
       bgColor: 'bg-red-100 hover:bg-red-200',
       activeBg: 'bg-red-600'
-    },
-    { 
-      id: 'TRANSIT' as TravelMode, 
-      icon: Bus, 
-      label: 'Transit',
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-100 hover:bg-purple-200',
-      activeBg: 'bg-purple-600'
     }
   ];
 
@@ -57,7 +49,7 @@ const TravelModeSelector: React.FC<TravelModeSelectorProps> = ({
           Select Travel Mode
         </h3>
         
-        <div className="grid grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-3 gap-3 mb-6">
           {modes.map((mode) => {
             const isActive = selectedMode === mode.id;
             const IconComponent = mode.icon;

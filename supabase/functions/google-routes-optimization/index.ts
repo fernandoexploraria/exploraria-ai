@@ -15,7 +15,7 @@ interface RouteRequest {
   origin: { coordinates: [number, number] };
   waypoints: Waypoint[];
   returnToOrigin?: boolean;
-  travelMode?: 'WALK' | 'BICYCLE' | 'DRIVE' | 'TRANSIT';
+  travelMode?: 'WALK' | 'BICYCLE' | 'DRIVE';
 }
 
 // Validation function for waypoints
@@ -54,15 +54,12 @@ serve(async (req) => {
   try {
     const { origin, waypoints, returnToOrigin = true, travelMode = 'WALK' }: RouteRequest = await req.json();
     
-    console.log('🚀 Google Routes optimization request received:', {
+    console.log('🚀 Google Routes optimization request:', {
       origin,
-      waypointCount: waypoints?.length || 0,
+      waypointCount: waypoints.length,
       returnToOrigin,
-      travelMode,
-      timestamp: new Date().toISOString()
+      travelMode
     });
-
-    console.log('🚀 Full request body:', JSON.stringify({ origin, waypoints, returnToOrigin, travelMode }, null, 2));
 
     // Validate waypoints
     const validation = validateWaypoints(waypoints);
@@ -100,86 +97,39 @@ serve(async (req) => {
       throw new Error(`Waypoint ${index} must have either placeId or coordinates`);
     });
 
-    // For TRANSIT mode, use simpler approach without optimization
-    let routeRequest: any;
-
-    if (travelMode === 'TRANSIT') {
-      console.log('🚌 TRANSIT mode - using simple route structure');
-      
-      // For transit, just route from first waypoint to last waypoint
-      const firstWaypoint = intermediateWaypoints[0];
-      const lastWaypoint = intermediateWaypoints[intermediateWaypoints.length - 1];
-      
-      routeRequest = {
-        origin: firstWaypoint.placeId ? { placeId: firstWaypoint.placeId } : {
-          location: {
-            latLng: {
-              latitude: firstWaypoint.location.latLng.latitude,
-              longitude: firstWaypoint.location.latLng.longitude
-            }
+    // Prepare Google Routes API request with dynamic travel mode
+    const routeRequest = {
+      origin: {
+        location: {
+          latLng: {
+            latitude: origin.coordinates[1],
+            longitude: origin.coordinates[0]
           }
-        },
-        destination: lastWaypoint.placeId ? { placeId: lastWaypoint.placeId } : {
-          location: {
-            latLng: {
-              latitude: lastWaypoint.location.latLng.latitude,
-              longitude: lastWaypoint.location.latLng.longitude
-            }
+        }
+      },
+      destination: returnToOrigin ? {
+        location: {
+          latLng: {
+            latitude: origin.coordinates[1],
+            longitude: origin.coordinates[0]
           }
-        },
-        travelMode: "TRANSIT",
-        routingPreference: "LESS_WALKING",
-        departureTime: new Date().toISOString(),
-        transitPreferences: {
-          routingPreference: "LESS_WALKING"
-        },
-        polylineEncoding: "ENCODED_POLYLINE",
-        computeAlternativeRoutes: false
-      };
-
-      console.log('📡 TRANSIT request (simple structure):', JSON.stringify(routeRequest, null, 2));
-    } else {
-      // Keep existing structure for non-transit modes
-      routeRequest = {
-        origin: {
-          location: {
-            latLng: {
-              latitude: origin.coordinates[1],
-              longitude: origin.coordinates[0]
-            }
-          }
-        },
-        destination: returnToOrigin ? {
-          location: {
-            latLng: {
-              latitude: origin.coordinates[1],
-              longitude: origin.coordinates[0]
-            }
-          }
-        } : undefined,
-        intermediates: intermediateWaypoints,
-        travelMode: travelMode,
-        optimizeWaypointOrder: true,
-        polylineEncoding: "ENCODED_POLYLINE",
-        computeAlternativeRoutes: false,
-        ...(travelMode === 'DRIVE' && {
-          routingPreference: "TRAFFIC_AWARE"
-        })
-      };
-    }
+        }
+      } : undefined,
+      intermediates: intermediateWaypoints,
+      travelMode: travelMode,
+      // Add routingPreference for DRIVE mode only
+      ...(travelMode === 'DRIVE' && {
+        routingPreference: "TRAFFIC_AWARE"
+      }),
+      optimizeWaypointOrder: true,
+      polylineEncoding: "ENCODED_POLYLINE",
+      computeAlternativeRoutes: false
+    };
 
     console.log('📡 Calling Google Routes API with request:', JSON.stringify(routeRequest, null, 2));
 
     // Enhanced X-Goog-FieldMask for more detailed response
-    const fieldMask = travelMode === 'TRANSIT' ? [
-      'routes.duration',
-      'routes.distanceMeters',
-      'routes.polyline', // For GeoJSON format
-      'routes.optimizedIntermediateWaypointIndex',
-      'routes.legs.duration',
-      'routes.legs.distanceMeters',
-      'routes.legs.steps' // Transit steps for detailed instructions
-    ].join(',') : [
+    const fieldMask = [
       'routes.duration',
       'routes.distanceMeters', 
       'routes.polyline.encodedPolyline',
@@ -238,20 +188,18 @@ serve(async (req) => {
 
     const route = data.routes[0];
     console.log('📍 Route details:', {
-      hasPolylineEncoded: !!route.polyline?.encodedPolyline,
-      hasPolylineGeoJson: !!route.polyline?.geoJsonLinestring,
+      hasPolyline: !!route.polyline?.encodedPolyline,
       optimizedOrder: route.optimizedIntermediateWaypointIndex,
       duration: route.duration,
       distance: route.distanceMeters,
       legsCount: route.legs?.length || 0
     });
     
-    // Extract key information - handle both encoded and GeoJSON formats
+    // Extract key information
     const result = {
       success: true,
       route: {
-        encodedPolyline: route.polyline?.encodedPolyline || null,
-        geoJsonPolyline: route.polyline?.geoJsonLinestring || null,
+        encodedPolyline: route.polyline?.encodedPolyline,
         optimizedWaypointOrder: route.optimizedIntermediateWaypointIndex || [],
         duration: route.duration,
         distanceMeters: route.distanceMeters,
@@ -264,7 +212,7 @@ serve(async (req) => {
         apiRequestSent: {
           waypointCount: intermediateWaypoints.length,
           travelMode: travelMode,
-          optimizeWaypointOrder: travelMode === 'TRANSIT' ? true : true // Both try optimization, but TRANSIT may not work well
+          optimizeWaypointOrder: true
         }
       }
     };
