@@ -15,6 +15,7 @@ interface RouteRequest {
   origin: { coordinates: [number, number] };
   waypoints: Waypoint[];
   returnToOrigin?: boolean;
+  travelMode?: 'WALK' | 'BICYCLE' | 'DRIVE';
 }
 
 // Validation function for waypoints
@@ -51,12 +52,13 @@ serve(async (req) => {
   }
 
   try {
-    const { origin, waypoints, returnToOrigin = true }: RouteRequest = await req.json();
+    const { origin, waypoints, returnToOrigin = true, travelMode = 'WALK' }: RouteRequest = await req.json();
     
     console.log('🚀 Google Routes optimization request:', {
       origin,
       waypointCount: waypoints.length,
-      returnToOrigin
+      returnToOrigin,
+      travelMode
     });
 
     // Validate waypoints
@@ -95,7 +97,7 @@ serve(async (req) => {
       throw new Error(`Waypoint ${index} must have either placeId or coordinates`);
     });
 
-    // Prepare Google Routes API request - FIXED: removed routingPreference for WALK mode
+    // Prepare Google Routes API request with dynamic travel mode
     const routeRequest = {
       origin: {
         location: {
@@ -114,8 +116,11 @@ serve(async (req) => {
         }
       } : undefined,
       intermediates: intermediateWaypoints,
-      travelMode: "WALK",
-      // REMOVED: routingPreference - not applicable for WALK mode and causes 500 errors
+      travelMode: travelMode,
+      // Add routingPreference for DRIVE mode only
+      ...(travelMode === 'DRIVE' && {
+        routingPreference: "TRAFFIC_AWARE"
+      }),
       optimizeWaypointOrder: true,
       polylineEncoding: "ENCODED_POLYLINE",
       computeAlternativeRoutes: false
@@ -206,7 +211,7 @@ serve(async (req) => {
         returnToOrigin,
         apiRequestSent: {
           waypointCount: intermediateWaypoints.length,
-          travelMode: "WALK",
+          travelMode: travelMode,
           optimizeWaypointOrder: true
         }
       }

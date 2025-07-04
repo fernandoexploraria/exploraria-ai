@@ -20,6 +20,7 @@ import { PhotoCarousel } from './photo-carousel';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { getEnhancedLandmarkText } from '@/utils/landmarkPromptUtils';
 import { useOptimalRoute } from '@/hooks/useOptimalRoute';
+import TravelModeSelector, { TravelMode } from '@/components/TravelModeSelector';
 import { usePermissionMonitor } from '@/hooks/usePermissionMonitor';
 
 interface MapProps {
@@ -61,6 +62,8 @@ const MapComponent: React.FC<MapProps> = ({
   const currentRouteLayer = useRef<string | null>(null);
   
   const [tourLandmarks, setTourLandmarks] = useState<TourLandmark[]>([]);
+  const [showTravelModeSelector, setShowTravelModeSelector] = useState(false);
+  const [selectedTravelMode, setSelectedTravelMode] = useState<TravelMode | null>(null);
   
   const geolocateControl = useRef<mapboxgl.GeolocateControl | null>(null);
   const isUpdatingFromProximitySettings = useRef<boolean>(false);
@@ -94,6 +97,7 @@ const MapComponent: React.FC<MapProps> = ({
     optimizedLandmarks,
     routeStats,
     isLocationBasedRoute,
+    travelMode: currentTravelMode,
     calculateOptimalRoute,
     clearRoute
   } = useOptimalRoute();
@@ -1335,11 +1339,11 @@ const MapComponent: React.FC<MapProps> = ({
         'line-join': 'round',
         'line-cap': 'round'
       },
-      paint: {
-        'line-color': '#3B82F6',
-        'line-width': 4,
-        'line-opacity': 0.8
-      }
+        paint: {
+          'line-color': getRouteColor(currentTravelMode),
+          'line-width': 4,
+          'line-opacity': 0.8
+        }
     }, ROUTE_MARKERS_LAYER_ID); // Add beforeId to render route below markers
 
     const coordinates = route.geometry.coordinates;
@@ -1620,7 +1624,7 @@ const MapComponent: React.FC<MapProps> = ({
           'line-cap': 'round'
         },
         paint: {
-          'line-color': '#FF4444',
+          'line-color': getRouteColor(currentTravelMode),
           'line-width': 4,
           'line-opacity': 0.8
         }
@@ -1786,71 +1790,102 @@ const MapComponent: React.FC<MapProps> = ({
       return;
     }
 
-    try {
-      
-      // Check current permission status
-      const currentPermissionState = await checkPermission();
-      
-      if (currentPermissionState === 'denied') {
-        toast.error("Location permission is denied. Please enable location access in your browser settings.");
-        return;
-      }
+    // Show travel mode selector
+    setShowTravelModeSelector(true);
+  }, [tourLandmarks]);
 
-      let currentLocation: [number, number] | null = userLocation;
-
-      // If we don't have a current location, request it on-demand
-      if (!currentLocation) {
-        console.log('🎯 Requesting location on-demand for optimal route');
+  const handleTravelModeSelect = useCallback(async (mode: TravelMode) => {
+    setSelectedTravelMode(mode);
+    
+    // If mode is selected and we're calculating, proceed with route calculation
+    if (mode) {
+      setShowTravelModeSelector(false);
+      
+      try {
+        // Check current permission status
+        const currentPermissionState = await checkPermission();
         
-        // Try to request permission if it's in prompt state
-        if (currentPermissionState === 'prompt') {
-          const permissionGranted = await requestPermission();
-          if (!permissionGranted) {
-            toast.error("Location permission is required for route optimization");
+        if (currentPermissionState === 'denied') {
+          toast.error("Location permission is denied. Please enable location access in your browser settings.");
+          return;
+        }
+
+        let currentLocation: [number, number] | null = userLocation;
+
+        // If we don't have a current location, request it on-demand
+        if (!currentLocation) {
+          console.log('🎯 Requesting location on-demand for optimal route');
+          
+          // Try to request permission if it's in prompt state
+          if (currentPermissionState === 'prompt') {
+            const permissionGranted = await requestPermission();
+            if (!permissionGranted) {
+              toast.error("Location permission is required for route optimization");
+              return;
+            }
+          }
+
+          // Get current position
+          try {
+            const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(
+                resolve,
+                reject,
+                {
+                  enableHighAccuracy: false,
+                  timeout: 10000,
+                  maximumAge: 300000 // Allow 5-minute old location
+                }
+              );
+            });
+
+            currentLocation = [position.coords.longitude, position.coords.latitude];
+            setUserLocation(currentLocation);
+            console.log('✅ Location obtained on-demand:', currentLocation);
+          } catch (error) {
+            console.error('❌ Failed to get location on-demand:', error);
+            toast.error("Could not get your current location. Please try again.");
             return;
           }
         }
 
-        // Get current position
-        try {
-          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(
-              resolve,
-              reject,
-              {
-                enableHighAccuracy: false,
-                timeout: 10000,
-                maximumAge: 300000 // Allow 5-minute old location
-              }
-            );
-          });
-
-          currentLocation = [position.coords.longitude, position.coords.latitude];
-          setUserLocation(currentLocation);
-          console.log('✅ Location obtained on-demand:', currentLocation);
-        } catch (error) {
-          console.error('❌ Failed to get location on-demand:', error);
-          toast.error("Could not get your current location. Please try again.");
+        if (!currentLocation) {
+          toast.error("Unable to determine your location for route optimization");
           return;
         }
+
+        console.log('🎯 Starting optimal route calculation:', {
+          currentLocation,
+          tourLandmarksCount: tourLandmarks.length,
+          travelMode: mode
+        });
+
+        await calculateOptimalRoute(currentLocation, tourLandmarks, mode);
+      } catch (error) {
+        console.error('❌ Error in handleOptimalRoute:', error);
+        toast.error("Failed to calculate optimal route. Please try again.");
       }
-
-      if (!currentLocation) {
-        toast.error("Unable to determine your location for route optimization");
-        return;
-      }
-
-      console.log('🎯 Starting optimal route calculation:', {
-        currentLocation,
-        tourLandmarksCount: tourLandmarks.length
-      });
-
-      await calculateOptimalRoute(currentLocation, tourLandmarks);
-    } catch (error) {
-      console.error('❌ Error in handleOptimalRoute:', error);
-      toast.error("Failed to calculate optimal route. Please try again.");
     }
   }, [tourLandmarks, calculateOptimalRoute, userLocation, checkPermission, requestPermission]);
+
+  const handleTravelModeCancel = useCallback(() => {
+    setShowTravelModeSelector(false);
+    setSelectedTravelMode(null);
+  }, []);
+
+  // Get route color based on travel mode
+  const getRouteColor = useCallback((travelMode: TravelMode | null) => {
+    switch (travelMode) {
+      case 'WALK':
+        return '#22C55E'; // Green
+      case 'BICYCLE':
+        return '#3B82F6'; // Blue  
+      case 'DRIVE':
+        return '#EF4444'; // Red
+      default:
+        return '#3B82F6'; // Default blue
+    }
+  }, []);
 
   // Handle proximity settings based on route type
   useEffect(() => {
@@ -1948,6 +1983,15 @@ const MapComponent: React.FC<MapProps> = ({
           closeStreetViewModal();
         }}
       />
+
+      {/* Travel Mode Selector Modal */}
+      {showTravelModeSelector && (
+        <TravelModeSelector
+          selectedMode={selectedTravelMode}
+          onSelectMode={handleTravelModeSelect}
+          onCancel={handleTravelModeCancel}
+        />
+      )}
     </>
   );
 };

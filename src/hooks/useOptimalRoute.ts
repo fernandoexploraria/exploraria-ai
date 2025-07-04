@@ -5,6 +5,7 @@ import { decodePolyline, createRouteGeoJSON } from '@/utils/polylineDecoder';
 import { TourLandmark } from '@/data/tourLandmarks';
 import { toast } from "sonner";
 import { calculateCentroid, calculateDistance, findNearestLandmark, formatDistance } from '@/utils/proximityUtils';
+import { TravelMode } from '@/components/TravelModeSelector';
 
 interface OptimalRouteResult {
   routeGeoJSON: GeoJSON.LineString | null;
@@ -15,6 +16,7 @@ interface OptimalRouteResult {
     waypointCount: number;
   } | null;
   isLocationBasedRoute: boolean;
+  travelMode: TravelMode | null;
 }
 
 interface UseOptimalRouteReturn extends OptimalRouteResult {
@@ -22,7 +24,8 @@ interface UseOptimalRouteReturn extends OptimalRouteResult {
   error: string | null;
   calculateOptimalRoute: (
     userLocation: [number, number], 
-    landmarks: TourLandmark[]
+    landmarks: TourLandmark[],
+    travelMode: TravelMode
   ) => Promise<void>;
   clearRoute: () => void;
 }
@@ -34,10 +37,12 @@ export const useOptimalRoute = (): UseOptimalRouteReturn => {
   const [optimizedLandmarks, setOptimizedLandmarks] = useState<TourLandmark[]>([]);
   const [routeStats, setRouteStats] = useState<OptimalRouteResult['routeStats']>(null);
   const [isLocationBasedRoute, setIsLocationBasedRoute] = useState(false);
+  const [travelMode, setTravelMode] = useState<TravelMode | null>(null);
 
   const calculateOptimalRoute = useCallback(async (
     userLocation: [number, number], 
-    landmarks: TourLandmark[]
+    landmarks: TourLandmark[],
+    selectedTravelMode: TravelMode
   ) => {
     if (!landmarks || landmarks.length === 0) {
       toast.error("No landmarks available for route optimization");
@@ -121,7 +126,8 @@ export const useOptimalRoute = (): UseOptimalRouteReturn => {
         body: {
           origin: { coordinates: routeOrigin },
           waypoints,
-          returnToOrigin: true
+          returnToOrigin: true,
+          travelMode: selectedTravelMode
         }
       });
 
@@ -179,12 +185,14 @@ export const useOptimalRoute = (): UseOptimalRouteReturn => {
         waypointCount: reorderedLandmarks.length
       });
 
-      // Set route type
+      // Set route type and travel mode
       setIsLocationBasedRoute(isLocationBased);
+      setTravelMode(selectedTravelMode);
 
       // Show the route start message and success message
+      const modeLabel = selectedTravelMode.toLowerCase();
       toast.success(routeStartMessage);
-      toast.success(`Optimal route calculated: ${distanceKm}km, ~${durationText} walking`);
+      toast.success(`Optimal route calculated: ${distanceKm}km, ~${durationText} ${modeLabel}`);
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to calculate optimal route';
@@ -201,6 +209,7 @@ export const useOptimalRoute = (): UseOptimalRouteReturn => {
     setOptimizedLandmarks([]);
     setRouteStats(null);
     setIsLocationBasedRoute(false);
+    setTravelMode(null);
     setError(null);
     console.log('🧹 Route cleared');
   }, []);
@@ -212,6 +221,7 @@ export const useOptimalRoute = (): UseOptimalRouteReturn => {
     optimizedLandmarks,
     routeStats,
     isLocationBasedRoute,
+    travelMode,
     calculateOptimalRoute,
     clearRoute
   };
