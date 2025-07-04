@@ -1737,6 +1737,12 @@ const MapComponent: React.FC<MapProps> = ({
       if (isLocationBasedRoute) {
         console.log('🎯 Enabling proximity for location-based route');
         updateProximityEnabled(true);
+        
+        // Directly trigger geolocate control to ensure blue dot appears
+        if (geolocateControl.current) {
+          console.log('📍 Triggering geolocate control for location-based route');
+          geolocateControl.current.trigger();
+        }
       } else {
         console.log('🗺️ Skipping proximity enable for centroid-based route');
       }
