@@ -98,7 +98,7 @@ serve(async (req) => {
     });
 
     // Prepare Google Routes API request with dynamic travel mode
-    const routeRequest = {
+    let routeRequest: any = {
       origin: {
         location: {
           latLng: {
@@ -115,25 +115,41 @@ serve(async (req) => {
           }
         }
       } : undefined,
-      intermediates: intermediateWaypoints,
       travelMode: travelMode,
-      // Add routingPreference for DRIVE mode only
-      ...(travelMode === 'DRIVE' && {
-        routingPreference: "TRAFFIC_AWARE"
-      }),
-      // Add time and preferences for TRANSIT mode
-      ...(travelMode === 'TRANSIT' && {
-        departureTime: new Date().toISOString().split('T')[0] + 'T10:00:00Z', // 10:00 AM UTC
-        transitPreferences: {
-          routingPreference: "FEWER_TRANSFERS",
-          transitModes: ["SUBWAY", "BUS", "TRAIN", "TRAM"]
-        }
-      }),
-      // Disable waypoint optimization for TRANSIT as it may not work well with fixed schedules
-      optimizeWaypointOrder: travelMode !== 'TRANSIT',
       polylineEncoding: "ENCODED_POLYLINE",
       computeAlternativeRoutes: false
     };
+
+    // Handle TRANSIT mode specific requirements
+    if (travelMode === 'TRANSIT') {
+      // Create proper departure time (today at 10:00 AM UTC)
+      const today = new Date();
+      const departureTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 10, 0, 0);
+      
+      routeRequest = {
+        ...routeRequest,
+        departureTime: departureTime.toISOString(),
+        routingPreference: "FEWER_TRANSFERS",
+        transitPreferences: {
+          routingPreference: "FEWER_TRANSFERS",
+          transitModes: ["SUBWAY", "BUS", "TRAIN", "TRAM", "RAIL"]
+        },
+        // For TRANSIT, we'll use a simpler approach - single destination without intermediate optimization
+        intermediates: intermediateWaypoints.slice(0, 1), // Only take first waypoint for transit
+        optimizeWaypointOrder: false
+      };
+    } else {
+      // For non-transit modes, use full waypoint optimization
+      routeRequest = {
+        ...routeRequest,
+        intermediates: intermediateWaypoints,
+        optimizeWaypointOrder: true,
+        // Add routingPreference for DRIVE mode only
+        ...(travelMode === 'DRIVE' && {
+          routingPreference: "TRAFFIC_AWARE"
+        })
+      };
+    }
 
     console.log('📡 Calling Google Routes API with request:', JSON.stringify(routeRequest, null, 2));
 
