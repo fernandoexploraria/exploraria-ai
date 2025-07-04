@@ -1576,6 +1576,19 @@ const MapComponent: React.FC<MapProps> = ({
       }
 
       console.log('🗺️ Optimal route visualized on map');
+    } else {
+      // Clean up route when routeGeoJSON is null
+      const sourceId = 'optimal-route-source';
+      const layerId = 'optimal-route-layer';
+      
+      if (map.current.getLayer(layerId)) {
+        map.current.removeLayer(layerId);
+      }
+      if (map.current.getSource(sourceId)) {
+        map.current.removeSource(sourceId);
+      }
+      
+      console.log('🧹 Optimal route removed from map');
     }
   }, [routeGeoJSON]);
 
