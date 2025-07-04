@@ -13,9 +13,11 @@ interface Waypoint {
 
 interface RouteRequest {
   origin: { coordinates: [number, number] };
-  waypoints: Waypoint[];
+  waypoints?: Waypoint[];
+  destination?: { coordinates: [number, number] };
   returnToOrigin?: boolean;
-  travelMode?: 'WALK' | 'BICYCLE' | 'DRIVE';
+  travelMode?: 'WALK' | 'BICYCLE' | 'DRIVE' | 'TRANSIT';
+  departureTime?: string;
 }
 
 // Validation function for waypoints
@@ -52,20 +54,30 @@ serve(async (req) => {
   }
 
   try {
-    const { origin, waypoints, returnToOrigin = true, travelMode = 'WALK' }: RouteRequest = await req.json();
+    const { origin, waypoints, destination, returnToOrigin = true, travelMode = 'WALK', departureTime }: RouteRequest = await req.json();
     
     console.log('🚀 Google Routes optimization request:', {
       origin,
-      waypointCount: waypoints.length,
+      waypointCount: waypoints?.length || 0,
+      destination,
       returnToOrigin,
-      travelMode
+      travelMode,
+      departureTime
     });
 
-    // Validate waypoints
-    const validation = validateWaypoints(waypoints);
-    if (!validation.isValid) {
-      console.error('❌ Waypoint validation failed:', validation.error);
-      throw new Error(validation.error!);
+    // Handle two different route types: waypoint optimization vs point-to-point
+    const isPointToPoint = destination && (!waypoints || waypoints.length === 0);
+    
+    if (!isPointToPoint) {
+      // Validate waypoints for optimization routes
+      if (!waypoints) {
+        throw new Error('Either waypoints or destination must be provided');
+      }
+      const validation = validateWaypoints(waypoints);
+      if (!validation.isValid) {
+        console.error('❌ Waypoint validation failed:', validation.error);
+        throw new Error(validation.error!);
+      }
     }
 
     const googleApiKey = Deno.env.get('GOOGLE_API_KEY');
@@ -74,31 +86,35 @@ serve(async (req) => {
       throw new Error('Google API key not configured');
     }
 
-    // Prepare intermediate waypoints for Google Routes API
-    const intermediateWaypoints = waypoints.map((waypoint, index) => {
-      if (waypoint.placeId) {
-        console.log(`📍 Waypoint ${index}: Using placeId ${waypoint.placeId}`);
-        return {
-          placeId: waypoint.placeId,
-          via: false
-        };
-      } else if (waypoint.coordinates) {
-        console.log(`📍 Waypoint ${index}: Using coordinates [${waypoint.coordinates[0]}, ${waypoint.coordinates[1]}]`);
-        return {
-          location: {
-            latLng: {
-              latitude: waypoint.coordinates[1], // Convert lng,lat to lat,lng
-              longitude: waypoint.coordinates[0]
-            }
-          },
-          via: false
-        };
-      }
-      throw new Error(`Waypoint ${index} must have either placeId or coordinates`);
-    });
+    // Prepare intermediate waypoints for Google Routes API (only for optimization routes)
+    let intermediateWaypoints: any[] = [];
+    
+    if (!isPointToPoint && waypoints) {
+      intermediateWaypoints = waypoints.map((waypoint, index) => {
+        if (waypoint.placeId) {
+          console.log(`📍 Waypoint ${index}: Using placeId ${waypoint.placeId}`);
+          return {
+            placeId: waypoint.placeId,
+            via: false
+          };
+        } else if (waypoint.coordinates) {
+          console.log(`📍 Waypoint ${index}: Using coordinates [${waypoint.coordinates[0]}, ${waypoint.coordinates[1]}]`);
+          return {
+            location: {
+              latLng: {
+                latitude: waypoint.coordinates[1], // Convert lng,lat to lat,lng
+                longitude: waypoint.coordinates[0]
+              }
+            },
+            via: false
+          };
+        }
+        throw new Error(`Waypoint ${index} must have either placeId or coordinates`);
+      });
+    }
 
     // Prepare Google Routes API request with dynamic travel mode
-    const routeRequest = {
+    const routeRequest: any = {
       origin: {
         location: {
           latLng: {
@@ -107,36 +123,70 @@ serve(async (req) => {
           }
         }
       },
-      destination: returnToOrigin ? {
+      destination: isPointToPoint && destination ? {
+        location: {
+          latLng: {
+            latitude: destination.coordinates[1],
+            longitude: destination.coordinates[0]
+          }
+        }
+      } : (returnToOrigin ? {
         location: {
           latLng: {
             latitude: origin.coordinates[1],
             longitude: origin.coordinates[0]
           }
         }
-      } : undefined,
-      intermediates: intermediateWaypoints,
+      } : undefined),
       travelMode: travelMode,
-      // Add routingPreference for DRIVE mode only
-      ...(travelMode === 'DRIVE' && {
-        routingPreference: "TRAFFIC_AWARE"
-      }),
-      optimizeWaypointOrder: true,
       polylineEncoding: "ENCODED_POLYLINE",
       computeAlternativeRoutes: false
     };
 
+    // Add intermediates only for optimization routes
+    if (!isPointToPoint) {
+      routeRequest.intermediates = intermediateWaypoints;
+      routeRequest.optimizeWaypointOrder = true;
+    }
+
+    // Add routingPreference for DRIVE mode only
+    if (travelMode === 'DRIVE') {
+      routeRequest.routingPreference = "TRAFFIC_AWARE";
+    }
+
+    // Add departure time for TRANSIT mode
+    if (travelMode === 'TRANSIT' && departureTime) {
+      routeRequest.departureTime = departureTime;
+    }
+
     console.log('📡 Calling Google Routes API with request:', JSON.stringify(routeRequest, null, 2));
 
     // Enhanced X-Goog-FieldMask for more detailed response
-    const fieldMask = [
+    const baseFields = [
       'routes.duration',
       'routes.distanceMeters', 
       'routes.polyline.encodedPolyline',
-      'routes.optimizedIntermediateWaypointIndex',
       'routes.legs.duration',
       'routes.legs.distanceMeters'
-    ].join(',');
+    ];
+
+    // Add optimization fields only for waypoint optimization routes
+    if (!isPointToPoint) {
+      baseFields.push('routes.optimizedIntermediateWaypointIndex');
+    }
+
+    // Add transit-specific fields for TRANSIT mode
+    if (travelMode === 'TRANSIT') {
+      baseFields.push(
+        'routes.legs.steps.navigationInstruction',
+        'routes.legs.steps.travelMode',
+        'routes.legs.steps.transitDetails',
+        'routes.legs.steps.staticDuration',
+        'routes.legs.steps.distanceMeters'
+      );
+    }
+
+    const fieldMask = baseFields.join(',');
 
     console.log('🎯 Using field mask:', fieldMask);
 
@@ -206,13 +256,15 @@ serve(async (req) => {
         legs: route.legs || []
       },
       metadata: {
-        originalWaypointCount: waypoints.length,
+        originalWaypointCount: waypoints?.length || 0,
         optimized: route.optimizedIntermediateWaypointIndex?.length > 0,
         returnToOrigin,
+        isPointToPoint,
         apiRequestSent: {
           waypointCount: intermediateWaypoints.length,
           travelMode: travelMode,
-          optimizeWaypointOrder: true
+          optimizeWaypointOrder: !isPointToPoint,
+          departureTime: departureTime
         }
       }
     };

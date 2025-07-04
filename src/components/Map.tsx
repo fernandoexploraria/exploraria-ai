@@ -21,6 +21,8 @@ import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { getEnhancedLandmarkText } from '@/utils/landmarkPromptUtils';
 import { useOptimalRoute } from '@/hooks/useOptimalRoute';
 import TravelModeSelector, { TravelMode } from '@/components/TravelModeSelector';
+import TransitRoutePlanner from '@/components/TransitRoutePlanner';
+import { useTransitRoute } from '@/hooks/useTransitRoute';
 import { usePermissionMonitor } from '@/hooks/usePermissionMonitor';
 
 interface MapProps {
@@ -64,6 +66,7 @@ const MapComponent: React.FC<MapProps> = ({
   const [tourLandmarks, setTourLandmarks] = useState<TourLandmark[]>([]);
   const [showTravelModeSelector, setShowTravelModeSelector] = useState(false);
   const [selectedTravelMode, setSelectedTravelMode] = useState<TravelMode | null>(null);
+  const [showTransitPlanner, setShowTransitPlanner] = useState(false);
   
   const geolocateControl = useRef<mapboxgl.GeolocateControl | null>(null);
   const isUpdatingFromProximitySettings = useRef<boolean>(false);
@@ -101,6 +104,15 @@ const MapComponent: React.FC<MapProps> = ({
     calculateOptimalRoute,
     clearRoute
   } = useOptimalRoute();
+
+  const {
+    isLoading: isCalculatingTransitRoute,
+    error: transitRouteError,
+    routeGeoJSON: transitRouteGeoJSON,
+    routeDetails: transitRouteDetails,
+    planTransitRoute,
+    clearRoute: clearTransitRoute
+  } = useTransitRoute();
 
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
 
@@ -1797,9 +1809,15 @@ const MapComponent: React.FC<MapProps> = ({
   const handleTravelModeSelect = useCallback(async (mode: TravelMode) => {
     setSelectedTravelMode(mode);
     
-    // If mode is selected and we're calculating, proceed with route calculation
+    // If mode is selected, proceed based on mode type
     if (mode) {
       setShowTravelModeSelector(false);
+      
+      // Handle transit mode differently - show transit planner
+      if (mode === 'TRANSIT') {
+        setShowTransitPlanner(true);
+        return;
+      }
       
       try {
         // Check current permission status
@@ -1870,6 +1888,27 @@ const MapComponent: React.FC<MapProps> = ({
 
   const handleTravelModeCancel = useCallback(() => {
     setShowTravelModeSelector(false);
+    setSelectedTravelMode(null);
+  }, []);
+
+  const handleTransitRoutePlan = useCallback(async (
+    origin: [number, number], 
+    destination: [number, number], 
+    departureTime: string,
+    originName: string,
+    destinationName: string
+  ) => {
+    setShowTransitPlanner(false);
+    try {
+      await planTransitRoute(origin, destination, departureTime, originName, destinationName);
+    } catch (error) {
+      console.error('❌ Error planning transit route:', error);
+      toast.error("Failed to plan transit route. Please try again.");
+    }
+  }, [planTransitRoute]);
+
+  const handleTransitPlannerCancel = useCallback(() => {
+    setShowTransitPlanner(false);
     setSelectedTravelMode(null);
   }, []);
 
@@ -1990,6 +2029,17 @@ const MapComponent: React.FC<MapProps> = ({
           selectedMode={selectedTravelMode}
           onSelectMode={handleTravelModeSelect}
           onCancel={handleTravelModeCancel}
+        />
+      )}
+
+      {/* Transit Route Planner Modal */}
+      {showTransitPlanner && (
+        <TransitRoutePlanner
+          isOpen={showTransitPlanner}
+          onClose={handleTransitPlannerCancel}
+          landmarks={tourLandmarks}
+          onPlanRoute={handleTransitRoutePlan}
+          isLoading={isCalculatingTransitRoute}
         />
       )}
     </>
