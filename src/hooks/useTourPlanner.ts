@@ -304,7 +304,8 @@ export const useTourPlanner = () => {
         ? ` (${qualityInfo.highConfidence} high-quality coordinates)`
         : '';
       
-      toast.success(`Generated an enhanced tour for ${destination}!${qualityMessage} Tour landmarks added with green markers.`);
+      // COMMENTED OUT: Toast notification overloads the UI - keeping for potential future use
+      // toast.success(`Generated an enhanced tour for ${destination}!${qualityMessage} Tour landmarks added with green markers.`);
       
       // After 5 seconds, set phase to 'ready' to signal progress should hide
       setTimeout(() => {
