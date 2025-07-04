@@ -275,26 +275,21 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
         }
       };
       
-      // 🔧 DEBUG: Send test POI for debugging - wait for connection
-      const sendDebugPOI = () => {
-        console.log('🔧 DEBUG: Checking for sendContextualUpdate method...', !!conversation?.sendContextualUpdate);
-        
-        if (conversation?.sendContextualUpdate && (window as any).sendElevenLabsContextualUpdate) {
-          console.log('🔧 DEBUG: Sending test POI to agent...');
+      // 🔧 DEBUG: Send test POI immediately since session is started
+      console.log('🔧 DEBUG: Session started, checking for sendContextualUpdate method...', !!conversation?.sendContextualUpdate);
+      
+      if (conversation?.sendContextualUpdate) {
+        console.log('🔧 DEBUG: Sending test POI to agent NOW...');
+        setTimeout(() => {
           const success = (window as any).sendElevenLabsContextualUpdate({
             type: 'contextual_update',
             text: 'System Alert: User is now near Palacio de Bellas Artes. It is a cultural_center located at [-99.141, 19.435]. A key fact about it: A stunning Art Nouveau and Art Deco palace housing Mexico\'s most important cultural institutions, including opera, theater, and fine arts exhibitions.'
           });
           console.log('🔧 DEBUG: Test POI sent:', success);
-          return; // Stop retrying once sent
-        } else {
-          console.log('🔧 DEBUG: sendContextualUpdate method not ready, retrying in 2 seconds...');
-          setTimeout(sendDebugPOI, 2000);
-        }
-      };
-      
-      // Start checking after a short delay
-      setTimeout(sendDebugPOI, 1000);
+        }, 1000);
+      } else {
+        console.log('🔧 DEBUG: sendContextualUpdate method not available on conversation object');
+      }
       
     } catch (error) {
       console.error('Error starting tour:', error);
