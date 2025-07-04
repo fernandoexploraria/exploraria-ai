@@ -292,7 +292,16 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
     console.log('🗃️ Generating tour in database for user:', user.id);
 
     try {
-      // Create the "Alexis" template system prompt
+      // Create the "Alexis" template system prompt with contextual updates
+      const contextualUpdateSnippet = `
+
+CONTEXTUAL UPDATES: You will receive real-time updates about nearby points of interest as the user moves around. When you receive these updates, acknowledge them naturally and offer relevant information about nearby places when appropriate. The updates will include:
+- nearby_pois: Array of places near the user's current location
+- user_location: Current GPS coordinates
+- update_reason: Why the update was triggered (location_change, scheduled_poll, manual_refresh)
+
+Use this contextual information to enhance your tour guidance by mentioning relevant nearby places, suggesting detours, or providing location-specific insights.`;
+
       const alexisPrompt = `You are Alexis, an expert tour guide for ${destination.name}. 
 
 DESTINATION OVERVIEW:
@@ -311,7 +320,7 @@ ${idx + 1}. ${landmark.name}
    ${landmark.editorialSummary ? `- About: ${landmark.editorialSummary}` : ''}
 `).join('')}
 
-As Alexis, provide engaging, informative, and personalized tour guidance. Share interesting facts, historical context, local insights, and practical tips. Maintain an enthusiastic but professional tone, and always prioritize visitor safety and enjoyment.`;
+As Alexis, provide engaging, informative, and personalized tour guidance. Share interesting facts, historical context, local insights, and practical tips. Maintain an enthusiastic but professional tone, and always prioritize visitor safety and enjoyment.${contextualUpdateSnippet}`;
 
       console.log('Inserting tour record...');
       
