@@ -1660,20 +1660,57 @@ const MapComponent: React.FC<MapProps> = ({
     if (!map.current) return;
 
     console.log('🎯 Updating route markers, optimizedLandmarks count:', optimizedLandmarks.length);
+    console.log('🎯 Route type:', isLocationBasedRoute ? 'location-based' : 'centroid-based');
+    console.log('🎯 User location:', userLocation);
 
     // Create GeoJSON features for the numbered markers
-    const features = optimizedLandmarks.map((landmark, index) => ({
-      type: 'Feature' as const,
-      geometry: {
-        type: 'Point' as const,
-        coordinates: landmark.coordinates
-      },
-      properties: {
-        number: (index + 1).toString(),
-        landmarkId: landmark.placeId || `landmark-${index}`,
-        name: landmark.name
-      }
-    }));
+    let features: any[] = [];
+    
+    if (isLocationBasedRoute && userLocation) {
+      // For location-based routes, marker 1 is the user's actual location
+      features.push({
+        type: 'Feature' as const,
+        geometry: {
+          type: 'Point' as const,
+          coordinates: userLocation
+        },
+        properties: {
+          number: '1',
+          landmarkId: 'user-location',
+          name: 'Your Location'
+        }
+      });
+      
+      // Add the landmarks starting from marker 2
+      const landmarkFeatures = optimizedLandmarks.map((landmark, index) => ({
+        type: 'Feature' as const,
+        geometry: {
+          type: 'Point' as const,
+          coordinates: landmark.coordinates
+        },
+        properties: {
+          number: (index + 2).toString(), // Start from 2 since 1 is user location
+          landmarkId: landmark.placeId || `landmark-${index}`,
+          name: landmark.name
+        }
+      }));
+      
+      features = features.concat(landmarkFeatures);
+    } else {
+      // For centroid-based routes, use the original logic (landmarks start from 1)
+      features = optimizedLandmarks.map((landmark, index) => ({
+        type: 'Feature' as const,
+        geometry: {
+          type: 'Point' as const,
+          coordinates: landmark.coordinates
+        },
+        properties: {
+          number: (index + 1).toString(),
+          landmarkId: landmark.placeId || `landmark-${index}`,
+          name: landmark.name
+        }
+      }));
+    }
 
     const geojsonData = {
       type: 'FeatureCollection' as const,
@@ -1685,13 +1722,16 @@ const MapComponent: React.FC<MapProps> = ({
     if (source) {
       source.setData(geojsonData);
       console.log('🎯 Route markers updated:', features.length, 'markers');
+      console.log('🎯 Marker 1 location:', features[0]?.geometry.coordinates);
+      console.log('🎯 Marker 1 name:', features[0]?.properties.name);
       
       // Start pulsing animation for marker 1 if it exists
       if (features.length > 0 && features[0].properties.number === '1') {
         startMarker1PulseAnimation();
       }
     }
-  }, [optimizedLandmarks]);
+  }, [optimizedLandmarks, isLocationBasedRoute, userLocation]);
+
 
   // Animation function for marker 1 pulsing effect
   const startMarker1PulseAnimation = useCallback(() => {
