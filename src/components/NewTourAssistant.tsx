@@ -8,6 +8,7 @@ import { useConversation } from '@11labs/react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthProvider';
 import { useTourDetails } from '@/hooks/useTourDetails';
+import { useLocationAwareAgent } from '@/hooks/useLocationAwareAgent';
 
 interface NewTourAssistantProps {
   open: boolean;
@@ -35,9 +36,13 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   const [assistantState, setAssistantState] = useState<AssistantState>('not-started');
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isSessionActive, setIsSessionActive] = useState(false);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
 
   // 🔥 NEW: Fetch tour details from database
   const { tourDetails, isLoading: isFetchingTourDetails, error: tourDetailsError } = useTourDetails(landmarks);
+  
+  // 🎯 NEW: Location-aware agent integration
+  const locationAwareAgent = useLocationAwareAgent(currentConversationId);
 
   // Notify parent of session state changes
   useEffect(() => {
@@ -164,6 +169,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       console.log('Disconnected from ElevenLabs agent');
       setAssistantState('not-started');
       setIsSessionActive(false);
+      setCurrentConversationId(null); // 🎯 Clear conversation ID for location awareness
       toast({
         title: "Conversation Ended",
         description: "Your tour conversation has been saved.",
@@ -245,6 +251,21 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       
       console.log('ElevenLabs session started successfully:', conversationId);
       
+      // 🎯 Start location-aware agent
+      setCurrentConversationId(conversationId);
+      
+      // 🎯 Set up global function for sending contextual updates
+      (window as any).sendElevenLabsContextualUpdate = (message: { type: string; text: string }) => {
+        if (conversation?.status === 'connected') {
+          console.log('📡 Sending contextual update to ElevenLabs:', message);
+          // Send contextual_update using the conversation instance
+          // Note: This requires the ElevenLabs SDK to support contextual_update messages
+          // For now, we'll log the intent and implement when SDK supports it
+          console.log('🎯 Contextual update ready:', message.text);
+          // TODO: Implement actual sending when ElevenLabs SDK supports contextual_update
+        }
+      };
+      
     } catch (error) {
       console.error('Error starting tour:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -324,6 +345,11 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
             {isFetchingTourDetails && (
               <div className="text-center text-sm text-muted-foreground">
                 Fetching tour details from database...
+              </div>
+            )}
+            {locationAwareAgent.isActive && (
+              <div className="text-center text-xs text-muted-foreground">
+                🎯 Location awareness: {locationAwareAgent.nearbyPOIsCount} nearby • {locationAwareAgent.mentionedPOIsCount} mentioned
               </div>
             )}
           </div>
@@ -432,11 +458,18 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
                 }`} style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
               </>
             )}
-          </div>
-        </div>
-      </CleanDialogContent>
-    </CleanDialog>
-  );
+           </div>
+           
+           {/* Location awareness status */}
+           {locationAwareAgent.isActive && (
+             <div className="text-center text-xs text-muted-foreground mt-4">
+               🎯 Location awareness active • {locationAwareAgent.nearbyPOIsCount} nearby POIs • {locationAwareAgent.mentionedPOIsCount} mentioned
+             </div>
+           )}
+         </div>
+       </CleanDialogContent>
+     </CleanDialog>
+   );
 };
 
 export default NewTourAssistant;
