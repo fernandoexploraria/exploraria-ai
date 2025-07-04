@@ -49,6 +49,7 @@ const TopControls: React.FC<TopControlsProps> = ({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDebugDrawerOpen, setIsDebugDrawerOpen] = useState(false);
   const [isTestingCors, setIsTestingCors] = useState(false);
+  const [isTestingTransit, setIsTestingTransit] = useState(false);
   const [isIntelligentTourOpen, setIsIntelligentTourOpen] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const { toast } = useToast();
@@ -128,6 +129,88 @@ const TopControls: React.FC<TopControlsProps> = ({
 
   const handleAuthRequired = () => {
     console.log('🔐 Auth required callback - should not happen in new flow');
+  };
+
+  const handleTestTransitMode = async () => {
+    setIsTestingTransit(true);
+    console.log('🚇 Starting Transit Mode test...');
+    
+    try {
+      // Mexico City landmarks from your example
+      const mexicoCityLandmarks = [
+        {
+          id: "zocalo",
+          name: "Zócalo (Plaza de la Constitución)",
+          placeId: "ChIJh6B8g1cZzUMR8F265sT6hL0",
+          coordinates: [-99.133209, 19.432608]
+        },
+        {
+          id: "bellas_artes", 
+          name: "Palacio de Bellas Artes",
+          placeId: "ChIJ1-62Lz0EzUMRcD49p1R_W5E",
+          coordinates: [-99.141111, 19.435278]
+        },
+        {
+          id: "angel_independencia",
+          name: "Angel de la Independencia", 
+          placeId: "ChIJK0tU32z_zUMR_V6hT7D4EIM",
+          coordinates: [-99.1678, 19.4270]
+        },
+        {
+          id: "museo_antropologia",
+          name: "Museo Nacional de Antropología",
+          placeId: "ChIJ10X61j4EzUMR9aA7k7bJt2A", 
+          coordinates: [-99.1865, 19.4230]
+        },
+        {
+          id: "casa_azul",
+          name: "Casa Azul (Frida Kahlo Museum)",
+          placeId: "ChIJm6f9Wc8YzUMR03N20D4pM6I",
+          coordinates: [-99.1634, 19.3543]
+        }
+      ];
+
+      const origin = { coordinates: mexicoCityLandmarks[0].coordinates };
+      const waypoints = mexicoCityLandmarks.slice(1).map(landmark => ({
+        placeId: landmark.placeId,
+        coordinates: landmark.coordinates
+      }));
+
+      console.log('🚇 Testing transit mode with waypoints:', waypoints);
+
+      const { data, error } = await supabase.functions.invoke('google-routes-optimization', {
+        body: { 
+          origin,
+          waypoints,
+          returnToOrigin: true,
+          travelMode: 'TRANSIT'
+        }
+      });
+
+      if (error) {
+        console.error('🚇 Transit test error:', error);
+        toast({
+          title: "Transit Test Failed",
+          description: `Error: ${error.message}`,
+          variant: "destructive",
+        });
+      } else {
+        console.log('🚇 Transit test success:', data);
+        toast({
+          title: "Transit Test Successful!",
+          description: `Route calculated with ${waypoints.length} waypoints`,
+        });
+      }
+    } catch (error) {
+      console.error('🚇 Transit test exception:', error);
+      toast({
+        title: "Transit Test Exception", 
+        description: `Exception: ${error.message}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsTestingTransit(false);
+    }
   };
 
   const handleTestProximityCard = () => {
@@ -235,6 +318,18 @@ const TopControls: React.FC<TopControlsProps> = ({
               {/* Image Analysis Button - only appears when there's an active Smart Tour */}
               <ImageAnalysis smartTourLandmarks={smartTourLandmarks} />
               
+              {/* Transit Mode Test Button - Always visible */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-purple-500/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 text-white border-purple-400 hover:bg-purple-400/80"
+                onClick={handleTestTransitMode}
+                disabled={isTestingTransit}
+              >
+                <TestTube className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+                {isTestingTransit ? 'Testing Transit...' : 'Test Transit Mode'}
+              </Button>
+
               {/* Debug Tools - Hidden in Demo Mode */}
               {!isDemoMode && (
                 <>

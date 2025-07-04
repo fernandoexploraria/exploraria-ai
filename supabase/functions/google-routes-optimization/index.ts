@@ -15,7 +15,7 @@ interface RouteRequest {
   origin: { coordinates: [number, number] };
   waypoints: Waypoint[];
   returnToOrigin?: boolean;
-  travelMode?: 'WALK' | 'BICYCLE' | 'DRIVE';
+  travelMode?: 'WALK' | 'BICYCLE' | 'DRIVE' | 'TRANSIT';
 }
 
 // Validation function for waypoints
@@ -120,6 +120,14 @@ serve(async (req) => {
       // Add routingPreference for DRIVE mode only
       ...(travelMode === 'DRIVE' && {
         routingPreference: "TRAFFIC_AWARE"
+      }),
+      // Add transit-specific options for TRANSIT mode
+      ...(travelMode === 'TRANSIT' && {
+        departureTime: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 minutes from now
+        transitPreferences: {
+          routingPreference: "FEWER_TRANSFERS",
+          transitModes: [] // Consider all transit modes
+        }
       }),
       optimizeWaypointOrder: true,
       polylineEncoding: "ENCODED_POLYLINE",
