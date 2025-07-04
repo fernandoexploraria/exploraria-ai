@@ -23,6 +23,7 @@ import { useOptimalRoute } from '@/hooks/useOptimalRoute';
 import TravelModeSelector, { TravelMode } from '@/components/TravelModeSelector';
 import TransitRoutePlanner from '@/components/TransitRoutePlanner';
 import { useTransitRoute } from '@/hooks/useTransitRoute';
+import FloatingRouteCard from '@/components/FloatingRouteCard';
 import { usePermissionMonitor } from '@/hooks/usePermissionMonitor';
 
 interface MapProps {
@@ -2110,6 +2111,14 @@ const MapComponent: React.FC<MapProps> = ({
           landmarks={tourLandmarks}
           onPlanRoute={handleTransitRoutePlan}
           isLoading={isCalculatingTransitRoute}
+        />
+      )}
+
+      {/* Floating Route Card for Transit Routes */}
+      {transitRouteDetails && (
+        <FloatingRouteCard
+          routeDetails={transitRouteDetails}
+          onClose={clearTransitRoute}
         />
       )}
     </>
