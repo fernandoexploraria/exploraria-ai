@@ -1665,6 +1665,10 @@ const MapComponent: React.FC<MapProps> = ({
     }
 
     try {
+      // Step 1: Always enable proximity first
+      console.log('🎯 Auto-enabling proximity for optimal route calculation');
+      updateProximityEnabled(true);
+      
       // Check current permission status
       const currentPermissionState = await checkPermission();
       
@@ -1717,9 +1721,10 @@ const MapComponent: React.FC<MapProps> = ({
         return;
       }
 
-      console.log('🎯 Starting optimal route calculation with on-demand location:', {
+      console.log('🎯 Starting optimal route calculation with proximity enabled:', {
         currentLocation,
-        tourLandmarksCount: tourLandmarks.length
+        tourLandmarksCount: tourLandmarks.length,
+        proximityEnabled: true
       });
 
       await calculateOptimalRoute(currentLocation, tourLandmarks);
@@ -1727,7 +1732,7 @@ const MapComponent: React.FC<MapProps> = ({
       console.error('❌ Error in handleOptimalRoute:', error);
       toast.error("Failed to calculate optimal route. Please try again.");
     }
-  }, [tourLandmarks, calculateOptimalRoute, userLocation, checkPermission, requestPermission]);
+  }, [tourLandmarks, calculateOptimalRoute, userLocation, checkPermission, requestPermission, updateProximityEnabled]);
 
   // Determine if the optimal route button should be enabled
   const isOptimalRouteButtonEnabled = !isCalculatingRoute && 
