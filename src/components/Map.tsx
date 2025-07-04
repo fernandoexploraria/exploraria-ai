@@ -1638,10 +1638,9 @@ const MapComponent: React.FC<MapProps> = ({
         coordinates: landmark.coordinates
       },
       properties: {
-        number: index === 0 ? '🏠' : (index + 1).toString(), // House icon for starting point
+        number: (index + 1).toString(),
         landmarkId: landmark.placeId || `landmark-${index}`,
-        name: landmark.name,
-        isStartingPoint: index === 0
+        name: landmark.name
       }
     }));
 
@@ -1666,8 +1665,9 @@ const MapComponent: React.FC<MapProps> = ({
     }
 
     try {
-      // Step 1: Get user location to determine route strategy
-      let currentLocation: [number, number] | null = userLocation;
+      // Step 1: Always enable proximity first
+      console.log('🎯 Auto-enabling proximity for optimal route calculation');
+      updateProximityEnabled(true);
       
       // Check current permission status
       const currentPermissionState = await checkPermission();
@@ -1676,6 +1676,8 @@ const MapComponent: React.FC<MapProps> = ({
         toast.error("Location permission is denied. Please enable location access in your browser settings.");
         return;
       }
+
+      let currentLocation: [number, number] | null = userLocation;
 
       // If we don't have a current location, request it on-demand
       if (!currentLocation) {
@@ -1719,9 +1721,10 @@ const MapComponent: React.FC<MapProps> = ({
         return;
       }
 
-      console.log('🎯 Starting optimal route calculation:', {
+      console.log('🎯 Starting optimal route calculation with proximity enabled:', {
         currentLocation,
-        tourLandmarksCount: tourLandmarks.length
+        tourLandmarksCount: tourLandmarks.length,
+        proximityEnabled: true
       });
 
       await calculateOptimalRoute(currentLocation, tourLandmarks);

@@ -5,7 +5,6 @@ import { decodePolyline, createRouteGeoJSON } from '@/utils/polylineDecoder';
 import { TourLandmark } from '@/data/tourLandmarks';
 import { toast } from "sonner";
 import { calculateCentroid, calculateDistance, findNearestLandmark, formatDistance } from '@/utils/proximityUtils';
-import { useProximityAlerts } from '@/hooks/useProximityAlerts';
 
 interface OptimalRouteResult {
   routeGeoJSON: GeoJSON.LineString | null;
@@ -33,8 +32,6 @@ export const useOptimalRoute = (): UseOptimalRouteReturn => {
   const [routeGeoJSON, setRouteGeoJSON] = useState<GeoJSON.LineString | null>(null);
   const [optimizedLandmarks, setOptimizedLandmarks] = useState<TourLandmark[]>([]);
   const [routeStats, setRouteStats] = useState<OptimalRouteResult['routeStats']>(null);
-  
-  const { updateProximityEnabled } = useProximityAlerts();
 
   const calculateOptimalRoute = useCallback(async (
     userLocation: [number, number], 
@@ -81,13 +78,11 @@ export const useOptimalRoute = (): UseOptimalRouteReturn => {
       
       let routeOrigin: [number, number];
       let routeStartMessage: string;
-      let isLocationBasedRoute = false;
       
       if (distanceToCentroid <= TOUR_PROXIMITY_THRESHOLD) {
         // Use user location as origin
         routeOrigin = userLocation;
         routeStartMessage = `Starting route from your location (${formatDistance(distanceToCentroid)} from tour area)`;
-        isLocationBasedRoute = true;
         console.log('📍 User within tour area, starting from user location:', {
           userLocation,
           distanceToCentroid: formatDistance(distanceToCentroid)
@@ -101,7 +96,6 @@ export const useOptimalRoute = (): UseOptimalRouteReturn => {
         
         routeOrigin = nearest.landmark.coordinates;
         routeStartMessage = `Starting route from ${nearest.landmark.name} - you're ${formatDistance(distanceToCentroid)} away from the tour area`;
-        isLocationBasedRoute = false;
         console.log('📍 User far from tour area, starting from closest landmark:', {
           startingLandmark: nearest.landmark.name,
           landmarkCoordinates: routeOrigin,
@@ -180,14 +174,6 @@ export const useOptimalRoute = (): UseOptimalRouteReturn => {
         waypointCount: reorderedLandmarks.length
       });
 
-      // Enable proximity only for location-based routes (≤20km from centroid)
-      if (isLocationBasedRoute) {
-        console.log('🎯 Auto-enabling proximity for location-based route');
-        updateProximityEnabled(true);
-      } else {
-        console.log('🎯 Skipping proximity enable for centroid-based route');
-      }
-
       // Show the route start message and success message
       toast.success(routeStartMessage);
       toast.success(`Optimal route calculated: ${distanceKm}km, ~${durationText} walking`);
@@ -200,7 +186,7 @@ export const useOptimalRoute = (): UseOptimalRouteReturn => {
     } finally {
       setIsLoading(false);
     }
-  }, [updateProximityEnabled]);
+  }, []);
 
   const clearRoute = useCallback(() => {
     setRouteGeoJSON(null);
