@@ -1,55 +1,40 @@
+
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Route } from 'lucide-react';
-import { useMap } from '@/contexts/MapContext';
-import { useTour } from '@/contexts/TourContext';
-import { useUserLocation } from '@/contexts/UserLocationContext';
-import { useProximityAlerts } from '@/hooks/useProximityAlerts';
-import { useTourPlanner } from '@/hooks/useTourPlanner';
 import { useOptimalRoute } from '@/hooks/useOptimalRoute';
 import { TourLandmark } from '@/data/tourLandmarks';
 import { Landmark } from '@/data/landmarks';
 import SearchControl from "@/components/SearchControl";
-import { TopControls } from '@/components/map/TopControls';
-import { ProximityAlerts } from '@/components/map/ProximityAlerts';
-import { LandmarkDetailsDialog } from '@/components/map/LandmarkDetailsDialog';
-import { TourPlanDialog } from '@/components/map/TourPlanDialog';
-import { ProximitySettingsDialog } from '@/components/map/ProximitySettingsDialog';
-import { ProximityEditor } from '@/components/map/ProximityEditor';
-import { ProximityNotifications } from '@/components/map/ProximityNotifications';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useToast } from "@/components/ui/use-toast"
 
 interface MapProps {
-  initialLat?: number;
-  initialLng?: number;
-  initialZoom?: number;
+  mapboxToken: string;
+  landmarks: Landmark[];
+  onSelectLandmark: (landmark: Landmark) => void;
+  selectedLandmark: Landmark | null;
+  plannedLandmarks: Landmark[];
 }
 
-const Map = () => {
+const Map: React.FC<MapProps> = ({ 
+  mapboxToken, 
+  landmarks, 
+  onSelectLandmark, 
+  selectedLandmark, 
+  plannedLandmarks 
+}) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [lng, setLng] = useState(2.3522);
   const [lat, setLat] = useState(48.8566);
   const [zoom, setZoom] = useState(12);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
-  const [selectedLandmark, setSelectedLandmark] = useState<Landmark | null>(null);
-  const [isTourPlanDialogOpen, setIsTourPlanDialogOpen] = useState(false);
-  const [isProximitySettingsOpen, setIsProximitySettingsOpen] = useState(false);
-  const [isProximityEditorOpen, setIsProximityEditorOpen] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ longitude: number; latitude: number } | null>(null);
   const { toast } = useToast();
 
-  const { 
-    tourLandmarks, 
-    addTourLandmark, 
-    removeTourLandmark, 
-    clearTourMarkers 
-  } = useTour();
-  const { userLocation } = useUserLocation();
-  const { proximitySettings } = useProximityAlerts();
   const { subscriptionData } = useSubscription();
-  const { generateTour, tourPlan, progressState } = useTourPlanner();
 
   const { 
     isLoading: isOptimalRouteLoading, 
@@ -65,7 +50,7 @@ const Map = () => {
     if (routeGeoJSON) {
       clearRoute();
     } else if (userLocation) {
-      await calculateOptimalRoute([userLocation.longitude, userLocation.latitude], tourLandmarks);
+      await calculateOptimalRoute([userLocation.longitude, userLocation.latitude], plannedLandmarks);
     } else {
       toast({
         title: "Location Required",
@@ -74,35 +59,15 @@ const Map = () => {
     }
   };
 
-  const isOptimalRouteEnabled = tourLandmarks.length >= 2 && userLocation !== null;
+  const isOptimalRouteEnabled = plannedLandmarks.length >= 2 && userLocation !== null;
   const hasActiveRoute = routeGeoJSON !== null;
-
-  const handleLandmarkClick = (landmark: Landmark) => {
-    setSelectedLandmark(landmark);
-  };
-
-  const handleCloseDialog = () => {
-    setSelectedLandmark(null);
-  };
-
-  const handleGenerateTour = async (destination: string) => {
-    setIsTourPlanDialogOpen(false);
-    await generateTour(destination);
-  };
-
-  const handleClearTour = () => {
-    clearTourMarkers();
-    clearRoute();
-    setIsTourPlanDialogOpen(false);
-    toast({
-      title: "Tour Cleared",
-      description: "All landmarks have been removed from the tour.",
-    })
-  };
 
   useEffect(() => {
     if (map.current) return; // prevent initialize map multiple times
     if (!mapContainer.current) return; // Ensure the container is available
+
+    // Set Mapbox access token
+    mapboxgl.accessToken = mapboxToken;
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
@@ -123,33 +88,48 @@ const Map = () => {
       setZoom(map.current.getZoom());
     });
 
+    // Add navigation control (location button)
+    map.current.addControl(
+      new mapboxgl.NavigationControl({
+        showCompass: true,
+        showZoom: true,
+        visualizePitch: false
+      }),
+      'top-right'
+    );
+
+    // Add geolocate control
+    const geolocate = new mapboxgl.GeolocateControl({
+      positionOptions: {
+        enableHighAccuracy: true
+      },
+      trackUserLocation: true,
+      showUserHeading: true
+    });
+
+    map.current.addControl(geolocate, 'top-right');
+
+    // Listen for location updates
+    geolocate.on('geolocate', (e) => {
+      setUserLocation({
+        longitude: e.coords.longitude,
+        latitude: e.coords.latitude
+      });
+    });
+
     return () => {
       map.current?.off('move', () => {});
       map.current?.off('load', () => {});
       map.current?.remove();
       map.current = null;
     };
-  }, []);
+  }, [mapboxToken]);
 
   useEffect(() => {
     if (!map.current || !isMapLoaded) return;
 
-    // Fly to user location when it updates
-    if (userLocation) {
-      map.current.flyTo({
-        center: [userLocation.longitude, userLocation.latitude],
-        zoom: 15,
-        duration: 3000,
-        essential: true
-      });
-    }
-  }, [userLocation, isMapLoaded]);
-
-  useEffect(() => {
-    if (!map.current || !isMapLoaded) return;
-
-    // Add tour landmarks as markers on the map
-    tourLandmarks.forEach(landmark => {
+    // Add planned landmarks as markers on the map
+    plannedLandmarks.forEach(landmark => {
       // Check if a marker with the same ID already exists
       if (map.current?.getSource(`landmark-${landmark.id}`)) {
         return; // Skip adding the marker if it already exists
@@ -164,7 +144,7 @@ const Map = () => {
       el.style.cursor = 'pointer';
 
       el.addEventListener('click', () => {
-        handleLandmarkClick(landmark);
+        onSelectLandmark(landmark);
       });
 
       new mapboxgl.Marker(el)
@@ -172,7 +152,7 @@ const Map = () => {
         .addTo(map.current!)
         .setDraggable(false);
     });
-  }, [tourLandmarks, isMapLoaded]);
+  }, [plannedLandmarks, isMapLoaded, onSelectLandmark]);
 
   useEffect(() => {
     if (!map.current || !isMapLoaded) return;
@@ -215,23 +195,19 @@ const Map = () => {
     <div className="relative w-full h-full">
       <div ref={mapContainer} className="w-full h-full" />
       
-      <TopControls 
-        onTourPlanClick={() => setIsTourPlanDialogOpen(true)}
-        onProximitySettingsClick={() => setIsProximitySettingsOpen(true)}
-        onProximityEditorClick={() => setIsProximityEditorOpen(true)}
-      />
-      <SearchControl />
+      {/* Search Control */}
+      <div className="absolute top-4 left-4 z-10">
+        <SearchControl landmarks={landmarks} onSelectLandmark={onSelectLandmark} />
+      </div>
 
-      {/* Location Button (Mapbox GeolocateControl) - positioned at top-right */}
-      
       {/* Optimal Route Button - positioned below location button */}
-      <div className="absolute top-[72px] right-4 z-10">
+      <div className="absolute top-[120px] right-4 z-10">
         <button
           onClick={handleOptimalRouteClick}
           disabled={!isOptimalRouteEnabled || isOptimalRouteLoading}
           title={
             !isOptimalRouteEnabled 
-              ? tourLandmarks.length < 2 
+              ? plannedLandmarks.length < 2 
                 ? "Need at least 2 tour landmarks for route optimization"
                 : "Location required for route calculation"
               : hasActiveRoute
@@ -261,34 +237,6 @@ const Map = () => {
           )}
         </button>
       </div>
-
-      <LandmarkDetailsDialog 
-        landmark={selectedLandmark} 
-        onClose={handleCloseDialog} 
-        addTourLandmark={addTourLandmark}
-        removeTourLandmark={removeTourLandmark}
-        isTourLandmark={selectedLandmark ? tourLandmarks.some(tl => tl.id === selectedLandmark.id) : false}
-      />
-
-      <TourPlanDialog 
-        isOpen={isTourPlanDialogOpen} 
-        onClose={() => setIsTourPlanDialogOpen(false)} 
-        onGenerateTour={handleGenerateTour}
-        onClearTour={handleClearTour}
-      />
-
-      <ProximitySettingsDialog 
-        isOpen={isProximitySettingsOpen}
-        onClose={() => setIsProximitySettingsOpen(false)}
-      />
-
-      <ProximityEditor 
-        isOpen={isProximityEditorOpen}
-        onClose={() => setIsProximityEditorOpen(false)}
-      />
-
-      <ProximityAlerts />
-      <ProximityNotifications />
     </div>
   );
 };
