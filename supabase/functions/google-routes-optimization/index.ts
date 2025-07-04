@@ -97,7 +97,7 @@ serve(async (req) => {
       throw new Error(`Waypoint ${index} must have either placeId or coordinates`);
     });
 
-    // Prepare Google Routes API request with dynamic travel mode
+    // Prepare Google Routes API request based on Gemini's guidance
     let routeRequest: any = {
       origin: {
         location: {
@@ -116,36 +116,38 @@ serve(async (req) => {
         }
       } : undefined,
       travelMode: travelMode,
-      polylineEncoding: "ENCODED_POLYLINE",
+      polylineEncoding: "GEO_JSON_LINESTRING", // Use GeoJSON for easier Mapbox integration
       computeAlternativeRoutes: false
     };
 
-    // Handle TRANSIT mode specific requirements
+    // Handle TRANSIT mode specific requirements based on Gemini guidance
     if (travelMode === 'TRANSIT') {
-      // Create proper departure time (today at 10:00 AM UTC)
+      // Create proper departure time (today at 10:00 AM JST = 01:00 AM UTC)
       const today = new Date();
-      const departureTime = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 10, 0, 0));
+      const departureTime = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 1, 0, 0));
       
-      console.log('🚌 TRANSIT mode - departure time:', departureTime.toISOString());
+      console.log('🚌 TRANSIT mode - departure time (10 AM JST):', departureTime.toISOString());
       
       routeRequest = {
         ...routeRequest,
+        intermediateWaypoints: intermediateWaypoints, // Use correct property name for TRANSIT
         departureTime: departureTime.toISOString(),
         routingPreference: "FEWER_TRANSFERS",
         transitPreferences: {
           routingPreference: "FEWER_TRANSFERS",
-          transitModes: ["SUBWAY", "BUS", "TRAIN", "TRAM", "RAIL"]
+          transitModes: [] // Empty array for all transit modes
         },
-        // For TRANSIT, limit to first destination only (no multiple waypoints)
-        intermediates: [], // Remove intermediates for transit as they may cause issues
-        optimizeWaypointOrder: false
+        // Per Gemini: optimizeWaypointOrder may not work well for TRANSIT, but we'll try
+        optimizeWaypointOrder: true,
+        languageCode: "en-US"
       };
     } else {
-      // For non-transit modes, use full waypoint optimization
+      // For non-transit modes, use original structure
       routeRequest = {
         ...routeRequest,
-        intermediates: intermediateWaypoints,
+        intermediates: intermediateWaypoints, // Use intermediates for non-transit
         optimizeWaypointOrder: true,
+        polylineEncoding: "ENCODED_POLYLINE", // Keep encoded for non-transit
         // Add routingPreference for DRIVE mode only
         ...(travelMode === 'DRIVE' && {
           routingPreference: "TRAFFIC_AWARE"
@@ -156,7 +158,15 @@ serve(async (req) => {
     console.log('📡 Calling Google Routes API with request:', JSON.stringify(routeRequest, null, 2));
 
     // Enhanced X-Goog-FieldMask for more detailed response
-    const fieldMask = [
+    const fieldMask = travelMode === 'TRANSIT' ? [
+      'routes.duration',
+      'routes.distanceMeters',
+      'routes.polyline', // For GeoJSON format
+      'routes.optimizedIntermediateWaypointIndex',
+      'routes.legs.duration',
+      'routes.legs.distanceMeters',
+      'routes.legs.steps' // Transit steps for detailed instructions
+    ].join(',') : [
       'routes.duration',
       'routes.distanceMeters', 
       'routes.polyline.encodedPolyline',
@@ -239,7 +249,7 @@ serve(async (req) => {
         apiRequestSent: {
           waypointCount: intermediateWaypoints.length,
           travelMode: travelMode,
-          optimizeWaypointOrder: travelMode !== 'TRANSIT'
+          optimizeWaypointOrder: travelMode === 'TRANSIT' ? true : true // Both try optimization, but TRANSIT may not work well
         }
       }
     };
