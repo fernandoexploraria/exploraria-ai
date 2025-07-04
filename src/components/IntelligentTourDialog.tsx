@@ -454,10 +454,10 @@ As Alexis, provide engaging, informative, and personalized tour guidance. Share 
       
       setCurrentStep(5);
 
-      toast({
-        title: "Tour Generated Successfully!",
-        description: `Found ${validLandmarks.length} amazing places to explore in ${destination.name}`,
-      });
+      // toast({
+      //   title: "Tour Generated Successfully!",
+      //   description: `Found ${validLandmarks.length} amazing places to explore in ${destination.name}`,
+      // });
 
       // Enhanced voice agent callback with state verification
       if (onTourReadyForVoice) {
