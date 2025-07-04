@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, MapPin, Route, X } from 'lucide-react';
+import { Clock, MapPin, Route, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -244,11 +244,14 @@ const TransitRoutePlanner: React.FC<TransitRoutePlannerProps> = ({
             >
               {isLoading ? (
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Planning...
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Planning Route...</span>
                 </div>
               ) : (
-                'Plan Transit Route'
+                <div className="flex items-center gap-2">
+                  <Route className="h-4 w-4" />
+                  <span>Plan Transit Route</span>
+                </div>
               )}
             </Button>
           </div>
