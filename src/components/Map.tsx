@@ -18,6 +18,7 @@ import { PhotoData } from '@/hooks/useEnhancedPhotos';
 import { PhotoCarousel } from './photo-carousel';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { getEnhancedLandmarkText } from '@/utils/landmarkPromptUtils';
+import { useOptimalRoute } from '@/hooks/useOptimalRoute';
 
 interface MapProps {
   mapboxToken: string;
@@ -78,6 +79,18 @@ const MapComponent: React.FC<MapProps> = ({
     navigateNext,
     navigatePrevious 
   } = useStreetViewNavigation();
+
+  const {
+    isLoading: isCalculatingRoute,
+    error: routeError,
+    routeGeoJSON,
+    optimizedLandmarks,
+    routeStats,
+    calculateOptimalRoute,
+    clearRoute
+  } = useOptimalRoute();
+
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
 
   const findLandmarkByFeatureProperties = useCallback((properties: any, layerType: 'tour' | 'top' | 'base'): Landmark | null => {
     if (!properties) return null;
@@ -355,6 +368,8 @@ const MapComponent: React.FC<MapProps> = ({
             state: currentState,
             userInitiated: userInitiatedLocationRequest.current
           });
+          
+          setUserLocation([e.coords.longitude, e.coords.latitude]);
           
           lastLocationEventTime.current = Date.now();
           
@@ -1506,10 +1521,172 @@ const MapComponent: React.FC<MapProps> = ({
     };
   }, [showRouteOnMap, navigateToCoordinates, openStreetViewModal, landmarks]);
 
+  useEffect(() => {
+    if (!map.current) return;
+
+    // Add route source and layer if route exists
+    if (routeGeoJSON) {
+      const sourceId = 'optimal-route-source';
+      const layerId = 'optimal-route-layer';
+
+      // Remove existing route if any
+      if (map.current.getLayer(layerId)) {
+        map.current.removeLayer(layerId);
+      }
+      if (map.current.getSource(sourceId)) {
+        map.current.removeSource(sourceId);
+      }
+
+      // Add new route
+      map.current.addSource(sourceId, {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {},
+          geometry: routeGeoJSON
+        }
+      });
+
+      map.current.addLayer({
+        id: layerId,
+        type: 'line',
+        source: sourceId,
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': '#FF4444',
+          'line-width': 4,
+          'line-opacity': 0.8
+        }
+      });
+
+      // Fit bounds to show the entire route
+      const bounds = new mapboxgl.LngLatBounds();
+      routeGeoJSON.coordinates.forEach(coord => bounds.extend(coord as [number, number]));
+      
+      if (!bounds.isEmpty()) {
+        map.current.fitBounds(bounds, {
+          padding: 80,
+          duration: 1500,
+          maxZoom: 16
+        });
+      }
+
+      console.log('🗺️ Optimal route visualized on map');
+    }
+  }, [routeGeoJSON]);
+
+  const handleOptimalRoute = useCallback(async () => {
+    if (!userLocation) {
+      toast.error("Please enable location services first");
+      return;
+    }
+
+    if (tourLandmarks.length < 2) {
+      toast.error("At least 2 tour landmarks are needed for route optimization");
+      return;
+    }
+
+    console.log('🎯 Starting optimal route calculation with:', {
+      userLocation,
+      tourLandmarksCount: tourLandmarks.length
+    });
+
+    await calculateOptimalRoute(userLocation, tourLandmarks);
+  }, [userLocation, tourLandmarks, calculateOptimalRoute]);
+
   return (
     <>
       <div ref={mapContainer} className="absolute inset-0" />
       
+      {/* Add Optimal Route Controls */}
+      {tourLandmarks.length > 0 && (
+        <div className="absolute top-20 right-4 z-10 flex flex-col gap-2">
+          {/* Optimal Route Button */}
+          <button
+            onClick={handleOptimalRoute}
+            disabled={isCalculatingRoute || !userLocation}
+            className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg shadow-lg font-medium transition-colors flex items-center gap-2 min-w-[140px]"
+            title={!userLocation ? "Enable location services first" : "Calculate optimal walking route"}
+          >
+            {isCalculatingRoute ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Calculating...
+              </>
+            ) : (
+              <>
+                🎯 Optimal Route
+              </>
+            )}
+          </button>
+
+          {/* Clear Route Button */}
+          {routeGeoJSON && (
+            <button
+              onClick={clearRoute}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow-lg font-medium transition-colors"
+              title="Clear optimal route"
+            >
+              Clear Route
+            </button>
+          )}
+
+          {/* Route Stats */}
+          {routeStats && (
+            <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-3 text-sm">
+              <div className="font-semibold text-gray-800 mb-1">Route Info:</div>
+              <div className="text-gray-700">
+                <div>📏 {routeStats.distanceKm}km</div>
+                <div>⏱️ ~{routeStats.durationText}</div>
+                <div>📍 {routeStats.waypointCount} stops</div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Add numbered markers for optimized route */}
+      {optimizedLandmarks.length > 0 && (
+        <>
+          {optimizedLandmarks.map((landmark, index) => (
+            <div
+              key={`optimized-${landmark.placeId}-${index}`}
+              style={{
+                position: 'absolute',
+                left: '50%',
+                top: '50%',
+                transform: 'translate(-50%, -50%)',
+                pointerEvents: 'none',
+                zIndex: 1000
+              }}
+              ref={(el) => {
+                if (el && map.current) {
+                  const marker = new mapboxgl.Marker({
+                    element: (() => {
+                      const div = document.createElement('div');
+                      div.className = 'w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold text-sm border-2 border-white shadow-lg';
+                      div.textContent = (index + 1).toString();
+                      return div;
+                    })(),
+                    anchor: 'center'
+                  })
+                    .setLngLat(landmark.coordinates)
+                    .addTo(map.current);
+                  
+                  // Store marker for cleanup
+                  if (!navigationMarkers.current.find(m => m.marker === marker)) {
+                    navigationMarkers.current.push({ marker, interaction: null });
+                  }
+                }
+              }}
+            />
+          ))}
+        </>
+      )}
+
       <EnhancedStreetViewModal
         isOpen={isModalOpen}
         onClose={closeStreetViewModal}
