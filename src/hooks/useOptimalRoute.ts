@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { decodePolyline, createRouteGeoJSON } from '@/utils/polylineDecoder';
 import { TourLandmark } from '@/data/tourLandmarks';
 import { toast } from "sonner";
+import { calculateCentroid, calculateDistance, findNearestLandmark, formatDistance } from '@/utils/proximityUtils';
 
 interface OptimalRouteResult {
   routeGeoJSON: GeoJSON.LineString | null;
@@ -58,6 +59,50 @@ export const useOptimalRoute = (): UseOptimalRouteReturn => {
     setRouteStats(null);
 
     try {
+      // Step 1: Calculate tour centroid and determine optimal starting point
+      const tourCentroid = calculateCentroid(landmarks);
+      const userLocationForDistance = { 
+        latitude: userLocation[1], 
+        longitude: userLocation[0] 
+      };
+      
+      const distanceToCentroid = calculateDistance(
+        userLocationForDistance.latitude,
+        userLocationForDistance.longitude,
+        tourCentroid[1], // latitude
+        tourCentroid[0]  // longitude
+      );
+
+      // Tour proximity threshold: 20km (aligned with city nearby search radius)
+      const TOUR_PROXIMITY_THRESHOLD = 20000; // 20km in meters
+      
+      let routeOrigin: [number, number];
+      let routeStartMessage: string;
+      
+      if (distanceToCentroid <= TOUR_PROXIMITY_THRESHOLD) {
+        // Use user location as origin
+        routeOrigin = userLocation;
+        routeStartMessage = `Starting route from your location (${formatDistance(distanceToCentroid)} from tour area)`;
+        console.log('📍 User within tour area, starting from user location:', {
+          userLocation,
+          distanceToCentroid: formatDistance(distanceToCentroid)
+        });
+      } else {
+        // Use closest landmark as origin
+        const nearest = findNearestLandmark(userLocationForDistance, landmarks);
+        if (!nearest) {
+          throw new Error('Failed to find nearest landmark for route starting point');
+        }
+        
+        routeOrigin = nearest.landmark.coordinates;
+        routeStartMessage = `Starting route from ${nearest.landmark.name} - you're ${formatDistance(distanceToCentroid)} away from the tour area`;
+        console.log('📍 User far from tour area, starting from closest landmark:', {
+          startingLandmark: nearest.landmark.name,
+          landmarkCoordinates: routeOrigin,
+          distanceToCentroid: formatDistance(distanceToCentroid)
+        });
+      }
+
       // Prepare waypoints for the API
       const waypoints = landmarks.map(landmark => ({
         placeId: landmark.placeId,
@@ -66,10 +111,10 @@ export const useOptimalRoute = (): UseOptimalRouteReturn => {
 
       console.log('📍 Prepared waypoints:', waypoints.length);
 
-      // Call the edge function
+      // Call the edge function with determined origin
       const { data, error: apiError } = await supabase.functions.invoke('google-routes-optimization', {
         body: {
-          origin: { coordinates: userLocation },
+          origin: { coordinates: routeOrigin },
           waypoints,
           returnToOrigin: true
         }
@@ -129,6 +174,8 @@ export const useOptimalRoute = (): UseOptimalRouteReturn => {
         waypointCount: reorderedLandmarks.length
       });
 
+      // Show the route start message and success message
+      toast.success(routeStartMessage);
       toast.success(`Optimal route calculated: ${distanceKm}km, ~${durationText} walking`);
 
     } catch (err) {
