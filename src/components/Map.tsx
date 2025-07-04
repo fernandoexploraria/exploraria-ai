@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
 import mapboxgl from 'mapbox-gl';
@@ -1604,7 +1605,7 @@ const MapComponent: React.FC<MapProps> = ({
       
       {/* Optimal Route Button - styled to match location button */}
       {tourLandmarks.length > 0 && (
-        <div className="absolute top-[52px] right-4 z-10">
+        <div className="absolute top-[52px] right-[10px] z-10">
           <button
             onClick={handleOptimalRoute}
             disabled={isCalculatingRoute || !userLocation || tourLandmarks.length < 2}
@@ -1630,7 +1631,7 @@ const MapComponent: React.FC<MapProps> = ({
 
       {/* Clear Route Button - only show when route exists */}
       {routeGeoJSON && (
-        <div className="absolute top-[92px] right-4 z-10">
+        <div className="absolute top-[94px] right-[10px] z-10">
           <button
             onClick={clearRoute}
             className="w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded border border-gray-200 shadow-md flex items-center justify-center transition-all duration-200"
@@ -1643,7 +1644,7 @@ const MapComponent: React.FC<MapProps> = ({
 
       {/* Route Stats - compact version */}
       {routeStats && (
-        <div className="absolute top-[132px] right-4 z-10 bg-white/95 backdrop-blur-sm rounded border border-gray-200 shadow-md p-2 text-xs max-w-[120px]">
+        <div className="absolute top-[136px] right-[10px] z-10 bg-white/95 backdrop-blur-sm rounded border border-gray-200 shadow-md p-2 text-xs max-w-[120px]">
           <div className="text-gray-800 space-y-1">
             <div>📏 {routeStats.distanceKm}km</div>
             <div>⏱️ {routeStats.durationText}</div>
