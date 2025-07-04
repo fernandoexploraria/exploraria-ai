@@ -96,13 +96,24 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       return;
     }
 
-    // Format as SYSTEM_ALERT per Gemini's specification
+    // Enhanced POI fact generation for better context
     const primaryType = nearestPOI.types?.[0] || 'place';
-    const keyFacts = nearestPOI.rating 
-      ? `Rated ${nearestPOI.rating}/5 stars` 
-      : `A notable ${primaryType} in the area`;
+    let poiFact = '';
     
-    const systemAlertMessage = `SYSTEM_ALERT: User is now near ${nearestPOI.name}. It is a ${primaryType}. Key facts: ${keyFacts}.`;
+    if (nearestPOI.rating && nearestPOI.userRatingsTotal) {
+      poiFact = `Highly rated at ${nearestPOI.rating}/5 stars by ${nearestPOI.userRatingsTotal} visitors`;
+    } else if (nearestPOI.rating) {
+      poiFact = `Rated ${nearestPOI.rating}/5 stars by visitors`;
+    } else if (nearestPOI.editorialSummary) {
+      poiFact = nearestPOI.editorialSummary.length > 100 
+        ? nearestPOI.editorialSummary.substring(0, 100) + '...'
+        : nearestPOI.editorialSummary;
+    } else {
+      poiFact = `A notable ${primaryType} in the area worth exploring`;
+    }
+    
+    // Format as structured JSON SYSTEM_ALERT per Gemini's improved specification
+    const systemAlertMessage = `SYSTEM_ALERT: {"poi_name": "${nearestPOI.name}", "poi_type": "${primaryType}", "poi_fact": "${poiFact}", "poi_id": "${nearestPOI.place_id || nearestPOI.placeId || 'unknown'}"}`;
 
     console.log('📡 Sending SYSTEM_ALERT to ElevenLabs agent:', {
       poiName: nearestPOI.name,
