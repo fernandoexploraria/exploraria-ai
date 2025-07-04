@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { Routes } from 'lucide-react';
+import { Route } from 'lucide-react';
 import { useMap } from '@/contexts/MapContext';
 import { useTour } from '@/contexts/TourContext';
 import { useUserLocation } from '@/contexts/UserLocationContext';
@@ -10,7 +10,7 @@ import { useTourPlanner } from '@/hooks/useTourPlanner';
 import { useOptimalRoute } from '@/hooks/useOptimalRoute';
 import { TourLandmark } from '@/data/tourLandmarks';
 import { Landmark } from '@/data/landmarks';
-import { SearchControl } from "@/components/SearchControl";
+import SearchControl from "@/components/SearchControl";
 import { TopControls } from '@/components/map/TopControls';
 import { ProximityAlerts } from '@/components/map/ProximityAlerts';
 import { LandmarkDetailsDialog } from '@/components/map/LandmarkDetailsDialog';
@@ -251,7 +251,7 @@ const Map = () => {
           {isOptimalRouteLoading ? (
             <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
           ) : (
-            <Routes 
+            <Route 
               size={16} 
               className={`
                 ${hasActiveRoute ? 'text-blue-600' : 'text-gray-700'}
