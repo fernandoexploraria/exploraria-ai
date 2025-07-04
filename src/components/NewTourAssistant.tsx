@@ -258,11 +258,21 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       (window as any).sendElevenLabsContextualUpdate = (message: { type: string; text: string }) => {
         if (conversation?.status === 'connected') {
           console.log('📡 Sending contextual update to ElevenLabs:', message);
-          // Send contextual_update using the conversation instance
-          // Note: This requires the ElevenLabs SDK to support contextual_update messages
-          // For now, we'll log the intent and implement when SDK supports it
-          console.log('🎯 Contextual update ready:', message.text);
-          // TODO: Implement actual sending when ElevenLabs SDK supports contextual_update
+          
+          // Access the underlying WebSocket from the conversation instance
+          const websocket = (conversation as any).websocket;
+          
+          if (websocket && websocket.readyState === WebSocket.OPEN) {
+            const contextualUpdateMessage = {
+              type: 'contextual_update',
+              text: message.text
+            };
+            
+            console.log('🎯 Sending contextual_update via WebSocket:', contextualUpdateMessage);
+            websocket.send(JSON.stringify(contextualUpdateMessage));
+          } else {
+            console.warn('⚠️ ElevenLabs WebSocket not ready. Cannot send contextual_update.');
+          }
         }
       };
       
