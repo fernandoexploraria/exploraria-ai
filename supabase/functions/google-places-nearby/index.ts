@@ -38,22 +38,36 @@ const mapPriceLevel = (priceLevel: string | number | null | undefined): number |
   return 9999;
 };
 
-// Landmark types specifically for tour generation
-const LANDMARK_TYPES_FOR_TOUR_GENERATION = [
-  "tourist_attraction",
-  "museum",
-  "art_gallery",
-  "amusement_park",
-  "aquarium",
-  "zoo",
-  "church",
-  "hindu_temple",
-  "mosque",
-  "synagogue",
-  "park",
-  "city_hall",
-  "university",
-  "library"
+// 28 specific landmark types for intelligent tour generation
+const LANDMARK_TYPES = [
+  'tourist_attraction',
+  'museum',
+  'park',
+  'amusement_park',
+  'aquarium',
+  'art_gallery',
+  'zoo',
+  'church',
+  'hindu_temple',
+  'mosque',
+  'synagogue',
+  'cemetery',
+  'city_hall',
+  'courthouse',
+  'embassy',
+  'fire_station',
+  'police',
+  'post_office',
+  'school',
+  'university',
+  'library',
+  'hospital',
+  'pharmacy',
+  'bank',
+  'atm',
+  'gas_station',
+  'parking',
+  'subway_station'
 ];
 
 // Dynamic radius logic based on destination type - Updated with your specifications
@@ -125,7 +139,7 @@ serve(async (req) => {
       radius: searchRadius, 
       maxResults,
       destinationTypes,
-      landmarkTypes: LANDMARK_TYPES_FOR_TOUR_GENERATION.length 
+      landmarkTypes: LANDMARK_TYPES.length 
     })
     
     // Use new Places API v1 searchNearby endpoint
@@ -139,7 +153,7 @@ serve(async (req) => {
         'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.userRatingCount,places.priceLevel,places.types,places.formattedAddress,places.regularOpeningHours,places.photos,places.location,places.editorialSummary,places.websiteUri'
       },
       body: JSON.stringify({
-        includedTypes: LANDMARK_TYPES_FOR_TOUR_GENERATION,
+        includedTypes: LANDMARK_TYPES,
         maxResultCount: maxResults,
         locationRestriction: {
           circle: {

@@ -14,10 +14,9 @@ import { performComprehensiveTourReset } from '@/utils/tourResetUtils';
 
 interface IndexProps {
   onRegisterPostAuthActions?: (actions: { onSmartTour?: () => void }) => void;
-  onVoiceAgentStateChange?: (isActive: boolean) => void;
 }
 
-const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentStateChange }) => {
+const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
   const [showSplash, setShowSplash] = useState(true);
   const [smartTourLandmarks, setSmartTourLandmarks] = useState<Landmark[]>([]);
   const [voiceTourData, setVoiceTourData] = useState<{
@@ -213,7 +212,6 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
         onAuthDialogOpenChange={handleAuthDialogClose}
         isNewTourAssistantOpen={isNewTourAssistantOpen}
         onNewTourAssistantOpenChange={handleNewTourAssistantOpenChange}
-        onVoiceAgentStateChange={onVoiceAgentStateChange}
         isIntelligentTourOpen={isIntelligentTourOpen}
         onIntelligentTourOpenChange={setIsIntelligentTourOpen}
         onTourGenerated={handleTourGenerated}

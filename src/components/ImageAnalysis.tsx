@@ -11,7 +11,6 @@ import { useAuth } from '@/components/AuthProvider';
 import { useEnhancedPhotos, PhotoData } from '@/hooks/useEnhancedPhotos';
 import EnhancedProgressiveImage from './EnhancedProgressiveImage';
 import PhotoCarousel from './photo-carousel/PhotoCarousel';
-import { useTTSContext } from '@/contexts/TTSContext';
 
 interface ImageAnalysisProps {
   smartTourLandmarks: Landmark[];
@@ -35,10 +34,11 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ smartTourLandmarks }) => 
   const [capturedImagePhoto, setCapturedImagePhoto] = useState<PhotoData | null>(null);
   const [landmarkPhotos, setLandmarkPhotos] = useState<PhotoData[]>([]);
   const [isLoadingPhotos, setIsLoadingPhotos] = useState(false);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<[number, number] | null>(null);
+  const currentAudio = useRef<HTMLAudioElement | null>(null);
   const { user } = useAuth();
   const { fetchPhotos } = useEnhancedPhotos();
-  const { speak: speakTTS, stop: stopTTS, isPlaying: isTTSPlaying } = useTTSContext();
 
   // Don't render the button if there are no smart tour landmarks
   if (smartTourLandmarks.length === 0) {
@@ -151,14 +151,99 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ smartTourLandmarks }) => 
     }
   };
 
-  // Use centralized TTS function
+  // Function to stop current audio playback
+  const stopCurrentAudio = () => {
+    if (currentAudio.current) {
+      currentAudio.current.pause();
+      currentAudio.current.currentTime = 0;
+      currentAudio.current = null;
+    }
+    setIsPlayingAudio(false);
+  };
+
+  // Function to handle text-to-speech using Google Cloud TTS via edge function
   const handleTextToSpeech = async () => {
-    if (!analysisResult || isTTSPlaying) {
+    if (!analysisResult || isPlayingAudio) {
       return;
     }
 
-    const text = `${analysisResult.landmark_name}. ${analysisResult.description}${analysisResult.additional_info ? '. ' + analysisResult.additional_info : ''}`;
-    await speakTTS(text, false, 'image-analysis');
+    stopCurrentAudio();
+
+    try {
+      setIsPlayingAudio(true);
+      const text = `${analysisResult.landmark_name}. ${analysisResult.description}${analysisResult.additional_info ? '. ' + analysisResult.additional_info : ''}`;
+      
+      console.log('Calling Google Cloud TTS via edge function for image analysis:', text.substring(0, 50) + '...');
+      
+      const { data, error } = await supabase.functions.invoke('gemini-tts', {
+        body: { text }
+      });
+
+      if (error) {
+        console.error('Google Cloud TTS error:', error);
+        return;
+      }
+
+      if (data?.audioContent && !data.fallbackToBrowser) {
+        console.log('Playing audio from Google Cloud TTS for image analysis');
+        await playAudioFromBase64(data.audioContent);
+      } else {
+        console.log('No audio content received for image analysis');
+      }
+      
+    } catch (error) {
+      console.error('Error with Google Cloud TTS for image analysis:', error);
+    } finally {
+      setIsPlayingAudio(false);
+    }
+  };
+
+  // Function to play audio from base64
+  const playAudioFromBase64 = async (base64Audio: string) => {
+    return new Promise<void>((resolve, reject) => {
+      try {
+        console.log('Converting base64 to audio blob for image analysis');
+        
+        const binaryString = atob(base64Audio);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        const blob = new Blob([bytes], { type: 'audio/mp3' });
+        const audioUrl = URL.createObjectURL(blob);
+        const audio = new Audio(audioUrl);
+        
+        currentAudio.current = audio;
+        
+        audio.onended = () => {
+          console.log('Image analysis audio playback ended');
+          URL.revokeObjectURL(audioUrl);
+          currentAudio.current = null;
+          resolve();
+        };
+        
+        audio.onerror = (error) => {
+          console.error('Image analysis audio playback error:', error);
+          URL.revokeObjectURL(audioUrl);
+          currentAudio.current = null;
+          reject(error);
+        };
+        
+        audio.play().then(() => {
+          console.log('Image analysis audio playing successfully');
+        }).catch(error => {
+          console.error('Failed to play image analysis audio:', error);
+          URL.revokeObjectURL(audioUrl);
+          currentAudio.current = null;
+          reject(error);
+        });
+        
+      } catch (error) {
+        console.error('Error creating audio from base64 for image analysis:', error);
+        reject(error);
+      }
+    });
   };
 
   const handleCapture = async (imageData: string) => {
@@ -221,7 +306,7 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ smartTourLandmarks }) => 
   };
 
   const closeResult = () => {
-    stopTTS();
+    stopCurrentAudio();
     setIsResultOpen(false);
     setAnalysisResult(null);
     setCapturedImage(null);
@@ -281,7 +366,7 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ smartTourLandmarks }) => 
               {analysisResult && (
                 <button 
                   onClick={handleTextToSpeech}
-                  disabled={isTTSPlaying}
+                  disabled={isPlayingAudio}
                   style={{
                     position: 'absolute',
                     bottom: '10px',
@@ -299,10 +384,10 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ smartTourLandmarks }) => 
                     fontSize: '24px',
                     transition: 'all 0.3s ease',
                     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
-                    opacity: isTTSPlaying ? 0.7 : 1
+                    opacity: isPlayingAudio ? 0.7 : 1
                   }}
                   onMouseOver={(e) => {
-                    if (!isTTSPlaying) {
+                    if (!isPlayingAudio) {
                       e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.95)';
                       e.currentTarget.style.borderColor = 'white';
                       e.currentTarget.style.transform = 'scale(1.15)';
@@ -310,7 +395,7 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ smartTourLandmarks }) => 
                     }
                   }}
                   onMouseOut={(e) => {
-                    if (!isTTSPlaying) {
+                    if (!isPlayingAudio) {
                       e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
                       e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.9)';
                       e.currentTarget.style.transform = 'scale(1)';
