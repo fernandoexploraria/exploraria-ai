@@ -88,7 +88,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
         
         // Convert landmark to autocomplete result format
         const landmarkAsDestination: AutocompleteResult = {
-          place_id: pendingLandmark.placeId || `landmark-${pendingLandmark.id}`,
+          place_id: pendingLandmark.place_id || `landmark-${pendingLandmark.id}`,
           description: pendingLandmark.name,
           types: pendingLandmark.types || ['tourist_attraction'],
           structured_formatting: {
@@ -251,6 +251,29 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   const handleLandmarkTourGeneration = async (landmark: any, destinationInfo: AutocompleteResult) => {
     console.log('🚀 Starting landmark tour generation for:', landmark.name, 'coordinates:', landmark.coordinates);
     
+    // Validate authentication first
+    if (!user?.id) {
+      console.error('❌ User not authenticated for landmark tour generation');
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to generate tours.",
+        variant: "destructive",
+      });
+      onAuthRequired();
+      return;
+    }
+    
+    // Validate landmark data structure
+    if (!landmark.coordinates || !Array.isArray(landmark.coordinates) || landmark.coordinates.length !== 2) {
+      console.error('❌ Invalid landmark coordinates:', landmark.coordinates);
+      toast({
+        title: "Data Error",
+        description: "Invalid landmark location data. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     // Clear any existing tour markers before starting new tour
     console.log('🧹 Clearing existing tour markers before new generation');
     clearTourMarkers();
@@ -312,12 +335,26 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       
     } catch (error) {
       console.error('Landmark tour generation error:', error);
+      
+      // Enhanced error handling for landmark tours - don't revert to step 1
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.log('🚨 Landmark tour error details:', errorMessage);
+      
       toast({
-        title: "Generation Error",
-        description: "Failed to generate tour. Please try again.",
+        title: "Tour Generation Failed",
+        description: `Failed to generate tour for ${landmark.name}. ${errorMessage.includes('not authenticated') ? 'Please sign in and try again.' : 'Please try again.'}`,
         variant: "destructive",
       });
-      setCurrentStep(1);
+      
+      // Instead of reverting to step 1, reset to show the current landmark
+      // This preserves the landmark selection context
+      setCurrentStep(2);
+      setIsLoading(false);
+      
+      // If authentication error, trigger auth dialog
+      if (errorMessage.includes('not authenticated')) {
+        onAuthRequired();
+      }
     } finally {
       setIsLoading(false);
     }
