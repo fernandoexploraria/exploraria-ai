@@ -81,21 +81,60 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       // Clear existing tour markers immediately
       clearTourMarkers();
       
-      // Reset dialog state using utility
-      const newState = resetIntelligentTourDialogState();
-      setCurrentStep(newState.currentStep);
-      setSearchQuery(newState.searchQuery);
-      setAutocompleteResults(newState.autocompleteResults);
-      setSelectedDestination(newState.selectedDestination);
-      setDestinationDetails(newState.destinationDetails);
-      setNearbyLandmarks(newState.nearbyLandmarks);
-      setIsLoading(newState.isLoading);
-      setAutocompleteError(newState.autocompleteError);
-      setSessionToken(newState.sessionToken);
-      setIsAutocompleteLoading(false);
-      resetMarkerState();
+      // Check for pre-selected landmark destination
+      const pendingLandmark = (window as any).pendingLandmarkDestination;
+      if (pendingLandmark) {
+        console.log('🎯 Found pre-selected landmark, skipping destination selection:', pendingLandmark.name);
+        
+        // Convert landmark to autocomplete result format
+        const landmarkAsDestination: AutocompleteResult = {
+          place_id: pendingLandmark.placeId || `landmark-${pendingLandmark.id}`,
+          description: pendingLandmark.name,
+          types: pendingLandmark.types || ['tourist_attraction'],
+          structured_formatting: {
+            main_text: pendingLandmark.name,
+            secondary_text: pendingLandmark.formattedAddress || pendingLandmark.description || 'Top Landmark'
+          }
+        };
+        
+        // Set up state for pre-selected landmark and skip to tour generation
+        const newState = resetIntelligentTourDialogState();
+        setSearchQuery(landmarkAsDestination.description);
+        setSelectedDestination(landmarkAsDestination);
+        setSessionToken(newState.sessionToken);
+        setAutocompleteResults([]);
+        setNearbyLandmarks([]);
+        setDestinationDetails(null);
+        setIsLoading(false);
+        setAutocompleteError('');
+        setIsAutocompleteLoading(false);
+        resetMarkerState();
+        
+        // Clear the pending landmark and start tour generation immediately
+        delete (window as any).pendingLandmarkDestination;
+        
+        // Start tour generation for the pre-selected landmark
+        setTimeout(() => {
+          handleDestinationSelect(landmarkAsDestination);
+        }, 100);
+        
+      } else {
+        // Reset dialog state using utility (normal flow)
+        const newState = resetIntelligentTourDialogState();
+        setCurrentStep(newState.currentStep);
+        setSearchQuery(newState.searchQuery);
+        setAutocompleteResults(newState.autocompleteResults);
+        setSelectedDestination(newState.selectedDestination);
+        setDestinationDetails(newState.destinationDetails);
+        setNearbyLandmarks(newState.nearbyLandmarks);
+        setIsLoading(newState.isLoading);
+        setAutocompleteError(newState.autocompleteError);
+        setSessionToken(newState.sessionToken);
+        setIsAutocompleteLoading(false);
+        resetMarkerState();
+      }
       
-      console.log('🎯 Enhanced cleanup completed with fresh session token:', newState.sessionToken.substring(0, 8));
+      console.log('🎯 Enhanced cleanup completed');
     }
   }, [open, resetMarkerState]);
 
