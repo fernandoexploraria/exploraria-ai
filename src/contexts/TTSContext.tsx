@@ -22,15 +22,22 @@ export const useTTSContext = () => {
 
 interface TTSProviderProps {
   children: ReactNode;
+  isVoiceAgentActive?: boolean;
 }
 
-export const TTSProvider: React.FC<TTSProviderProps> = ({ children }) => {
+export const TTSProvider: React.FC<TTSProviderProps> = ({ children, isVoiceAgentActive = false }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentPlayingId, setCurrentPlayingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   const speak = async (text: string, isMemoryNarration: boolean = false, interactionId?: string) => {
+    // Don't play TTS if voice agent is active to avoid overlapping audio
+    if (isVoiceAgentActive) {
+      console.log('TTS blocked: Voice agent is active');
+      return;
+    }
+    
     if (isPlaying) {
       stop();
       return;
