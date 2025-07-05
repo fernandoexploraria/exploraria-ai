@@ -99,13 +99,13 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
         
         // Set up state for pre-selected landmark and skip to tour generation
         const newState = resetIntelligentTourDialogState();
-        setSearchQuery(landmarkAsDestination.description);
+        setCurrentStep(2); // Skip destination selection, go directly to landmark discovery
         setSelectedDestination(landmarkAsDestination);
         setSessionToken(newState.sessionToken);
         setAutocompleteResults([]);
         setNearbyLandmarks([]);
         setDestinationDetails(null);
-        setIsLoading(false);
+        setIsLoading(true); // Set loading state immediately
         setAutocompleteError('');
         setIsAutocompleteLoading(false);
         resetMarkerState();
@@ -113,10 +113,8 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
         // Clear the pending landmark and start tour generation immediately
         delete (window as any).pendingLandmarkDestination;
         
-        // Start tour generation for the pre-selected landmark
-        setTimeout(() => {
-          handleLandmarkTourGeneration(pendingLandmark, landmarkAsDestination);
-        }, 100);
+        // Start tour generation for the pre-selected landmark immediately
+        handleLandmarkTourGeneration(pendingLandmark, landmarkAsDestination);
         
       } else {
         // Reset dialog state using utility (normal flow)
