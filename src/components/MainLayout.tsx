@@ -106,7 +106,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   };
 
   // Simplified - let the dialog handle authentication internally
-  const handleIntelligentTourOpen = () => {
+  const handleIntelligentTourOpen = (landmarkDestination?: Landmark) => {
+    if (landmarkDestination) {
+      console.log('🎯 Opening intelligent tour with pre-selected landmark:', landmarkDestination.name);
+      // Store the landmark for the dialog to use
+      (window as any).pendingLandmarkDestination = landmarkDestination;
+    }
     onIntelligentTourOpenChange(true);
   };
 
@@ -226,6 +231,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         selectedLandmark={selectedLandmark}
         plannedLandmarks={memoizedPlannedLandmarks}
         onClearTransitRouteRef={(clearFn) => setClearTransitRoute(() => clearFn)}
+        onIntelligentTourOpen={handleIntelligentTourOpen}
       />
 
       {/* Debug Proximity Card - positioned above regular cards */}

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { Volume2, Eye, MapPin, Route } from 'lucide-react';
+import { Volume2, Eye, MapPin, Route, Navigation } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTTSContext } from '@/contexts/TTSContext';
 import { Landmark } from '@/data/landmarks';
@@ -34,6 +34,7 @@ interface MapProps {
   selectedLandmark: Landmark | null;
   plannedLandmarks: Landmark[];
   onClearTransitRouteRef?: (clearFn: () => void) => void;
+  onIntelligentTourOpen?: (landmarkDestination?: Landmark) => void;
 }
 
 const TOUR_LANDMARKS_SOURCE_ID = 'tour-landmarks-source';
@@ -53,7 +54,8 @@ const MapComponent: React.FC<MapProps> = React.memo(({
   onSelectLandmark, 
   selectedLandmark, 
   plannedLandmarks,
-  onClearTransitRouteRef
+  onClearTransitRouteRef,
+  onIntelligentTourOpen
 }) => {
   // 🔥 ADD COMPONENT RENDER DEBUGGING
   const renderCountRef = useRef(0);
@@ -76,6 +78,16 @@ const MapComponent: React.FC<MapProps> = React.memo(({
   const currentAudio = useRef<HTMLAudioElement | null>(null);
   const navigationMarkers = useRef<{ marker: mapboxgl.Marker; interaction: any }[]>([]);
   const currentRouteLayer = useRef<string | null>(null);
+  
+  // Helper function to check if landmark is from TOP_LANDMARKS
+  const isTopLandmark = (landmark: Landmark): boolean => {
+    return TOP_LANDMARKS.some(topLandmark => 
+      topLandmark.name === landmark.name || 
+      (landmark.coordinates && 
+        Math.abs(topLandmark.coordinates[0] - landmark.coordinates[0]) < 0.001 &&
+        Math.abs(topLandmark.coordinates[1] - landmark.coordinates[1]) < 0.001)
+    );
+  };
   
   const [tourLandmarks, setTourLandmarks] = useState<TourLandmark[]>([]);
   const [showTravelModeSelector, setShowTravelModeSelector] = useState(false);
@@ -1166,6 +1178,19 @@ const MapComponent: React.FC<MapProps> = React.memo(({
                 </button>
               )}
               
+              {isTopLandmark(landmark) && onIntelligentTourOpen && (
+                <button
+                  onClick={() => {
+                    console.log('🎯 Starting intelligent tour for top landmark:', landmark.name);
+                    onIntelligentTourOpen(landmark);
+                  }}
+                  className="bg-purple-600/95 hover:bg-purple-700 text-white border-2 border-white/90 rounded-full w-12 h-12 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg"
+                  title="Generate Intelligent Tour"
+                >
+                  <Navigation className="w-5 h-5" />
+                </button>
+              )}
+              
               <button
                 onClick={() => handleTextToSpeech(landmark)}
                 disabled={playingAudio[landmark.id] || false}
@@ -1237,6 +1262,19 @@ const MapComponent: React.FC<MapProps> = React.memo(({
                       title="View Street View"
                     >
                       <Eye className="w-4 h-4" />
+                    </button>
+                  )}
+                  
+                  {isTopLandmark(landmark) && onIntelligentTourOpen && (
+                    <button
+                      onClick={() => {
+                        console.log('🎯 Starting intelligent tour for top landmark:', landmark.name);
+                        onIntelligentTourOpen(landmark);
+                      }}
+                      className="bg-purple-600/95 hover:bg-purple-700 text-white border-2 border-white/90 rounded-full w-10 h-10 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg"
+                      title="Generate Intelligent Tour"
+                    >
+                      <Navigation className="w-4 h-4" />
                     </button>
                   )}
                   
