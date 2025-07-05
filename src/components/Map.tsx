@@ -55,6 +55,16 @@ const MapComponent: React.FC<MapProps> = ({
   plannedLandmarks,
   onClearTransitRouteRef
 }) => {
+  // 🔥 ADD COMPONENT RENDER DEBUGGING
+  const renderCountRef = useRef(0);
+  renderCountRef.current += 1;
+  
+  console.log('🗺️ [Map] Component render #', renderCountRef.current, {
+    tokenPresent: !!mapboxToken,
+    landmarksCount: landmarks.length,
+    plannedLandmarksCount: plannedLandmarks.length,
+    selectedLandmark: selectedLandmark?.name || 'none'
+  });
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const imageCache = useRef<{ [key: string]: string }>({});
@@ -336,7 +346,9 @@ const MapComponent: React.FC<MapProps> = ({
   };
 
   useEffect(() => {
-    console.log('🗺️ [Map] useEffect triggered with token:', mapboxToken ? 'TOKEN_PRESENT' : 'TOKEN_EMPTY');
+    console.log('🗺️ [Map] MAP INITIALIZATION useEffect triggered with token:', mapboxToken ? 'TOKEN_PRESENT' : 'TOKEN_EMPTY');
+    console.log('🗺️ [Map] Current map state:', map.current ? 'EXISTS' : 'NULL');
+    console.log('🗺️ [Map] Container state:', mapContainer.current ? 'EXISTS' : 'NULL');
     
     if (!mapboxToken) {
       console.log('🗺️ [Map] No mapbox token, skipping map initialization');
@@ -349,7 +361,16 @@ const MapComponent: React.FC<MapProps> = ({
     }
     
     if (map.current) {
-      console.log('🗺️ [Map] Map already exists, skipping initialization');
+      console.log('🗺️ [Map] Map already exists, checking if it needs reset...');
+      const currentZoom = map.current.getZoom();
+      const currentCenter = map.current.getCenter();
+      console.log('🗺️ [Map] Current map state - zoom:', currentZoom, 'center:', [currentCenter.lng, currentCenter.lat]);
+      
+      // Check if map was reset to initial globe view
+      if (currentZoom < 3 && Math.abs(currentCenter.lng) < 5 && Math.abs(currentCenter.lat - 20) < 5) {
+        console.warn('🚨 [Map] DETECTED MAP IS IN GLOBE VIEW - this suggests an unexpected reset occurred');
+      }
+      
       return;
     }
 
