@@ -37,8 +37,11 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isSessionActive, setIsSessionActive] = useState(false);
 
-  // 🔥 NEW: Fetch tour details from database
-  const { tourDetails, isLoading: isFetchingTourDetails, error: tourDetailsError } = useTourDetails(landmarks);
+  // 🔥 TEMPORARILY DISABLED: Remove tour details hook to prevent re-renders
+  // const { tourDetails, isLoading: isFetchingTourDetails, error: tourDetailsError } = useTourDetails(landmarks);
+  const tourDetails = null;
+  const isFetchingTourDetails = false;
+  const tourDetailsError = null;
 
   // Initialize the conversation with enhanced error handling
   const conversation = useConversation({
@@ -148,13 +151,17 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     }
   }, [conversation]);
 
-  const { isPolling, lastUpdate, error: poiError } = useContextualPOIPolling({
-    enabled: isSessionActive && conversation?.status === 'connected',
-    pollInterval: 15000, // 15 seconds
-    radius: 150, // 150 meters  
-    maxResults: 3,
-    onUpdate: handleContextualUpdate
-  });
+  // 🔥 TEMPORARILY DISABLED: Remove contextual POI polling to prevent re-renders
+  // const { isPolling, lastUpdate, error: poiError } = useContextualPOIPolling({
+  //   enabled: isSessionActive && conversation?.status === 'connected',
+  //   pollInterval: 15000, // 15 seconds
+  //   radius: 150, // 150 meters  
+  //   maxResults: 3,
+  //   onUpdate: handleContextualUpdate
+  // });
+  const isPolling = false;
+  const lastUpdate = null;
+  const poiError = null;
 
   // Notify parent of session state changes
   useEffect(() => {

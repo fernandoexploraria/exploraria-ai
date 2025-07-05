@@ -75,14 +75,18 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   // Instance tracking for debugging
   const instanceIdRef = useRef(`layout-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
   
+  // 🔥 ADD VOICE AGENT STATE DEBUGGING
+  const [voiceAgentDebugState, setVoiceAgentDebugState] = useState<string>('inactive');
+  
   useEffect(() => {
     console.log(`🏗️ MainLayout instance ${instanceIdRef.current} mounted`);
     console.log(`🎯 Proximity notifications active instance: ${isActiveInstance}`);
+    console.log(`🎙️ Voice agent state: ${voiceAgentDebugState}`);
     
     return () => {
       console.log(`🏗️ MainLayout instance ${instanceIdRef.current} unmounted`);
     };
-  }, [isActiveInstance]);
+  }, [isActiveInstance, voiceAgentDebugState]);
   
   // Debug state for test proximity card
   const [debugProximityCard, setDebugProximityCard] = useState<Landmark | null>(null);
@@ -155,9 +159,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   // Handle session state change from NewTourAssistant
   const handleSessionStateChange = (isActive: boolean, state: AssistantState) => {
     console.log('🎙️ Voice agent session state changed:', { isActive, state });
+    console.log('🗺️ [DEBUG] Voice agent state change - checking if this affects map');
+    
+    // 🔥 UPDATE DEBUG STATE
+    setVoiceAgentDebugState(`${isActive ? 'active' : 'inactive'}-${state}`);
+    
     setIsSessionActive(isActive);
     setAssistantState(state);
     onVoiceAgentStateChange?.(isActive);
+    
+    console.log('🗺️ [DEBUG] Voice agent state change completed - map should NOT reset');
   };
 
   // Handle FAB click - reopen the tour assistant dialog

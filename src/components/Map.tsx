@@ -345,6 +345,9 @@ const MapComponent: React.FC<MapProps> = React.memo(({
     setPlayingAudio({});
   };
 
+  // 🔥 PREVENT MAP RESETS - Store map state persistently
+  const mapStateRef = useRef<{ zoom: number; center: [number, number] } | null>(null);
+  
   useEffect(() => {
     console.log('🗺️ [Map] MAP INITIALIZATION useEffect triggered with token:', mapboxToken ? 'TOKEN_PRESENT' : 'TOKEN_EMPTY');
     console.log('🗺️ [Map] Current map state:', map.current ? 'EXISTS' : 'NULL');
@@ -361,14 +364,28 @@ const MapComponent: React.FC<MapProps> = React.memo(({
     }
     
     if (map.current) {
-      console.log('🗺️ [Map] Map already exists, checking if it needs reset...');
+      console.log('🗺️ [Map] ✅ Map already exists, preserving current state');
       const currentZoom = map.current.getZoom();
       const currentCenter = map.current.getCenter();
       console.log('🗺️ [Map] Current map state - zoom:', currentZoom, 'center:', [currentCenter.lng, currentCenter.lat]);
       
-      // Check if map was reset to initial globe view
+      // Store current state for preservation
+      mapStateRef.current = {
+        zoom: currentZoom,
+        center: [currentCenter.lng, currentCenter.lat]
+      };
+      
+      // Check if map was unexpectedly reset to initial globe view
       if (currentZoom < 3 && Math.abs(currentCenter.lng) < 5 && Math.abs(currentCenter.lat - 20) < 5) {
-        console.warn('🚨 [Map] DETECTED MAP IS IN GLOBE VIEW - this suggests an unexpected reset occurred');
+        console.error('🚨 [Map] UNEXPECTED RESET DETECTED - Map is in globe view when it should preserve previous state');
+        // If we have stored state, restore it
+        if (mapStateRef.current && mapStateRef.current.zoom > 5) {
+          console.log('🔄 [Map] Restoring previous map state:', mapStateRef.current);
+          map.current.jumpTo({
+            center: mapStateRef.current.center,
+            zoom: mapStateRef.current.zoom
+          });
+        }
       }
       
       return;
@@ -378,15 +395,34 @@ const MapComponent: React.FC<MapProps> = React.memo(({
     
     try {
       mapboxgl.accessToken = mapboxToken;
+      // 🔥 RESTORE PREVIOUS STATE OR USE DEFAULT
+      const initialZoom = mapStateRef.current?.zoom || 1.5;
+      const initialCenter = mapStateRef.current?.center || [0, 20];
+      
+      console.log('🗺️ [Map] Creating map with state:', { zoom: initialZoom, center: initialCenter });
+      
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
         style: 'mapbox://styles/mapbox/dark-v11',
         projection: { name: 'globe' },
-        zoom: 1.5,
-        center: [0, 20],
+        zoom: initialZoom,
+        center: initialCenter,
       });
 
       console.log('🗺️ [Map] Map instance created successfully');
+      
+      // 🔥 ADD MAP STATE TRACKING
+      map.current.on('moveend', () => {
+        if (map.current) {
+          const currentZoom = map.current.getZoom();
+          const currentCenter = map.current.getCenter();
+          mapStateRef.current = {
+            zoom: currentZoom,
+            center: [currentCenter.lng, currentCenter.lat]
+          };
+          console.log('🗺️ [Map] State updated:', mapStateRef.current);
+        }
+      });
 
       if (user) {
         console.log('🗺️ [Map] Adding GeolocateControl for authenticated user');
