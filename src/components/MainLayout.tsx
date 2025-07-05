@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Map from '@/components/Map';
 import TopControls from '@/components/TopControls';
@@ -298,7 +297,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       <NewTourAssistant
         open={isNewTourAssistantOpen}
         onOpenChange={onNewTourAssistantOpenChange}
-        destination="" // 🔥 SIMPLIFIED: NewTourAssistant will fetch from database
+        destination={voiceTourData?.destination || ''}
         landmarks={voiceTourData?.landmarks || smartTourLandmarks}
         systemPrompt="" // 🔥 SIMPLIFIED: NewTourAssistant will fetch from database
         onSessionStateChange={handleSessionStateChange}

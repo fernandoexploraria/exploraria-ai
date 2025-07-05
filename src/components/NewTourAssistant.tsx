@@ -37,11 +37,8 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isSessionActive, setIsSessionActive] = useState(false);
 
-  // 🔥 TEMPORARILY DISABLED: Remove tour details hook to prevent re-renders
-  // const { tourDetails, isLoading: isFetchingTourDetails, error: tourDetailsError } = useTourDetails(landmarks);
-  const tourDetails = null;
-  const isFetchingTourDetails = false;
-  const tourDetailsError = null;
+  // 🔥 RE-ENABLED: Tour details hook for database fetching
+  const { tourDetails, isLoading: isFetchingTourDetails, error: tourDetailsError } = useTourDetails(landmarks);
 
   // Initialize the conversation with enhanced error handling
   const conversation = useConversation({
@@ -219,7 +216,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     }
   }, [open, isSessionActive]);
 
-  // 🔥 NEW: Get effective destination and system prompt from database or fallback
+  // 🔥 ENHANCED: Get effective destination and system prompt with proper priority
   const getEffectiveDestination = () => {
     // Priority: 1. Database tour details, 2. Prop destination, 3. Generated fallback
     if (tourDetails?.destination) {
