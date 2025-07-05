@@ -151,17 +151,26 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     }
   }, [conversation]);
 
-  // 🔥 TEMPORARILY DISABLED: Remove contextual POI polling to prevent re-renders
-  // const { isPolling, lastUpdate, error: poiError } = useContextualPOIPolling({
-  //   enabled: isSessionActive && conversation?.status === 'connected',
-  //   pollInterval: 15000, // 15 seconds
-  //   radius: 150, // 150 meters  
-  //   maxResults: 3,
-  //   onUpdate: handleContextualUpdate
-  // });
-  const isPolling = false;
-  const lastUpdate = null;
-  const poiError = null;
+  // 🎯 RE-ENABLED: Contextual POI polling for location-aware conversations
+  const { isPolling, lastUpdate, error: poiError } = useContextualPOIPolling({
+    enabled: isSessionActive && conversation?.status === 'connected',
+    pollInterval: 15000, // 15 seconds
+    radius: 150, // 150 meters  
+    maxResults: 3,
+    onUpdate: handleContextualUpdate
+  });
+
+  // Debug contextual POI polling
+  useEffect(() => {
+    console.log('🔍 Contextual POI polling state:', {
+      isSessionActive,
+      conversationStatus: conversation?.status,
+      isPolling,
+      lastUpdateTimestamp: lastUpdate?.timestamp,
+      poiCount: lastUpdate?.pois?.length || 0,
+      error: poiError
+    });
+  }, [isSessionActive, conversation?.status, isPolling, lastUpdate, poiError]);
 
   // Notify parent of session state changes
   useEffect(() => {
