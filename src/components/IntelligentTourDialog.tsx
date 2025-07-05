@@ -115,7 +115,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
         
         // Start tour generation for the pre-selected landmark
         setTimeout(() => {
-          handleDestinationSelect(landmarkAsDestination);
+          handleLandmarkTourGeneration(pendingLandmark, landmarkAsDestination);
         }, 100);
         
       } else {
@@ -245,6 +245,81 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       });
     } finally {
       setIsAutocompleteLoading(false);
+    }
+  };
+
+  const handleLandmarkTourGeneration = async (landmark: any, destinationInfo: AutocompleteResult) => {
+    console.log('🚀 Starting landmark tour generation for:', landmark.name, 'coordinates:', landmark.coordinates);
+    
+    // Clear any existing tour markers before starting new tour
+    console.log('🧹 Clearing existing tour markers before new generation');
+    clearTourMarkers();
+    
+    // Clear any existing optimal route when generating a new tour
+    if ((window as any).clearOptimalRoute) {
+      console.log('🧹 Clearing existing optimal route before new tour generation');
+      (window as any).clearOptimalRoute();
+    }
+    
+    // Wait a moment for cleanup to complete
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    setSelectedDestination(destinationInfo);
+    setCurrentStep(2);
+    setIsLoading(true);
+
+    try {
+      // Create destination details from landmark data (skip Places Details API)
+      const destinationDetails = {
+        name: landmark.name,
+        address: landmark.formattedAddress || landmark.description || 'Top Landmark',
+        rating: landmark.rating || null,
+        userRatingsTotal: landmark.userRatingsTotal || null,
+        editorialSummary: landmark.description || `Explore ${landmark.name} and discover nearby attractions`,
+        location: {
+          latitude: landmark.coordinates[1],
+          longitude: landmark.coordinates[0]
+        },
+        types: landmark.types || ['tourist_attraction']
+      };
+      
+      console.log('Using landmark details as destination:', destinationDetails);
+      setDestinationDetails(destinationDetails);
+
+      // Search nearby landmarks using fixed parameters for tourist_attraction
+      const coordinates = [landmark.coordinates[0], landmark.coordinates[1]]; // [lng, lat]
+
+      console.log('Searching for nearby landmarks at coordinates:', coordinates);
+
+      const { data: nearbyData, error: nearbyError } = await supabase.functions.invoke('google-places-nearby', {
+        body: { 
+          coordinates,
+          destinationTypes: ['tourist_attraction'] // This triggers 1000m radius + 10 results
+        }
+      });
+
+      if (nearbyError) {
+        console.error('Nearby places error:', nearbyError);
+        throw nearbyError;
+      }
+
+      console.log('Found nearby landmarks:', nearbyData.places?.length || 0);
+      setNearbyLandmarks(nearbyData.places || []);
+      setCurrentStep(3);
+
+      // Generate tour in database using the landmark destination details
+      await generateTourInDatabase(destinationDetails, nearbyData.places || [], destinationInfo);
+      
+    } catch (error) {
+      console.error('Landmark tour generation error:', error);
+      toast({
+        title: "Generation Error",
+        description: "Failed to generate tour. Please try again.",
+        variant: "destructive",
+      });
+      setCurrentStep(1);
+    } finally {
+      setIsLoading(false);
     }
   };
 
