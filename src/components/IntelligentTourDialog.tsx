@@ -285,6 +285,11 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
     // Wait a moment for cleanup to complete
     await new Promise(resolve => setTimeout(resolve, 200));
     
+    // Add the missing state initialization lines
+    setSelectedDestination(destinationInfo);
+    setCurrentStep(2);
+    setIsLoading(true);
+
     try {
       // Create destination details from landmark data (no API call needed)
       const destinationDetails = {
