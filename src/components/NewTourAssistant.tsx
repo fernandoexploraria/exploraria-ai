@@ -47,19 +47,19 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       setAssistantState('started');
       setIsSessionActive(true);
       setConnectionError(null);
-      toast({
-        title: "Connected",
-        description: "Tour guide is ready! Start speaking now.",
-      });
+      // toast({
+      //   title: "Connected",
+      //   description: "Tour guide is ready! Start speaking now.",
+      // });
     },
     onDisconnect: () => {
       console.log('Disconnected from ElevenLabs agent');
       setAssistantState('not-started');
       setIsSessionActive(false);
-      toast({
-        title: "Conversation Ended",
-        description: "Your tour conversation has been saved.",
-      });
+      // toast({
+      //   title: "Conversation Ended",
+      //   description: "Your tour conversation has been saved.",
+      // });
     },
     onMessage: (message) => {
       console.log('Received message:', message.source, message.message);
