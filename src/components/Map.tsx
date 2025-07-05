@@ -462,6 +462,35 @@ const MapComponent: React.FC<MapProps> = ({
         
         if (!map.current) return;
         
+        // 🔥 ADD ZOOM CHANGE DEBUGGING to track map resets
+        let lastZoom = map.current.getZoom();
+        let lastCenter = map.current.getCenter();
+        
+        map.current.on('zoomend', () => {
+          if (!map.current) return;
+          const currentZoom = map.current.getZoom();
+          const currentCenter = map.current.getCenter();
+          
+          // Detect dramatic zoom changes that indicate a reset to globe view
+          if (Math.abs(currentZoom - lastZoom) > 10) {
+            console.warn('🚨 [Map] DRAMATIC ZOOM CHANGE DETECTED:', {
+              from: lastZoom,
+              to: currentZoom,
+              centerFrom: [lastCenter.lng, lastCenter.lat],
+              centerTo: [currentCenter.lng, currentCenter.lat],
+              stackTrace: new Error().stack
+            });
+            
+            // Check if this looks like a reset to globe view
+            if (currentZoom < 3 && lastZoom > 10) {
+              console.error('🌍 [Map] MAP RESET TO GLOBE VIEW DETECTED!');
+            }
+          }
+          
+          lastZoom = currentZoom;
+          lastCenter = currentCenter;
+        });
+        
         map.current.addSource(TOUR_LANDMARKS_SOURCE_ID, {
           type: 'geojson',
           data: { type: 'FeatureCollection', features: [] }
@@ -1521,6 +1550,7 @@ const MapComponent: React.FC<MapProps> = ({
       
       let targetLandmark: Landmark | null = null;
       
+      // Access landmarks directly from props since they're dynamic
       targetLandmark = landmarks.find(l => l.id === landmarkId) || null;
       
       if (!targetLandmark) {
@@ -1573,7 +1603,7 @@ const MapComponent: React.FC<MapProps> = ({
       delete (window as any).handleStreetViewOpen;
       delete (window as any).clearOptimalRoute;
     };
-  }, [showRouteOnMap, navigateToCoordinates, openStreetViewModal, landmarks]);
+  }, [showRouteOnMap, navigateToCoordinates, openStreetViewModal]); // 🔥 REMOVED landmarks dependency
 
   useEffect(() => {
     if (!map.current) return;
