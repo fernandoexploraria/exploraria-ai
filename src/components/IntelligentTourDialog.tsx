@@ -247,7 +247,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   };
 
   const handleLandmarkTourGeneration = async (landmark: any, destinationInfo: AutocompleteResult) => {
-    console.log('🚀 Starting landmark tour generation for:', landmark.name, 'coordinates:', landmark.coordinates);
+    console.log('🚀 Starting simplified landmark tour generation for:', landmark.name);
     
     // Validate authentication first
     if (!user?.id) {
@@ -285,12 +285,8 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
     // Wait a moment for cleanup to complete
     await new Promise(resolve => setTimeout(resolve, 200));
     
-    setSelectedDestination(destinationInfo);
-    setCurrentStep(2);
-    setIsLoading(true);
-
     try {
-      // Create destination details from landmark data (skip Places Details API)
+      // Create destination details from landmark data (no API call needed)
       const destinationDetails = {
         name: landmark.name,
         address: landmark.formattedAddress || landmark.description || 'Top Landmark',
@@ -307,7 +303,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       console.log('Using landmark details as destination:', destinationDetails);
       setDestinationDetails(destinationDetails);
 
-      // Search nearby landmarks using fixed parameters for tourist_attraction
+      // Now call the nearby search with tourist_attraction type (same as handleDestinationSelect step 2)
       const coordinates = [landmark.coordinates[0], landmark.coordinates[1]]; // [lng, lat]
 
       console.log('Searching for nearby landmarks at coordinates:', coordinates);
@@ -334,7 +330,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
     } catch (error) {
       console.error('Landmark tour generation error:', error);
       
-      // Enhanced error handling for landmark tours - don't revert to step 1
+      // Enhanced error handling for landmark tours
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       console.log('🚨 Landmark tour error details:', errorMessage);
       
@@ -344,8 +340,6 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
         variant: "destructive",
       });
       
-      // Instead of reverting to step 1, reset to show the current landmark
-      // This preserves the landmark selection context
       setCurrentStep(2);
       setIsLoading(false);
       
@@ -451,7 +445,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       const alexisPrompt = `You are Alexis, an **enthusiastic and incredibly knowledgeable expert tour guide**. Your current focus is leading a delightful walking tour of **${destination.name}** and its immediate surroundings.
 
 **Your Core Mission:**
-1. **Engage and Inform:** Provide captivating facts, rich historical context, local anecdotes, and practical tips.
+1. **Engage and Inform:** Provide captivating facts, rich historical context, local anecdotes, practical tips.
 2. **Personalize:** Adapt to the user's interests and questions, making the experience unique.
 3. **Prioritize Experience:** Ensure visitor safety, comfort, and maximum enjoyment.
 4. **Maintain Tone:** Be enthusiastic, professional, friendly, and always helpful.
