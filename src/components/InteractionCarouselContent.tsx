@@ -151,7 +151,7 @@ const InteractionCarouselContent: React.FC<InteractionCarouselContentProps> = ({
   const currentInteraction = currentInteractions[currentSlide];
 
   return (
-    <div className="flex-1 flex flex-col items-center p-2">
+    <div className="flex-1 flex flex-col items-center justify-center p-2">
       <div className="w-full max-w-6xl flex flex-col items-center">
         <Carousel 
           className="w-full"

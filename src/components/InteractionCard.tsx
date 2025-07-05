@@ -50,7 +50,7 @@ const InteractionCard: React.FC<InteractionCardProps> = ({
   };
 
   return (
-    <Card className="max-h-96 flex flex-col bg-gray-800 text-white shadow-lg hover:shadow-xl transition-shadow duration-200 border-gray-700">
+    <Card className="h-full flex flex-col bg-gray-800 text-white shadow-lg hover:shadow-xl transition-shadow duration-200 border-gray-700">
       <div className="p-3 pb-2">
         <InteractionCardHeader
           interaction={interaction}

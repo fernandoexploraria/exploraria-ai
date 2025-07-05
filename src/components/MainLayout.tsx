@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Map from '@/components/Map';
 import TopControls from '@/components/TopControls';
 import UserControls from '@/components/UserControls';
@@ -40,7 +40,6 @@ interface MainLayoutProps {
   onTourGenerated?: (landmarks: any[], clearTransitRoute?: () => void) => void;
   onTourReadyForVoice?: (tourData: { destination: string; systemPrompt: string; landmarks: any[] }) => void;
   voiceTourData?: { destination: string; systemPrompt: string; landmarks: any[] } | null;
-  onVoiceAgentStateChange?: (isActive: boolean) => void;
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({
@@ -66,7 +65,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   onTourGenerated,
   onTourReadyForVoice,
   voiceTourData,
-  onVoiceAgentStateChange,
 }) => {
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
   const { userLocation } = useLocationTracking();
@@ -93,9 +91,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   
   // State to track clearTransitRoute function from Map
   const [clearTransitRoute, setClearTransitRoute] = useState<(() => void) | null>(null);
-  
-  // Memoize plannedLandmarks to prevent unnecessary Map re-renders
-  const memoizedPlannedLandmarks = useMemo(() => [...smartTourLandmarks], [smartTourLandmarks]);
 
   const handleLocationSelect = () => {
     console.log('Location select called but no action taken');
@@ -154,10 +149,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
   // Handle session state change from NewTourAssistant
   const handleSessionStateChange = (isActive: boolean, state: AssistantState) => {
-    console.log('🎙️ Voice agent session state changed:', { isActive, state });
+    console.log('Session state changed:', { isActive, state });
     setIsSessionActive(isActive);
     setAssistantState(state);
-    onVoiceAgentStateChange?.(isActive);
   };
 
   // Handle FAB click - reopen the tour assistant dialog
@@ -213,7 +207,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         landmarks={allLandmarks}
         onSelectLandmark={onSelectLandmark}
         selectedLandmark={selectedLandmark}
-        plannedLandmarks={memoizedPlannedLandmarks}
+        plannedLandmarks={[...smartTourLandmarks]}
         onClearTransitRouteRef={(clearFn) => setClearTransitRoute(() => clearFn)}
       />
 

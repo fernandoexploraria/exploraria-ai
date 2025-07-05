@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { CleanDialog, CleanDialogContent, CleanDialogHeader, CleanDialogTitle } from '@/components/ui/clean-dialog';
 import { Loader2 } from 'lucide-react';
@@ -8,7 +8,6 @@ import { useConversation } from '@11labs/react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthProvider';
 import { useTourDetails } from '@/hooks/useTourDetails';
-import { useContextualPOIPolling } from '@/hooks/useContextualPOIPolling';
 
 interface NewTourAssistantProps {
   open: boolean;
@@ -39,122 +38,6 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
 
   // 🔥 NEW: Fetch tour details from database
   const { tourDetails, isLoading: isFetchingTourDetails, error: tourDetailsError } = useTourDetails(landmarks);
-
-  // Initialize the conversation with enhanced error handling
-  const conversation = useConversation({
-    onConnect: () => {
-      console.log('Successfully connected to ElevenLabs agent');
-      setAssistantState('started');
-      setIsSessionActive(true);
-      setConnectionError(null);
-      // toast({
-      //   title: "Connected",
-      //   description: "Tour guide is ready! Start speaking now.",
-      // });
-    },
-    onDisconnect: () => {
-      console.log('Disconnected from ElevenLabs agent');
-      setAssistantState('not-started');
-      setIsSessionActive(false);
-      // toast({
-      //   title: "Conversation Ended",
-      //   description: "Your tour conversation has been saved.",
-      // });
-    },
-    onMessage: (message) => {
-      console.log('Received message:', message.source, message.message);
-      if (message.source === 'ai') {
-        setAssistantState('playback');
-      } else if (message.source === 'user') {
-        setAssistantState('recording');
-      }
-    },
-    onError: (error) => {
-      console.error('ElevenLabs conversation error:', error);
-      setConnectionError(`Connection error: ${error}`);
-      toast({
-        title: "Connection Error",
-        description: "There was an issue with the tour guide connection.",
-        variant: "destructive"
-      });
-      setAssistantState('not-started');
-      setIsSessionActive(false);
-    }
-  });
-
-  // 🎯 NEW: Contextual POI polling system with direct ElevenLabs WebSocket access
-  const handleContextualUpdate = useCallback((update: any) => {
-    if (!conversation || conversation.status !== 'connected') {
-      console.log('⚠️ Skipping contextual update - conversation not connected');
-      return;
-    }
-
-    // Get the most relevant POI (first one, as backend prioritizes by distance/relevance)
-    const nearestPOI = update.pois[0];
-    if (!nearestPOI) {
-      console.log('⚠️ No POIs in contextual update, skipping');
-      return;
-    }
-
-    // Enhanced POI fact generation for better context
-    const primaryType = nearestPOI.types?.[0] || 'place';
-    let poiFact = '';
-    
-    if (nearestPOI.rating && nearestPOI.userRatingsTotal) {
-      poiFact = `Highly rated at ${nearestPOI.rating}/5 stars by ${nearestPOI.userRatingsTotal} visitors`;
-    } else if (nearestPOI.rating) {
-      poiFact = `Rated ${nearestPOI.rating}/5 stars by visitors`;
-    } else if (nearestPOI.editorialSummary) {
-      poiFact = nearestPOI.editorialSummary.length > 100 
-        ? nearestPOI.editorialSummary.substring(0, 100) + '...'
-        : nearestPOI.editorialSummary;
-    } else {
-      poiFact = `A notable ${primaryType} in the area worth exploring`;
-    }
-    
-    // Format as structured JSON SYSTEM_ALERT per Gemini's improved specification
-    const systemAlertMessage = `SYSTEM_ALERT: {"poi_name": "${nearestPOI.name}", "poi_type": "${primaryType}", "poi_fact": "${poiFact}", "poi_id": "${nearestPOI.place_id || nearestPOI.placeId || 'unknown'}"}`;
-
-    console.log('📡 Sending SYSTEM_ALERT to ElevenLabs agent:', {
-      poiName: nearestPOI.name,
-      primaryType,
-      distance: nearestPOI.distance,
-      reason: update.updateReason
-    });
-
-    // Send contextual update using direct WebSocket access as suggested
-    try {
-      // Type cast to access websocket property (may not be exposed in types)
-      const conversationWithWS = conversation as any;
-      
-      // Check if WebSocket is available and open
-      if (conversationWithWS.websocket && conversationWithWS.websocket.readyState === WebSocket.OPEN) {
-        const contextualUpdateMessage = {
-          type: 'contextual_update',
-          text: systemAlertMessage
-        };
-
-        console.log('📡 Sending contextual_update via WebSocket:', contextualUpdateMessage);
-        conversationWithWS.websocket.send(JSON.stringify(contextualUpdateMessage));
-      } else {
-        console.warn('⚠️ ElevenLabs conversation WebSocket not active. Cannot send contextual_update.');
-        // Fallback: try SDK method if available
-        if ((conversation as any).sendContextualUpdate) {
-          (conversation as any).sendContextualUpdate(systemAlertMessage);
-        }
-      }
-    } catch (error) {
-      console.error('❌ Failed to send contextual update:', error);
-    }
-  }, [conversation]);
-
-  const { isPolling, lastUpdate, error: poiError } = useContextualPOIPolling({
-    enabled: isSessionActive && conversation?.status === 'connected',
-    pollInterval: 15000, // 15 seconds
-    radius: 150, // 150 meters  
-    maxResults: 3,
-    onUpdate: handleContextualUpdate
-  });
 
   // Notify parent of session state changes
   useEffect(() => {
@@ -239,20 +122,8 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     }
     
     const effectiveDestination = getEffectiveDestination();
-    const basePrompt = `You are a knowledgeable tour guide for ${effectiveDestination}. Provide engaging information about the following landmarks: ${landmarks.map(l => l.name).join(', ')}.`;
-    
-    // 🎯 NEW: Add contextual update snippet
-    const contextualUpdateSnippet = `
-
-CONTEXTUAL UPDATES: You will receive real-time updates about nearby points of interest as the user moves around. When you receive these updates, acknowledge them naturally and offer relevant information about nearby places when appropriate. The updates will include:
-- nearby_pois: Array of places near the user's current location
-- user_location: Current GPS coordinates
-- update_reason: Why the update was triggered (location_change, scheduled_poll, manual_refresh)
-
-Use this contextual information to enhance your tour guidance by mentioning relevant nearby places, suggesting detours, or providing location-specific insights.`;
-
-    const generatedPrompt = basePrompt + contextualUpdateSnippet;
-    console.log('🎯 Using generated system prompt with contextual updates');
+    const generatedPrompt = `You are a knowledgeable tour guide for ${effectiveDestination}. Provide engaging information about the following landmarks: ${landmarks.map(l => l.name).join(', ')}.`;
+    console.log('🎯 Using generated system prompt');
     return generatedPrompt;
   };
 
@@ -276,6 +147,48 @@ Use this contextual information to enhance your tour guidance by mentioning rele
     });
     return variables;
   };
+
+  // Initialize the conversation with enhanced error handling
+  const conversation = useConversation({
+    onConnect: () => {
+      console.log('Successfully connected to ElevenLabs agent');
+      setAssistantState('started');
+      setIsSessionActive(true);
+      setConnectionError(null);
+      toast({
+        title: "Connected",
+        description: "Tour guide is ready! Start speaking now.",
+      });
+    },
+    onDisconnect: () => {
+      console.log('Disconnected from ElevenLabs agent');
+      setAssistantState('not-started');
+      setIsSessionActive(false);
+      toast({
+        title: "Conversation Ended",
+        description: "Your tour conversation has been saved.",
+      });
+    },
+    onMessage: (message) => {
+      console.log('Received message:', message.source, message.message);
+      if (message.source === 'ai') {
+        setAssistantState('playback');
+      } else if (message.source === 'user') {
+        setAssistantState('recording');
+      }
+    },
+    onError: (error) => {
+      console.error('ElevenLabs conversation error:', error);
+      setConnectionError(`Connection error: ${error}`);
+      toast({
+        title: "Connection Error",
+        description: "There was an issue with the tour guide connection.",
+        variant: "destructive"
+      });
+      setAssistantState('not-started');
+      setIsSessionActive(false);
+    }
+  });
 
   // Update state based on conversation status
   useEffect(() => {

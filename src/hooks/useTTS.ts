@@ -1,36 +1,14 @@
 
-import React, { createContext, useContext, useState, useRef, ReactNode } from 'react';
+import { useState, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
-interface TTSContextType {
-  speak: (text: string, isMemoryNarration?: boolean, interactionId?: string) => Promise<void>;
-  stop: () => void;
-  isPlaying: boolean;
-  currentPlayingId: string | null;
-}
-
-const TTSContext = createContext<TTSContextType | undefined>(undefined);
-
-export const useTTSContext = () => {
-  const context = useContext(TTSContext);
-  if (!context) {
-    throw new Error('useTTSContext must be used within a TTSProvider');
-  }
-  return context;
-};
-
-interface TTSProviderProps {
-  children: ReactNode;
-}
-
-export const TTSProvider: React.FC<TTSProviderProps> = ({ children }) => {
+export const useTTS = () => {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentPlayingId, setCurrentPlayingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-  const speak = async (text: string, isMemoryNarration: boolean = false, interactionId?: string) => {
+  const speak = async (text: string, isMemoryNarration: boolean = false) => {
     if (isPlaying) {
       stop();
       return;
@@ -38,7 +16,6 @@ export const TTSProvider: React.FC<TTSProviderProps> = ({ children }) => {
 
     try {
       setIsPlaying(true);
-      setCurrentPlayingId(interactionId || null);
 
       // Check if browser supports speech synthesis as fallback
       if ('speechSynthesis' in window) {
@@ -64,12 +41,10 @@ export const TTSProvider: React.FC<TTSProviderProps> = ({ children }) => {
             audioRef.current = new Audio(audioUrl);
             audioRef.current.onended = () => {
               setIsPlaying(false);
-              setCurrentPlayingId(null);
               URL.revokeObjectURL(audioUrl);
             };
             audioRef.current.onerror = () => {
               setIsPlaying(false);
-              setCurrentPlayingId(null);
               URL.revokeObjectURL(audioUrl);
               fallbackToWebSpeech(text);
             };
@@ -86,13 +61,11 @@ export const TTSProvider: React.FC<TTSProviderProps> = ({ children }) => {
       } else {
         toast.error('Text-to-speech is not supported in this browser');
         setIsPlaying(false);
-        setCurrentPlayingId(null);
       }
     } catch (error) {
       console.error('TTS Error:', error);
       toast.error('Failed to play audio');
       setIsPlaying(false);
-      setCurrentPlayingId(null);
     }
   };
 
@@ -104,12 +77,10 @@ export const TTSProvider: React.FC<TTSProviderProps> = ({ children }) => {
     
     utterance.onend = () => {
       setIsPlaying(false);
-      setCurrentPlayingId(null);
       utteranceRef.current = null;
     };
     utterance.onerror = () => {
       setIsPlaying(false);
-      setCurrentPlayingId(null);
       utteranceRef.current = null;
       toast.error('Failed to play audio');
     };
@@ -142,12 +113,7 @@ export const TTSProvider: React.FC<TTSProviderProps> = ({ children }) => {
     
     // Update state
     setIsPlaying(false);
-    setCurrentPlayingId(null);
   };
 
-  return (
-    <TTSContext.Provider value={{ speak, stop, isPlaying, currentPlayingId }}>
-      {children}
-    </TTSContext.Provider>
-  );
+  return { speak, stop, isPlaying };
 };
