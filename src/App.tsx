@@ -16,6 +16,7 @@ const App = () => {
   const [postAuthActions, setPostAuthActions] = useState<{
     onSmartTour?: () => void;
   }>({});
+  const [isVoiceAgentActive, setIsVoiceAgentActive] = useState(false);
 
   const handlePostAuthAction = (action: PostAuthAction) => {
     console.log('🎯 App handling post-auth action:', action);
@@ -31,10 +32,13 @@ const App = () => {
     }
   };
 
+  // Add console logging to detect StrictMode double-mounting
+  console.log('🔧 App component mounting/rendering at:', new Date().toISOString());
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <TTSProvider>
+        <TTSProvider isVoiceAgentActive={isVoiceAgentActive}>
           <Toaster />
           <Sonner />
           <BrowserRouter>
@@ -45,8 +49,9 @@ const App = () => {
                   element={
                     <Index 
                       onRegisterPostAuthActions={setPostAuthActions}
+                      onVoiceAgentStateChange={setIsVoiceAgentActive}
                     />
-                  } 
+                  }
                 />
               </Routes>
             </AuthProvider>

@@ -14,9 +14,10 @@ import { performComprehensiveTourReset } from '@/utils/tourResetUtils';
 
 interface IndexProps {
   onRegisterPostAuthActions?: (actions: { onSmartTour?: () => void }) => void;
+  onVoiceAgentStateChange?: (isActive: boolean) => void;
 }
 
-const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
+const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentStateChange }) => {
   const [showSplash, setShowSplash] = useState(true);
   const [smartTourLandmarks, setSmartTourLandmarks] = useState<Landmark[]>([]);
   const [voiceTourData, setVoiceTourData] = useState<{
@@ -106,10 +107,14 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
     setIsNewTourAssistantOpen(true);
   };
 
-  const handleTourGenerated = (landmarks: any[]) => {
+  const handleTourGenerated = (landmarks: any[], clearTransitRoute?: () => void) => {
     console.log('🗺️ Tour generated with landmarks:', landmarks.length);
     // Clear previous smart tour landmarks before setting new ones
     setSmartTourLandmarks([]);
+    // Clear any existing transit route when a new tour is generated
+    if (clearTransitRoute) {
+      clearTransitRoute();
+    }
     // Wait a moment then set new landmarks
     setTimeout(() => {
       setSmartTourLandmarks(landmarks);
@@ -208,6 +213,7 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
         onAuthDialogOpenChange={handleAuthDialogClose}
         isNewTourAssistantOpen={isNewTourAssistantOpen}
         onNewTourAssistantOpenChange={handleNewTourAssistantOpenChange}
+        onVoiceAgentStateChange={onVoiceAgentStateChange}
         isIntelligentTourOpen={isIntelligentTourOpen}
         onIntelligentTourOpenChange={setIsIntelligentTourOpen}
         onTourGenerated={handleTourGenerated}
