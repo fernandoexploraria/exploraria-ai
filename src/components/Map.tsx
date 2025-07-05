@@ -47,7 +47,7 @@ const BASE_LANDMARKS_LAYER_ID = 'base-landmarks-layer';
 const ROUTE_MARKERS_SOURCE_ID = 'route-markers-source';
 const ROUTE_MARKERS_LAYER_ID = 'route-markers-layer';
 
-const MapComponent: React.FC<MapProps> = ({ 
+const MapComponent: React.FC<MapProps> = React.memo(({ 
   mapboxToken, 
   landmarks, 
   onSelectLandmark, 
@@ -2154,6 +2154,6 @@ const MapComponent: React.FC<MapProps> = ({
       )}
     </>
   );
-};
+});
 
 export default MapComponent;
