@@ -40,6 +40,7 @@ interface MainLayoutProps {
   onTourGenerated?: (landmarks: any[], clearTransitRoute?: () => void) => void;
   onTourReadyForVoice?: (tourData: { destination: string; systemPrompt: string; landmarks: any[] }) => void;
   voiceTourData?: { destination: string; systemPrompt: string; landmarks: any[] } | null;
+  onVoiceAgentStateChange?: (isActive: boolean) => void;
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({
@@ -65,6 +66,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   onTourGenerated,
   onTourReadyForVoice,
   voiceTourData,
+  onVoiceAgentStateChange,
 }) => {
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
   const { userLocation } = useLocationTracking();
@@ -149,9 +151,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
   // Handle session state change from NewTourAssistant
   const handleSessionStateChange = (isActive: boolean, state: AssistantState) => {
-    console.log('Session state changed:', { isActive, state });
+    console.log('🎙️ Voice agent session state changed:', { isActive, state });
     setIsSessionActive(isActive);
     setAssistantState(state);
+    onVoiceAgentStateChange?.(isActive);
   };
 
   // Handle FAB click - reopen the tour assistant dialog

@@ -4,6 +4,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Volume2, Eye, MapPin, Route } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTTSContext } from '@/contexts/TTSContext';
 import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { TOUR_LANDMARKS, TourLandmark } from '@/data/tourLandmarks';
@@ -78,6 +79,7 @@ const MapComponent: React.FC<MapProps> = ({
   const processedPlannedLandmarks = useRef<string[]>([]);
   
   const { user } = useAuth();
+  const { speak: speakTTS, stop: stopTTS, isPlaying: isTTSPlaying } = useTTSContext();
   const { updateProximityEnabled, proximitySettings } = useProximityAlerts();
   const { fetchLandmarkPhotos: fetchPhotosWithHook } = useLandmarkPhotos();
   const { locationState } = useLocationTracking();
@@ -946,41 +948,19 @@ const MapComponent: React.FC<MapProps> = ({
     }
   };
 
+  // Use centralized TTS function
   const handleTextToSpeechForInteraction = async (text: string) => {
     if (!text) return;
-    
-    stopCurrentAudio();
-    
-    try {
-      console.log('Playing TTS for interaction text:', text.substring(0, 100) + '...');
-      
-      const { data, error } = await supabase.functions.invoke('gemini-tts', {
-        body: { text }
-      });
-
-      if (error) {
-        console.error('TTS error for interaction:', error);
-        return;
-      }
-
-      if (data?.audioContent && !data.fallbackToBrowser) {
-        console.log('Playing audio from Google Cloud TTS for interaction');
-        await playAudioFromBase64(data.audioContent);
-      }
-      
-    } catch (error) {
-      console.error('Error with TTS for interaction:', error);
-    }
+    await speakTTS(text, false, 'map-interaction');
   };
 
+  // Use centralized TTS function
   const handleTextToSpeech = async (landmark: Landmark) => {
     const landmarkId = landmark.id;
     
-    if (playingAudio[landmarkId]) {
+    if (playingAudio[landmarkId] || isTTSPlaying) {
       return;
     }
-
-    stopCurrentAudio();
 
     try {
       setPlayingAudio(prev => ({ ...prev, [landmarkId]: true }));
@@ -994,27 +974,10 @@ const MapComponent: React.FC<MapProps> = ({
       }
       
       const text = getEnhancedLandmarkText(landmark, landmarkSource);
-      
-      console.log('Calling Google Cloud TTS via edge function for map marker with enhanced prompt:', text.substring(0, 100) + '...');
-      
-      const { data, error } = await supabase.functions.invoke('gemini-tts', {
-        body: { text }
-      });
-
-      if (error) {
-        console.error('Google Cloud TTS error:', error);
-        return;
-      }
-
-      if (data?.audioContent && !data.fallbackToBrowser) {
-        console.log('Playing audio from Google Cloud TTS for map marker');
-        await playAudioFromBase64(data.audioContent);
-      } else {
-        console.log('No audio content received for map marker');
-      }
+      await speakTTS(text, false, landmarkId);
       
     } catch (error) {
-      console.error('Error with Google Cloud TTS for map marker:', error);
+      console.error('Error with TTS for map marker:', error);
     } finally {
       setPlayingAudio(prev => ({ ...prev, [landmarkId]: false }));
     }
@@ -1028,7 +991,8 @@ const MapComponent: React.FC<MapProps> = ({
       placeId: landmark.placeId
     });
     
-    stopCurrentAudio();
+    // Use centralized TTS stop function
+    stopTTS();
     
     if (photoPopups.current[landmark.id]) {
       photoPopups.current[landmark.id].remove();
@@ -1069,7 +1033,7 @@ const MapComponent: React.FC<MapProps> = ({
     photoPopups.current[landmark.id] = photoPopup;
 
     photoPopup.on('close', () => {
-      stopCurrentAudio();
+      stopTTS();
       delete photoPopups.current[landmark.id];
     });
 

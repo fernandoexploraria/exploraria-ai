@@ -520,12 +520,21 @@ serve(async (req) => {
       lowConfidence: enhancedLandmarks.filter(l => l.confidence === 'low').length
     };
 
-    // Generate system prompt
+    // Generate system prompt with contextual updates
+    const contextualUpdateSnippet = `
+
+CONTEXTUAL UPDATES: You will receive real-time updates about nearby points of interest as the user moves around. When you receive these updates, acknowledge them naturally and offer relevant information about nearby places when appropriate. The updates will include:
+- nearby_pois: Array of places near the user's current location
+- user_location: Current GPS coordinates
+- update_reason: Why the update was triggered (location_change, scheduled_poll, manual_refresh)
+
+Use this contextual information to enhance your tour guidance by mentioning relevant nearby places, suggesting detours, or providing location-specific insights.`;
+
     const systemPrompt = `You are an expert tour guide for ${destination}. You have extensive knowledge about the following landmarks and attractions:
 
 ${enhancedLandmarks.map(landmark => `- ${landmark.name}: ${landmark.description}`).join('\n')}
 
-When users ask about these locations, provide detailed, engaging information about their history, significance, and visitor tips. Be enthusiastic and informative while being concise.`;
+When users ask about these locations, provide detailed, engaging information about their history, significance, and visitor tips. Be enthusiastic and informative while being concise.${contextualUpdateSnippet}`;
 
     const metadata: TourMetadata = {
       totalLandmarks: enhancedLandmarks.length,

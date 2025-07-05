@@ -16,6 +16,7 @@ const App = () => {
   const [postAuthActions, setPostAuthActions] = useState<{
     onSmartTour?: () => void;
   }>({});
+  const [isVoiceAgentActive, setIsVoiceAgentActive] = useState(false);
 
   const handlePostAuthAction = (action: PostAuthAction) => {
     console.log('🎯 App handling post-auth action:', action);
@@ -37,7 +38,7 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <TTSProvider>
+        <TTSProvider isVoiceAgentActive={isVoiceAgentActive}>
           <Toaster />
           <Sonner />
           <BrowserRouter>
@@ -48,8 +49,9 @@ const App = () => {
                   element={
                     <Index 
                       onRegisterPostAuthActions={setPostAuthActions}
+                      onVoiceAgentStateChange={setIsVoiceAgentActive}
                     />
-                  } 
+                  }
                 />
               </Routes>
             </AuthProvider>
