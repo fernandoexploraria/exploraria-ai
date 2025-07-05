@@ -47,7 +47,7 @@ const BASE_LANDMARKS_LAYER_ID = 'base-landmarks-layer';
 const ROUTE_MARKERS_SOURCE_ID = 'route-markers-source';
 const ROUTE_MARKERS_LAYER_ID = 'route-markers-layer';
 
-const MapComponent: React.FC<MapProps> = React.memo(({ 
+const MapComponent: React.FC<MapProps> = ({ 
   mapboxToken, 
   landmarks, 
   onSelectLandmark, 
@@ -55,16 +55,6 @@ const MapComponent: React.FC<MapProps> = React.memo(({
   plannedLandmarks,
   onClearTransitRouteRef
 }) => {
-  // 🔥 ADD COMPONENT RENDER DEBUGGING
-  const renderCountRef = useRef(0);
-  renderCountRef.current += 1;
-  
-  console.log('🗺️ [Map] Component render #', renderCountRef.current, {
-    tokenPresent: !!mapboxToken,
-    landmarksCount: landmarks.length,
-    plannedLandmarksCount: plannedLandmarks.length,
-    selectedLandmark: selectedLandmark?.name || 'none'
-  });
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const imageCache = useRef<{ [key: string]: string }>({});
@@ -346,9 +336,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
   };
 
   useEffect(() => {
-    console.log('🗺️ [Map] MAP INITIALIZATION useEffect triggered with token:', mapboxToken ? 'TOKEN_PRESENT' : 'TOKEN_EMPTY');
-    console.log('🗺️ [Map] Current map state:', map.current ? 'EXISTS' : 'NULL');
-    console.log('🗺️ [Map] Container state:', mapContainer.current ? 'EXISTS' : 'NULL');
+    console.log('🗺️ [Map] useEffect triggered with token:', mapboxToken ? 'TOKEN_PRESENT' : 'TOKEN_EMPTY');
     
     if (!mapboxToken) {
       console.log('🗺️ [Map] No mapbox token, skipping map initialization');
@@ -361,16 +349,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
     }
     
     if (map.current) {
-      console.log('🗺️ [Map] Map already exists, checking if it needs reset...');
-      const currentZoom = map.current.getZoom();
-      const currentCenter = map.current.getCenter();
-      console.log('🗺️ [Map] Current map state - zoom:', currentZoom, 'center:', [currentCenter.lng, currentCenter.lat]);
-      
-      // Check if map was reset to initial globe view
-      if (currentZoom < 3 && Math.abs(currentCenter.lng) < 5 && Math.abs(currentCenter.lat - 20) < 5) {
-        console.warn('🚨 [Map] DETECTED MAP IS IN GLOBE VIEW - this suggests an unexpected reset occurred');
-      }
-      
+      console.log('🗺️ [Map] Map already exists, skipping initialization');
       return;
     }
 
@@ -482,35 +461,6 @@ const MapComponent: React.FC<MapProps> = React.memo(({
         console.log('🗺️ [Layers] Map loaded, initializing all GeoJSON layers...');
         
         if (!map.current) return;
-        
-        // 🔥 ADD ZOOM CHANGE DEBUGGING to track map resets
-        let lastZoom = map.current.getZoom();
-        let lastCenter = map.current.getCenter();
-        
-        map.current.on('zoomend', () => {
-          if (!map.current) return;
-          const currentZoom = map.current.getZoom();
-          const currentCenter = map.current.getCenter();
-          
-          // Detect dramatic zoom changes that indicate a reset to globe view
-          if (Math.abs(currentZoom - lastZoom) > 10) {
-            console.warn('🚨 [Map] DRAMATIC ZOOM CHANGE DETECTED:', {
-              from: lastZoom,
-              to: currentZoom,
-              centerFrom: [lastCenter.lng, lastCenter.lat],
-              centerTo: [currentCenter.lng, currentCenter.lat],
-              stackTrace: new Error().stack
-            });
-            
-            // Check if this looks like a reset to globe view
-            if (currentZoom < 3 && lastZoom > 10) {
-              console.error('🌍 [Map] MAP RESET TO GLOBE VIEW DETECTED!');
-            }
-          }
-          
-          lastZoom = currentZoom;
-          lastCenter = currentCenter;
-        });
         
         map.current.addSource(TOUR_LANDMARKS_SOURCE_ID, {
           type: 'geojson',
@@ -1571,7 +1521,6 @@ const MapComponent: React.FC<MapProps> = React.memo(({
       
       let targetLandmark: Landmark | null = null;
       
-      // Access landmarks directly from props since they're dynamic
       targetLandmark = landmarks.find(l => l.id === landmarkId) || null;
       
       if (!targetLandmark) {
@@ -1624,7 +1573,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
       delete (window as any).handleStreetViewOpen;
       delete (window as any).clearOptimalRoute;
     };
-  }, [showRouteOnMap, navigateToCoordinates, openStreetViewModal]); // 🔥 REMOVED landmarks dependency
+  }, [showRouteOnMap, navigateToCoordinates, openStreetViewModal, landmarks]);
 
   useEffect(() => {
     if (!map.current) return;
@@ -2154,6 +2103,6 @@ const MapComponent: React.FC<MapProps> = React.memo(({
       )}
     </>
   );
-});
+};
 
 export default MapComponent;

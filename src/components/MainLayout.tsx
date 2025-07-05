@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Map from '@/components/Map';
 import TopControls from '@/components/TopControls';
 import UserControls from '@/components/UserControls';
@@ -93,9 +93,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   
   // State to track clearTransitRoute function from Map
   const [clearTransitRoute, setClearTransitRoute] = useState<(() => void) | null>(null);
-  
-  // Memoize plannedLandmarks to prevent unnecessary Map re-renders
-  const memoizedPlannedLandmarks = useMemo(() => [...smartTourLandmarks], [smartTourLandmarks]);
 
   const handleLocationSelect = () => {
     console.log('Location select called but no action taken');
@@ -213,7 +210,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         landmarks={allLandmarks}
         onSelectLandmark={onSelectLandmark}
         selectedLandmark={selectedLandmark}
-        plannedLandmarks={memoizedPlannedLandmarks}
+        plannedLandmarks={[...smartTourLandmarks]}
         onClearTransitRouteRef={(clearFn) => setClearTransitRoute(() => clearFn)}
       />
 
