@@ -1,24 +1,9 @@
 
 export interface TourLandmark {
-  // Core identification (using placeId as the unique key)
-  placeId: string;                    // Required - primary unique identifier
-  id?: string;                        // Optional - for compatibility with Landmark interface
   name: string;
   coordinates: [number, number];
   description: string;
-  
-  // Google Places data (from tour generation)
-  rating?: number;                    // Star rating (1-5)
-  photos?: string[];                  // Array of photo URLs
-  types?: string[];                   // Place types ['restaurant', 'tourist_attraction']
-  formattedAddress?: string;          // Full formatted address
-  
-  // Tour metadata
-  tourId?: string;                    // Reference to generating tour
-  
-  // Generation quality metrics
-  coordinateSource?: string;          // 'google_places' | 'geocoding' | 'fallback'
-  confidence?: 'high' | 'medium' | 'low'; // Data quality indicator
+  placeId?: string;
 }
 
 // Mutable array that gets cleared and repopulated for each new tour
@@ -49,7 +34,7 @@ export const setTourLandmarks = (landmarks: TourLandmark[]) => {
     TOUR_LANDMARKS.length = 0;
   }
   
-  // Add new landmarks with validation and ensure they have id for compatibility
+  // Add new landmarks with validation
   const validLandmarks = landmarks.filter(landmark => {
     const isValid = landmark.name && 
       landmark.coordinates && 
@@ -62,10 +47,7 @@ export const setTourLandmarks = (landmarks: TourLandmark[]) => {
     }
     
     return isValid;
-  }).map(landmark => ({
-    ...landmark,
-    id: landmark.id || landmark.placeId // Use placeId as fallback for id
-  }));
+  });
   
   TOUR_LANDMARKS.push(...validLandmarks);
   console.log('📍 Enhanced tour landmarks set:', validLandmarks.length, 'valid landmarks added');
@@ -74,9 +56,7 @@ export const setTourLandmarks = (landmarks: TourLandmark[]) => {
   if (validLandmarks.length > 0) {
     console.log('📍 Sample landmarks:', validLandmarks.slice(0, 3).map(l => ({
       name: l.name,
-      coordinates: l.coordinates,
-      id: l.id,
-      placeId: l.placeId
+      coordinates: l.coordinates
     })));
   }
 };

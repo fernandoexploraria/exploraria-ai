@@ -26,7 +26,6 @@ interface LocationTrackingState {
 interface LocationTrackingHook {
   locationState: LocationTrackingState;
   userLocation: UserLocation | null;
-  currentPollRound: number;
   startTracking: () => Promise<void>;
   stopTracking: () => void;
   requestCurrentLocation: () => Promise<UserLocation | null>;
@@ -161,18 +160,8 @@ export const useLocationTracking = (): LocationTrackingHook => {
     if (isSignificant && nearbyLandmarks.length > 0 && shouldPreloadStreetView()) {
       console.log(`🔄 Triggering enhanced Street View multi-viewpoint pre-loading for ${nearbyLandmarks.length} nearby landmarks (within ${proximitySettings?.outer_distance || 250}m outer zone)`);
       
-      // Convert TourLandmark to Landmark format for preloadForProximity
-      const landmarksToPreload = nearbyLandmarks.map(nearbyLandmark => ({
-        id: nearbyLandmark.landmark.id || nearbyLandmark.landmark.placeId,
-        name: nearbyLandmark.landmark.name,
-        coordinates: nearbyLandmark.landmark.coordinates,
-        description: nearbyLandmark.landmark.description,
-        rating: nearbyLandmark.landmark.rating,
-        photos: nearbyLandmark.landmark.photos,
-        types: nearbyLandmark.landmark.types,
-        placeId: nearbyLandmark.landmark.placeId,
-        formattedAddress: nearbyLandmark.landmark.formattedAddress
-      }));
+      // Extract landmarks from NearbyLandmark objects and pre-load enhanced Street View
+      const landmarksToPreload = nearbyLandmarks.map(nearbyLandmark => nearbyLandmark.landmark);
       
       preloadForProximity(landmarksToPreload, {
         latitude: newLocation.latitude,
@@ -211,6 +200,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
     }
   }, [setUserLocation, nearbyLandmarks.length, locationState.isInBackground, locationState.pollInterval, preloadForProximity, nearbyLandmarks, proximitySettings?.outer_distance]);
 
+  // Handle location error with exponential backoff
   const handleLocationError = useCallback((error: GeolocationPositionError) => {
     let errorMessage = 'Location access failed';
     
@@ -243,6 +233,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
     });
   }, []);
 
+  // Request current location (one-time)
   const requestCurrentLocation = useCallback(async (): Promise<UserLocation | null> => {
     console.log('📱 Requesting current location...');
     
@@ -279,11 +270,13 @@ export const useLocationTracking = (): LocationTrackingHook => {
     });
   }, [handleLocationUpdate, handleLocationError, locationState.movementState, nearbyLandmarks.length]);
 
+  // Force immediate location update
   const forceLocationUpdate = useCallback(async (): Promise<void> => {
     console.log('🔄 Forcing location update...');
     await requestCurrentLocation();
   }, [requestCurrentLocation]);
 
+  // Schedule next poll with current interval
   const scheduleNextPoll = useCallback((interval?: number) => {
     if (pollIntervalRef.current) {
       clearTimeout(pollIntervalRef.current);
@@ -293,6 +286,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
     pollIntervalRef.current = setTimeout(requestLocationUpdate, pollInterval);
   }, [locationState.pollInterval]);
 
+  // Location polling function with adaptive settings
   const requestLocationUpdate = useCallback(() => {
     const pollNumber = pollCountRef.current + 1;
     console.log(`🔄 Starting adaptive location poll #${pollNumber} at ${new Date().toLocaleTimeString()}`);
@@ -320,6 +314,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
     scheduleNextPoll();
   }, [handleLocationUpdate, handleLocationError, locationState, nearbyLandmarks.length, scheduleNextPoll]);
 
+  // Start optimized tracking
   const startTracking = useCallback(async (): Promise<void> => {
     console.log(`🚀 Starting optimized location tracking with enhanced Street View...`);
     
@@ -354,6 +349,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
     console.log(`✅ Optimized location tracking with enhanced Street View started`);
   }, [requestCurrentLocation, scheduleNextPoll]);
 
+  // Stop tracking
   const stopTracking = useCallback(() => {
     console.log('🛑 Stopping location tracking...');
     
@@ -397,7 +393,6 @@ export const useLocationTracking = (): LocationTrackingHook => {
   return {
     locationState,
     userLocation,
-    currentPollRound: pollCountRef.current,
     startTracking,
     stopTracking,
     requestCurrentLocation,

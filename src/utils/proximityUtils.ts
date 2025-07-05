@@ -240,29 +240,3 @@ export const isValidLocation = (
     !isNaN(longitude)
   );
 };
-
-/**
- * Calculate the centroid (geographic center) of an array of landmarks
- * @param landmarks Array of landmarks with coordinates [longitude, latitude]
- * @returns Centroid coordinates as [longitude, latitude]
- */
-export const calculateCentroid = <T extends { coordinates: [number, number] }>(
-  landmarks: T[]
-): [number, number] => {
-  if (landmarks.length === 0) {
-    throw new Error('Cannot calculate centroid of empty landmarks array');
-  }
-
-  let totalLongitude = 0;
-  let totalLatitude = 0;
-
-  for (const landmark of landmarks) {
-    totalLongitude += landmark.coordinates[0]; // longitude
-    totalLatitude += landmark.coordinates[1];  // latitude
-  }
-
-  const centroidLongitude = totalLongitude / landmarks.length;
-  const centroidLatitude = totalLatitude / landmarks.length;
-
-  return [centroidLongitude, centroidLatitude];
-};

@@ -2,8 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { Volume2, Eye, MapPin, Route } from 'lucide-react';
-import { toast } from 'sonner';
+import { Volume2, Eye, MapPin } from 'lucide-react';
 import { Landmark } from '@/data/landmarks';
 import { TOP_LANDMARKS } from '@/data/topLandmarks';
 import { TOUR_LANDMARKS, TourLandmark } from '@/data/tourLandmarks';
@@ -19,12 +18,6 @@ import { PhotoData } from '@/hooks/useEnhancedPhotos';
 import { PhotoCarousel } from './photo-carousel';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { getEnhancedLandmarkText } from '@/utils/landmarkPromptUtils';
-import { useOptimalRoute } from '@/hooks/useOptimalRoute';
-import TravelModeSelector, { TravelMode } from '@/components/TravelModeSelector';
-import TransitRoutePlanner from '@/components/TransitRoutePlanner';
-import { useTransitRoute } from '@/hooks/useTransitRoute';
-import FloatingRouteCard from '@/components/FloatingRouteCard';
-import { usePermissionMonitor } from '@/hooks/usePermissionMonitor';
 
 interface MapProps {
   mapboxToken: string;
@@ -32,7 +25,6 @@ interface MapProps {
   onSelectLandmark: (landmark: Landmark) => void;
   selectedLandmark: Landmark | null;
   plannedLandmarks: Landmark[];
-  onClearTransitRouteRef?: (clearFn: () => void) => void;
 }
 
 const TOUR_LANDMARKS_SOURCE_ID = 'tour-landmarks-source';
@@ -42,17 +34,12 @@ const TOP_LANDMARKS_LAYER_ID = 'top-landmarks-layer';
 const BASE_LANDMARKS_SOURCE_ID = 'base-landmarks-source';
 const BASE_LANDMARKS_LAYER_ID = 'base-landmarks-layer';
 
-// Add new constants for route markers
-const ROUTE_MARKERS_SOURCE_ID = 'route-markers-source';
-const ROUTE_MARKERS_LAYER_ID = 'route-markers-layer';
-
 const MapComponent: React.FC<MapProps> = ({ 
   mapboxToken, 
   landmarks, 
   onSelectLandmark, 
   selectedLandmark, 
-  plannedLandmarks,
-  onClearTransitRouteRef
+  plannedLandmarks
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -67,9 +54,6 @@ const MapComponent: React.FC<MapProps> = ({
   const currentRouteLayer = useRef<string | null>(null);
   
   const [tourLandmarks, setTourLandmarks] = useState<TourLandmark[]>([]);
-  const [showTravelModeSelector, setShowTravelModeSelector] = useState(false);
-  const [selectedTravelMode, setSelectedTravelMode] = useState<TravelMode | null>(null);
-  const [showTransitPlanner, setShowTransitPlanner] = useState(false);
   
   const geolocateControl = useRef<mapboxgl.GeolocateControl | null>(null);
   const isUpdatingFromProximitySettings = useRef<boolean>(false);
@@ -81,7 +65,6 @@ const MapComponent: React.FC<MapProps> = ({
   const { updateProximityEnabled, proximitySettings } = useProximityAlerts();
   const { fetchLandmarkPhotos: fetchPhotosWithHook } = useLandmarkPhotos();
   const { locationState } = useLocationTracking();
-  const { permissionState, requestPermission, checkPermission } = usePermissionMonitor();
   
   const { getCachedData } = useStreetView();
   const { getStreetViewWithOfflineSupport } = useEnhancedStreetView();
@@ -95,36 +78,6 @@ const MapComponent: React.FC<MapProps> = ({
     navigateNext,
     navigatePrevious 
   } = useStreetViewNavigation();
-
-  const {
-    isLoading: isCalculatingRoute,
-    error: routeError,
-    routeGeoJSON,
-    optimizedLandmarks,
-    routeStats,
-    isLocationBasedRoute,
-    travelMode: currentTravelMode,
-    calculateOptimalRoute,
-    clearRoute
-  } = useOptimalRoute();
-
-  const {
-    isLoading: isCalculatingTransitRoute,
-    error: transitRouteError,
-    routeGeoJSON: transitRouteGeoJSON,
-    routeDetails: transitRouteDetails,
-    planTransitRoute,
-    clearRoute: clearTransitRoute
-  } = useTransitRoute();
-
-  // Pass clearTransitRoute function to parent component
-  useEffect(() => {
-    if (onClearTransitRouteRef) {
-      onClearTransitRouteRef(clearTransitRoute);
-    }
-  }, [clearTransitRoute, onClearTransitRouteRef]);
-
-  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
 
   const findLandmarkByFeatureProperties = useCallback((properties: any, layerType: 'tour' | 'top' | 'base'): Landmark | null => {
     if (!properties) return null;
@@ -403,8 +356,6 @@ const MapComponent: React.FC<MapProps> = ({
             userInitiated: userInitiatedLocationRequest.current
           });
           
-          setUserLocation([e.coords.longitude, e.coords.latitude]);
-          
           lastLocationEventTime.current = Date.now();
           
           if (!isUpdatingFromProximitySettings.current) {
@@ -511,61 +462,7 @@ const MapComponent: React.FC<MapProps> = ({
           }
         });
         
-        // Add route markers source and layer for numbered markers
-        map.current.addSource(ROUTE_MARKERS_SOURCE_ID, {
-          type: 'geojson',
-          data: { type: 'FeatureCollection', features: [] }
-        });
-        
-        // Add pulsing circle layer specifically for marker 1
-        map.current.addLayer({
-          id: 'route-markers-pulse',
-          type: 'circle',
-          source: ROUTE_MARKERS_SOURCE_ID,
-          filter: ['==', ['get', 'number'], '1'], // Only show for marker 1
-          paint: {
-            'circle-radius': [
-              'interpolate',
-              ['linear'],
-              ['zoom'],
-              10, 20,
-              15, 25,
-              20, 30
-            ],
-            'circle-color': '#FF00FF',
-            'circle-opacity': 0.4,
-            'circle-stroke-color': '#FF00FF',
-            'circle-stroke-width': 2,
-            'circle-stroke-opacity': 0.6
-          }
-        });
-        
-        map.current.addLayer({
-          id: ROUTE_MARKERS_LAYER_ID,
-          type: 'symbol',
-          source: ROUTE_MARKERS_SOURCE_ID,
-          layout: {
-            'text-field': ['get', 'number'],
-            'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-            'text-size': 14,
-            'text-anchor': 'center',
-            'text-offset': [0, 0],
-            'text-allow-overlap': true,
-            'text-ignore-placement': true
-          },
-          paint: {
-            'text-color': '#ffffff',
-            'text-halo-color': [
-              'case',
-              ['==', ['get', 'number'], '1'],
-              '#FF00FF', // Fluorescent magenta for marker 1
-              '#4ade80'  // Green for all other markers
-            ],
-            'text-halo-width': 8
-          }
-        });
-        
-        console.log('🗺️ [Layers] All GeoJSON layers initialized including route markers');
+        console.log('🗺️ [Layers] All GeoJSON layers initialized');
         
         const addLayerClickHandler = (layerId: string, layerType: 'tour' | 'top' | 'base') => {
           map.current!.on('click', layerId, (e) => {
@@ -1361,12 +1258,12 @@ const MapComponent: React.FC<MapProps> = ({
         'line-join': 'round',
         'line-cap': 'round'
       },
-        paint: {
-          'line-color': getRouteColor(currentTravelMode),
-          'line-width': 4,
-          'line-opacity': 0.8
-        }
-    }, ROUTE_MARKERS_LAYER_ID); // Add beforeId to render route below markers
+      paint: {
+        'line-color': '#3B82F6',
+        'line-width': 4,
+        'line-opacity': 0.8
+      }
+    });
 
     const coordinates = route.geometry.coordinates;
     const bounds = new mapboxgl.LngLatBounds();
@@ -1543,7 +1440,6 @@ const MapComponent: React.FC<MapProps> = ({
     (window as any).navigateToMapCoordinates = navigateToCoordinates;
     (window as any).stopCurrentAudio = stopCurrentAudio;
     (window as any).showRouteOnMap = showRouteOnMap;
-    (window as any).clearOptimalRoute = clearRoute;
     
     (window as any).handleInteractionListen = (interactionId: string) => {
       const markerData = navigationMarkers.current.find(m => m.interaction?.id === interactionId);
@@ -1607,498 +1503,13 @@ const MapComponent: React.FC<MapProps> = ({
       delete (window as any).stopCurrentAudio;
       delete (window as any).showRouteOnMap;
       delete (window as any).handleStreetViewOpen;
-      delete (window as any).clearOptimalRoute;
     };
   }, [showRouteOnMap, navigateToCoordinates, openStreetViewModal, landmarks]);
-
-  useEffect(() => {
-    if (!map.current) return;
-
-    // Add route source and layer if route exists
-    if (routeGeoJSON) {
-      const sourceId = 'optimal-route-source';
-      const layerId = 'optimal-route-layer';
-
-      // Remove existing route if any
-      if (map.current.getLayer(layerId)) {
-        map.current.removeLayer(layerId);
-      }
-      if (map.current.getSource(sourceId)) {
-        map.current.removeSource(sourceId);
-      }
-
-      // Add new route
-      map.current.addSource(sourceId, {
-        type: 'geojson',
-        data: {
-          type: 'Feature',
-          properties: {},
-          geometry: routeGeoJSON
-        }
-      });
-
-      map.current.addLayer({
-        id: layerId,
-        type: 'line',
-        source: sourceId,
-        layout: {
-          'line-join': 'round',
-          'line-cap': 'round'
-        },
-        paint: {
-          'line-color': getRouteColor(currentTravelMode),
-          'line-width': 4,
-          'line-opacity': 0.8
-        }
-      }, ROUTE_MARKERS_LAYER_ID); // Add beforeId to render route below markers
-
-      // Fit bounds to show the entire route
-      const bounds = new mapboxgl.LngLatBounds();
-      routeGeoJSON.coordinates.forEach(coord => bounds.extend(coord as [number, number]));
-      
-      if (!bounds.isEmpty()) {
-        map.current.fitBounds(bounds, {
-          padding: 80,
-          duration: 1500,
-          maxZoom: 16
-        });
-      }
-
-      console.log('🗺️ Optimal route visualized on map');
-    } else {
-      // Clean up route when routeGeoJSON is null
-      const sourceId = 'optimal-route-source';
-      const layerId = 'optimal-route-layer';
-      
-      if (map.current.getLayer(layerId)) {
-        map.current.removeLayer(layerId);
-      }
-      if (map.current.getSource(sourceId)) {
-        map.current.removeSource(sourceId);
-      }
-      
-      console.log('🧹 Optimal route removed from map');
-    }
-  }, [routeGeoJSON]);
-
-  // Transit route visualization effect
-  useEffect(() => {
-    if (!map.current) return;
-
-    // Add transit route source and layer if transit route exists
-    if (transitRouteGeoJSON) {
-      const sourceId = 'transit-route-source';
-      const layerId = 'transit-route-layer';
-
-      // Remove existing transit route if any
-      if (map.current.getLayer(layerId)) {
-        map.current.removeLayer(layerId);
-      }
-      if (map.current.getSource(sourceId)) {
-        map.current.removeSource(sourceId);
-      }
-
-      // Add new source
-      map.current.addSource(sourceId, {
-        type: 'geojson',
-        data: transitRouteGeoJSON
-      });
-
-      // Add new layer with transit-specific styling
-      map.current.addLayer({
-        id: layerId,
-        type: 'line',
-        source: sourceId,
-        paint: {
-          'line-color': '#7c3aed', // Purple for transit
-          'line-width': 6,
-          'line-opacity': 0.8
-        },
-        layout: {
-          'line-join': 'round',
-          'line-cap': 'round'
-        }
-      });
-
-      // Fit map to transit route bounds
-      if (transitRouteGeoJSON.coordinates.length > 1) {
-        const coordinates = transitRouteGeoJSON.coordinates as [number, number][];
-        const bounds = coordinates.reduce((bounds, coord) => {
-          return bounds.extend(coord);
-        }, new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
-
-        map.current.fitBounds(bounds, {
-          padding: 80,
-          duration: 1500,
-          maxZoom: 16
-        });
-      }
-
-      console.log('🚌 Transit route visualized on map');
-    } else {
-      // Clean up transit route when transitRouteGeoJSON is null
-      const sourceId = 'transit-route-source';
-      const layerId = 'transit-route-layer';
-      
-      if (map.current.getLayer(layerId)) {
-        map.current.removeLayer(layerId);
-      }
-      if (map.current.getSource(sourceId)) {
-        map.current.removeSource(sourceId);
-      }
-      
-      console.log('🧹 Transit route removed from map');
-    }
-  }, [transitRouteGeoJSON]);
-
-  // Add new useEffect to manage route markers
-  useEffect(() => {
-    if (!map.current) return;
-
-    console.log('🎯 Updating route markers, optimizedLandmarks count:', optimizedLandmarks.length);
-    console.log('🎯 Route type:', isLocationBasedRoute ? 'location-based' : 'centroid-based');
-    console.log('🎯 User location:', userLocation);
-
-    // Create GeoJSON features for the numbered markers
-    let features: any[] = [];
-    
-    if (isLocationBasedRoute && userLocation) {
-      // For location-based routes, marker 1 is the user's actual location
-      features.push({
-        type: 'Feature' as const,
-        geometry: {
-          type: 'Point' as const,
-          coordinates: userLocation
-        },
-        properties: {
-          number: '1',
-          landmarkId: 'user-location',
-          name: 'Your Location'
-        }
-      });
-      
-      // Add the landmarks starting from marker 2
-      const landmarkFeatures = optimizedLandmarks.map((landmark, index) => ({
-        type: 'Feature' as const,
-        geometry: {
-          type: 'Point' as const,
-          coordinates: landmark.coordinates
-        },
-        properties: {
-          number: (index + 2).toString(), // Start from 2 since 1 is user location
-          landmarkId: landmark.placeId || `landmark-${index}`,
-          name: landmark.name
-        }
-      }));
-      
-      features = features.concat(landmarkFeatures);
-    } else {
-      // For centroid-based routes, use the original logic (landmarks start from 1)
-      features = optimizedLandmarks.map((landmark, index) => ({
-        type: 'Feature' as const,
-        geometry: {
-          type: 'Point' as const,
-          coordinates: landmark.coordinates
-        },
-        properties: {
-          number: (index + 1).toString(),
-          landmarkId: landmark.placeId || `landmark-${index}`,
-          name: landmark.name
-        }
-      }));
-    }
-
-    const geojsonData = {
-      type: 'FeatureCollection' as const,
-      features
-    };
-
-    // Update the route markers source
-    const source = map.current.getSource(ROUTE_MARKERS_SOURCE_ID) as mapboxgl.GeoJSONSource;
-    if (source) {
-      source.setData(geojsonData);
-      console.log('🎯 Route markers updated:', features.length, 'markers');
-      console.log('🎯 Marker 1 location:', features[0]?.geometry.coordinates);
-      console.log('🎯 Marker 1 name:', features[0]?.properties.name);
-      
-      // Start pulsing animation for marker 1 if it exists
-      if (features.length > 0 && features[0].properties.number === '1') {
-        startMarker1PulseAnimation();
-      }
-    }
-  }, [optimizedLandmarks, isLocationBasedRoute, userLocation]);
-
-
-  // Animation function for marker 1 pulsing effect
-  const startMarker1PulseAnimation = useCallback(() => {
-    if (!map.current) return;
-    
-    let animationFrame: number;
-    let startTime: number;
-    
-    const animate = (timestamp: number) => {
-      if (!startTime) startTime = timestamp;
-      const elapsed = timestamp - startTime;
-      
-      // Calculate pulsing radius based on time (2 second cycle)
-      const cycle = (elapsed % 2000) / 2000; // 0 to 1
-      const pulseRadius = 20 + Math.sin(cycle * Math.PI * 2) * 8; // 12 to 28
-      const pulseOpacity = 0.4 + Math.sin(cycle * Math.PI * 2) * 0.2; // 0.2 to 0.6
-      
-      try {
-        if (map.current?.getLayer('route-markers-pulse')) {
-          map.current.setPaintProperty('route-markers-pulse', 'circle-radius', [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            10, pulseRadius,
-            15, pulseRadius + 5,
-            20, pulseRadius + 10
-          ]);
-          map.current.setPaintProperty('route-markers-pulse', 'circle-opacity', pulseOpacity);
-        }
-      } catch (error) {
-        console.log('Animation stopped or layer not found');
-        return;
-      }
-      
-      animationFrame = requestAnimationFrame(animate);
-    };
-    
-    animationFrame = requestAnimationFrame(animate);
-    
-    // Clean up animation when component unmounts or route changes
-    return () => {
-      if (animationFrame) {
-        cancelAnimationFrame(animationFrame);
-      }
-    };
-  }, []);
-
-  const handleOptimalRoute = useCallback(async () => {
-    // Check if we have enough tour landmarks first
-    if (tourLandmarks.length < 2) {
-      toast.error("At least 2 tour landmarks are needed for route optimization");
-      return;
-    }
-
-    // Show travel mode selector
-    setShowTravelModeSelector(true);
-  }, [tourLandmarks]);
-
-  const handleTravelModeSelect = useCallback(async (mode: TravelMode) => {
-    setSelectedTravelMode(mode);
-    
-    // If mode is selected, proceed based on mode type
-    if (mode) {
-      setShowTravelModeSelector(false);
-      
-      // Clear any existing transit route when selecting a different travel mode
-      if (mode !== 'TRANSIT') {
-        clearTransitRoute();
-      }
-      
-      // Handle transit mode differently - show transit planner
-      if (mode === 'TRANSIT') {
-        setShowTransitPlanner(true);
-        return;
-      }
-      
-      try {
-        // Check current permission status
-        const currentPermissionState = await checkPermission();
-        
-        if (currentPermissionState === 'denied') {
-          toast.error("Location permission is denied. Please enable location access in your browser settings.");
-          return;
-        }
-
-        let currentLocation: [number, number] | null = userLocation;
-
-        // If we don't have a current location, request it on-demand
-        if (!currentLocation) {
-          console.log('🎯 Requesting location on-demand for optimal route');
-          
-          // Try to request permission if it's in prompt state
-          if (currentPermissionState === 'prompt') {
-            const permissionGranted = await requestPermission();
-            if (!permissionGranted) {
-              toast.error("Location permission is required for route optimization");
-              return;
-            }
-          }
-
-          // Get current position
-          try {
-            const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-              navigator.geolocation.getCurrentPosition(
-                resolve,
-                reject,
-                {
-                  enableHighAccuracy: false,
-                  timeout: 10000,
-                  maximumAge: 300000 // Allow 5-minute old location
-                }
-              );
-            });
-
-            currentLocation = [position.coords.longitude, position.coords.latitude];
-            setUserLocation(currentLocation);
-            console.log('✅ Location obtained on-demand:', currentLocation);
-          } catch (error) {
-            console.error('❌ Failed to get location on-demand:', error);
-            toast.error("Could not get your current location. Please try again.");
-            return;
-          }
-        }
-
-        if (!currentLocation) {
-          toast.error("Unable to determine your location for route optimization");
-          return;
-        }
-
-        console.log('🎯 Starting optimal route calculation:', {
-          currentLocation,
-          tourLandmarksCount: tourLandmarks.length,
-          travelMode: mode
-        });
-
-        await calculateOptimalRoute(currentLocation, tourLandmarks, mode);
-      } catch (error) {
-        console.error('❌ Error in handleOptimalRoute:', error);
-        toast.error("Failed to calculate optimal route. Please try again.");
-      }
-    }
-  }, [tourLandmarks, calculateOptimalRoute, userLocation, checkPermission, requestPermission, clearTransitRoute]);
-
-  const handleTravelModeCancel = useCallback(() => {
-    setShowTravelModeSelector(false);
-    setSelectedTravelMode(null);
-  }, []);
-
-  const handleTransitRoutePlan = useCallback(async (
-    origin: [number, number], 
-    destination: [number, number], 
-    departureTime: string,
-    originName: string,
-    destinationName: string
-  ) => {
-    try {
-      await planTransitRoute(origin, destination, departureTime, originName, destinationName);
-      // Only close the planner after route planning is complete
-      setShowTransitPlanner(false);
-    } catch (error) {
-      console.error('❌ Error planning transit route:', error);
-      toast.error("Failed to plan transit route. Please try again.");
-      // Keep the planner open on error so user can retry
-    }
-  }, [planTransitRoute]);
-
-  const handleTransitPlannerCancel = useCallback(() => {
-    setShowTransitPlanner(false);
-    setSelectedTravelMode(null);
-  }, []);
-
-  // Get route color based on travel mode
-  const getRouteColor = useCallback((travelMode: TravelMode | null) => {
-    switch (travelMode) {
-      case 'WALK':
-        return '#22C55E'; // Green
-      case 'BICYCLE':
-        return '#3B82F6'; // Blue  
-      case 'DRIVE':
-        return '#EF4444'; // Red
-      default:
-        return '#3B82F6'; // Default blue
-    }
-  }, []);
-
-  // Handle proximity settings based on route type
-  useEffect(() => {
-    if (routeGeoJSON && routeStats) {
-      if (isLocationBasedRoute) {
-        console.log('🎯 Enabling proximity for location-based route');
-        updateProximityEnabled(true);
-        
-        // Directly trigger geolocate control to ensure blue dot appears
-        if (geolocateControl.current) {
-          console.log('📍 Triggering geolocate control for location-based route');
-          geolocateControl.current.trigger();
-        }
-      } else {
-        console.log('🗺️ Skipping proximity enable for centroid-based route');
-      }
-    }
-  }, [routeGeoJSON, routeStats, isLocationBasedRoute, updateProximityEnabled]);
-
-  // Determine if the optimal route button should be enabled
-  const isOptimalRouteButtonEnabled = !isCalculatingRoute && 
-                                    permissionState.state !== 'denied' && 
-                                    tourLandmarks.length >= 2;
-
-  // Generate tooltip text based on current conditions
-  const getOptimalRouteTooltip = () => {
-    if (permissionState.state === 'denied') {
-      return "Location permission denied - enable in browser settings";
-    }
-    if (isCalculatingRoute) {
-      return "Calculating route...";
-    }
-    if (tourLandmarks.length < 2) {
-      return "At least 2 tour landmarks needed";
-    }
-    if (routeGeoJSON) {
-      return "Calculate new optimal route";
-    }
-    return "Calculate optimal walking route";
-  };
 
   return (
     <>
       <div ref={mapContainer} className="absolute inset-0" />
       
-      {/* Optimal Route Button - styled to match location button */}
-      {tourLandmarks.length > 0 && (
-        <div className="absolute top-[58px] right-[10px] z-10">
-          <button
-            onClick={handleOptimalRoute}
-            disabled={!isOptimalRouteButtonEnabled}
-            className="w-8 h-8 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:opacity-50 rounded border border-gray-200 shadow-md flex items-center justify-center transition-all duration-200 disabled:cursor-not-allowed"
-            title={getOptimalRouteTooltip()}
-          >
-            {isCalculatingRoute ? (
-              <div className="w-4 h-4 border-2 border-gray-400 border-t-blue-500 rounded-full animate-spin"></div>
-            ) : (
-              <Route className="w-4 h-4 text-gray-700" />
-            )}
-          </button>
-        </div>
-      )}
-
-      {/* Clear Route Button - only show when route exists */}
-      {routeGeoJSON && (
-        <div className="absolute top-[100px] right-[10px] z-10">
-          <button
-            onClick={clearRoute}
-            className="w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded border border-gray-200 shadow-md flex items-center justify-center transition-all duration-200"
-            title="Clear optimal route"
-          >
-            ×
-          </button>
-        </div>
-      )}
-
-      {/* Route Stats - compact version */}
-      {routeStats && (
-        <div className="absolute top-[142px] right-[10px] z-10 bg-white/95 backdrop-blur-sm rounded border border-gray-200 shadow-md p-2 text-xs max-w-[120px]">
-          <div className="text-gray-800 space-y-1">
-            <div>📏 {routeStats.distanceKm}km</div>
-            <div>⏱️ {routeStats.durationText}</div>
-            <div>📍 {routeStats.waypointCount} stops</div>
-          </div>
-        </div>
-      )}
-
       <EnhancedStreetViewModal
         isOpen={isModalOpen}
         onClose={closeStreetViewModal}
@@ -2109,34 +1520,6 @@ const MapComponent: React.FC<MapProps> = ({
           closeStreetViewModal();
         }}
       />
-
-      {/* Travel Mode Selector Modal */}
-      {showTravelModeSelector && (
-        <TravelModeSelector
-          selectedMode={selectedTravelMode}
-          onSelectMode={handleTravelModeSelect}
-          onCancel={handleTravelModeCancel}
-        />
-      )}
-
-      {/* Transit Route Planner Modal */}
-      {showTransitPlanner && (
-        <TransitRoutePlanner
-          isOpen={showTransitPlanner}
-          onClose={handleTransitPlannerCancel}
-          landmarks={tourLandmarks}
-          onPlanRoute={handleTransitRoutePlan}
-          isLoading={isCalculatingTransitRoute}
-        />
-      )}
-
-      {/* Floating Route Card for Transit Routes */}
-      {transitRouteDetails && (
-        <FloatingRouteCard
-          routeDetails={transitRouteDetails}
-          onClose={clearTransitRoute}
-        />
-      )}
     </>
   );
 };

@@ -76,37 +76,17 @@
       background-color: hsl(var(--background)) !important;
     }
     
-  /* Override any iOS Safari specific styling */
-  body::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: env(safe-area-inset-top, 0px);
-    background-color: hsl(var(--background));
-    z-index: 9999;
-  }
-  
-  /* Pulsing animation for marker 1 */
-  @keyframes pulse-marker {
-    0% {
-      opacity: 0.7;
-      transform: scale(1);
+    /* Override any iOS Safari specific styling */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: env(safe-area-inset-top, 0px);
+      background-color: hsl(var(--background));
+      z-index: 9999;
     }
-    50% {
-      opacity: 0.3;
-      transform: scale(1.4);
-    }
-    100% {
-      opacity: 0.7;
-      transform: scale(1);
-    }
-  }
-  
-  .pulse-marker-1 {
-    animation: pulse-marker 2s ease-in-out infinite;
-  }
   }
 }
 

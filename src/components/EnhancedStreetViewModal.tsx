@@ -149,26 +149,8 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
 
   // Reset viewpoint when landmark changes
   useEffect(() => {
-    console.log(`🔄 Landmark changed, resetting viewpoint from ${currentViewpoint} to 0`);
     setCurrentViewpoint(0);
   }, [currentIndex]);
-
-  // Enhanced logging for viewpoint changes
-  useEffect(() => {
-    const currentItem = streetViewItems[currentIndex];
-    const currentStreetViewData = currentItem?.streetViewData;
-    
-    if (currentStreetViewData && isMultiViewpointData(currentStreetViewData)) {
-      const viewpoint = currentStreetViewData.viewpoints[currentViewpoint];
-      console.log(`🧭 Viewpoint changed:`, {
-        currentViewpoint,
-        totalViewpoints: currentStreetViewData.viewpoints.length,
-        currentHeading: viewpoint?.heading,
-        currentImageUrl: viewpoint?.imageUrl,
-        landmarkName: currentItem?.landmark.name
-      });
-    }
-  }, [currentViewpoint, currentIndex, streetViewItems]);
 
   const determineStrategy = useCallback((multiData: MultiViewpointData): ViewpointStrategy => {
     const viewCount = multiData.viewpoints.length;
@@ -248,9 +230,7 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
         case 'ArrowLeft':
           e.preventDefault();
           if (e.shiftKey && isMultiViewpoint) {
-            const newViewpoint = currentViewpoint > 0 ? currentViewpoint - 1 : maxViewpoints - 1;
-            console.log(`⌨️ Keyboard: changing viewpoint from ${currentViewpoint} to ${newViewpoint}`);
-            setCurrentViewpoint(newViewpoint);
+            setCurrentViewpoint(prev => prev > 0 ? prev - 1 : maxViewpoints - 1);
           } else {
             handlePrevious();
           }
@@ -258,9 +238,7 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
         case 'ArrowRight':
           e.preventDefault();
           if (e.shiftKey && isMultiViewpoint) {
-            const newViewpoint = currentViewpoint < maxViewpoints - 1 ? currentViewpoint + 1 : 0;
-            console.log(`⌨️ Keyboard: changing viewpoint from ${currentViewpoint} to ${newViewpoint}`);
-            setCurrentViewpoint(newViewpoint);
+            setCurrentViewpoint(prev => prev < maxViewpoints - 1 ? prev + 1 : 0);
           } else {
             handleNext();
           }
@@ -268,17 +246,13 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
         case 'ArrowUp':
           e.preventDefault();
           if (isMultiViewpoint) {
-            const newViewpoint = currentViewpoint > 0 ? currentViewpoint - 1 : maxViewpoints - 1;
-            console.log(`⌨️ Keyboard: changing viewpoint from ${currentViewpoint} to ${newViewpoint}`);
-            setCurrentViewpoint(newViewpoint);
+            setCurrentViewpoint(prev => prev > 0 ? prev - 1 : maxViewpoints - 1);
           }
           break;
         case 'ArrowDown':
           e.preventDefault();
           if (isMultiViewpoint) {
-            const newViewpoint = currentViewpoint < maxViewpoints - 1 ? currentViewpoint + 1 : 0;
-            console.log(`⌨️ Keyboard: changing viewpoint from ${currentViewpoint} to ${newViewpoint}`);
-            setCurrentViewpoint(newViewpoint);
+            setCurrentViewpoint(prev => prev < maxViewpoints - 1 ? prev + 1 : 0);
           }
           break;
         case ' ':
@@ -533,16 +507,6 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
   // Convert Street View data to PhotoData for enhanced loading
   const currentStreetViewPhoto = streetViewToPhotoData(currentStreetView);
 
-  // Create unique key for image component to force re-rendering
-  const imageKey = `viewpoint-${currentViewpoint}-heading-${currentStreetView.heading}-${currentStreetView.imageUrl?.slice(-20)}`;
-  
-  console.log('🖼️ Image Key Generated:', {
-    imageKey,
-    currentViewpoint,
-    heading: currentStreetView.heading,
-    imageUrl: currentStreetView.imageUrl?.slice(0, 50) + '...'
-  });
-
   // Convert streetViewItems to thumbnailData format for the grid
   const thumbnailData = streetViewItems.map(item => ({
     landmark: item.landmark,
@@ -609,8 +573,7 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
                   Views: {allViewpoints.length} • 
                   Current: {currentViewpoint + 1} • 
                   Heading: {currentStreetView.heading}° •
-                  Compass: {shouldShowCompass ? 'YES' : 'NO'} •
-                  Key: {imageKey.slice(0, 30)}...
+                  Compass: {shouldShowCompass ? 'YES' : 'NO'}
                 </div>
               )}
             </div>
@@ -645,10 +608,9 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
           </div>
         </div>
 
-        {/* Enhanced Street View Image with unique key */}
+        {/* Enhanced Street View Image */}
         <div className="w-full h-full relative">
           <EnhancedProgressiveImage
-            key={imageKey}
             photo={currentStreetViewPhoto}
             alt={`Street View of ${currentStreetView.landmarkName} (${currentStreetView.heading}°)`}
             className="w-full h-full"

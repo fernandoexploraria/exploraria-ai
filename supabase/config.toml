@@ -44,9 +44,6 @@ verify_jwt = false
 [functions.google-photo-url]
 verify_jwt = false
 
-[functions.google-routes-optimization]
-verify_jwt = false
-
 [storage]
 enabled = true
 port = 54325

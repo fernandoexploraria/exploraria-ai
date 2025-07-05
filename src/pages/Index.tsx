@@ -106,14 +106,10 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions }) => {
     setIsNewTourAssistantOpen(true);
   };
 
-  const handleTourGenerated = (landmarks: any[], clearTransitRoute?: () => void) => {
+  const handleTourGenerated = (landmarks: any[]) => {
     console.log('🗺️ Tour generated with landmarks:', landmarks.length);
     // Clear previous smart tour landmarks before setting new ones
     setSmartTourLandmarks([]);
-    // Clear any existing transit route when a new tour is generated
-    if (clearTransitRoute) {
-      clearTransitRoute();
-    }
     // Wait a moment then set new landmarks
     setTimeout(() => {
       setSmartTourLandmarks(landmarks);

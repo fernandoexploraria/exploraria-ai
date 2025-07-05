@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Landmark, EnhancedLandmark } from '@/data/landmarks';
 import { setTourLandmarks, clearTourMarkers } from '@/data/tourLandmarks';
@@ -65,13 +66,6 @@ export const useTourPlanner = () => {
     setProgressState(prev => ({ ...prev, ...update }));
   };
 
-  // Helper function to convert numeric confidence to string literal
-  const convertConfidenceToString = (confidence: number): 'high' | 'medium' | 'low' => {
-    if (confidence >= 0.8) return 'high';
-    if (confidence >= 0.5) return 'medium';
-    return 'low';
-  };
-
   const generateTour = async (destination: string) => {
     // Check current user
     const { data: { user } } = await supabase.auth.getUser();
@@ -84,11 +78,6 @@ export const useTourPlanner = () => {
 
     // Clear existing tour markers first
     clearTourMarkers();
-    
-    // Clear any existing optimal route when generating a new tour
-    if ((window as any).clearOptimalRoute) {
-      (window as any).clearOptimalRoute();
-    }
 
     // Check if user is subscribed or within free tour limit
     const FREE_TOUR_LIMIT = 3;
@@ -222,27 +211,13 @@ export const useTourPlanner = () => {
       startMarkerLoading();
       await animateProgress(95, 'Loading landmarks to map...', 'finalizing');
 
-      // Convert EnhancedLandmark[] to TourLandmark[] with proper validation and type conversion
-      console.log('Converting enhanced landmarks to tour landmarks:', enhancedLandmarks.length);
-      const tourLandmarks = enhancedLandmarks
-        .filter(landmark => landmark.placeId) // Only include landmarks with placeId
-        .map(landmark => ({
-          placeId: landmark.placeId!, // Now guaranteed to exist due to filter
-          id: landmark.id || landmark.placeId!, // Ensure id exists for compatibility
-          name: landmark.name,
-          coordinates: landmark.coordinates,
-          description: landmark.description,
-          rating: landmark.rating,
-          photos: landmark.photos,
-          types: landmark.types,
-          formattedAddress: landmark.formattedAddress,
-          tourId: undefined, // Will be set when we have tour persistence
-          coordinateSource: landmark.coordinateSource,
-          confidence: convertConfidenceToString(landmark.confidence) // Convert number to string literal
-        }));
-
-      console.log('Setting tour landmarks:', tourLandmarks.length, 'valid landmarks with placeId and id');
-      setTourLandmarks(tourLandmarks);
+      // Set tour landmarks for map display (simplified version)
+      console.log('Setting enhanced tour landmarks:', enhancedLandmarks.length);
+      setTourLandmarks(enhancedLandmarks.map(lm => ({
+        name: lm.name,
+        coordinates: lm.coordinates,
+        description: lm.description
+      })));
 
       const newTourPlan: TourPlan = {
         landmarks: enhancedLandmarks,
@@ -309,8 +284,7 @@ export const useTourPlanner = () => {
         ? ` (${qualityInfo.highConfidence} high-quality coordinates)`
         : '';
       
-      // COMMENTED OUT: Toast notification overloads the UI - keeping for potential future use
-      // toast.success(`Generated an enhanced tour for ${destination}!${qualityMessage} Tour landmarks added with green markers.`);
+      toast.success(`Generated an enhanced tour for ${destination}!${qualityMessage} Tour landmarks added with green markers.`);
       
       // After 5 seconds, set phase to 'ready' to signal progress should hide
       setTimeout(() => {

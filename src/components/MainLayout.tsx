@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import Map from '@/components/Map';
 import TopControls from '@/components/TopControls';
 import UserControls from '@/components/UserControls';
@@ -37,7 +37,7 @@ interface MainLayoutProps {
   onNewTourAssistantOpenChange: (open: boolean) => void;
   isIntelligentTourOpen: boolean;
   onIntelligentTourOpenChange: (open: boolean) => void;
-  onTourGenerated?: (landmarks: any[], clearTransitRoute?: () => void) => void;
+  onTourGenerated?: (landmarks: any[]) => void;
   onTourReadyForVoice?: (tourData: { destination: string; systemPrompt: string; landmarks: any[] }) => void;
   voiceTourData?: { destination: string; systemPrompt: string; landmarks: any[] } | null;
 }
@@ -68,19 +68,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 }) => {
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
   const { userLocation } = useLocationTracking();
-  const { activeCards, closeProximityCard, showRouteToService, isActiveInstance } = useProximityNotifications();
-  
-  // Instance tracking for debugging
-  const instanceIdRef = useRef(`layout-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
-  
-  useEffect(() => {
-    console.log(`🏗️ MainLayout instance ${instanceIdRef.current} mounted`);
-    console.log(`🎯 Proximity notifications active instance: ${isActiveInstance}`);
-    
-    return () => {
-      console.log(`🏗️ MainLayout instance ${instanceIdRef.current} unmounted`);
-    };
-  }, [isActiveInstance]);
+  const { activeCards, closeProximityCard, showRouteToService } = useProximityNotifications();
   
   // Debug state for test proximity card
   const [debugProximityCard, setDebugProximityCard] = useState<Landmark | null>(null);
@@ -88,9 +76,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   // New state for FAB management
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [assistantState, setAssistantState] = useState<AssistantState>('not-started');
-  
-  // State to track clearTransitRoute function from Map
-  const [clearTransitRoute, setClearTransitRoute] = useState<(() => void) | null>(null);
 
   const handleLocationSelect = () => {
     console.log('Location select called but no action taken');
@@ -117,14 +102,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
   // Handle test proximity card display
   const handleTestProximityCard = () => {
-    console.log(`🧪 [${instanceIdRef.current}] Debug: Creating test proximity card for Fuente de los Coyotes`);
+    console.log('🧪 Debug: Creating test proximity card for Fuente de los Coyotes');
     const testLandmark = createTestLandmark();
     setDebugProximityCard(testLandmark);
   };
 
   // Close debug proximity card
   const closeDebugProximityCard = () => {
-    console.log(`🧪 [${instanceIdRef.current}] Debug: Closing test proximity card`);
+    console.log('🧪 Debug: Closing test proximity card');
     setDebugProximityCard(null);
   };
 
@@ -169,19 +154,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     setAssistantState('not-started');
   };
 
-  // Convert TourLandmark to Landmark for components that require the Landmark interface
-  const convertTourLandmarkToLandmark = (tourLandmark: any): Landmark => ({
-    id: tourLandmark.id || tourLandmark.placeId, // Use id if available, fallback to placeId
-    name: tourLandmark.name,
-    coordinates: tourLandmark.coordinates,
-    description: tourLandmark.description,
-    rating: tourLandmark.rating,
-    photos: tourLandmark.photos,
-    types: tourLandmark.types,
-    placeId: tourLandmark.placeId,
-    formattedAddress: tourLandmark.formattedAddress
-  });
-
   return (
     <div className="w-screen h-screen relative">
       <TopControls
@@ -208,7 +180,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         onSelectLandmark={onSelectLandmark}
         selectedLandmark={selectedLandmark}
         plannedLandmarks={[...smartTourLandmarks]}
-        onClearTransitRouteRef={(clearFn) => setClearTransitRoute(() => clearFn)}
       />
 
       {/* Debug Proximity Card - positioned above regular cards */}
@@ -230,9 +201,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         </div>
       )}
 
-      {/* Regular Floating Proximity Cards - Convert TourLandmark to Landmark */}
-      {/* Only render if this is the active proximity instance */}
-      {isActiveInstance && Object.entries(activeCards).map(([landmarkId, tourLandmark], index) => (
+      {/* Regular Floating Proximity Cards */}
+      {Object.entries(activeCards).map(([landmarkId, landmark], index) => (
         <div
           key={landmarkId}
           style={{
@@ -243,7 +213,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           }}
         >
           <FloatingProximityCard
-            landmark={convertTourLandmarkToLandmark(tourLandmark)}
+            landmark={landmark}
             userLocation={userLocation}
             onClose={() => closeProximityCard(landmarkId)}
             onGetDirections={showRouteToService}
@@ -267,7 +237,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         onLocationSelect={handleLocationSelect}
         isIntelligentTourOpen={isIntelligentTourOpen}
         onIntelligentTourOpenChange={onIntelligentTourOpenChange}
-        onTourGenerated={(landmarks) => onTourGenerated?.(landmarks, clearTransitRoute || undefined)}
+        onTourGenerated={onTourGenerated}
         onAuthRequired={handleAuthRequired}
         onTourReadyForVoice={onTourReadyForVoice}
       />
