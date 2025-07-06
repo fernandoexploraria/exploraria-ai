@@ -124,7 +124,7 @@ export const useTourPlanner = () => {
       const increment = (targetPercentage - currentProgress) / steps;
       
       for (let i = 1; i <= steps; i++) {
-        await new Promise(resolve => setTimeout(resolve, 300)); // Slower delay
+        await new Promise(resolve => setTimeout(resolve, 75)); // Optimized for faster UX
         currentProgress = Math.min(currentProgress + increment, targetPercentage);
         updateProgress({
           phase,
