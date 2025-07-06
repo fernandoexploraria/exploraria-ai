@@ -56,6 +56,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       console.log('Disconnected from ElevenLabs agent');
       setAssistantState('not-started');
       setIsSessionActive(false);
+      onOpenChange(false); // Close dialog when conversation ends
       // toast({
       //   title: "Conversation Ended",
       //   description: "Your tour conversation has been saved.",
