@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { PostAuthAction, getPostAuthAction, clearPostAuthAction, getPostAuthLandmark, clearPostAuthLandmark } from '@/utils/authActions';
+import { PostAuthAction, getPostAuthAction, clearPostAuthAction } from '@/utils/authActions';
 
 interface AuthContextType {
   user: User | null;
@@ -46,36 +46,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
         if (event === 'SIGNED_IN' && session?.user) {
           console.log('Sign in detected, checking for pending actions');
           const pendingAction = getPostAuthAction();
-          const pendingLandmark = getPostAuthLandmark();
           
           if (pendingAction !== 'none') {
             console.log('Executing pending post-auth action:', pendingAction);
-            
-            // Clear stored data first
             clearPostAuthAction();
-            clearPostAuthLandmark();
             
-            // If we have a pending landmark for smart-tour, restore it
-            if (pendingAction === 'smart-tour' && pendingLandmark) {
-              console.log('🎯 Restoring landmark for post-auth tour:', pendingLandmark.name);
-              // Store the landmark for the dialog to use - ensure it's set immediately
-              (window as any).pendingLandmarkDestination = pendingLandmark;
-              
-              // Wait longer to ensure landmark is properly set before opening dialog
-              setTimeout(() => {
-                console.log('🎯 Landmark should be restored, triggering post-auth action');
-                if (onPostAuthAction) {
-                  onPostAuthAction(pendingAction);
-                }
-              }, 1000);
-            } else {
-              // For other actions, use shorter delay
-              setTimeout(() => {
-                if (onPostAuthAction) {
-                  onPostAuthAction(pendingAction);
-                }
-              }, 500);
-            }
+            // Delay execution to ensure UI is ready
+            setTimeout(() => {
+              if (onPostAuthAction) {
+                onPostAuthAction(pendingAction);
+              }
+            }, 500);
           }
         }
       }
