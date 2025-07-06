@@ -75,7 +75,40 @@ const calculatePhotoScore = (photo: PhotoData, index: number): number => {
   return score;
 };
 
-// Helper function to call the edge function for photo URL construction
+// Batch helper function to construct multiple photo URLs efficiently
+const constructPhotoUrlsBatch = async (photoReferences: string[]): Promise<Record<string, { thumb: string; medium: string; large: string }>> => {
+  try {
+    const photoRequestData = photoReferences.map(photoRef => ({
+      photoReference: photoRef,
+      sizes: [
+        { name: 'thumb' as const, maxWidth: 400 },
+        { name: 'medium' as const, maxWidth: 800 },
+        { name: 'large' as const, maxWidth: 1600 }
+      ]
+    }));
+
+    const { data, error } = await supabase.functions.invoke('google-photo-urls-batch', {
+      body: { photoReferences: photoRequestData }
+    });
+
+    if (error) {
+      console.error(`❌ Batch edge function error:`, error);
+      throw error;
+    }
+
+    if (data?.success && data.photos) {
+      console.log(`🚀 Batch constructed URLs for ${Object.keys(data.photos).length} photos`);
+      return data.photos;
+    } else {
+      throw new Error('No photos returned from batch function');
+    }
+  } catch (error) {
+    console.error(`❌ Failed to batch construct URLs:`, error);
+    throw error;
+  }
+};
+
+// Fallback helper function for single photo URL construction
 const constructPhotoUrlSecurely = async (photoUri: string, maxWidth: number = 800): Promise<string> => {
   try {
     const { data, error } = await supabase.functions.invoke('google-photo-url', {
@@ -86,18 +119,15 @@ const constructPhotoUrlSecurely = async (photoUri: string, maxWidth: number = 80
     });
 
     if (error) {
-      console.error(`❌ Edge function error for ${photoUri}:`, error);
       throw error;
     }
 
     if (data?.url) {
-      console.log(`🔧 Constructed URL from edge function: ${photoUri} -> ${data.url}`);
       return data.url;
     } else {
       throw new Error('No URL returned from edge function');
     }
   } catch (error) {
-    console.error(`❌ Failed to construct URL for ${photoUri}:`, error);
     throw error;
   }
 };
@@ -122,7 +152,7 @@ const isValidUrl = (url: string): boolean => {
   }
 };
 
-// Extract photos from database raw_data with corrected photo reference handling
+// Extract photos from database raw_data with optimized batch processing
 const extractPhotosFromRawData = async (rawData: any, photoOptimization?: any): Promise<PhotoData[]> => {
   if (!rawData?.photos || !Array.isArray(rawData.photos)) {
     return [];
@@ -130,47 +160,52 @@ const extractPhotosFromRawData = async (rawData: any, photoOptimization?: any): 
 
   console.log(`🔍 Extracting photos from raw_data: found ${rawData.photos.length} photos`);
   
-  const photoPromises = rawData.photos.map(async (photo: any, index: number) => {
-    // CORRECTED: Use the photo.name field as-is from Google Places API (New)
-    // This is the full resource name like: places/{placeId}/photos/{photo_reference}
+  // Extract all valid photo references first
+  const validPhotoRefs: Array<{ reference: string; index: number; photo: any }> = [];
+  
+  rawData.photos.forEach((photo: any, index: number) => {
     const originalPhotoReference = photo.name || '';
-    
-    // Skip photos with empty or missing references
-    if (!originalPhotoReference || originalPhotoReference.trim() === '') {
-      console.warn(`⚠️ Skipping photo ${index}: empty photo reference`);
-      return null;
+    if (originalPhotoReference && originalPhotoReference.trim() !== '') {
+      validPhotoRefs.push({ reference: originalPhotoReference, index, photo });
     }
+  });
+
+  if (validPhotoRefs.length === 0) {
+    console.log(`ℹ️ No valid photo references found`);
+    return [];
+  }
+
+  try {
+    // Batch construct all URLs at once
+    console.log(`🚀 Batch processing ${validPhotoRefs.length} photo references`);
+    const batchResults = await constructPhotoUrlsBatch(validPhotoRefs.map(p => p.reference));
     
-    try {
-      console.log(`🔧 Processing photo ${index} with reference: ${originalPhotoReference}`);
+    // Process results and create PhotoData objects
+    const photoDataPromises = validPhotoRefs.map(async ({ reference, index, photo }) => {
+      const urls = batchResults[reference];
       
-      // Use edge function for URL construction (now handles photo.name correctly)
-      const thumbUrl = await constructPhotoUrlSecurely(originalPhotoReference, 400);
-      const mediumUrl = await constructPhotoUrlSecurely(originalPhotoReference, 800);
-      const largeUrl = await constructPhotoUrlSecurely(originalPhotoReference, 1600);
-      
-      // Validate constructed URLs using robust validation
-      const thumbValidation = isValidUrl(thumbUrl);
-      const mediumValidation = isValidUrl(mediumUrl);
-      const largeValidation = isValidUrl(largeUrl);
+      if (!urls) {
+        console.warn(`⚠️ No URLs returned for photo ${index}: ${reference}`);
+        return null;
+      }
+
+      // Validate constructed URLs
+      const thumbValidation = isValidUrl(urls.thumb);
+      const mediumValidation = isValidUrl(urls.medium);
+      const largeValidation = isValidUrl(urls.large);
       
       if (!thumbValidation && !mediumValidation && !largeValidation) {
-        console.warn(`⚠️ All constructed URLs failed validation for photo ${index}:`, {
-          original: originalPhotoReference,
-          thumb: thumbUrl,
-          medium: mediumUrl,
-          large: largeUrl
-        });
-        return null; // Skip this photo
+        console.warn(`⚠️ All URLs failed validation for photo ${index}`);
+        return null;
       }
       
       const photoData: PhotoData = {
         id: index + 1,
-        photoReference: originalPhotoReference,
+        photoReference: reference,
         urls: {
-          thumb: thumbValidation ? thumbUrl : '',
-          medium: mediumValidation ? mediumUrl : '',
-          large: largeValidation ? largeUrl : ''
+          thumb: thumbValidation ? urls.thumb : '',
+          medium: mediumValidation ? urls.medium : '',
+          large: largeValidation ? urls.large : ''
         },
         attributions: photo.authorAttributions || [],
         width: photo.widthPx || 800,
@@ -179,26 +214,59 @@ const extractPhotosFromRawData = async (rawData: any, photoOptimization?: any): 
       };
       
       photoData.qualityScore = calculatePhotoScore(photoData, index);
-      
-      console.log(`✅ Successfully processed photo ${index}:`, {
-        reference: originalPhotoReference,
-        validUrls: {
-          thumb: thumbValidation,
-          medium: mediumValidation,
-          large: largeValidation
-        },
-        qualityScore: photoData.qualityScore
-      });
-      
       return photoData;
-    } catch (error) {
-      console.warn(`⚠️ Failed to construct URLs for photo ${index} with reference "${originalPhotoReference}":`, error);
-      return null; // Skip this photo
-    }
-  });
+    });
 
-  const photos = await Promise.all(photoPromises);
-  return photos.filter(photo => photo !== null) as PhotoData[];
+    const photos = await Promise.all(photoDataPromises);
+    const validPhotos = photos.filter(photo => photo !== null) as PhotoData[];
+    
+    console.log(`✅ Batch processing complete: ${validPhotos.length}/${validPhotoRefs.length} photos processed successfully`);
+    return validPhotos;
+
+  } catch (error) {
+    console.warn(`⚠️ Batch processing failed, falling back to individual processing:`, error);
+    
+    // Fallback to individual processing with parallel execution
+    const photoPromises = validPhotoRefs.map(async ({ reference, index, photo }) => {
+      try {
+        const [thumbUrl, mediumUrl, largeUrl] = await Promise.all([
+          constructPhotoUrlSecurely(reference, 400),
+          constructPhotoUrlSecurely(reference, 800),
+          constructPhotoUrlSecurely(reference, 1600)
+        ]);
+        
+        const thumbValidation = isValidUrl(thumbUrl);
+        const mediumValidation = isValidUrl(mediumUrl);
+        const largeValidation = isValidUrl(largeUrl);
+        
+        if (!thumbValidation && !mediumValidation && !largeValidation) {
+          return null;
+        }
+        
+        const photoData: PhotoData = {
+          id: index + 1,
+          photoReference: reference,
+          urls: {
+            thumb: thumbValidation ? thumbUrl : '',
+            medium: mediumValidation ? mediumUrl : '',
+            large: largeValidation ? largeUrl : ''
+          },
+          attributions: photo.authorAttributions || [],
+          width: photo.widthPx || 800,
+          height: photo.heightPx || 600,
+          photoSource: 'database_raw_data'
+        };
+        
+        photoData.qualityScore = calculatePhotoScore(photoData, index);
+        return photoData;
+      } catch (error) {
+        return null;
+      }
+    });
+
+    const fallbackPhotos = await Promise.all(photoPromises);
+    return fallbackPhotos.filter(photo => photo !== null) as PhotoData[];
+  }
 };
 
 // Extract photos from database photos field

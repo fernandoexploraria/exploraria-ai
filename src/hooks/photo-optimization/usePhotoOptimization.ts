@@ -43,30 +43,23 @@ export const usePhotoOptimization = (config: Partial<PhotoOptimizationConfig> = 
     const startTimer = metrics.startPhotoLoadTimer(photoRef);
     
     try {
-      // 1. Check URL cache first
-      if (optimizationConfig.enableUrlCaching) {
-        const cachedUrl = urlCache.getCachedUrl(photoRef, size);
-        if (cachedUrl) {
-          // Reduce cache hit logging in production
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`🚀 Using cached URL for ${photoRef}:${size}`);
+        // 1. Check URL cache first
+        if (optimizationConfig.enableUrlCaching) {
+          const cachedUrl = urlCache.getCachedUrl(photoRef, size);
+          if (cachedUrl) {
+            return {
+              url: cachedUrl,
+              source: 'cache',
+              isPreValidated: true,
+              estimatedLoadTime: 200
+            };
           }
-          return {
-            url: cachedUrl,
-            source: 'cache',
-            isPreValidated: true,
-            estimatedLoadTime: 200
-          };
-        }
 
-        // Check if known to be invalid
-        if (urlCache.isKnownInvalid(photoRef, size)) {
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`🚫 Photo known to be invalid: ${photoRef}:${size}`);
+          // Check if known to be invalid
+          if (urlCache.isKnownInvalid(photoRef, size)) {
+            throw new Error('Photo known to be invalid');
           }
-          throw new Error('Photo known to be invalid');
         }
-      }
 
       // 2. Construct URL based on photo reference format
       let constructedUrl: string;
@@ -80,29 +73,23 @@ export const usePhotoOptimization = (config: Partial<PhotoOptimizationConfig> = 
         constructedUrl = `https://places.googleapis.com/v1/${photoRefCleaned}/media?maxWidthPx=${maxWidth}&key=${import.meta.env.VITE_GOOGLE_API_KEY || 'MISSING_API_KEY'}`;
       }
 
-      // 3. Pre-validate URL if enabled and appropriate
-      let isPreValidated = false;
-      if (optimizationConfig.enablePreValidation) {
-        const shouldValidate = optimizationConfig.preValidateOnSlowConnection || !isSlowConnection;
-        
-        if (shouldValidate) {
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`🔍 Pre-validating URL: ${constructedUrl}`);
-          }
-          isPreValidated = await validation.smartValidate(constructedUrl);
+        // 3. Pre-validate URL if enabled and appropriate
+        let isPreValidated = false;
+        if (optimizationConfig.enablePreValidation) {
+          const shouldValidate = optimizationConfig.preValidateOnSlowConnection || !isSlowConnection;
           
-          if (!isPreValidated) {
-            if (process.env.NODE_ENV === 'development') {
-              console.log(`❌ Pre-validation failed for: ${constructedUrl}`);
+          if (shouldValidate) {
+            isPreValidated = await validation.smartValidate(constructedUrl);
+            
+            if (!isPreValidated) {
+              // Cache the negative result
+              if (optimizationConfig.enableUrlCaching) {
+                urlCache.setCachedUrl(photoRef, size, constructedUrl, false);
+              }
+              throw new Error('URL pre-validation failed');
             }
-            // Cache the negative result
-            if (optimizationConfig.enableUrlCaching) {
-              urlCache.setCachedUrl(photoRef, size, constructedUrl, false);
-            }
-            throw new Error('URL pre-validation failed');
           }
         }
-      }
 
       // 4. Cache successful URL construction
       if (optimizationConfig.enableUrlCaching) {
@@ -110,22 +97,18 @@ export const usePhotoOptimization = (config: Partial<PhotoOptimizationConfig> = 
       }
 
       // 5. Record metrics
-      if (optimizationConfig.enableMetrics) {
-        const loadTime = startTimer();
-        metrics.recordPhotoLoad({
-          photoId: photoRef,
-          url: constructedUrl,
-          source: 'google_places_api',
-          size,
-          loadTime,
-          success: true,
-          networkType: effectiveType
-        });
-      }
-
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`✅ Optimized photo URL ready: ${photoRef}:${size}`);
-      }
+        if (optimizationConfig.enableMetrics) {
+          const loadTime = startTimer();
+          metrics.recordPhotoLoad({
+            photoId: photoRef,
+            url: constructedUrl,
+            source: 'google_places_api',
+            size,
+            loadTime,
+            success: true,
+            networkType: effectiveType
+          });
+        }
       
       return {
         url: constructedUrl,
