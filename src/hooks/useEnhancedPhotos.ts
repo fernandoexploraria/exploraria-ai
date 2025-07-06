@@ -78,6 +78,8 @@ const calculatePhotoScore = (photo: PhotoData, index: number): number => {
 // Batch helper function to construct multiple photo URLs efficiently
 const constructPhotoUrlsBatch = async (photoReferences: string[]): Promise<Record<string, { thumb: string; medium: string; large: string }>> => {
   try {
+    console.log(`🚀 [Batch] Starting batch URL construction for ${photoReferences.length} photos`);
+    
     const photoRequestData = photoReferences.map(photoRef => ({
       photoReference: photoRef,
       sizes: [
@@ -92,18 +94,25 @@ const constructPhotoUrlsBatch = async (photoReferences: string[]): Promise<Recor
     });
 
     if (error) {
-      console.error(`❌ Batch edge function error:`, error);
+      console.error(`❌ [Batch] Edge function error:`, error);
       throw error;
     }
 
     if (data?.success && data.photos) {
-      console.log(`🚀 Batch constructed URLs for ${Object.keys(data.photos).length} photos`);
+      const photoCount = Object.keys(data.photos).length;
+      console.log(`✅ [Batch] Successfully constructed URLs for ${photoCount}/${photoReferences.length} photos`);
+      
+      // Log any errors if some photos failed
+      if (data.errors && Object.keys(data.errors).length > 0) {
+        console.warn(`⚠️ [Batch] Some photos failed:`, Object.keys(data.errors).length, 'failures');
+      }
+      
       return data.photos;
     } else {
-      throw new Error('No photos returned from batch function');
+      throw new Error(`Batch function returned no photos. Success: ${data?.success}, Photos: ${!!data?.photos}`);
     }
   } catch (error) {
-    console.error(`❌ Failed to batch construct URLs:`, error);
+    console.error(`❌ [Batch] Failed to batch construct URLs:`, error);
     throw error;
   }
 };
@@ -328,7 +337,7 @@ export const useEnhancedPhotos = () => {
     landmarkId: string
   ): Promise<DatabaseLandmark | null> => {
     try {
-      console.log(`🔍 Fetching landmark from database: ${landmarkId}`);
+      console.log(`🔍 [DB Query] Fetching landmark from database: ${landmarkId}`);
       
       const { data, error: dbError } = await supabase
         .from('generated_landmarks')
@@ -356,20 +365,25 @@ export const useEnhancedPhotos = () => {
         .limit(1);
 
       if (dbError) {
-        console.error('❌ Database query error:', dbError);
+        console.error('❌ [DB Query] Database query error:', dbError);
         return null;
       }
 
       if (data && data.length > 0) {
         const landmark = data[0];
-        console.log(`✅ Found landmark in database: ${landmark.name} (selected from ${data.length} results)`);
+        console.log(`✅ [DB Query] Found landmark in database: ${landmark.name}`, {
+          hasRawData: !!landmark.raw_data,
+          hasPhotos: !!landmark.photos,
+          hasPhotoReferences: !!landmark.photo_references,
+          rawDataPhotosCount: landmark.raw_data?.photos?.length || 0
+        });
         return landmark as DatabaseLandmark;
       }
 
-      console.log(`ℹ️ Landmark not found in database: ${landmarkId}`);
+      console.log(`ℹ️ [DB Query] Landmark not found in database: ${landmarkId}`);
       return null;
     } catch (error) {
-      console.error('❌ Error fetching landmark from database:', error);
+      console.error('❌ [DB Query] Error fetching landmark from database:', error);
       return null;
     }
   }, []);
@@ -397,25 +411,25 @@ export const useEnhancedPhotos = () => {
       // TIER 1: Check database for tour landmarks with raw_data
       if (landmarkId || placeId) {
         const searchId = landmarkId || placeId;
-        console.log(`🔍 Phase 1: Checking database for landmark: ${searchId}`);
+        console.log(`🔍 [Database Strategy] Phase 1: Checking database for landmark: ${searchId}`);
         const dbLandmark = await fetchLandmarkFromDatabase(searchId);
         
         if (dbLandmark?.raw_data?.photos) {
-          console.log(`🔍 Found ${dbLandmark.raw_data.photos.length} photos in raw_data, processing...`);
+          console.log(`🔍 [Database Strategy] Found ${dbLandmark.raw_data.photos.length} photos in raw_data, processing...`);
           photos = await extractPhotosFromRawData(dbLandmark.raw_data, photoOptimization);
           sourceUsed = 'database_raw_data';
-          console.log(`✅ Phase 1 SUCCESS: Found ${photos.length} valid photos from raw_data`);
+          console.log(`✅ [Database Strategy] Phase 1 SUCCESS: Found ${photos.length} valid photos from raw_data`);
           
           // Pre-optimize URLs for better performance
           if (photos.length > 0) {
-            console.log(`🚀 Pre-optimizing ${photos.length} database photos`);
+            console.log(`🚀 [Database Strategy] Pre-optimizing ${photos.length} database photos`);
             try {
               const preOptimizePromises = photos.slice(0, 3).map(photo => // Only first 3 to avoid overwhelming
                 photoOptimization.preloadPhotos([photo.photoReference], quality)
               );
               await Promise.allSettled(preOptimizePromises);
             } catch (preOptError) {
-              console.warn(`⚠️ Pre-optimization failed:`, preOptError);
+              console.warn(`⚠️ [Database Strategy] Pre-optimization failed:`, preOptError);
             }
           }
           
@@ -425,23 +439,25 @@ export const useEnhancedPhotos = () => {
           );
           
           if (validPhotos.length === 0) {
-            console.log(`⚠️ Database strategy: No valid URLs found, will fallback to API`);
+            console.log(`⚠️ [Database Strategy] No valid URLs found, will fallback to API`);
             shouldFallbackToAPI = true;
             photos = [];
           } else {
             photos = validPhotos;
-            console.log(`✅ Database strategy SUCCESS: Using ${validPhotos.length} photos from database`);
+            console.log(`✅ [Database Strategy] SUCCESS: Using ${validPhotos.length} photos from database`);
           }
         }
         // TIER 2: Fallback to photos field from database
         else if (dbLandmark?.photos) {
           photos = extractPhotosFromPhotosField(dbLandmark.photos);
           sourceUsed = 'database_photos_field';
-          console.log(`✅ Phase 2 SUCCESS: Found ${photos.length} photos from photos field`);
+          console.log(`✅ [Database Strategy] Phase 2 SUCCESS: Found ${photos.length} photos from photos field`);
         } else {
+          console.log(`ℹ️ [Database Strategy] No database data found, will use API fallback`);
           shouldFallbackToAPI = true;
         }
       } else {
+        console.log(`ℹ️ [Database Strategy] No search ID provided, will use API fallback`);
         shouldFallbackToAPI = true;
       }
 

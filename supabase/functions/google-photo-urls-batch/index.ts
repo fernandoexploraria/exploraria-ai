@@ -46,7 +46,7 @@ serve(async (req) => {
       throw new Error('Invalid photoReferences array');
     }
 
-    console.log(`🔧 Batch processing ${photoReferences.length} photo references`);
+    console.log(`🔧 [Batch Function] Processing ${photoReferences.length} photo references`);
     
     const photos: Record<string, PhotoUrls> = {};
     const errors: Record<string, string> = {};
@@ -54,8 +54,8 @@ serve(async (req) => {
     // Process all photos in parallel
     const photoPromises = photoReferences.map(async ({ photoReference, sizes }) => {
       try {
-        // Clean photo reference
-        const cleanPhotoRef = photoReference.replace('places/', '').replace('/media', '');
+        // Clean photo reference - remove any prefixes
+        const cleanPhotoRef = photoReference.replace(/^places\//, '').replace(/\/media$/, '');
         
         // Process all sizes for this photo in parallel
         const sizePromises = sizes.map(async ({ name, maxWidth }) => {
@@ -72,9 +72,10 @@ serve(async (req) => {
         });
         
         photos[photoReference] = photoUrls as PhotoUrls;
+        console.log(`✅ [Batch Function] Successfully processed: ${photoReference}`);
         
       } catch (error) {
-        console.error(`❌ Failed to process photo ${photoReference}:`, error);
+        console.error(`❌ [Batch Function] Failed to process photo ${photoReference}:`, error);
         errors[photoReference] = error instanceof Error ? error.message : 'Unknown error';
       }
     });
@@ -85,7 +86,7 @@ serve(async (req) => {
     const successCount = Object.keys(photos).length;
     const errorCount = Object.keys(errors).length;
     
-    console.log(`✅ Batch processing complete: ${successCount} success, ${errorCount} errors`);
+    console.log(`✅ [Batch Function] Processing complete: ${successCount} success, ${errorCount} errors`);
     
     const response: BatchPhotoUrlResponse = {
       success: successCount > 0,
@@ -99,7 +100,7 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('❌ Batch photo URL construction error:', error);
+    console.error('❌ [Batch Function] Batch photo URL construction error:', error);
     
     return new Response(JSON.stringify({
       success: false,
