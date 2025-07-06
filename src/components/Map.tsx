@@ -26,6 +26,7 @@ import TransitRoutePlanner from '@/components/TransitRoutePlanner';
 import { useTransitRoute } from '@/hooks/useTransitRoute';
 import FloatingRouteCard from '@/components/FloatingRouteCard';
 import { usePermissionMonitor } from '@/hooks/usePermissionMonitor';
+import { setPostAuthAction, setPostAuthLandmark } from '@/utils/authActions';
 
 interface MapProps {
   mapboxToken: string;
@@ -35,6 +36,7 @@ interface MapProps {
   plannedLandmarks: Landmark[];
   onClearTransitRouteRef?: (clearFn: () => void) => void;
   onIntelligentTourOpen?: (landmarkDestination?: Landmark) => void;
+  onAuthDialogOpen?: () => void;
 }
 
 const TOUR_LANDMARKS_SOURCE_ID = 'tour-landmarks-source';
@@ -55,7 +57,8 @@ const MapComponent: React.FC<MapProps> = React.memo(({
   selectedLandmark, 
   plannedLandmarks,
   onClearTransitRouteRef,
-  onIntelligentTourOpen
+  onIntelligentTourOpen,
+  onAuthDialogOpen
 }) => {
   // 🔥 ADD COMPONENT RENDER DEBUGGING
   const renderCountRef = useRef(0);
@@ -106,6 +109,29 @@ const MapComponent: React.FC<MapProps> = React.memo(({
   const { fetchLandmarkPhotos: fetchPhotosWithHook } = useLandmarkPhotos();
   const { locationState } = useLocationTracking();
   const { permissionState, requestPermission, checkPermission } = usePermissionMonitor();
+  
+  // Helper function to handle Navigation button click with authentication check
+  const handleNavigationButtonClick = useCallback((landmark: Landmark) => {
+    console.log('🎯 Navigation button clicked for landmark:', landmark.name);
+    
+    if (user) {
+      // User is authenticated - proceed with existing flow
+      console.log('✅ User authenticated, opening intelligent tour directly');
+      onIntelligentTourOpen?.(landmark);
+    } else {
+      // User not authenticated - persist landmark and trigger auth
+      console.log('🚨 User not authenticated, persisting landmark and triggering auth');
+      setPostAuthLandmark(landmark);
+      setPostAuthAction('smart-tour');
+      
+      // Trigger auth dialog via parent component
+      if (onAuthDialogOpen) {
+        onAuthDialogOpen();
+      } else {
+        console.warn('⚠️ onAuthDialogOpen not provided to Map component');
+      }
+    }
+  }, [user, onIntelligentTourOpen, onAuthDialogOpen]);
   
   const { getCachedData } = useStreetView();
   const { getStreetViewWithOfflineSupport } = useEnhancedStreetView();
@@ -1180,10 +1206,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
               
               {isTopLandmark(landmark) && onIntelligentTourOpen && (
                 <button
-                  onClick={() => {
-                    console.log('🎯 Starting intelligent tour for top landmark:', landmark.name);
-                    onIntelligentTourOpen(landmark);
-                  }}
+                  onClick={() => handleNavigationButtonClick(landmark)}
                   className="bg-purple-600/95 hover:bg-purple-700 text-white border-2 border-white/90 rounded-full w-12 h-12 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg"
                   title="Generate Intelligent Tour"
                 >
@@ -1267,10 +1290,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
                   
                   {isTopLandmark(landmark) && onIntelligentTourOpen && (
                     <button
-                      onClick={() => {
-                        console.log('🎯 Starting intelligent tour for top landmark:', landmark.name);
-                        onIntelligentTourOpen(landmark);
-                      }}
+                      onClick={() => handleNavigationButtonClick(landmark)}
                       className="bg-purple-600/95 hover:bg-purple-700 text-white border-2 border-white/90 rounded-full w-10 h-10 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg"
                       title="Generate Intelligent Tour"
                     >

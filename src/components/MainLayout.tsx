@@ -233,6 +233,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         plannedLandmarks={memoizedPlannedLandmarks}
         onClearTransitRouteRef={(clearFn) => setClearTransitRoute(() => clearFn)}
         onIntelligentTourOpen={handleIntelligentTourOpen}
+        onAuthDialogOpen={handleAuthRequired}
       />
 
       {/* Debug Proximity Card - positioned above regular cards */}
