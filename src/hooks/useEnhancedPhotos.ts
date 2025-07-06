@@ -176,6 +176,7 @@ const extractPhotosFromRawData = async (rawData: any, placeId: string, photoOpti
   
   rawData.photos.forEach((photo: any, index: number) => {
     const originalPhotoReference = photo.name || '';
+    console.log(`🔍 [Debug] Raw photo ${index}:`, { name: originalPhotoReference, photo: photo });
     if (originalPhotoReference && originalPhotoReference.trim() !== '') {
       validPhotoRefs.push({ reference: originalPhotoReference, index, photo });
     }
