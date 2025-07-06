@@ -106,11 +106,29 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     console.log('Location select called but no action taken');
   };
 
-  // Simplified - let the dialog handle authentication internally
+  // Enhanced handler with authentication check and landmark persistence
   const handleIntelligentTourOpen = (landmarkDestination?: Landmark) => {
     if (landmarkDestination) {
       console.log('🎯 Opening intelligent tour with pre-selected landmark:', landmarkDestination.name);
-      // Store the landmark for the dialog to use
+      
+      // Check if user is authenticated
+      if (!user) {
+        console.log('🔐 User not authenticated - storing landmark and triggering auth');
+        // Import auth action utilities here to avoid circular dependencies
+        const { setPostAuthAction, setPostAuthLandmark } = require('@/utils/authActions');
+        
+        // Store landmark for post-auth restoration
+        setPostAuthLandmark(landmarkDestination);
+        
+        // Set post-auth action
+        setPostAuthAction('smart-tour');
+        
+        // Trigger authentication dialog
+        onAuthDialogOpen();
+        return;
+      }
+      
+      // User is authenticated - proceed with existing flow
       (window as any).pendingLandmarkDestination = landmarkDestination;
     }
     onIntelligentTourOpenChange(true);

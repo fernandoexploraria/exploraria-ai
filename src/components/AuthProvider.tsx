@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { PostAuthAction, getPostAuthAction, clearPostAuthAction } from '@/utils/authActions';
+import { PostAuthAction, getPostAuthAction, clearPostAuthAction, getPostAuthLandmark, clearPostAuthLandmark } from '@/utils/authActions';
 
 interface AuthContextType {
   user: User | null;
@@ -46,10 +46,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
         if (event === 'SIGNED_IN' && session?.user) {
           console.log('Sign in detected, checking for pending actions');
           const pendingAction = getPostAuthAction();
+          const pendingLandmark = getPostAuthLandmark();
           
           if (pendingAction !== 'none') {
             console.log('Executing pending post-auth action:', pendingAction);
+            
+            // If we have a pending landmark for smart-tour, restore it
+            if (pendingAction === 'smart-tour' && pendingLandmark) {
+              console.log('🎯 Restoring landmark for post-auth tour:', pendingLandmark.name);
+              // Store the landmark for the dialog to use
+              (window as any).pendingLandmarkDestination = pendingLandmark;
+            }
+            
+            // Clear stored data
             clearPostAuthAction();
+            clearPostAuthLandmark();
             
             // Delay execution to ensure UI is ready
             setTimeout(() => {
