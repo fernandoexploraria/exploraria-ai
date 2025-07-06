@@ -39,6 +39,7 @@ interface MainLayoutProps {
   onTourGenerated?: (landmarks: any[], clearTransitRoute?: () => void) => void;
   onTourReadyForVoice?: (tourData: { destination: string; systemPrompt: string; landmarks: any[] }) => void;
   voiceTourData?: { destination: string; systemPrompt: string; landmarks: any[] } | null;
+  tourKey?: string;
   onVoiceAgentStateChange?: (isActive: boolean) => void;
 }
 
@@ -65,6 +66,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   onTourGenerated,
   onTourReadyForVoice,
   voiceTourData,
+  tourKey,
   onVoiceAgentStateChange,
 }) => {
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
@@ -295,11 +297,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       />
 
       <NewTourAssistant
+        key={tourKey} // 🔑 Force remount for each new tour
         open={isNewTourAssistantOpen}
         onOpenChange={onNewTourAssistantOpenChange}
-        destination={voiceTourData?.destination || ''}
+        voiceTourData={voiceTourData}
         landmarks={voiceTourData?.landmarks || smartTourLandmarks}
-        systemPrompt="" // 🔥 SIMPLIFIED: NewTourAssistant will fetch from database
         onSessionStateChange={handleSessionStateChange}
       />
 

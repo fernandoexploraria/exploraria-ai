@@ -25,6 +25,7 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
     systemPrompt: string;
     landmarks: any[];
   } | null>(null);
+  const [tourKey, setTourKey] = useState<string>('initial');
   
   const { user, signOut } = useAuth();
   const mapboxToken = useMapboxToken();
@@ -161,6 +162,11 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
     // Clear any existing voice tour data first
     setVoiceTourData(null);
     
+    // Generate new unique key to force NewTourAssistant remount
+    const newTourKey = `tour-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    setTourKey(newTourKey);
+    console.log('🔄 Generated new tour key for fresh dialog instance:', newTourKey);
+    
     // Set the new tour data after a brief delay to ensure cleanup
     setTimeout(() => {
       console.log('🎙️ Setting new voice tour data:', tourData.destination);
@@ -219,6 +225,7 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
         onTourGenerated={handleTourGenerated}
         onTourReadyForVoice={handleTourReadyForVoice}
         voiceTourData={voiceTourData}
+        tourKey={tourKey}
       />
       <DebugWindow 
         isVisible={isDebugVisible}

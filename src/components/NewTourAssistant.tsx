@@ -7,15 +7,13 @@ import { Landmark } from '@/data/landmarks';
 import { useConversation } from '@11labs/react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthProvider';
-import { useTourDetails } from '@/hooks/useTourDetails';
 import { useContextualPOIPolling } from '@/hooks/useContextualPOIPolling';
 
 interface NewTourAssistantProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  destination: string;
+  voiceTourData?: { destination: string; systemPrompt: string; landmarks: any[] } | null;
   landmarks: Landmark[];
-  systemPrompt?: string;
   onSessionStateChange?: (isActive: boolean, state: AssistantState) => void;
 }
 
@@ -24,9 +22,8 @@ type AssistantState = 'not-started' | 'started' | 'listening' | 'recording' | 'p
 const NewTourAssistant: React.FC<NewTourAssistantProps> = ({ 
   open, 
   onOpenChange, 
-  destination: fallbackDestination, 
+  voiceTourData,
   landmarks,
-  systemPrompt: fallbackSystemPrompt,
   onSessionStateChange
 }) => {
   const { toast } = useToast();
@@ -37,20 +34,18 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isSessionActive, setIsSessionActive] = useState(false);
 
-  // 🔥 DATABASE-ONLY: Force fresh fetch for database-persisted tours
-  const hasPersistedTour = landmarks.some(l => l.tourId);
-  
-  // 🔍 DEBUG: Log landmark data to diagnose loading issues
+  // 🚀 IN-MEMORY STATE: Store destination and system prompt from voiceTourData
+  const [destination, setDestination] = useState<string>('');
+  const [systemPrompt, setSystemPrompt] = useState<string>('');
+
+  // 🔄 INITIALIZE: Set destination and system prompt from voiceTourData on mount/change
   useEffect(() => {
-    console.log('🔍 DEBUG NewTourAssistant landmarks:', {
-      landmarksCount: landmarks.length,
-      hasPersistedTour,
-      tourIds: landmarks.filter(l => l.tourId).map(l => l.tourId),
-      firstLandmark: landmarks[0],
-    });
-  }, [landmarks, hasPersistedTour]);
-  
-  const { tourDetails, isLoading: isFetchingTourDetails, error: tourDetailsError } = useTourDetails(landmarks, hasPersistedTour);
+    if (voiceTourData) {
+      console.log('🎯 FRESH INSTANCE: Setting destination and system prompt from voiceTourData');
+      setDestination(voiceTourData.destination);
+      setSystemPrompt(voiceTourData.systemPrompt);
+    }
+  }, [voiceTourData]);
 
   // Initialize the conversation with enhanced error handling
   const conversation = useConversation({
@@ -229,56 +224,19 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     }
   }, [open, isSessionActive]);
 
-  // 🔥 DATABASE-ONLY: Get destination and system prompt strictly from database for persisted tours
-  const getEffectiveDestination = () => {
-    if (hasPersistedTour) {
-      if (tourDetails?.destination) {
-        console.log('🎯 DATABASE-ONLY: Using destination from database:', tourDetails.destination);
-        return tourDetails.destination;
-      } else {
-        console.error('🚨 DATABASE-ONLY: Missing destination for persisted tour!');
-        throw new Error('Database tour missing destination');
-      }
-    }
-    
-    // Fallback only for non-persisted tours (should not happen in current flow)
-    console.log('🎯 FALLBACK: Using fallback destination for non-persisted tour');
-    return fallbackDestination || `Tour of ${landmarks.length} amazing places`;
-  };
-
-  const getEffectiveSystemPrompt = () => {
-    if (hasPersistedTour) {
-      if (tourDetails?.systemPrompt) {
-        console.log('🎯 DATABASE-ONLY: Using system prompt from database (length:', tourDetails.systemPrompt.length, 'chars)');
-        return tourDetails.systemPrompt;
-      } else {
-        console.error('🚨 DATABASE-ONLY: Missing system prompt for persisted tour!');
-        throw new Error('Database tour missing system prompt');
-      }
-    }
-    
-    // Fallback only for non-persisted tours (should not happen in current flow)
-    console.log('🎯 FALLBACK: Using fallback system prompt for non-persisted tour');
-    const effectiveDestination = getEffectiveDestination();
-    return `You are a knowledgeable tour guide for ${effectiveDestination}. Provide engaging information about the following landmarks: ${landmarks.map(l => l.name).join(', ')}.`;
-  };
-
-  // Prepare dynamic variables for the ElevenLabs agent
+  // 🚀 PREPARE DYNAMIC VARIABLES: Use in-memory state for ElevenLabs agent
   const prepareDynamicVariables = () => {
-    const effectiveDestination = getEffectiveDestination();
-    const effectiveSystemPrompt = getEffectiveSystemPrompt();
-    
     const variables = {
-      geminiGenerated: effectiveSystemPrompt,
-      destination: effectiveDestination,
+      geminiGenerated: systemPrompt,
+      destination: destination,
       user_id: user?.id,
       landmark_count: landmarks.length,
       landmark_names: landmarks.map(l => l.name).join(', ')
     };
     
-    console.log('Dynamic variables prepared with database-sourced data:', {
-      destination: effectiveDestination,
-      hasSystemPrompt: !!effectiveSystemPrompt,
+    console.log('🎯 IN-MEMORY: Dynamic variables prepared from component state:', {
+      destination,
+      hasSystemPrompt: !!systemPrompt,
       landmarkCount: landmarks.length
     });
     return variables;
@@ -403,8 +361,8 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     }
   };
 
-  // Show loading if configuration is being fetched or tour details are loading
-  if (isLoadingConfig || isFetchingTourDetails) {
+  // Show loading if configuration is being fetched
+  if (isLoadingConfig) {
     return (
       <CleanDialog open={open} onOpenChange={handleDialogClose}>
         <CleanDialogContent className="sm:max-w-xs p-8 bg-transparent border-none shadow-none">
@@ -415,19 +373,14 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
             <div className="flex items-center justify-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
             </div>
-            {isFetchingTourDetails && (
-              <div className="text-center text-sm text-muted-foreground">
-                Fetching tour details from database...
-              </div>
-            )}
           </div>
         </CleanDialogContent>
       </CleanDialog>
     );
   }
 
-  // Show error if configuration couldn't be loaded or there's a connection error
-  if (!elevenLabsConfig || connectionError || tourDetailsError) {
+  // Show error if configuration couldn't be loaded or there's a connection error  
+  if (!elevenLabsConfig || connectionError) {
     return (
       <CleanDialog open={open} onOpenChange={handleDialogClose}>
         <CleanDialogContent className="sm:max-w-xs p-8 bg-transparent border-none shadow-none">
@@ -437,7 +390,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
             </CleanDialogHeader>
             <div className="text-center space-y-4">
               <div className="text-red-500 text-sm">
-                {tourDetailsError ? `Tour Details Error: ${tourDetailsError}` : 'Connection Error'}
+                {connectionError || 'Connection Error'}
               </div>
               <Button
                 onClick={() => {
