@@ -57,9 +57,9 @@ serve(async (req) => {
       try {
         console.log(`🔧 [Batch Function] Processing photo: ${photoReference} for place: ${placeId}`);
         
-        // Construct proper Google Places API (New) resource name
+        // Use the photoReference directly as it already contains the full resource name
         // Format: places/{placeId}/photos/{photoReference}
-        const fullResourceName = `places/${placeId}/photos/${photoReference}`;
+        const fullResourceName = photoReference;
         
         // Process all sizes for this photo in parallel
         const sizePromises = sizes.map(async ({ name, maxWidth }) => {
