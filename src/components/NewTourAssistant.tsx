@@ -37,8 +37,9 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isSessionActive, setIsSessionActive] = useState(false);
 
-  // 🔥 RE-ENABLED: Tour details hook for database fetching
-  const { tourDetails, isLoading: isFetchingTourDetails, error: tourDetailsError } = useTourDetails(landmarks);
+  // 🔥 DATABASE-ONLY: Force fresh fetch for database-persisted tours
+  const hasPersistedTour = landmarks.some(l => l.tourId);
+  const { tourDetails, isLoading: isFetchingTourDetails, error: tourDetailsError } = useTourDetails(landmarks, hasPersistedTour);
 
   // Initialize the conversation with enhanced error handling
   const conversation = useConversation({
@@ -217,57 +218,38 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     }
   }, [open, isSessionActive]);
 
-  // 🔥 ENHANCED: Get effective destination and system prompt with proper priority
+  // 🔥 DATABASE-ONLY: Get destination and system prompt strictly from database for persisted tours
   const getEffectiveDestination = () => {
-    // Priority: 1. Database tour details, 2. Prop destination, 3. Generated fallback
-    if (tourDetails?.destination) {
-      console.log('🎯 Using destination from database:', tourDetails.destination);
-      return tourDetails.destination;
+    if (hasPersistedTour) {
+      if (tourDetails?.destination) {
+        console.log('🎯 DATABASE-ONLY: Using destination from database:', tourDetails.destination);
+        return tourDetails.destination;
+      } else {
+        console.error('🚨 DATABASE-ONLY: Missing destination for persisted tour!');
+        throw new Error('Database tour missing destination');
+      }
     }
     
-    if (fallbackDestination && fallbackDestination.trim()) {
-      console.log('🎯 Using fallback destination from props:', fallbackDestination);
-      return fallbackDestination;
-    }
-    
-    if (landmarks.length > 0) {
-      const generatedDestination = `Tour of ${landmarks.length} amazing places`;
-      console.log('🎯 Using generated destination:', generatedDestination);
-      return generatedDestination;
-    }
-    
-    console.log('🎯 Using default destination: Smart Tour');
-    return 'Smart Tour';
+    // Fallback only for non-persisted tours (should not happen in current flow)
+    console.log('🎯 FALLBACK: Using fallback destination for non-persisted tour');
+    return fallbackDestination || `Tour of ${landmarks.length} amazing places`;
   };
 
   const getEffectiveSystemPrompt = () => {
-    // Priority: 1. Database tour details, 2. Prop system prompt, 3. Generated fallback
-    if (tourDetails?.systemPrompt) {
-      console.log('🎯 Using system prompt from database (length:', tourDetails.systemPrompt.length, 'chars)');
-      return tourDetails.systemPrompt;
+    if (hasPersistedTour) {
+      if (tourDetails?.systemPrompt) {
+        console.log('🎯 DATABASE-ONLY: Using system prompt from database (length:', tourDetails.systemPrompt.length, 'chars)');
+        return tourDetails.systemPrompt;
+      } else {
+        console.error('🚨 DATABASE-ONLY: Missing system prompt for persisted tour!');
+        throw new Error('Database tour missing system prompt');
+      }
     }
     
-    if (fallbackSystemPrompt) {
-      console.log('🎯 Using fallback system prompt from props');
-      return fallbackSystemPrompt;
-    }
-    
+    // Fallback only for non-persisted tours (should not happen in current flow)
+    console.log('🎯 FALLBACK: Using fallback system prompt for non-persisted tour');
     const effectiveDestination = getEffectiveDestination();
-    const basePrompt = `You are a knowledgeable tour guide for ${effectiveDestination}. Provide engaging information about the following landmarks: ${landmarks.map(l => l.name).join(', ')}.`;
-    
-    // 🎯 NEW: Add contextual update snippet
-    const contextualUpdateSnippet = `
-
-CONTEXTUAL UPDATES: You will receive real-time updates about nearby points of interest as the user moves around. When you receive these updates, acknowledge them naturally and offer relevant information about nearby places when appropriate. The updates will include:
-- nearby_pois: Array of places near the user's current location
-- user_location: Current GPS coordinates
-- update_reason: Why the update was triggered (location_change, scheduled_poll, manual_refresh)
-
-Use this contextual information to enhance your tour guidance by mentioning relevant nearby places, suggesting detours, or providing location-specific insights.`;
-
-    const generatedPrompt = basePrompt + contextualUpdateSnippet;
-    console.log('🎯 Using generated system prompt with contextual updates');
-    return generatedPrompt;
+    return `You are a knowledgeable tour guide for ${effectiveDestination}. Provide engaging information about the following landmarks: ${landmarks.map(l => l.name).join(', ')}.`;
   };
 
   // Prepare dynamic variables for the ElevenLabs agent

@@ -10,7 +10,7 @@ interface TourDetails {
   landmarksWithPhotos?: any[];
 }
 
-export const useTourDetails = (landmarks: any[]) => {
+export const useTourDetails = (landmarks: any[], forceRefresh: boolean = false) => {
   const [tourDetails, setTourDetails] = useState<TourDetails | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,30 +21,43 @@ export const useTourDetails = (landmarks: any[]) => {
     return firstLandmarkWithTourId?.tourId || null;
   }, [landmarks]);
 
-  // Debounce database calls to prevent rapid successive requests
+  // Debounce database calls to prevent rapid successive requests (unless forced refresh)
   const [debouncedTourId, setDebouncedTourId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (forceRefresh) {
+      // Skip debounce for force refresh
+      setDebouncedTourId(tourId);
+      return;
+    }
+    
     const timeoutId = setTimeout(() => {
       setDebouncedTourId(tourId);
     }, 100); // 100ms debounce
 
     return () => clearTimeout(timeoutId);
-  }, [tourId]);
+  }, [tourId, forceRefresh]);
 
   useEffect(() => {
     const fetchTourDetails = async () => {
-      // Only fetch if we have a valid tour_id and it's different from what we already have
-      if (!debouncedTourId || (tourDetails && landmarks.some(l => l.tourId === debouncedTourId))) {
-        // Skip if we already have tour details for this tour ID
-        if (tourDetails && landmarks.some(l => l.tourId === debouncedTourId)) {
-          return;
+      // Skip cache checks if force refresh is enabled
+      if (!forceRefresh) {
+        // Only fetch if we have a valid tour_id and it's different from what we already have
+        if (!debouncedTourId || (tourDetails && landmarks.some(l => l.tourId === debouncedTourId))) {
+          // Skip if we already have tour details for this tour ID
+          if (tourDetails && landmarks.some(l => l.tourId === debouncedTourId)) {
+            return;
+          }
+          
+          if (!debouncedTourId) {
+            setTourDetails(null);
+            return;
+          }
         }
-        
-        if (!debouncedTourId) {
-          setTourDetails(null);
-          return;
-        }
+      } else if (!debouncedTourId) {
+        // For force refresh, still need a valid tour ID
+        setTourDetails(null);
+        return;
       }
 
       setIsLoading(true);
@@ -129,7 +142,7 @@ export const useTourDetails = (landmarks: any[]) => {
     };
 
     fetchTourDetails();
-  }, [debouncedTourId, tourDetails]); // Include tourDetails to prevent redundant fetching
+  }, [debouncedTourId, tourDetails, forceRefresh]); // Include forceRefresh to trigger fresh fetches
 
   return { tourDetails, isLoading, error };
 };
