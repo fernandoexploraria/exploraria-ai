@@ -38,16 +38,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   const [isSessionActive, setIsSessionActive] = useState(false);
 
   // 🔥 RE-ENABLED: Tour details hook for database fetching
-  const { tourDetails, isLoading: isFetchingTourDetails, error: tourDetailsError, resetTourDetails } = useTourDetails(landmarks);
-
-  // 🔥 NEW: Reset tour details cache when new landmarks arrive
-  useEffect(() => {
-    // Only reset if we have landmarks and they're different from what we had before
-    if (landmarks.length > 0) {
-      console.log('🧹 New tour landmarks detected - resetting tour details cache');
-      resetTourDetails();
-    }
-  }, [landmarks, resetTourDetails]);
+  const { tourDetails, isLoading: isFetchingTourDetails, error: tourDetailsError } = useTourDetails(landmarks);
 
   // Initialize the conversation with enhanced error handling
   const conversation = useConversation({
@@ -62,16 +53,9 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       // });
     },
     onDisconnect: () => {
-      console.log('Disconnected from ElevenLabs agent - cleaning up session');
+      console.log('Disconnected from ElevenLabs agent');
       setAssistantState('not-started');
       setIsSessionActive(false);
-      
-      // Auto-close dialog after conversation ends with brief delay
-      setTimeout(() => {
-        console.log('Auto-closing tour assistant dialog after conversation end');
-        onOpenChange(false);
-      }, 1500);
-      
       // toast({
       //   title: "Conversation Ended",
       //   description: "Your tour conversation has been saved.",
@@ -345,38 +329,21 @@ Use this contextual information to enhance your tour guidance by mentioning rele
 
     try {
       setConnectionError(null);
-      console.log('🎯 Starting fresh ElevenLabs session with agent:', elevenLabsConfig.agentId);
-      
-      // Ensure any existing session is terminated first
-      if (conversation.status === 'connected') {
-        console.log('🧹 Terminating existing session before starting fresh one');
-        await conversation.endSession();
-        // Wait for cleanup
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
+      console.log('Starting ElevenLabs conversation with agent:', elevenLabsConfig.agentId);
       
       const dynamicVariables = prepareDynamicVariables();
-      console.log('🎯 Fresh session dynamic variables:', {
-        destination: dynamicVariables.destination,
-        landmarkCount: dynamicVariables.landmark_count,
-        sessionId: crypto.randomUUID()
-      });
       
       console.log('Requesting microphone permission...');
       await navigator.mediaDevices.getUserMedia({ audio: true });
       console.log('Microphone permission granted');
       
-      console.log('🚀 Starting completely fresh session...');
+      console.log('Starting session with dynamic variables...');
       const conversationId = await conversation.startSession({ 
         agentId: elevenLabsConfig.agentId,
-        dynamicVariables: {
-          ...dynamicVariables,
-          sessionId: crypto.randomUUID(), // Force unique session
-          timestamp: Date.now()
-        }
+        dynamicVariables: dynamicVariables
       });
       
-      console.log('✅ Fresh ElevenLabs session started successfully:', conversationId);
+      console.log('ElevenLabs session started successfully:', conversationId);
       
     } catch (error) {
       console.error('Error starting tour:', error);
