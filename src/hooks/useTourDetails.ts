@@ -14,6 +14,7 @@ export const useTourDetails = (landmarks: any[]) => {
   const [tourDetails, setTourDetails] = useState<TourDetails | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resetTrigger, setResetTrigger] = useState(0);
 
   // Memoize the tour ID to prevent unnecessary re-fetches
   const tourId = useMemo(() => {
@@ -129,7 +130,15 @@ export const useTourDetails = (landmarks: any[]) => {
     };
 
     fetchTourDetails();
-  }, [debouncedTourId, tourDetails]); // Include tourDetails to prevent redundant fetching
+  }, [debouncedTourId, tourDetails, resetTrigger]); // Include resetTrigger to force refresh
 
-  return { tourDetails, isLoading, error };
+  // Reset function to clear cache and force refetch
+  const resetTourDetails = () => {
+    console.log('🧹 Resetting tour details cache');
+    setTourDetails(null);
+    setError(null);
+    setResetTrigger(prev => prev + 1);
+  };
+
+  return { tourDetails, isLoading, error, resetTourDetails };
 };

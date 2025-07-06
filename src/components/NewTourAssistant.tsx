@@ -38,7 +38,16 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   const [isSessionActive, setIsSessionActive] = useState(false);
 
   // 🔥 RE-ENABLED: Tour details hook for database fetching
-  const { tourDetails, isLoading: isFetchingTourDetails, error: tourDetailsError } = useTourDetails(landmarks);
+  const { tourDetails, isLoading: isFetchingTourDetails, error: tourDetailsError, resetTourDetails } = useTourDetails(landmarks);
+
+  // 🔥 NEW: Reset tour details cache when new landmarks arrive
+  useEffect(() => {
+    // Only reset if we have landmarks and they're different from what we had before
+    if (landmarks.length > 0) {
+      console.log('🧹 New tour landmarks detected - resetting tour details cache');
+      resetTourDetails();
+    }
+  }, [landmarks, resetTourDetails]);
 
   // Initialize the conversation with enhanced error handling
   const conversation = useConversation({
