@@ -51,23 +51,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
           if (pendingAction !== 'none') {
             console.log('Executing pending post-auth action:', pendingAction);
             
-            // If we have a pending landmark for smart-tour, restore it
-            if (pendingAction === 'smart-tour' && pendingLandmark) {
-              console.log('🎯 Restoring landmark for post-auth tour:', pendingLandmark.name);
-              // Store the landmark for the dialog to use
-              (window as any).pendingLandmarkDestination = pendingLandmark;
-            }
-            
-            // Clear stored data
+            // Clear stored data first
             clearPostAuthAction();
             clearPostAuthLandmark();
             
-            // Delay execution to ensure UI is ready
-            setTimeout(() => {
-              if (onPostAuthAction) {
-                onPostAuthAction(pendingAction);
-              }
-            }, 500);
+            // If we have a pending landmark for smart-tour, restore it
+            if (pendingAction === 'smart-tour' && pendingLandmark) {
+              console.log('🎯 Restoring landmark for post-auth tour:', pendingLandmark.name);
+              // Store the landmark for the dialog to use - ensure it's set immediately
+              (window as any).pendingLandmarkDestination = pendingLandmark;
+              
+              // Wait longer to ensure landmark is properly set before opening dialog
+              setTimeout(() => {
+                console.log('🎯 Landmark should be restored, triggering post-auth action');
+                if (onPostAuthAction) {
+                  onPostAuthAction(pendingAction);
+                }
+              }, 1000);
+            } else {
+              // For other actions, use shorter delay
+              setTimeout(() => {
+                if (onPostAuthAction) {
+                  onPostAuthAction(pendingAction);
+                }
+              }, 500);
+            }
           }
         }
       }

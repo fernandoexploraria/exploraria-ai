@@ -57,7 +57,16 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
       onRegisterPostAuthActions({
         onSmartTour: () => {
           console.log('🎯 Executing post-auth smart tour action');
-          handleIntelligentTourOpen();
+          
+          // Check if landmark was restored
+          const restoredLandmark = (window as any).pendingLandmarkDestination;
+          if (restoredLandmark) {
+            console.log('🎯 Found restored landmark, opening dialog:', restoredLandmark.name);
+            handleIntelligentTourOpen();
+          } else {
+            console.log('⚠️ No landmark found after auth - opening dialog anyway');
+            handleIntelligentTourOpen();
+          }
         }
       });
     }
