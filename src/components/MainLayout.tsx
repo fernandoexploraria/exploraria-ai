@@ -172,6 +172,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     setAssistantState(state);
     onVoiceAgentStateChange?.(isActive);
     
+    // When session becomes inactive, ensure FAB hides and state is clean
+    if (!isActive && state === 'not-started') {
+      console.log('🧹 Session ended - ensuring clean state');
+    }
+    
     console.log('🗺️ [DEBUG] Voice agent state change completed - map should NOT reset');
   };
 

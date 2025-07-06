@@ -176,11 +176,13 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
 
   // Enhanced handler to clear voice data when assistant closes
   const handleNewTourAssistantOpenChange = (open: boolean) => {
+    console.log('🎙️ Voice assistant dialog state changing:', { open, hadVoiceData: !!voiceTourData });
     setIsNewTourAssistantOpen(open);
+    
     if (!open) {
-      console.log('🎙️ Voice assistant closed - clearing tour data');
-      // Clear voice tour data when assistant closes
-      setTimeout(() => setVoiceTourData(null), 100);
+      console.log('🧹 Voice assistant closed - performing complete cleanup');
+      // Immediate cleanup of voice tour data to prevent session persistence
+      setVoiceTourData(null);
     }
   };
 

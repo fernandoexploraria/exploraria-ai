@@ -53,9 +53,16 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       // });
     },
     onDisconnect: () => {
-      console.log('Disconnected from ElevenLabs agent');
+      console.log('Disconnected from ElevenLabs agent - cleaning up session');
       setAssistantState('not-started');
       setIsSessionActive(false);
+      
+      // Auto-close dialog after conversation ends with brief delay
+      setTimeout(() => {
+        console.log('Auto-closing tour assistant dialog after conversation end');
+        onOpenChange(false);
+      }, 1500);
+      
       // toast({
       //   title: "Conversation Ended",
       //   description: "Your tour conversation has been saved.",
@@ -329,21 +336,38 @@ Use this contextual information to enhance your tour guidance by mentioning rele
 
     try {
       setConnectionError(null);
-      console.log('Starting ElevenLabs conversation with agent:', elevenLabsConfig.agentId);
+      console.log('🎯 Starting fresh ElevenLabs session with agent:', elevenLabsConfig.agentId);
+      
+      // Ensure any existing session is terminated first
+      if (conversation.status === 'connected') {
+        console.log('🧹 Terminating existing session before starting fresh one');
+        await conversation.endSession();
+        // Wait for cleanup
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
       
       const dynamicVariables = prepareDynamicVariables();
+      console.log('🎯 Fresh session dynamic variables:', {
+        destination: dynamicVariables.destination,
+        landmarkCount: dynamicVariables.landmark_count,
+        sessionId: crypto.randomUUID()
+      });
       
       console.log('Requesting microphone permission...');
       await navigator.mediaDevices.getUserMedia({ audio: true });
       console.log('Microphone permission granted');
       
-      console.log('Starting session with dynamic variables...');
+      console.log('🚀 Starting completely fresh session...');
       const conversationId = await conversation.startSession({ 
         agentId: elevenLabsConfig.agentId,
-        dynamicVariables: dynamicVariables
+        dynamicVariables: {
+          ...dynamicVariables,
+          sessionId: crypto.randomUUID(), // Force unique session
+          timestamp: Date.now()
+        }
       });
       
-      console.log('ElevenLabs session started successfully:', conversationId);
+      console.log('✅ Fresh ElevenLabs session started successfully:', conversationId);
       
     } catch (error) {
       console.error('Error starting tour:', error);
