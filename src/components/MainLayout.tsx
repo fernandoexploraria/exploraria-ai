@@ -104,14 +104,22 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     console.log('Location select called but no action taken');
   };
 
-  // Simplified - let the dialog handle authentication internally
+  // Check authentication first, then open appropriate dialog
   const handleIntelligentTourOpen = (landmarkDestination?: Landmark) => {
     if (landmarkDestination) {
       console.log('🎯 Opening intelligent tour with pre-selected landmark:', landmarkDestination.name);
       // Store the landmark for the dialog to use
       (window as any).pendingLandmarkDestination = landmarkDestination;
     }
-    onIntelligentTourOpenChange(true);
+    
+    // Check if user is authenticated
+    if (!user) {
+      console.log('🎯 User not authenticated, opening auth dialog first');
+      onAuthDialogOpen();
+    } else {
+      console.log('🎯 User authenticated, opening intelligent tour dialog');
+      onIntelligentTourOpenChange(true);
+    }
   };
 
   // FIXED: Ensure the auth dialog opens when required

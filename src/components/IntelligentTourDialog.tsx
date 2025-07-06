@@ -256,9 +256,9 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   const handleLandmarkTourGeneration = async (landmark: any, destinationInfo: AutocompleteResult) => {
     console.log('🚀 Starting simplified landmark tour generation for:', landmark.name);
     
-    // Validate authentication first
+    // Safety check - authentication should have been handled before dialog opens
     if (!user?.id) {
-      console.error('❌ User not authenticated for landmark tour generation');
+      console.error('❌ Safety check failed: User not authenticated for landmark tour generation');
       toast({
         title: "Authentication Required",
         description: "Please sign in to generate tours.",
