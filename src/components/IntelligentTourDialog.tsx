@@ -84,7 +84,12 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       // Check for pre-selected landmark destination
       const pendingLandmark = (window as any).pendingLandmarkDestination;
       if (pendingLandmark) {
-        console.log('🎯 Found pre-selected landmark, skipping destination selection:', pendingLandmark.name);
+        console.log('🎯 [AUTH FLOW] Found pre-selected landmark, skipping destination selection:', pendingLandmark.name);
+        console.log('🎯 [AUTH FLOW] Landmark data:', { 
+          name: pendingLandmark.name, 
+          coordinates: pendingLandmark.coordinates,
+          place_id: pendingLandmark.place_id 
+        });
         
         // Convert landmark to autocomplete result format
         const landmarkAsDestination: AutocompleteResult = {
@@ -111,9 +116,11 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
         resetMarkerState();
         
         // Clear the pending landmark and start tour generation immediately
+        console.log('🎯 [AUTH FLOW] Clearing pending landmark and starting tour generation');
         delete (window as any).pendingLandmarkDestination;
         
         // Start tour generation for the pre-selected landmark immediately
+        console.log('🎯 [AUTH FLOW] Starting landmark tour generation for:', pendingLandmark.name);
         handleLandmarkTourGeneration(pendingLandmark, landmarkAsDestination);
         
       } else {

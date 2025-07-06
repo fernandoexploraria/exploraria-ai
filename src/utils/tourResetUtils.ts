@@ -30,6 +30,12 @@ export const performComprehensiveTourReset = (
 ) => {
   console.log('🧹 Starting comprehensive tour reset...');
   
+  // Step 1: Preserve pending landmark destination before reset
+  const preservedLandmark = (window as any).pendingLandmarkDestination;
+  if (preservedLandmark) {
+    console.log('🎯 Preserving pending landmark during reset:', preservedLandmark.name);
+  }
+  
   // Phase 1: Clear core data structures (now only handles GeoJSON layer)
   console.log('🧹 Phase 1: Clearing tour landmarks data');
   clearTourMarkers();
@@ -59,6 +65,12 @@ export const performComprehensiveTourReset = (
       totalLandmarks: 0,
       errors: []
     });
+  }
+  
+  // Step 2: Restore preserved landmark after reset
+  if (preservedLandmark) {
+    console.log('🎯 Restoring pending landmark after reset:', preservedLandmark.name);
+    (window as any).pendingLandmarkDestination = preservedLandmark;
   }
   
   console.log('🧹 Comprehensive tour reset completed');

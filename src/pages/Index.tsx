@@ -56,6 +56,15 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
       onRegisterPostAuthActions({
         onSmartTour: () => {
           console.log('🎯 Executing post-auth smart tour action');
+          
+          // Check if there's a pending landmark from authentication flow
+          const pendingLandmark = (window as any).pendingLandmarkDestination;
+          if (pendingLandmark) {
+            console.log('🎯 Post-auth: Found pending landmark, opening tour dialog for:', pendingLandmark.name);
+          } else {
+            console.log('🎯 Post-auth: No pending landmark, opening regular tour dialog');
+          }
+          
           handleIntelligentTourOpen();
         }
       });
