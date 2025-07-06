@@ -7,6 +7,7 @@ export interface TopLandmark {
 
 // Top 100 most visited landmarks around the world with approximate coordinates
 export const TOP_LANDMARKS: TopLandmark[] = [
+  { name: "Frida Kahlo Museum, Mexico City", coordinates: [-99.1625, 19.3547], description: "Historic blue house where renowned artist Frida Kahlo lived and worked", place_id: "ChIJOz-6AMT_0YURofTM9_ekAWI" },
   { name: "Eiffel Tower, Paris", coordinates: [2.2945, 48.8584], description: "Iconic iron lattice tower and symbol of Paris", place_id: "ChIJLU7jZClu5kcR4PcOOO6p3I0" },
   { name: "Times Square, New York", coordinates: [-73.9857, 40.758], description: "The crossroads of the world in Manhattan", place_id: "ChIJmQJIxlVYwokRLgeuocVOGVU" },
   { name: "Great Wall of China", coordinates: [116.5704, 40.4319], description: "Ancient fortification stretching across northern China", place_id: "ChIJzyx_aNch8TUR3yIFlZslQNA" },
