@@ -84,12 +84,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       // Check for pre-selected landmark destination
       const pendingLandmark = (window as any).pendingLandmarkDestination;
       if (pendingLandmark) {
-        console.log('🎯 [AUTH FLOW] Found pre-selected landmark, skipping destination selection:', pendingLandmark.name);
-        console.log('🎯 [AUTH FLOW] Landmark data:', { 
-          name: pendingLandmark.name, 
-          coordinates: pendingLandmark.coordinates,
-          place_id: pendingLandmark.place_id 
-        });
+        console.log('🎯 Found pre-selected landmark, skipping destination selection:', pendingLandmark.name);
         
         // Convert landmark to autocomplete result format
         const landmarkAsDestination: AutocompleteResult = {
@@ -116,11 +111,9 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
         resetMarkerState();
         
         // Clear the pending landmark and start tour generation immediately
-        console.log('🎯 [AUTH FLOW] Clearing pending landmark and starting tour generation');
         delete (window as any).pendingLandmarkDestination;
         
         // Start tour generation for the pre-selected landmark immediately
-        console.log('🎯 [AUTH FLOW] Starting landmark tour generation for:', pendingLandmark.name);
         handleLandmarkTourGeneration(pendingLandmark, landmarkAsDestination);
         
       } else {
@@ -141,7 +134,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       
       console.log('🎯 Enhanced cleanup completed');
     }
-  }, [open]);
+  }, [open, resetMarkerState]);
 
   const resetDialog = () => {
     console.log('🔄 Resetting IntelligentTourDialog state');
@@ -256,9 +249,9 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   const handleLandmarkTourGeneration = async (landmark: any, destinationInfo: AutocompleteResult) => {
     console.log('🚀 Starting simplified landmark tour generation for:', landmark.name);
     
-    // Safety check - authentication should have been handled before dialog opens
+    // Validate authentication first
     if (!user?.id) {
-      console.error('❌ Safety check failed: User not authenticated for landmark tour generation');
+      console.error('❌ User not authenticated for landmark tour generation');
       toast({
         title: "Authentication Required",
         description: "Please sign in to generate tours.",

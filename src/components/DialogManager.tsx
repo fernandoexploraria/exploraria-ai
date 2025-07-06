@@ -45,7 +45,6 @@ const DialogManager: React.FC<DialogManagerProps> = ({
       <AuthDialog
         open={isAuthDialogOpen}
         onOpenChange={onAuthDialogOpenChange}
-        postAuthAction="smart-tour"
       />
 
       <IntelligentTourDialog
