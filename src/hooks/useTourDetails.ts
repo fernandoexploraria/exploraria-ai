@@ -40,6 +40,21 @@ export const useTourDetails = (landmarks: any[], forceRefresh: boolean = false) 
 
   useEffect(() => {
     const fetchTourDetails = async () => {
+      console.log('🔍 DEBUG fetchTourDetails called:', {
+        forceRefresh,
+        debouncedTourId,
+        hasTourDetails: !!tourDetails,
+        landmarksCount: landmarks.length
+      });
+
+      // For force refresh, we need a valid tour ID - if not found, fail immediately
+      if (forceRefresh && !debouncedTourId) {
+        console.error('🚨 Force refresh requested but no tourId found in landmarks');
+        setError('No tour ID found - cannot fetch tour details');
+        setIsLoading(false);
+        return;
+      }
+
       // Skip cache checks if force refresh is enabled
       if (!forceRefresh) {
         // Only fetch if we have a valid tour_id and it's different from what we already have
@@ -54,20 +69,24 @@ export const useTourDetails = (landmarks: any[], forceRefresh: boolean = false) 
             return;
           }
         }
-      } else if (!debouncedTourId) {
-        // For force refresh, still need a valid tour ID
-        setTourDetails(null);
-        return;
       }
 
       setIsLoading(true);
       setError(null);
 
       try {
-        // Fetch basic tour details
-        const { data: tourData, error: tourError } = await supabase.functions.invoke('get-tour-details', {
+        console.log('🔍 DEBUG Fetching tour details for tourId:', debouncedTourId);
+        
+        // Fetch basic tour details with timeout
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout - function may not be deployed')), 10000)
+        );
+        
+        const fetchPromise = supabase.functions.invoke('get-tour-details', {
           body: { tourId: debouncedTourId }
         });
+        
+        const { data: tourData, error: tourError } = await Promise.race([fetchPromise, timeoutPromise]) as any;
 
         if (tourError) {
           throw new Error(`Function error: ${tourError.message || 'Unknown error'}`);

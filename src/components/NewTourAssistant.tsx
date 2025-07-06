@@ -39,6 +39,17 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
 
   // 🔥 DATABASE-ONLY: Force fresh fetch for database-persisted tours
   const hasPersistedTour = landmarks.some(l => l.tourId);
+  
+  // 🔍 DEBUG: Log landmark data to diagnose loading issues
+  useEffect(() => {
+    console.log('🔍 DEBUG NewTourAssistant landmarks:', {
+      landmarksCount: landmarks.length,
+      hasPersistedTour,
+      tourIds: landmarks.filter(l => l.tourId).map(l => l.tourId),
+      firstLandmark: landmarks[0],
+    });
+  }, [landmarks, hasPersistedTour]);
+  
   const { tourDetails, isLoading: isFetchingTourDetails, error: tourDetailsError } = useTourDetails(landmarks, hasPersistedTour);
 
   // Initialize the conversation with enhanced error handling
