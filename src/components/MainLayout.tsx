@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { PENDING_LANDMARK_KEY } from '@/lib/utils';
 import Map from '@/components/Map';
 import TopControls from '@/components/TopControls';
 import UserControls from '@/components/UserControls';
@@ -108,8 +109,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   const handleIntelligentTourOpen = (landmarkDestination?: Landmark) => {
     if (landmarkDestination) {
       console.log('🎯 Opening intelligent tour with pre-selected landmark:', landmarkDestination.name);
-      // Store the landmark for the dialog to use
-      (window as any).pendingLandmarkDestination = landmarkDestination;
+      // Store the landmark in localStorage to persist across authentication
+      try {
+        localStorage.setItem(PENDING_LANDMARK_KEY, JSON.stringify(landmarkDestination));
+        console.log('🎯 Landmark stored in localStorage for post-auth use');
+      } catch (error) {
+        console.error('🚨 Failed to store landmark in localStorage:', error);
+      }
     }
     
     // Check if user is authenticated

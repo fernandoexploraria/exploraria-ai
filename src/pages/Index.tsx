@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { PENDING_LANDMARK_KEY } from '@/lib/utils';
 import SplashScreen from '@/components/SplashScreen';
 import MainLayout from '@/components/MainLayout';
 import DebugWindow from '@/components/DebugWindow';
@@ -58,13 +59,27 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
           console.log('🎯 Executing post-auth smart tour action');
           
           // Check if there's a pending landmark from authentication flow
-          const pendingLandmark = (window as any).pendingLandmarkDestination;
-          if (pendingLandmark) {
-            console.log('🎯 Post-auth: Found pending landmark, opening tour dialog directly for:', pendingLandmark.name);
-            // Open the dialog directly without comprehensive reset to preserve the pending landmark
-            setIsIntelligentTourOpen(true);
-          } else {
-            console.log('🎯 Post-auth: No pending landmark, opening regular tour dialog');
+          try {
+            const pendingLandmarkJson = localStorage.getItem(PENDING_LANDMARK_KEY);
+            if (pendingLandmarkJson) {
+              const pendingLandmark = JSON.parse(pendingLandmarkJson);
+              console.log('🎯 Post-auth: Found pending landmark, opening tour dialog directly for:', pendingLandmark.name);
+              
+              // Store in window object for IntelligentTourDialog to use
+              (window as any).pendingLandmarkDestination = pendingLandmark;
+              
+              // Clean up localStorage after use
+              localStorage.removeItem(PENDING_LANDMARK_KEY);
+              
+              // Open the dialog directly without comprehensive reset to preserve the pending landmark
+              setIsIntelligentTourOpen(true);
+            } else {
+              console.log('🎯 Post-auth: No pending landmark, opening regular tour dialog');
+              handleIntelligentTourOpen();
+            }
+          } catch (error) {
+            console.error('🚨 Failed to retrieve pending landmark from localStorage:', error);
+            console.log('🎯 Post-auth: Error reading localStorage, opening regular tour dialog');
             handleIntelligentTourOpen();
           }
         }
