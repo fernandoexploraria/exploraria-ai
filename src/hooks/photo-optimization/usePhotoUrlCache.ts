@@ -70,7 +70,10 @@ export const usePhotoUrlCache = (config: Partial<PhotoUrlCacheConfig> = {}) => {
       cacheRef.current.delete(oldestKey);
       metricsRef.current.evictions++;
       metricsRef.current.totalSize--;
-      console.log(`📸 Cache evicted LRU entry: ${oldestKey}`);
+      // Only log evictions in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`📸 Cache evicted LRU entry: ${oldestKey}`);
+      }
     }
   }, [cacheConfig.maxSize]);
 
@@ -81,7 +84,10 @@ export const usePhotoUrlCache = (config: Partial<PhotoUrlCacheConfig> = {}) => {
 
     if (!entry) {
       metricsRef.current.misses++;
-      console.log(`📸 Cache miss: ${key}`);
+      // Only log cache misses in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`📸 Cache miss: ${key}`);
+      }
       return null;
     }
 
@@ -89,7 +95,10 @@ export const usePhotoUrlCache = (config: Partial<PhotoUrlCacheConfig> = {}) => {
       cacheRef.current.delete(key);
       metricsRef.current.misses++;
       metricsRef.current.totalSize--;
-      console.log(`📸 Cache expired: ${key}`);
+      // Only log cache expiry in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`📸 Cache expired: ${key}`);
+      }
       return null;
     }
 
@@ -98,7 +107,10 @@ export const usePhotoUrlCache = (config: Partial<PhotoUrlCacheConfig> = {}) => {
     entry.lastAccess = Date.now();
     metricsRef.current.hits++;
     
-    console.log(`📸 Cache hit: ${key} (accessed ${entry.accessCount} times)`);
+    // Reduce cache hit logging frequency - only log every 10th access
+    if (process.env.NODE_ENV === 'development' && entry.accessCount % 10 === 1) {
+      console.log(`📸 Cache hit: ${key} (accessed ${entry.accessCount} times)`);
+    }
     return entry.isValid ? entry.url : null;
   }, [generateCacheKey, isEntryValid]);
 
@@ -127,7 +139,10 @@ export const usePhotoUrlCache = (config: Partial<PhotoUrlCacheConfig> = {}) => {
     metricsRef.current.sets++;
     metricsRef.current.totalSize++;
 
-    console.log(`📸 Cached URL: ${key} (valid: ${isValid})`);
+    // Only log cache sets in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`📸 Cached URL: ${key} (valid: ${isValid})`);
+    }
   }, [generateCacheKey, evictLRU]);
 
   // Check if photo reference is known to be invalid
@@ -151,7 +166,10 @@ export const usePhotoUrlCache = (config: Partial<PhotoUrlCacheConfig> = {}) => {
 
     if (cleaned > 0) {
       metricsRef.current.totalSize -= cleaned;
-      console.log(`📸 Cleaned up ${cleaned} expired cache entries`);
+      // Only log cleanup in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`📸 Cleaned up ${cleaned} expired cache entries`);
+      }
     }
   }, [isEntryValid]);
 
@@ -180,7 +198,10 @@ export const usePhotoUrlCache = (config: Partial<PhotoUrlCacheConfig> = {}) => {
       evictions: 0,
       totalSize: 0
     };
-    console.log(`📸 Cleared entire cache (${size} entries)`);
+    // Only log cache clear in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`📸 Cleared entire cache (${size} entries)`);
+    }
   }, []);
 
   return {
