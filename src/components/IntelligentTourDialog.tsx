@@ -141,7 +141,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       
       console.log('🎯 Enhanced cleanup completed');
     }
-  }, [open, resetMarkerState]);
+  }, [open]);
 
   const resetDialog = () => {
     console.log('🔄 Resetting IntelligentTourDialog state');
