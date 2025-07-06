@@ -10,6 +10,7 @@ const GOOGLE_API_KEY = Deno.env.get('GOOGLE_API_KEY');
 
 interface PhotoReference {
   photoReference: string;
+  placeId: string;
   sizes: Array<{ name: 'thumb' | 'medium' | 'large', maxWidth: number }>;
 }
 
@@ -52,14 +53,17 @@ serve(async (req) => {
     const errors: Record<string, string> = {};
     
     // Process all photos in parallel
-    const photoPromises = photoReferences.map(async ({ photoReference, sizes }) => {
+    const photoPromises = photoReferences.map(async ({ photoReference, placeId, sizes }) => {
       try {
-        // Clean photo reference - remove any prefixes
-        const cleanPhotoRef = photoReference.replace(/^places\//, '').replace(/\/media$/, '');
+        console.log(`🔧 [Batch Function] Processing photo: ${photoReference} for place: ${placeId}`);
+        
+        // Construct proper Google Places API (New) resource name
+        // Format: places/{placeId}/photos/{photoReference}
+        const fullResourceName = `places/${placeId}/photos/${photoReference}`;
         
         // Process all sizes for this photo in parallel
         const sizePromises = sizes.map(async ({ name, maxWidth }) => {
-          const url = `https://places.googleapis.com/v1/${cleanPhotoRef}/media?maxWidthPx=${maxWidth}&key=${GOOGLE_API_KEY}`;
+          const url = `https://places.googleapis.com/v1/${fullResourceName}/media?maxWidthPx=${maxWidth}&key=${GOOGLE_API_KEY}`;
           return { name, url };
         });
         

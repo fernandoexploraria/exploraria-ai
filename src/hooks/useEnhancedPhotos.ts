@@ -76,12 +76,13 @@ const calculatePhotoScore = (photo: PhotoData, index: number): number => {
 };
 
 // Batch helper function to construct multiple photo URLs efficiently
-const constructPhotoUrlsBatch = async (photoReferences: string[]): Promise<Record<string, { thumb: string; medium: string; large: string }>> => {
+const constructPhotoUrlsBatch = async (photoReferences: string[], placeId: string): Promise<Record<string, { thumb: string; medium: string; large: string }>> => {
   try {
-    console.log(`🚀 [Batch] Starting batch URL construction for ${photoReferences.length} photos`);
+    console.log(`🚀 [Batch] Starting batch URL construction for ${photoReferences.length} photos with place ID: ${placeId}`);
     
     const photoRequestData = photoReferences.map(photoRef => ({
       photoReference: photoRef,
+      placeId: placeId,
       sizes: [
         { name: 'thumb' as const, maxWidth: 400 },
         { name: 'medium' as const, maxWidth: 800 },
@@ -163,7 +164,7 @@ const isValidUrl = (url: string): boolean => {
 };
 
 // Extract photos from database raw_data with optimized batch processing
-const extractPhotosFromRawData = async (rawData: any, photoOptimization?: any): Promise<PhotoData[]> => {
+const extractPhotosFromRawData = async (rawData: any, placeId: string, photoOptimization?: any): Promise<PhotoData[]> => {
   if (!rawData?.photos || !Array.isArray(rawData.photos)) {
     return [];
   }
@@ -187,8 +188,8 @@ const extractPhotosFromRawData = async (rawData: any, photoOptimization?: any): 
 
   try {
     // Batch construct all URLs at once
-    console.log(`🚀 Batch processing ${validPhotoRefs.length} photo references`);
-    const batchResults = await constructPhotoUrlsBatch(validPhotoRefs.map(p => p.reference));
+    console.log(`🚀 Batch processing ${validPhotoRefs.length} photo references with place ID: ${placeId}`);
+    const batchResults = await constructPhotoUrlsBatch(validPhotoRefs.map(p => p.reference), placeId);
     
     // Process results and create PhotoData objects
     const photoDataPromises = validPhotoRefs.map(async ({ reference, index, photo }) => {
@@ -416,7 +417,7 @@ export const useEnhancedPhotos = () => {
         
         if (dbLandmark?.raw_data?.photos) {
           console.log(`🔍 [Database Strategy] Found ${dbLandmark.raw_data.photos.length} photos in raw_data, processing...`);
-          photos = await extractPhotosFromRawData(dbLandmark.raw_data, photoOptimization);
+          photos = await extractPhotosFromRawData(dbLandmark.raw_data, dbLandmark.place_id || placeId, photoOptimization);
           sourceUsed = 'database_raw_data';
           console.log(`✅ [Database Strategy] Phase 1 SUCCESS: Found ${photos.length} valid photos from raw_data`);
           
