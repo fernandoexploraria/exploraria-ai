@@ -302,7 +302,8 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
           latitude: landmark.coordinates[1],
           longitude: landmark.coordinates[0]
         },
-        types: landmark.types || ['tourist_attraction']
+        types: landmark.types || ['tourist_attraction'],
+        placeId: landmark.place_id || 'unknown'
       };
       
       console.log('Using landmark details as destination:', destinationDetails);
@@ -326,6 +327,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       }
 
       console.log('Found nearby landmarks:', nearbyData.places?.length || 0);
+      console.log('📍 Nearby landmarks retrieved:', nearbyData.places?.map(p => ({ name: p.name, place_id: p.place_id, rating: p.rating })) || []);
       setNearbyLandmarks(nearbyData.places || []);
       setCurrentStep(3);
 
