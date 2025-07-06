@@ -137,7 +137,8 @@ const isValidUrl = (url: string): boolean => {
   // For Google Places Photo URLs, use the robust validation
   if (url.includes('places.googleapis.com')) {
     const result = isValidGooglePlacesPhotoUrl(url);
-    if (!result.isValid) {
+    // Only log warnings for severe validation failures, not minor format issues
+    if (!result.isValid && result.error && !result.error.includes('maxWidthPx') && !result.error.includes('maxHeightPx')) {
       console.warn(`❌ Google Places Photo URL validation failed: ${result.error}`, url);
     }
     return result.isValid;
@@ -394,9 +395,10 @@ export const useEnhancedPhotos = () => {
       let shouldFallbackToAPI = false;
 
       // TIER 1: Check database for tour landmarks with raw_data
-      if (landmarkId) {
-        console.log(`🔍 Phase 1: Checking database for landmark: ${landmarkId}`);
-        const dbLandmark = await fetchLandmarkFromDatabase(placeId);
+      if (landmarkId || placeId) {
+        const searchId = landmarkId || placeId;
+        console.log(`🔍 Phase 1: Checking database for landmark: ${searchId}`);
+        const dbLandmark = await fetchLandmarkFromDatabase(searchId);
         
         if (dbLandmark?.raw_data?.photos) {
           console.log(`🔍 Found ${dbLandmark.raw_data.photos.length} photos in raw_data, processing...`);
@@ -423,11 +425,12 @@ export const useEnhancedPhotos = () => {
           );
           
           if (validPhotos.length === 0) {
-            console.log(`⚠️ Phase 1: No valid URLs found, will fallback to API`);
+            console.log(`⚠️ Database strategy: No valid URLs found, will fallback to API`);
             shouldFallbackToAPI = true;
             photos = [];
           } else {
             photos = validPhotos;
+            console.log(`✅ Database strategy SUCCESS: Using ${validPhotos.length} photos from database`);
           }
         }
         // TIER 2: Fallback to photos field from database
@@ -444,7 +447,7 @@ export const useEnhancedPhotos = () => {
 
       // TIER 3: Fallback to Google Places API
       if ((photos.length === 0 || shouldFallbackToAPI) && placeId) {
-        console.log(`🔍 Phase 3: Fetching from Google Places API for place: ${placeId}`);
+        console.log(`🔍 API Fallback: Database strategy yielded no results, falling back to Google Places API for place: ${placeId}`);
         
         const { data, error: apiError } = await supabase.functions.invoke('google-places-photos-v2', {
           body: {
@@ -455,7 +458,7 @@ export const useEnhancedPhotos = () => {
         });
 
         if (apiError) {
-          console.error('❌ API Error:', apiError);
+          console.error('❌ API Fallback Error:', apiError);
           setError(apiError.message || 'Failed to fetch photos from API');
           return null;
         }
@@ -468,7 +471,7 @@ export const useEnhancedPhotos = () => {
             qualityScore: photo.qualityScore || calculatePhotoScore(photo, index)
           }));
           sourceUsed = 'google_places_api';
-          console.log(`✅ Phase 3 SUCCESS: Found ${photos.length} photos from Google Places API`);
+          console.log(`✅ API Fallback SUCCESS: Found ${photos.length} photos from Google Places API`);
           
           // Pre-optimize API photos
           if (photos.length > 0) {

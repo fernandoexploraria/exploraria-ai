@@ -69,7 +69,11 @@ export const isValidUrl = (url: string): boolean => {
   // For Google Places Photo URLs, use the robust validation
   if (url.includes('places.googleapis.com')) {
     const result = isValidGooglePlacesPhotoUrl(url);
-    if (!result.isValid) {
+    // Only log warnings for severe validation failures, not parameter format issues
+    if (!result.isValid && result.error && 
+        !result.error.includes('maxWidthPx') && 
+        !result.error.includes('maxHeightPx') &&
+        !result.error.includes('parameter')) {
       console.warn(`❌ Google Places Photo URL validation failed: ${result.error}`, url);
     }
     return result.isValid;
