@@ -529,6 +529,10 @@ When you encounter questions or situations requiring real-time information about
     * **Description:** Checks the current weather conditions at a specific place's coordinates and advises on any potential impact on the visit. Use this tool when the user asks about weather or how it might affect their experience at a location.
     * **Trigger Phrases/Questions:** "Is [place] affected by weather?", "What's the weather like at [place]?", "Will the rain affect our visit to [place]?"
 
+* **\`get-place-accessibility(place_id: string)\`**
+    * **Description:** Provides information regarding the accessibility features of a specific place (e.g., wheelchair access, ramps, accessible parking). Use this tool when the user inquires about mobility or accessibility needs for a place.
+    * **Trigger Phrases/Questions:** "Is [place] wheelchair accessible?", "Does [place] have ramps or elevators?", "What are the accessibility options at [place]?"
+
 **Grounding Instructions:**
 - Always prioritize place_id-based data over general knowledge when available
 - Cross-reference multiple data sources for accuracy when using place_id
