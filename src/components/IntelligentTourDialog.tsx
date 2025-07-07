@@ -459,16 +459,21 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
 
 **Tour Destination Overview:**
 - **Name:** ${destination.name}
+- **Place ID:** ${destination.placeId || 'Not available'}
 - **Location:** ${destination.address || 'Central location'}
 - **Visitor Impression:** ${destination.rating ? `Highly rated at ${destination.rating}/5` : 'A notable destination'}${destination.userRatingsTotal ? ` (${destination.userRatingsTotal} reviews)` : ''}. ${destination.editorialSummary || 'A significant point of interest in the area.'}
 
 **Key Landmarks for this Tour (Initial Discovery):**
 These are significant points you've pre-identified within the tour's general area. You should introduce these naturally as we approach them, or if the user asks.
-${landmarkHighlights.map((landmark, idx) => `
+${landmarkHighlights.map((landmark, idx) => {
+  const originalLandmark = landmarks[idx];
+  return `
 ${idx + 1}. **${landmark.name}:**
+   - *Place ID:* ${originalLandmark?.placeId || 'Not available'}
    - *Type:* ${landmark.type.replace(/_/g, ' ')}
    - *Highlight:* "${landmark.highlight}"
-`).join('')}
+`;
+}).join('')}
 
 ---
 
