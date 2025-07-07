@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,21 +16,11 @@ serve(async (req) => {
   }
 
   try {
-    const { place_id, travel_mode = 'WALKING', user_id } = await req.json();
+    const { place_id, from_coordinates, travel_mode = 'WALKING' } = await req.json();
     
     if (!place_id) {
       return new Response(
         JSON.stringify({ error: 'place_id is required' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
-    }
-
-    if (!user_id) {
-      return new Response(
-        JSON.stringify({ error: 'user_id is required to get current location' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -51,80 +40,16 @@ serve(async (req) => {
       );
     }
 
-    // Initialize Supabase client to get user's current location
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    console.log(`[GET-PLACE-DIRECTIONS] Getting directions to place_id: ${place_id}`);
 
-    console.log(`[GET-PLACE-DIRECTIONS] Getting directions to place_id: ${place_id} for user: ${user_id}`);
-
-    // Get user's current location from interactions table (most recent entry)
-    const { data: userLocation, error: locationError } = await supabase
-      .from('interactions')
-      .select('user_location')
-      .eq('user_id', user_id)
-      .not('user_location', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (locationError || !userLocation?.user_location) {
-      console.log('[GET-PLACE-DIRECTIONS] No user location found, returning destination info only');
-      
-      // Still get place details for basic info
-      const placeDetailsUrl = `https://places.googleapis.com/v1/places/${place_id}?fields=location,displayName,formattedAddress&key=${GOOGLE_API_KEY}`;
-      const placeResponse = await fetch(placeDetailsUrl, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      if (!placeResponse.ok) {
-        throw new Error(`Place Details API error: ${placeResponse.status}`);
-      }
-
-      const placeData = await placeResponse.json();
-      const destination = placeData.location;
-
-      return new Response(
-        JSON.stringify({
-          place_id,
-          place_name: placeData.displayName?.text || 'Unknown place',
-          destination_address: placeData.formattedAddress || 'Address not available',
-          destination_coordinates: {
-            latitude: destination.latitude,
-            longitude: destination.longitude
-          },
-          message: 'To get precise directions, I need your current location. Please enable location services and try asking for directions again.',
-          has_directions: false
-        }),
-        { 
-          status: 200, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
-    }
-
-    // Extract coordinates from PostGIS point format (x,y)
-    const locationStr = userLocation.user_location.toString();
-    const coordMatch = locationStr.match(/\(([^,]+),([^)]+)\)/);
-    
-    if (!coordMatch) {
-      throw new Error('Invalid user location format');
-    }
-
-    const from_coordinates = {
-      longitude: parseFloat(coordMatch[1]),
-      latitude: parseFloat(coordMatch[2])
-    };
-
-    console.log(`[GET-PLACE-DIRECTIONS] Using user location: ${from_coordinates.latitude}, ${from_coordinates.longitude}`);
-
-    // Get place details for destination
+    // First, get the place details to get coordinates
     const placeDetailsUrl = `https://places.googleapis.com/v1/places/${place_id}?fields=location,displayName,formattedAddress&key=${GOOGLE_API_KEY}`;
     
     const placeResponse = await fetch(placeDetailsUrl, {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
+      headers: {
+        'Content-Type': 'application/json',
+      }
     });
 
     if (!placeResponse.ok) {
@@ -137,6 +62,29 @@ serve(async (req) => {
     
     if (!destination || !destination.latitude || !destination.longitude) {
       throw new Error('Could not get destination coordinates');
+    }
+
+    // If no from_coordinates provided, we'll return general location info
+    if (!from_coordinates || !from_coordinates.latitude || !from_coordinates.longitude) {
+      const result = {
+        place_id,
+        place_name: placeData.displayName?.text || 'Unknown place',
+        destination_address: placeData.formattedAddress || 'Address not available',
+        destination_coordinates: {
+          latitude: destination.latitude,
+          longitude: destination.longitude
+        },
+        message: 'To get precise directions, I would need your current location. The destination is located at the coordinates provided.',
+        has_directions: false
+      };
+
+      return new Response(
+        JSON.stringify(result),
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     // Use Google Routes API for directions
