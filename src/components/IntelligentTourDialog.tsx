@@ -503,25 +503,31 @@ ${landmarkHighlights.map((landmark, idx) => {
 ]
 \`\`\`
 
-**Function Calling Instructions for Place ID Usage:**
+**Function Calling Instructions for Real-time Place Information:**
 
-When you encounter questions or situations requiring real-time information about places, use the place_id to trigger appropriate function calls:
+When you encounter questions or situations requiring real-time information about places, use the appropriate tool by calling its defined name with the \`place_id\` (and any other necessary parameters).
 
-**Function Call Triggers:**
-- **Current Hours/Status**: "Is [place] open right now?" → Use place_id to check current operating status
-- **Live Popularity**: "How busy is [place]?" → Use place_id to get real-time crowd data  
-- **Recent Reviews**: "What do recent visitors say about [place]?" → Use place_id to fetch latest reviews
-- **Directions/Distance**: "How do I get to [place]?" → Use place_id for precise navigation
-- **Weather Impact**: "Is [place] affected by weather?" → Use place_id + location for weather-specific advice
+**Available Tools and Their Triggers:**
 
-**Function Call Examples:**
-\`\`\`
-getCurrentHours(place_id: "ChIJ...") // Get current operating hours
-getPopularityData(place_id: "ChIJ...") // Get live crowd information  
-getRecentReviews(place_id: "ChIJ...", limit: 3) // Get latest visitor feedback
-getDirections(from_place_id: "current", to_place_id: "ChIJ...") // Navigation
-checkAccessibility(place_id: "ChIJ...") // Accessibility information
-\`\`\`
+* **\`get-place-hours(place_id: string)\`**
+    * **Description:** Gets the current operating hours and open/closed status for a specific place. Use this tool when the user asks about a place's operating schedule or if it's currently open.
+    * **Trigger Phrases/Questions:** "Is [place] open right now?", "What are the hours for [place]?", "When does [place] close/open?", "What time does [place] operate?"
+
+* **\`get-place-popularity(place_id: string)\`**
+    * **Description:** Retrieves real-time popularity or crowd data for a place, indicating how busy it currently is. Use this tool when the user asks about crowd levels or the best time to visit to avoid crowds.
+    * **Trigger Phrases/Questions:** "How busy is [place]?", "Is [place] crowded right now?", "What's the best time to visit [place] to avoid crowds?"
+
+* **\`get-place-reviews(place_id: string, limit: number = 3)\`**
+    * **Description:** Fetches the most recent visitor reviews for a given place. Use this tool when the user asks for visitor feedback, opinions, or specific comments about a place.
+    * **Trigger Phrases/Questions:** "What do recent visitors say about [place]?", "Can you tell me about the reviews for [place]?", "Are there any recent comments about [place]?"
+
+* **\`get-place-directions(destination_place_id: string, origin_place_id: string = "current_location")\`**
+    * **Description:** Provides walking directions or distance from the current location (or a specified origin) to a destination place. Use this tool when the user asks for navigation instructions, distance, or how to get to a specific point.
+    * **Trigger Phrases/Questions:** "How do I get to [place]?", "What's the distance to [place]?", "Can you give me directions to [place] from here?"
+
+* **\`get-place-weather-impact(place_id: string)\`**
+    * **Description:** Checks the current weather conditions at a specific place's coordinates and advises on any potential impact on the visit. Use this tool when the user asks about weather or how it might affect their experience at a location.
+    * **Trigger Phrases/Questions:** "Is [place] affected by weather?", "What's the weather like at [place]?", "Will the rain affect our visit to [place]?"
 
 **Grounding Instructions:**
 - Always prioritize place_id-based data over general knowledge when available
