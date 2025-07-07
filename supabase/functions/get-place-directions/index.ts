@@ -58,15 +58,29 @@ serve(async (req) => {
 
     console.log(`[GET-PLACE-DIRECTIONS] Getting directions to place_id: ${place_id} for user: ${user_id}`);
 
-    // Get user's current location from interactions table (most recent entry)
+    // Get user's current location - try multiple sources for freshest data
+    console.log(`[GET-PLACE-DIRECTIONS] Looking for user location for user: ${user_id}`);
+    
+    // First try proximity_notifications (most recent activity)
+    const { data: recentProximityLocation } = await supabase
+      .from('proximity_notifications')
+      .select('created_at')
+      .eq('user_id', user_id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    // Then try interactions table (fallback)
     const { data: userLocation, error: locationError } = await supabase
       .from('interactions')
-      .select('user_location')
+      .select('user_location, created_at')
       .eq('user_id', user_id)
       .not('user_location', 'is', null)
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
+
+    console.log(`[GET-PLACE-DIRECTIONS] Found location data: ${userLocation ? 'Yes' : 'No'}, Recent proximity activity: ${recentProximityLocation ? 'Yes' : 'No'}`);
 
     if (locationError || !userLocation?.user_location) {
       console.log('[GET-PLACE-DIRECTIONS] No user location found, returning destination info only');
