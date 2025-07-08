@@ -36,10 +36,6 @@ serve(async (req) => {
     // Use Google Places API (New) Place Details to get accessibility information
     const fieldsToRequest = [
       'accessibilityOptions',
-      'wheelchairAccessibleEntrance',
-      'wheelchairAccessibleParking',
-      'wheelchairAccessibleRestroom',
-      'wheelchairAccessibleSeating',
       'displayName',
       'formattedAddress'
     ].join(',');
@@ -69,17 +65,17 @@ serve(async (req) => {
       place_name: placeData.displayName?.text || 'Unknown Place',
       address: placeData.formattedAddress || 'Address not available',
       accessibility_features: {
-        wheelchair_accessible_entrance: placeData.wheelchairAccessibleEntrance || null,
-        wheelchair_accessible_parking: placeData.wheelchairAccessibleParking || null,
-        wheelchair_accessible_restroom: placeData.wheelchairAccessibleRestroom || null,
-        wheelchair_accessible_seating: placeData.wheelchairAccessibleSeating || null,
+        wheelchair_accessible_entrance: placeData.accessibilityOptions?.wheelchairAccessibleEntrance || null,
+        wheelchair_accessible_parking: placeData.accessibilityOptions?.wheelchairAccessibleParking || null,
+        wheelchair_accessible_restroom: placeData.accessibilityOptions?.wheelchairAccessibleRestroom || null,
+        wheelchair_accessible_seating: placeData.accessibilityOptions?.wheelchairAccessibleSeating || null,
       },
       accessibility_options: placeData.accessibilityOptions || null,
       has_accessibility_data: !!(
-        placeData.wheelchairAccessibleEntrance !== undefined ||
-        placeData.wheelchairAccessibleParking !== undefined ||
-        placeData.wheelchairAccessibleRestroom !== undefined ||
-        placeData.wheelchairAccessibleSeating !== undefined ||
+        placeData.accessibilityOptions?.wheelchairAccessibleEntrance !== undefined ||
+        placeData.accessibilityOptions?.wheelchairAccessibleParking !== undefined ||
+        placeData.accessibilityOptions?.wheelchairAccessibleRestroom !== undefined ||
+        placeData.accessibilityOptions?.wheelchairAccessibleSeating !== undefined ||
         placeData.accessibilityOptions
       )
     };
