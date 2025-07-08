@@ -487,10 +487,13 @@ export const useProximityNotifications = () => {
     const currentNearbyIds = new Set(nearbyLandmarks.map(nl => nl.landmark.placeId));
     const previousNearbyIds = previousNearbyLandmarksRef.current;
 
-    // Find newly entered landmarks (in current but not in previous)
-    const newlyEnteredIds = Array.from(currentNearbyIds).filter(id => !previousNearbyIds.has(id));
+    // Handle both initial presence and newly entered landmarks
+    const isFirstEvaluation = previousNearbyIds.size === 0;
+    const newlyEnteredIds = isFirstEvaluation 
+      ? Array.from(currentNearbyIds) // First run: treat all as newly entered
+      : Array.from(currentNearbyIds).filter(id => !previousNearbyIds.has(id));
 
-    console.log(`🎯 [${instanceIdRef.current}] Proximity check: ${currentNearbyIds.size} nearby, ${newlyEnteredIds.length} newly entered - Round ${currentPollRound}`);
+    console.log(`🎯 [${instanceIdRef.current}] Proximity check: ${currentNearbyIds.size} nearby, ${newlyEnteredIds.length} ${isFirstEvaluation ? 'initial' : 'newly entered'} - Round ${currentPollRound}`);
 
     // Show notification for ONLY the closest newly entered landmark
     // Cooldown is now handled inside showProximityToast
