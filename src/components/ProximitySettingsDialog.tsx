@@ -7,7 +7,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Loader2, MessageSquare, Eye, CreditCard, AlertTriangle } from 'lucide-react';
@@ -225,35 +224,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     }
   };
 
-  const handleEnabledChange = async (enabled: boolean) => {
-    console.log('🎯 ProximitySettingsDialog: Toggle called with:', enabled);
-    
-    if (isUpdating) {
-      console.log('⚠️ Already updating, ignoring toggle');
-      return;
-    }
-    
-    setIsUpdating(true);
-
-    try {
-      // Proximity is always enabled now
-      console.log('✅ ProximitySettingsDialog: Successfully updated proximity to:', enabled);
-      
-      toast({
-        title: enabled ? "Proximity Alerts Enabled" : "Proximity Alerts Disabled",
-        description: "Settings saved successfully.",
-      });
-    } catch (error) {
-      console.error('❌ ProximitySettingsDialog: Error updating proximity:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save settings. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUpdating(false);
-    }
-  };
+  // Proximity is always enabled now - no toggle needed
 
   // Proximity is always enabled now
   const isEnabled = true;
@@ -287,33 +258,13 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
         <SheetHeader className="pb-6">
           <SheetTitle>Proximity Alert Settings</SheetTitle>
           <SheetDescription>
-            Configure proximity alerts to get notified when you're near landmarks. Set different distances for different types of notifications.
+            Configure proximity alerts to get notified when you're near landmarks. Set different distances for different types of notifications. Proximity alerts are always active.
             <br />
             <strong>Rule:</strong> Outer distance must be at least {NOTIFICATION_OUTER_GAP}m greater than notification distance, which must be at least {MINIMUM_GAP}m greater than card distance.
           </SheetDescription>
         </SheetHeader>
 
         <div className="space-y-6">
-          {/* Master Enable/Disable Toggle */}
-          <div className="flex flex-row items-center justify-between rounded-lg border p-4">
-            <div className="space-y-0.5">
-              <div className="text-base font-medium flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                Enable Proximity Alerts
-                {isUpdating && (
-                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-                )}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Turn on proximity alerts for landmarks (requires location access)
-              </div>
-            </div>
-            <Switch
-              checked={isEnabled}
-              onCheckedChange={handleEnabledChange}
-              disabled={isUpdating}
-            />
-          </div>
 
           {/* Validation Errors Summary */}
           {validationErrors.length > 0 && (
@@ -488,9 +439,9 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
             </div>
           </div>
 
-          <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-md">
-            <strong>Note:</strong> All changes save automatically when validation passes. The refined hierarchy ensures: Street View prep happens first in the outer zone, notifications appear in the middle zone, and detailed cards show up close to landmarks. Make sure location permissions are enabled for proximity alerts to work.
-          </div>
+            <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-md">
+              <strong>Note:</strong> All changes save automatically when validation passes. Proximity alerts are always active. The refined hierarchy ensures: Street View prep happens first in the outer zone, notifications appear in the middle zone, and detailed cards show up close to landmarks. Make sure location permissions are enabled for proximity alerts to work.
+            </div>
         </div>
       </SheetContent>
     </Sheet>
