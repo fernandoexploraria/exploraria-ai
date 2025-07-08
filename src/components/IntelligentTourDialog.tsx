@@ -521,9 +521,9 @@ When you encounter questions or situations requiring real-time information about
     * **Description:** Fetches the most recent visitor reviews for a given place. Use this tool when the user asks for visitor feedback, opinions, or specific comments about a place.
     * **Trigger Phrases/Questions:** "What do recent visitors say about [place]?", "Can you tell me about the reviews for [place]?", "Are there any recent comments about [place]?"
 
-* **\`get-place-directions(destination_place_id: string, origin_place_id: string = "current_location")\`**
-    * **Description:** Provides walking directions or distance from the current location (or a specified origin) to a destination place. Use this tool when the user asks for navigation instructions, distance, or how to get to a specific point.
-    * **Trigger Phrases/Questions:** "How do I get to [place]?", "What's the distance to [place]?", "Can you give me directions to [place] from here?"
+* **\`get-place-directions(place_id: string)\`**
+    * **Description:** Provides walking directions or distance from your current location to a destination place. Use this tool when the user asks for navigation instructions, distance, or how to get to a specific point.
+    * **Trigger Phrases/Questions:** "How do I get to [place]?", "What's the distance to [place]?", "Can you give me directions to [place]?"
 
 * **\`get-place-weather-impact(place_id: string)\`**
     * **Description:** Checks the current weather conditions at a specific place's coordinates and advises on any potential impact on the visit. Use this tool when the user asks about weather or how it might affect their experience at a location.
