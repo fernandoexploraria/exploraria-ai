@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useLocationTracking } from './useLocationTracking';
 import { supabase } from '@/integrations/supabase/client';
+import { isSignificantLocationChange } from '@/utils/locationUtils';
 
 interface ContextualPOI {
   placeId: string;
@@ -53,21 +54,8 @@ export const useContextualPOIPolling = ({
   const lastLocationRef = useRef<{latitude: number, longitude: number} | null>(null);
   const lastPersistedLocationRef = useRef<{latitude: number, longitude: number} | null>(null);
   const pollCountRef = useRef(0);
-
-  // Helper function to check for significant location changes (approx 50+ meters)
-  const isSignificantLocationChange = useCallback((
-    currentLocation: {latitude: number, longitude: number},
-    lastLocation: {latitude: number, longitude: number} | null
-  ): boolean => {
-    if (!lastLocation) return true;
-    
-    const latDiff = Math.abs(lastLocation.latitude - currentLocation.latitude);
-    const lngDiff = Math.abs(lastLocation.longitude - currentLocation.longitude);
-    
-    // ~0.0005 degrees is approximately 50 meters
-    const threshold = 0.0005;
-    return latDiff > threshold || lngDiff > threshold;
-  }, []);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastProcessedLocationRef = useRef<{latitude: number, longitude: number} | null>(null);
 
   const fetchContextualPOIs = useCallback(async (
     location: {latitude: number, longitude: number},
@@ -164,7 +152,44 @@ export const useContextualPOIPolling = ({
     }
   }, [conversationId]);
 
-  // Handle location changes with 50m threshold
+  // Debounced location change handler
+  const handleLocationChange = useCallback((location: {latitude: number, longitude: number}) => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    
+    debounceTimeoutRef.current = setTimeout(() => {
+      // Check if this is a significant location change
+      const hasSignificantChange = isSignificantLocationChange(
+        { ...location, timestamp: Date.now() },
+        lastProcessedLocationRef.current ? { ...lastProcessedLocationRef.current, timestamp: 0 } : null,
+        50 // 50 meter threshold
+      );
+      
+      if (hasSignificantChange) {
+        console.log('📍 Significant location change detected (50m+), triggering contextual POI update');
+        lastProcessedLocationRef.current = location;
+        lastLocationRef.current = location;
+        lastPersistedLocationRef.current = location;
+        
+        // Persist the significant location change
+        persistAgentLocation(location).catch(err => 
+          console.warn('⚠️ Failed to persist location change:', err)
+        );
+        
+        // Fetch POIs and send system alert for significant location change
+        fetchContextualPOIs(location, 'location_change').then(update => {
+          if (update && onUpdate) {
+            onUpdate(update);
+          }
+        });
+      } else if (lastProcessedLocationRef.current) {
+        console.log('📍 Minor location change detected (<50m), skipping POI update');
+      }
+    }, 1000); // 1 second debounce
+  }, [persistAgentLocation, fetchContextualPOIs, onUpdate]);
+
+  // Handle location changes with 50m threshold - watch for actual coordinate changes
   useEffect(() => {
     if (!enabled || !userLocation) {
       return;
@@ -175,29 +200,13 @@ export const useContextualPOIPolling = ({
       longitude: userLocation.longitude
     };
 
-    // Only trigger POI operations on significant location changes (50+ meters)
-    const hasSignificantLocationChange = isSignificantLocationChange(currentLocation, lastLocationRef.current);
-
-    if (hasSignificantLocationChange) {
-      console.log('📍 Significant location change detected (50m+), triggering contextual POI update');
-      lastLocationRef.current = currentLocation;
-      lastPersistedLocationRef.current = currentLocation;
-      
-      // Persist the significant location change
-      persistAgentLocation(currentLocation).catch(err => 
-        console.warn('⚠️ Failed to persist location change:', err)
-      );
-      
-      // Fetch POIs and send system alert for significant location change
-      fetchContextualPOIs(currentLocation, 'location_change').then(update => {
-        if (update && onUpdate) {
-          onUpdate(update);
-        }
-      });
-    } else if (lastLocationRef.current) {
-      console.log('📍 Minor location change detected (<50m), skipping POI update');
+    // Only process if coordinates actually changed
+    if (!lastProcessedLocationRef.current || 
+        lastProcessedLocationRef.current.latitude !== currentLocation.latitude ||
+        lastProcessedLocationRef.current.longitude !== currentLocation.longitude) {
+      handleLocationChange(currentLocation);
     }
-  }, [enabled, userLocation, fetchContextualPOIs, onUpdate, persistAgentLocation, isSignificantLocationChange]);
+  }, [enabled, userLocation?.latitude, userLocation?.longitude, handleLocationChange]);
 
   // Start/stop polling based on enabled state with initial system alert
   useEffect(() => {
@@ -230,6 +239,10 @@ export const useContextualPOIPolling = ({
           latitude: userLocation.latitude,
           longitude: userLocation.longitude
         };
+        lastProcessedLocationRef.current = {
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude
+        };
       }
     } else {
       console.log('🛑 Stopping contextual POI polling');
@@ -238,6 +251,10 @@ export const useContextualPOIPolling = ({
         clearTimeout(pollIntervalRef.current);
         pollIntervalRef.current = null;
       }
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+        debounceTimeoutRef.current = null;
+      }
     }
 
     return () => {
@@ -245,8 +262,12 @@ export const useContextualPOIPolling = ({
         clearTimeout(pollIntervalRef.current);
         pollIntervalRef.current = null;
       }
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+        debounceTimeoutRef.current = null;
+      }
     };
-  }, [enabled, userLocation, persistAgentLocation, fetchContextualPOIs, onUpdate]);
+  }, [enabled, persistAgentLocation, fetchContextualPOIs, onUpdate]);
 
   const manualRefresh = useCallback(async () => {
     if (!userLocation) {
@@ -260,7 +281,7 @@ export const useContextualPOIPolling = ({
       onUpdate(update);
     }
     return update;
-  }, [userLocation, fetchContextualPOIs, onUpdate]);
+  }, [fetchContextualPOIs, onUpdate]);
 
   return {
     isPolling,
