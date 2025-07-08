@@ -51,26 +51,6 @@ serve(async (req) => {
 
     console.log(`[GET-PLACE-DIRECTIONS] Using hardcoded coordinates: ${from_coordinates.latitude}, ${from_coordinates.longitude}`);
 
-    // Get place details for destination
-    const placeDetailsUrl = `https://places.googleapis.com/v1/places/${place_id}?fields=location,displayName,formattedAddress&key=${GOOGLE_API_KEY}`;
-    
-    const placeResponse = await fetch(placeDetailsUrl, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
-    });
-
-    if (!placeResponse.ok) {
-      console.error(`Place Details API error: ${placeResponse.status}`);
-      throw new Error(`Place Details API error: ${placeResponse.status}`);
-    }
-
-    const placeData = await placeResponse.json();
-    const destination = placeData.location;
-    
-    if (!destination || !destination.latitude || !destination.longitude) {
-      throw new Error('Could not get destination coordinates');
-    }
-
     // Use Google Routes API for directions
     const routesUrl = 'https://routes.googleapis.com/directions/v2:computeRoutes';
     
@@ -84,12 +64,7 @@ serve(async (req) => {
         }
       },
       destination: {
-        location: {
-          latLng: {
-            latitude: destination.latitude,
-            longitude: destination.longitude
-          }
-        }
+        placeId: place_id
       },
       travelMode: 'WALKING',
       routingPreference: 'TRAFFIC_AWARE',
@@ -137,8 +112,8 @@ serve(async (req) => {
 
     const result = {
       place_id,
-      place_name: placeData.displayName?.text || 'Unknown place',
-      destination_address: placeData.formattedAddress || 'Address not available',
+      place_name: 'Destination',
+      destination_address: 'Address not available',
       travel_mode: 'walking',
       distance: {
         meters: route.distanceMeters || 0,
@@ -149,7 +124,7 @@ serve(async (req) => {
         text: route.duration ? `${Math.ceil(parseInt(route.duration.replace('s', '')) / 60)} minutes` : 'Unknown duration'
       },
       key_steps: steps,
-      summary: `Walk ${route.distanceMeters ? `${(route.distanceMeters / 1609.34).toFixed(1)} miles` : ''} to reach ${placeData.displayName?.text || 'your destination'}${route.duration ? ` (approximately ${Math.ceil(parseInt(route.duration.replace('s', '')) / 60)} minutes)` : ''}.`,
+      summary: `Walk ${route.distanceMeters ? `${(route.distanceMeters / 1609.34).toFixed(1)} miles` : ''} to reach your destination${route.duration ? ` (approximately ${Math.ceil(parseInt(route.duration.replace('s', '')) / 60)} minutes)` : ''}.`,
       has_directions: true
     };
 
