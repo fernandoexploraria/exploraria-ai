@@ -62,29 +62,6 @@ export const useContextualPOIPolling = ({
         maxResults
       });
 
-      // Persist user location to database for directions function
-      // Only if location change is significant enough
-      const shouldPersistLocation = !lastLocationRef.current || 
-        Math.abs(lastLocationRef.current.latitude - location.latitude) > 0.0001 ||
-        Math.abs(lastLocationRef.current.longitude - location.longitude) > 0.0001;
-
-      if (shouldPersistLocation) {
-        console.log('📍 Persisting user location to database');
-        try {
-          await supabase
-            .from('user_locations')
-            .upsert({
-              user_id: (await supabase.auth.getUser()).data.user?.id,
-              latitude: location.latitude,
-              longitude: location.longitude,
-              accuracy: null, // Can be enhanced later if needed
-              updated_at: new Date().toISOString()
-            });
-        } catch (locationError) {
-          console.warn('⚠️ Failed to persist location:', locationError);
-          // Don't fail the POI fetch if location persistence fails
-        }
-      }
 
       const { data, error } = await supabase.functions.invoke('contextual-poi-updates', {
         body: {
@@ -153,6 +130,40 @@ export const useContextualPOIPolling = ({
     }, pollInterval);
   }, [enabled, userLocation, pollInterval, fetchContextualPOIs, onUpdate]);
 
+  // Consolidated location persistence function
+  const persistUserLocation = useCallback(async (location?: {latitude: number, longitude: number} | null) => {
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      
+      if (!userData?.user?.id) {
+        console.warn('⚠️ No user ID available for location persistence');
+        return;
+      }
+
+      const locationData = {
+        user_id: userData.user.id,
+        latitude: location?.latitude || null,
+        longitude: location?.longitude || null,
+        accuracy: null,
+        updated_at: new Date().toISOString()
+      };
+
+      console.log('📍 Persisting user location to database:', {
+        hasCoordinates: !!location,
+        coordinates: location ? `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}` : 'null'
+      });
+      
+      await supabase
+        .from('user_locations')
+        .upsert(locationData);
+      
+      console.log('✅ Successfully persisted user location to database');
+    } catch (error) {
+      console.warn('⚠️ Failed to persist location:', error);
+      // Don't throw - we want to continue even if location persistence fails
+    }
+  }, []);
+
   // Handle location changes
   useEffect(() => {
     if (!enabled || !userLocation) {
@@ -173,6 +184,11 @@ export const useContextualPOIPolling = ({
       console.log('📍 User location changed, triggering contextual POI update');
       lastLocationRef.current = currentLocation;
       
+      // Persist the significant location change
+      persistUserLocation(currentLocation).catch(err => 
+        console.warn('⚠️ Failed to persist location change:', err)
+      );
+      
       // Immediate update on location change
       fetchContextualPOIs(currentLocation, 'location_change').then(update => {
         if (update && onUpdate) {
@@ -180,49 +196,25 @@ export const useContextualPOIPolling = ({
         }
       });
     }
-  }, [enabled, userLocation, fetchContextualPOIs, onUpdate]);
-
-  // Extract persisting logic to a reusable function
-  const persistUserLocation = useCallback(async (location: {latitude: number, longitude: number}) => {
-    try {
-      console.log('📍 Persisting user location to database');
-      const { data: userData } = await supabase.auth.getUser();
-      
-      if (!userData?.user?.id) {
-        console.warn('⚠️ No user ID available for location persistence');
-        return;
-      }
-      
-      await supabase
-        .from('user_locations')
-        .upsert({
-          user_id: userData.user.id,
-          latitude: location.latitude,
-          longitude: location.longitude,
-          accuracy: null,
-          updated_at: new Date().toISOString()
-        });
-      
-      console.log('✅ Successfully persisted user location to database');
-    } catch (error) {
-      console.warn('⚠️ Failed to persist location:', error);
-      // Don't throw - we want to continue even if location persistence fails
-    }
-  }, []);
+  }, [enabled, userLocation, fetchContextualPOIs, onUpdate, persistUserLocation]);
 
   // Start/stop polling based on enabled state
   useEffect(() => {
-    if (enabled && userLocation) {
+    if (enabled) {
       console.log('🚀 Starting contextual POI polling');
       setIsPolling(true);
       pollCountRef.current = 0;
       
-      // Immediately persist initial location when polling starts
+      // ALWAYS persist location when POI polling starts (fresh start every session)
+      // This ensures user_locations record exists even if coordinates are null
       persistUserLocation(userLocation).catch(err => 
         console.warn('⚠️ Failed to persist initial location:', err)
       );
       
-      schedulePoll();
+      // Only schedule polling if we have userLocation
+      if (userLocation) {
+        schedulePoll();
+      }
     } else {
       console.log('🛑 Stopping contextual POI polling');
       setIsPolling(false);
