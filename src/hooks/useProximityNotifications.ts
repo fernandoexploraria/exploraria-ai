@@ -458,13 +458,7 @@ export const useProximityNotifications = () => {
       );
 
       if (closestNewCardLandmark) {
-        // Check for duplicates at call site with fresh state
-        const placeId = closestNewCardLandmark.landmark.placeId;
-        if (!activeCards[placeId]) {
-          showProximityCard(closestNewCardLandmark.landmark);
-        } else {
-          console.log(`🏪 [${instanceIdRef.current}] Card for ${closestNewCardLandmark.landmark.name} already active, skipping`);
-        }
+        showProximityCard(closestNewCardLandmark.landmark);
       }
     }
 
@@ -479,7 +473,7 @@ export const useProximityNotifications = () => {
 
     // Update previous card zone landmarks
     previousCardZoneLandmarksRef.current = currentCardZoneIds;
-  }, [cardZoneLandmarks, isProximitySettingsReady, proximitySettings, userLocation, canShowCard, showProximityCard, isActiveInstance]);
+  }, [cardZoneLandmarks, isProximitySettingsReady, proximitySettings, userLocation, canShowCard, showProximityCard, activeCards, closeProximityCard, isActiveInstance]);
 
   // Monitor for newly entered proximity zones - only when settings are ready and this is the active instance
   useEffect(() => {
