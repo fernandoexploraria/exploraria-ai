@@ -318,6 +318,12 @@ export const useProximityNotifications = () => {
     
     const placeId = landmark.placeId;
     
+    // Safety check: Don't show card if already active
+    if (activeCards[placeId]) {
+      console.log(`🏪 [${instanceIdRef.current}] Card for ${landmark.name} already active, skipping`);
+      return;
+    }
+    
     if (!canShowCard(placeId)) {
       console.log(`🏪 [${instanceIdRef.current}] Card for ${landmark.name} still in cooldown`);
       return;
@@ -473,7 +479,7 @@ export const useProximityNotifications = () => {
 
     // Update previous card zone landmarks
     previousCardZoneLandmarksRef.current = currentCardZoneIds;
-  }, [cardZoneLandmarks, isProximitySettingsReady, proximitySettings, userLocation, canShowCard, showProximityCard, activeCards, closeProximityCard, isActiveInstance]);
+  }, [cardZoneLandmarks, isProximitySettingsReady, proximitySettings, userLocation, canShowCard, showProximityCard, isActiveInstance]);
 
   // Monitor for newly entered proximity zones - only when settings are ready and this is the active instance
   useEffect(() => {
