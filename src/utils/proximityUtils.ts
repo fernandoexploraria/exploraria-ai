@@ -41,7 +41,6 @@ export const formatDistance = (distance: number): string => {
  */
 export const getDefaultProximitySettings = (userId: string) => ({
   user_id: userId,
-  is_enabled: false,
   default_distance: 1000, // Updated to 1000 meters for expanded testing
 });
 

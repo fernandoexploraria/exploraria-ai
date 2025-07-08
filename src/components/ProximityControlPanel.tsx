@@ -18,9 +18,9 @@ const ProximityControlPanel: React.FC<ProximityControlPanelProps> = ({ className
   const { proximitySettings, proximityAlerts } = useProximityAlerts();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  const activeAlertsCount = proximityAlerts.filter(alert => alert.is_enabled).length;
+  const activeAlertsCount = proximityAlerts.length; // All alerts are now always active
   const totalAlertsCount = proximityAlerts.length;
-  const isProximityEnabled = proximitySettings?.is_enabled || false;
+  const isProximityEnabled = !!proximitySettings; // Enabled if settings exist
 
   const handleEnableProximity = () => {
     setIsSettingsOpen(true);

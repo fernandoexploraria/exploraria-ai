@@ -33,7 +33,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
   onOpenChange,
 }) => {
   const { toast } = useToast();
-  const { proximitySettings, updateProximityEnabled, updateDistanceSetting } = useProximityAlerts();
+  const { proximitySettings, updateDistanceSetting } = useProximityAlerts();
   
   // Local state for smooth slider interactions - initialize with null to wait for settings
   const [localNotificationDistance, setLocalNotificationDistance] = useState<number | null>(null);
@@ -255,8 +255,8 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     }
   };
 
-  // Get current state directly from proximitySettings (real-time synced)
-  const isEnabled = proximitySettings?.is_enabled ?? false;
+  // Proximity is always enabled now
+  const isEnabled = true;
 
   // Don't render until we have loaded the settings and initialized local state
   if (!proximitySettings || localNotificationDistance === null || localOuterDistance === null || localCardDistance === null) {

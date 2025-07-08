@@ -94,7 +94,6 @@ const startPollingFallback = async (userId: string) => {
         const settings: ProximitySettings = {
           id: data.id,
           user_id: data.user_id,
-          is_enabled: data.is_enabled,
           notification_distance: data.notification_distance,
           outer_distance: data.outer_distance,
           card_distance: data.card_distance,
@@ -244,7 +243,6 @@ const createProximitySettingsSubscription = (userId: string, loadProximitySettin
           const settings: ProximitySettings = {
             id: payload.new.id,
             user_id: payload.new.user_id,
-            is_enabled: payload.new.is_enabled,
             notification_distance: payload.new.notification_distance,
             outer_distance: payload.new.outer_distance,
             card_distance: payload.new.card_distance,
@@ -422,7 +420,6 @@ export const useProximityAlerts = () => {
         const settings: ProximitySettings = {
           id: data.id,
           user_id: data.user_id,
-          is_enabled: data.is_enabled,
           notification_distance: data.notification_distance,
           outer_distance: data.outer_distance,
           card_distance: data.card_distance,
@@ -465,7 +462,6 @@ export const useProximityAlerts = () => {
         user_id: item.user_id,
         landmark_id: item.landmark_id,
         distance: item.distance,
-        is_enabled: item.is_enabled,
         last_triggered: item.last_triggered || undefined,
         created_at: item.created_at,
         updated_at: item.updated_at,
@@ -477,56 +473,6 @@ export const useProximityAlerts = () => {
     }
   };
 
-  const updateProximityEnabled = useCallback(async (enabled: boolean) => {
-    console.log('🎯 updateProximityEnabled function called with:', { enabled, userId: user?.id });
-    
-    if (!user) {
-      console.log('❌ No user available for updateProximityEnabled');
-      throw new Error('No user available');
-    }
-
-    console.log('📡 updateProximityEnabled proceeding with user:', user.id);
-    setIsSaving(true);
-    
-    try {
-      console.log('💾 Making database request to update proximity enabled status...');
-      
-      // Get current settings or use database defaults
-      const currentSettings = globalProximityState.settings;
-      
-      const updateData: any = {
-        user_id: user.id,
-        is_enabled: enabled,
-        updated_at: new Date().toISOString(),
-      };
-
-      // Only include distance fields if they exist in current settings
-      if (currentSettings) {
-        updateData.notification_distance = currentSettings.notification_distance;
-        updateData.outer_distance = currentSettings.outer_distance;
-        updateData.card_distance = currentSettings.card_distance;
-      }
-
-      const { error } = await supabase
-        .from('proximity_settings')
-        .upsert(updateData, {
-          onConflict: 'user_id'
-        });
-
-      if (error) {
-        console.error('❌ Database error updating proximity enabled status:', error);
-        throw error;
-      }
-
-      console.log('✅ Successfully updated proximity enabled status in database to:', enabled);
-      // The real-time subscription will update the state automatically
-    } catch (error) {
-      console.error('❌ Error in updateProximityEnabled:', error);
-      throw error;
-    } finally {
-      setIsSaving(false);
-    }
-  }, [user]);
 
   const updateDistanceSetting = useCallback(async (distanceType: 'notification_distance' | 'outer_distance' | 'card_distance', distance: number) => {
     console.log('🎯 updateDistanceSetting called with:', { distanceType, distance, userId: user?.id });
@@ -576,7 +522,6 @@ export const useProximityAlerts = () => {
       
       const updateData = {
         user_id: user.id,
-        is_enabled: currentSettings.is_enabled,
         notification_distance: newDistances.notification_distance,
         outer_distance: newDistances.outer_distance,
         card_distance: newDistances.card_distance,
@@ -674,7 +619,7 @@ export const useProximityAlerts = () => {
     setUserLocation: updateUserLocation,
     loadProximitySettings,
     loadProximityAlerts,
-    updateProximityEnabled,
+    
     updateDistanceSetting,
   };
 };

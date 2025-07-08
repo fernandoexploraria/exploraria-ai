@@ -412,7 +412,7 @@ export const useProximityNotifications = () => {
 
   // Monitor prep zone entries - only when settings are ready and this is the active instance
   useEffect(() => {
-    if (!isActiveInstance || !isProximitySettingsReady || !proximitySettings.is_enabled || !userLocation || prepZoneLandmarks.length === 0) {
+    if (!isActiveInstance || !isProximitySettingsReady || !userLocation || prepZoneLandmarks.length === 0) {
       return;
     }
 
@@ -435,7 +435,7 @@ export const useProximityNotifications = () => {
         saveNotificationState();
       }
     });
-  }, [prepZoneLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, handlePrepZoneEntry, saveNotificationState, isActiveInstance]);
+  }, [prepZoneLandmarks, isProximitySettingsReady, userLocation, handlePrepZoneEntry, saveNotificationState, isActiveInstance]);
 
   // Monitor card zone entries - only when settings are ready and this is the active instance
   useEffect(() => {

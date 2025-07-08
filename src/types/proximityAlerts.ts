@@ -4,7 +4,6 @@ export interface ProximityAlert {
   user_id: string;
   landmark_id: string;
   distance: number; // in meters
-  is_enabled: boolean;
   last_triggered?: string; // ISO timestamp
   created_at: string;
   updated_at: string;
@@ -13,7 +12,6 @@ export interface ProximityAlert {
 export interface ProximitySettings {
   id?: string;
   user_id: string;
-  is_enabled: boolean;
   notification_distance: number; // in meters - for toast notifications
   outer_distance: number; // in meters - for Street View prep zone
   card_distance: number; // in meters - for floating card notifications

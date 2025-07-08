@@ -376,16 +376,16 @@ export const useLocationTracking = (): LocationTrackingHook => {
     console.log('✅ Location tracking stopped');
   }, []);
 
-  // Auto-start tracking when proximity is enabled
+  // Auto-start tracking when proximity settings exist
   useEffect(() => {
-    if (proximitySettings?.is_enabled && !locationState.isTracking) {
-      console.log('🔄 Auto-starting location tracking (proximity enabled)');
+    if (proximitySettings && !locationState.isTracking) {
+      console.log('🔄 Auto-starting location tracking (proximity settings available)');
       startTracking();
-    } else if (!proximitySettings?.is_enabled && locationState.isTracking) {
-      console.log('🔄 Auto-stopping location tracking (proximity disabled)');
+    } else if (!proximitySettings && locationState.isTracking) {
+      console.log('🔄 Auto-stopping location tracking (no proximity settings)');
       stopTracking();
     }
-  }, [proximitySettings?.is_enabled, locationState.isTracking, startTracking, stopTracking]);
+  }, [proximitySettings, locationState.isTracking, startTracking, stopTracking]);
 
   // Cleanup on unmount
   useEffect(() => {
