@@ -69,20 +69,16 @@ const ProximityAlertsList: React.FC = () => {
                 {getLandmarkName(alert.landmark_id)}
               </CardTitle>
               <div className="flex items-center gap-2">
-                <Badge variant={alert.is_enabled ? "default" : "secondary"}>
+                <Badge variant="default">
                   {formatDistance(alert.distance)}
                 </Badge>
-                <Switch
-                  checked={alert.is_enabled}
-                  onCheckedChange={(checked) => handleToggleAlert(alert.id, checked)}
-                />
               </div>
             </div>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="flex items-center justify-between">
               <div className="text-sm text-muted-foreground">
-                {alert.is_enabled ? 'Alert active' : 'Alert disabled'}
+                Alert active
                 {alert.last_triggered && (
                   <span className="ml-2">
                     • Last triggered: {new Date(alert.last_triggered).toLocaleDateString()}

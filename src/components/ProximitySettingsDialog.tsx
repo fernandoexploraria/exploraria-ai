@@ -236,7 +236,7 @@ const ProximitySettingsDialog: React.FC<ProximitySettingsDialogProps> = ({
     setIsUpdating(true);
 
     try {
-      await updateProximityEnabled(enabled);
+      // Proximity is always enabled now
       console.log('✅ ProximitySettingsDialog: Successfully updated proximity to:', enabled);
       
       toast({

@@ -105,7 +105,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
   
   const { user } = useAuth();
   const { speak: speakTTS, stop: stopTTS, isPlaying: isTTSPlaying } = useTTSContext();
-  const { updateProximityEnabled, proximitySettings } = useProximityAlerts();
+  const { proximitySettings } = useProximityAlerts();
   const { fetchLandmarkPhotos: fetchPhotosWithHook } = useLandmarkPhotos();
   const { locationState } = useLocationTracking();
   const { permissionState, requestPermission, checkPermission } = usePermissionMonitor();
@@ -846,7 +846,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
       const currentWatchState = (geolocateControl.current as any)._watchState;
       const isCurrentlyTracking = currentWatchState === 'ACTIVE_LOCK';
       const isTransitioning = currentWatchState === 'WAITING_ACTIVE' || currentWatchState === 'BACKGROUND';
-      const shouldBeTracking = proximitySettings.is_enabled;
+      const shouldBeTracking = true; // Always track when proximitySettings exists
       
       console.log('🔄 GeolocateControl sync check:', {
         isCurrentlyTracking,
@@ -895,7 +895,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
       console.error('🔄 Error syncing GeolocateControl with proximity settings:', error);
       isUpdatingFromProximitySettings.current = false;
     }
-  }, [proximitySettings?.is_enabled]);
+  }, [proximitySettings]);
 
   const playAudioFromBase64 = async (base64Audio: string) => {
     return new Promise<void>((resolve, reject) => {
@@ -2138,7 +2138,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
         console.log('🗺️ Skipping proximity enable for centroid-based route');
       }
     }
-  }, [routeGeoJSON, routeStats, isLocationBasedRoute, updateProximityEnabled]);
+  }, [routeGeoJSON, routeStats, isLocationBasedRoute]);
 
   // Determine if the optimal route button should be enabled
   const isOptimalRouteButtonEnabled = !isCalculatingRoute && 

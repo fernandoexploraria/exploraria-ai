@@ -439,7 +439,7 @@ export const useProximityNotifications = () => {
 
   // Monitor card zone entries - only when settings are ready and this is the active instance
   useEffect(() => {
-    if (!isActiveInstance || !isProximitySettingsReady || !proximitySettings.is_enabled || !userLocation || cardZoneLandmarks.length === 0) {
+    if (!isActiveInstance || !isProximitySettingsReady || !proximitySettings || !userLocation || cardZoneLandmarks.length === 0) {
       return;
     }
 
@@ -473,11 +473,11 @@ export const useProximityNotifications = () => {
 
     // Update previous card zone landmarks
     previousCardZoneLandmarksRef.current = currentCardZoneIds;
-  }, [cardZoneLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, canShowCard, showProximityCard, activeCards, closeProximityCard, isActiveInstance]);
+  }, [cardZoneLandmarks, isProximitySettingsReady, proximitySettings, userLocation, canShowCard, showProximityCard, activeCards, closeProximityCard, isActiveInstance]);
 
   // Monitor for newly entered proximity zones - only when settings are ready and this is the active instance
   useEffect(() => {
-    if (!isActiveInstance || !isProximitySettingsReady || !proximitySettings.is_enabled || !userLocation || nearbyLandmarks.length === 0) {
+    if (!isActiveInstance || !isProximitySettingsReady || !proximitySettings || !userLocation || nearbyLandmarks.length === 0) {
       return;
     }
 
@@ -505,7 +505,7 @@ export const useProximityNotifications = () => {
 
     // Update previous nearby landmarks
     previousNearbyLandmarksRef.current = currentNearbyIds;
-  }, [nearbyLandmarks, isProximitySettingsReady, proximitySettings?.is_enabled, userLocation, showProximityToast, currentPollRound, isActiveInstance]);
+  }, [nearbyLandmarks, isProximitySettingsReady, proximitySettings, userLocation, showProximityToast, currentPollRound, isActiveInstance]);
 
   // Cleanup expired notifications from state
   useEffect(() => {
@@ -555,7 +555,7 @@ export const useProximityNotifications = () => {
     notificationState: notificationStateRef.current,
     prepZoneState: prepZoneStateRef.current,
     cardState: cardStateRef.current,
-    isEnabled: proximitySettings?.is_enabled || false,
+    isEnabled: true, // Always enabled now
     closeProximityCard,
     showRouteToService,
     isActiveInstance // Expose this for debugging

@@ -258,12 +258,6 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                 </div>
                 <div className="pl-5 space-y-1">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Enabled:</span>
-                    <Badge variant={proximitySettings.is_enabled ? "default" : "secondary"} className="text-xs">
-                      {proximitySettings.is_enabled ? "Yes" : "No"}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between">
                     <span className="text-muted-foreground">Outer Distance (Prep):</span>
                     <span className="text-yellow-600">{formatDistance(proximitySettings.outer_distance)}</span>
                   </div>
@@ -535,7 +529,7 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
               </div>
             )}
 
-            {prepZoneLandmarks.length === 0 && notificationZoneLandmarks.length === 0 && cardZoneLandmarks.length === 0 && userLocation && proximitySettings?.is_enabled && (
+            {prepZoneLandmarks.length === 0 && notificationZoneLandmarks.length === 0 && cardZoneLandmarks.length === 0 && userLocation && proximitySettings && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Target className="w-3 h-3" />
