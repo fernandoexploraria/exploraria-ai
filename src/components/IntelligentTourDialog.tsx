@@ -88,7 +88,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
         
         // Convert landmark to autocomplete result format
         const landmarkAsDestination: AutocompleteResult = {
-          place_id: pendingLandmark.place_id || `landmark-${pendingLandmark.id}`,
+          place_id: pendingLandmark.placeId || `landmark-${pendingLandmark.id}`,
           description: pendingLandmark.name,
           types: pendingLandmark.types || ['tourist_attraction'],
           structured_formatting: {
@@ -303,7 +303,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
           longitude: landmark.coordinates[0]
         },
         types: landmark.types || ['tourist_attraction'],
-        placeId: landmark.place_id || 'unknown'
+        placeId: landmark.placeId || 'unknown'
       };
       
       console.log('Using landmark details as destination:', destinationDetails);
