@@ -43,13 +43,78 @@ serve(async (req) => {
 
     console.log(`[GET-PLACE-DIRECTIONS] Getting directions to place_id: ${place_id}`);
 
-    // Use hardcoded coordinates (Mexico City area)
+    // Get user's live location from database
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Get user from auth header
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Authentication required for directions',
+          has_directions: false 
+        }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    
+    if (userError || !userData.user) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid authentication',
+          has_directions: false 
+        }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    // Query user's latest location
+    const { data: locationData, error: locationError } = await supabase
+      .from('user_locations')
+      .select('latitude, longitude, updated_at')
+      .eq('user_id', userData.user.id)
+      .single();
+
+    if (locationError || !locationData) {
+      console.log(`[GET-PLACE-DIRECTIONS] No location found for user: ${userData.user.id}`);
+      return new Response(
+        JSON.stringify({
+          place_id,
+          place_name: 'Destination',
+          destination_address: 'Address not available',
+          travel_mode: 'walking',
+          distance: { meters: 0, text: 'Unknown distance' },
+          duration: { seconds: 0, text: 'Unknown duration' },
+          key_steps: [],
+          summary: 'Location access required for directions. Please grant location permissions in your browser and try again.',
+          has_directions: false,
+          error: 'Location unavailable - please enable location access'
+        }),
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
     const from_coordinates = {
-      latitude: 19.3483994,
-      longitude: -99.1683188
+      latitude: locationData.latitude,
+      longitude: locationData.longitude
     };
 
-    console.log(`[GET-PLACE-DIRECTIONS] Using hardcoded coordinates: ${from_coordinates.latitude}, ${from_coordinates.longitude}`);
+    console.log(`[GET-PLACE-DIRECTIONS] Using live user coordinates: ${from_coordinates.latitude}, ${from_coordinates.longitude} (updated: ${locationData.updated_at})`);
 
     // Use Google Routes API for directions
     const routesUrl = 'https://routes.googleapis.com/directions/v2:computeRoutes';

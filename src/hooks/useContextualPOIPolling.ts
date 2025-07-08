@@ -62,6 +62,30 @@ export const useContextualPOIPolling = ({
         maxResults
       });
 
+      // Persist user location to database for directions function
+      // Only if location change is significant enough
+      const shouldPersistLocation = !lastLocationRef.current || 
+        Math.abs(lastLocationRef.current.latitude - location.latitude) > 0.0001 ||
+        Math.abs(lastLocationRef.current.longitude - location.longitude) > 0.0001;
+
+      if (shouldPersistLocation) {
+        console.log('📍 Persisting user location to database');
+        try {
+          await supabase
+            .from('user_locations')
+            .upsert({
+              user_id: (await supabase.auth.getUser()).data.user?.id,
+              latitude: location.latitude,
+              longitude: location.longitude,
+              accuracy: null, // Can be enhanced later if needed
+              updated_at: new Date().toISOString()
+            });
+        } catch (locationError) {
+          console.warn('⚠️ Failed to persist location:', locationError);
+          // Don't fail the POI fetch if location persistence fails
+        }
+      }
+
       const { data, error } = await supabase.functions.invoke('contextual-poi-updates', {
         body: {
           userLocation: location,
