@@ -315,7 +315,6 @@ export type Database = {
           created_at: string
           distance: number
           id: string
-          is_enabled: boolean
           landmark_id: string
           last_triggered: string | null
           unit: string
@@ -326,7 +325,6 @@ export type Database = {
           created_at?: string
           distance?: number
           id?: string
-          is_enabled?: boolean
           landmark_id: string
           last_triggered?: string | null
           unit?: string
@@ -337,7 +335,6 @@ export type Database = {
           created_at?: string
           distance?: number
           id?: string
-          is_enabled?: boolean
           landmark_id?: string
           last_triggered?: string | null
           unit?: string
@@ -385,7 +382,6 @@ export type Database = {
           grace_period_initialization: number
           grace_period_movement: number
           id: string
-          is_enabled: boolean
           location_settling_grace_period: number
           notification_distance: number
           outer_distance: number
@@ -402,7 +398,6 @@ export type Database = {
           grace_period_initialization?: number
           grace_period_movement?: number
           id?: string
-          is_enabled?: boolean
           location_settling_grace_period?: number
           notification_distance?: number
           outer_distance?: number
@@ -419,7 +414,6 @@ export type Database = {
           grace_period_initialization?: number
           grace_period_movement?: number
           id?: string
-          is_enabled?: boolean
           location_settling_grace_period?: number
           notification_distance?: number
           outer_distance?: number
