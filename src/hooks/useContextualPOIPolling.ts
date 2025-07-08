@@ -182,12 +182,46 @@ export const useContextualPOIPolling = ({
     }
   }, [enabled, userLocation, fetchContextualPOIs, onUpdate]);
 
+  // Extract persisting logic to a reusable function
+  const persistUserLocation = useCallback(async (location: {latitude: number, longitude: number}) => {
+    try {
+      console.log('📍 Persisting user location to database');
+      const { data: userData } = await supabase.auth.getUser();
+      
+      if (!userData?.user?.id) {
+        console.warn('⚠️ No user ID available for location persistence');
+        return;
+      }
+      
+      await supabase
+        .from('user_locations')
+        .upsert({
+          user_id: userData.user.id,
+          latitude: location.latitude,
+          longitude: location.longitude,
+          accuracy: null,
+          updated_at: new Date().toISOString()
+        });
+      
+      console.log('✅ Successfully persisted user location to database');
+    } catch (error) {
+      console.warn('⚠️ Failed to persist location:', error);
+      // Don't throw - we want to continue even if location persistence fails
+    }
+  }, []);
+
   // Start/stop polling based on enabled state
   useEffect(() => {
     if (enabled && userLocation) {
       console.log('🚀 Starting contextual POI polling');
       setIsPolling(true);
       pollCountRef.current = 0;
+      
+      // Immediately persist initial location when polling starts
+      persistUserLocation(userLocation).catch(err => 
+        console.warn('⚠️ Failed to persist initial location:', err)
+      );
+      
       schedulePoll();
     } else {
       console.log('🛑 Stopping contextual POI polling');
@@ -204,7 +238,7 @@ export const useContextualPOIPolling = ({
         pollIntervalRef.current = null;
       }
     };
-  }, [enabled, userLocation, schedulePoll]);
+  }, [enabled, userLocation, schedulePoll, persistUserLocation]);
 
   const manualRefresh = useCallback(async () => {
     if (!userLocation) {

@@ -524,6 +524,7 @@ When you encounter questions or situations requiring real-time information about
 * **\`get-place-directions(place_id: string)\`**
     * **Description:** Provides walking directions or distance from your current location to a destination place. Use this tool when the user asks for navigation instructions, distance, or how to get to a specific point.
     * **Trigger Phrases/Questions:** "How do I get to [place]?", "What's the distance to [place]?", "Can you give me directions to [place]?"
+    * **No Location Handling:** If the function returns a message that location access is required, inform the user they need to grant browser location permissions. For example: "It seems I don't have access to your current location. To provide directions, please allow location access in your browser when prompted, then try asking for directions again."
 
 * **\`get-place-weather-impact(place_id: string)\`**
     * **Description:** Checks the current weather conditions at a specific place's coordinates and advises on any potential impact on the visit. Use this tool when the user asks about weather or how it might affect their experience at a location.
