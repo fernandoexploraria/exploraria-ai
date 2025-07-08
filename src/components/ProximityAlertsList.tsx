@@ -14,15 +14,7 @@ import { TOUR_LANDMARKS } from '@/data/tourLandmarks';
 const ProximityAlertsList: React.FC = () => {
   const { proximityAlerts, setProximityAlerts } = useProximityAlerts();
 
-  const handleToggleAlert = async (alertId: string, enabled: boolean) => {
-    setProximityAlerts(prevAlerts =>
-      prevAlerts.map(alert =>
-        alert.id === alertId
-          ? { ...alert, is_enabled: enabled, updated_at: new Date().toISOString() }
-          : alert
-      )
-    );
-  };
+  // Removed handleToggleAlert since proximity alerts are always active
 
   const handleRemoveAlert = async (alertId: string) => {
     setProximityAlerts(prevAlerts =>
@@ -78,7 +70,7 @@ const ProximityAlertsList: React.FC = () => {
           <CardContent className="pt-0">
             <div className="flex items-center justify-between">
               <div className="text-sm text-muted-foreground">
-                Alert active
+                Always active
                 {alert.last_triggered && (
                   <span className="ml-2">
                     • Last triggered: {new Date(alert.last_triggered).toLocaleDateString()}
