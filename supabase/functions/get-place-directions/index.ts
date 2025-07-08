@@ -83,7 +83,7 @@ serve(async (req) => {
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': GOOGLE_API_KEY,
-        'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.legs.steps.navigationInstruction,routes.legs.distanceMeters,routes.legs.duration'
+        'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.legs.steps.navigationInstruction.instructions,routes.legs.distanceMeters,routes.legs.duration'
       },
       body: JSON.stringify(routeRequest)
     });
@@ -120,7 +120,7 @@ serve(async (req) => {
         text: route.distanceMeters ? `${(route.distanceMeters / 1609.34).toFixed(1)} miles` : 'Unknown distance'
       },
       duration: {
-        seconds: route.duration?.replace('s', '') || 0,
+        seconds: route.duration ? parseInt(route.duration.replace('s', '')) : 0,
         text: route.duration ? `${Math.ceil(parseInt(route.duration.replace('s', '')) / 60)} minutes` : 'Unknown duration'
       },
       key_steps: steps,
