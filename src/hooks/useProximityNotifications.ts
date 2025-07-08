@@ -318,12 +318,6 @@ export const useProximityNotifications = () => {
     
     const placeId = landmark.placeId;
     
-    // Safety check: Don't show card if already active
-    if (activeCards[placeId]) {
-      console.log(`🏪 [${instanceIdRef.current}] Card for ${landmark.name} already active, skipping`);
-      return;
-    }
-    
     if (!canShowCard(placeId)) {
       console.log(`🏪 [${instanceIdRef.current}] Card for ${landmark.name} still in cooldown`);
       return;
@@ -464,7 +458,13 @@ export const useProximityNotifications = () => {
       );
 
       if (closestNewCardLandmark) {
-        showProximityCard(closestNewCardLandmark.landmark);
+        // Check for duplicates at call site with fresh state
+        const placeId = closestNewCardLandmark.landmark.placeId;
+        if (!activeCards[placeId]) {
+          showProximityCard(closestNewCardLandmark.landmark);
+        } else {
+          console.log(`🏪 [${instanceIdRef.current}] Card for ${closestNewCardLandmark.landmark.name} already active, skipping`);
+        }
       }
     }
 
