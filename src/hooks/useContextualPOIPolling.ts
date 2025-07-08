@@ -24,7 +24,7 @@ interface ContextualPOIUpdate {
     longitude: number;
   };
   pois: ContextualPOI[];
-  updateReason: 'location_change' | 'scheduled_poll' | 'manual_refresh';
+  updateReason: 'location_change' | 'initial_location' | 'manual_refresh';
 }
 
 interface UseContextualPOIPollingOptions {
@@ -125,29 +125,6 @@ export const useContextualPOIPolling = ({
     }
   }, [radius, maxResults]);
 
-  const schedulePoll = useCallback(() => {
-    if (pollIntervalRef.current) {
-      clearTimeout(pollIntervalRef.current);
-    }
-
-    if (!enabled || !userLocation) {
-      return;
-    }
-
-    pollIntervalRef.current = setTimeout(async () => {
-      pollCountRef.current += 1;
-      console.log(`⏱️ Scheduled contextual POI poll #${pollCountRef.current}`);
-      
-      const update = await fetchContextualPOIs(userLocation, 'scheduled_poll');
-      if (update && onUpdate) {
-        onUpdate(update);
-      }
-      
-      // Schedule next poll
-      schedulePoll();
-    }, pollInterval);
-  }, [enabled, userLocation, pollInterval, fetchContextualPOIs, onUpdate]);
-
   // Updated location persistence function for agent-based tracking
   const persistAgentLocation = useCallback(async (location?: {latitude: number, longitude: number} | null) => {
     if (!conversationId) {
@@ -187,7 +164,7 @@ export const useContextualPOIPolling = ({
     }
   }, [conversationId]);
 
-  // Handle location changes
+  // Handle location changes with 50m threshold
   useEffect(() => {
     if (!enabled || !userLocation) {
       return;
@@ -198,37 +175,31 @@ export const useContextualPOIPolling = ({
       longitude: userLocation.longitude
     };
 
-    // Check if location has changed significantly
-    const hasLocationChanged = !lastLocationRef.current || 
-      Math.abs(lastLocationRef.current.latitude - currentLocation.latitude) > 0.0001 ||
-      Math.abs(lastLocationRef.current.longitude - currentLocation.longitude) > 0.0001;
+    // Only trigger POI operations on significant location changes (50+ meters)
+    const hasSignificantLocationChange = isSignificantLocationChange(currentLocation, lastLocationRef.current);
 
-    if (hasLocationChanged) {
-      console.log('📍 User location changed, triggering contextual POI update');
+    if (hasSignificantLocationChange) {
+      console.log('📍 Significant location change detected (50m+), triggering contextual POI update');
       lastLocationRef.current = currentLocation;
+      lastPersistedLocationRef.current = currentLocation;
       
-      // Only persist location if it's a significant change (50+ meters)
-      const shouldPersistLocation = isSignificantLocationChange(currentLocation, lastPersistedLocationRef.current);
-      if (shouldPersistLocation) {
-        console.log('📍 Significant location change detected, persisting to database');
-        lastPersistedLocationRef.current = currentLocation;
-        persistAgentLocation(currentLocation).catch(err => 
-          console.warn('⚠️ Failed to persist location change:', err)
-        );
-      } else {
-        console.log('📍 Minor location change, skipping persistence');
-      }
+      // Persist the significant location change
+      persistAgentLocation(currentLocation).catch(err => 
+        console.warn('⚠️ Failed to persist location change:', err)
+      );
       
-      // Immediate update on location change (always trigger POI updates)
+      // Fetch POIs and send system alert for significant location change
       fetchContextualPOIs(currentLocation, 'location_change').then(update => {
         if (update && onUpdate) {
           onUpdate(update);
         }
       });
+    } else if (lastLocationRef.current) {
+      console.log('📍 Minor location change detected (<50m), skipping POI update');
     }
-  }, [enabled, userLocation, fetchContextualPOIs, onUpdate, persistAgentLocation]);
+  }, [enabled, userLocation, fetchContextualPOIs, onUpdate, persistAgentLocation, isSignificantLocationChange]);
 
-  // Start/stop polling based on enabled state
+  // Start/stop polling based on enabled state with initial system alert
   useEffect(() => {
     if (enabled) {
       console.log('🚀 Starting contextual POI polling');
@@ -241,9 +212,24 @@ export const useContextualPOIPolling = ({
         console.warn('⚠️ Failed to persist initial location:', err)
       );
       
-      // Only schedule polling if we have userLocation
+      // Send initial system alert if we have valid location
       if (userLocation) {
-        schedulePoll();
+        console.log('🎯 Sending initial system alert with nearby POIs');
+        fetchContextualPOIs(userLocation, 'initial_location').then(update => {
+          if (update && onUpdate) {
+            onUpdate(update);
+          }
+        });
+        
+        // Set initial location references
+        lastLocationRef.current = {
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude
+        };
+        lastPersistedLocationRef.current = {
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude
+        };
       }
     } else {
       console.log('🛑 Stopping contextual POI polling');
@@ -260,7 +246,7 @@ export const useContextualPOIPolling = ({
         pollIntervalRef.current = null;
       }
     };
-  }, [enabled, userLocation, schedulePoll, persistAgentLocation]);
+  }, [enabled, userLocation, persistAgentLocation, fetchContextualPOIs, onUpdate]);
 
   const manualRefresh = useCallback(async () => {
     if (!userLocation) {

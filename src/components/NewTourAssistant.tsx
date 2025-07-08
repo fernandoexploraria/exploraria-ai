@@ -129,7 +129,8 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       poiName: nearestPOI.name,
       primaryType,
       distance: nearestPOI.distance,
-      reason: update.updateReason
+      reason: update.updateReason,
+      isInitialLocation: update.updateReason === 'initial_location'
     });
 
     // Send contextual update using direct WebSocket access as suggested
