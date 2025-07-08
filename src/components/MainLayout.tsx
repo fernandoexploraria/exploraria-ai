@@ -71,7 +71,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 }) => {
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
   const { userLocation } = useLocationTracking();
-  const { activeCards, closeProximityCard, showRouteToService, isActiveInstance } = useProximityNotifications();
+  const { activeCards, closeProximityCard, showRouteToService, isActiveInstance, nearbyLandmarks, cardZoneLandmarks } = useProximityNotifications();
   
   // Instance tracking for debugging
   const instanceIdRef = useRef(`layout-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
@@ -360,6 +360,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       <DebugWindow
         isVisible={isDebugVisible}
         onClose={toggleDebug}
+        proximityData={{
+          activeCards,
+          isActiveInstance,
+          nearbyLandmarks,
+          cardZoneLandmarks
+        }}
       />
     </div>
   );
