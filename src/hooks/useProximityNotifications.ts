@@ -446,10 +446,13 @@ export const useProximityNotifications = () => {
     const currentCardZoneIds = new Set(cardZoneLandmarks.map(nl => nl.landmark.placeId));
     const previousCardZoneIds = previousCardZoneLandmarksRef.current;
 
-    // Find newly entered card zone landmarks
-    const newlyEnteredCardIds = Array.from(currentCardZoneIds).filter(id => !previousCardZoneIds.has(id));
+    // Handle both initial presence and newly entered landmarks
+    const isFirstEvaluation = previousCardZoneIds.size === 0;
+    const newlyEnteredCardIds = isFirstEvaluation 
+      ? Array.from(currentCardZoneIds) // First run: treat all as newly entered
+      : Array.from(currentCardZoneIds).filter(id => !previousCardZoneIds.has(id));
 
-    console.log(`🏪 [${instanceIdRef.current}] Card zone check: ${currentCardZoneIds.size} in zone, ${newlyEnteredCardIds.length} newly entered`);
+    console.log(`🏪 [${instanceIdRef.current}] Card zone check: ${currentCardZoneIds.size} in zone, ${newlyEnteredCardIds.length} ${isFirstEvaluation ? 'initial' : 'newly entered'}`);
 
     // Show card for newly entered landmarks (one at a time, closest first)
     if (newlyEnteredCardIds.length > 0) {
@@ -457,7 +460,7 @@ export const useProximityNotifications = () => {
         newlyEnteredCardIds.includes(nl.landmark.placeId)
       );
 
-      if (closestNewCardLandmark) {
+      if (closestNewCardLandmark && !activeCards[closestNewCardLandmark.landmark.placeId]) {
         showProximityCard(closestNewCardLandmark.landmark);
       }
     }
