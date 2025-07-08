@@ -17,11 +17,21 @@ serve(async (req) => {
   }
 
   try {
-    const { place_id } = await req.json();
+    const { place_id, conversation_id } = await req.json();
     
     if (!place_id) {
       return new Response(
         JSON.stringify({ error: 'place_id is required' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    if (!conversation_id) {
+      return new Response(
+        JSON.stringify({ error: 'conversation_id is required' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -41,66 +51,36 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[GET-PLACE-DIRECTIONS] Getting directions to place_id: ${place_id}`);
+    console.log(`[GET-PLACE-DIRECTIONS] Getting directions to place_id: ${place_id} for conversation: ${conversation_id}`);
 
-    // Get user's live location from database
+    // Get agent location from database using anon key (no auth required)
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
-    // Get user from auth header
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Authentication required for directions',
-          has_directions: false 
-        }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    const { data: userData, error: userError } = await supabase.auth.getUser(token);
-    
-    if (userError || !userData.user) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Invalid authentication',
-          has_directions: false 
-        }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
-    }
-
-    // Query user's latest location
+    // Query agent location by conversation_id
     const { data: locationData, error: locationError } = await supabase
-      .from('user_locations')
+      .from('agent_locations')
       .select('latitude, longitude, updated_at')
-      .eq('user_id', userData.user.id)
+      .eq('conversation_id', conversation_id)
       .single();
 
     if (locationError || !locationData) {
-      console.log(`[GET-PLACE-DIRECTIONS] No location found for user: ${userData.user.id}`);
+      console.log(`[GET-PLACE-DIRECTIONS] No location found for conversation: ${conversation_id}`);
       return new Response(
         JSON.stringify({
           place_id,
+          conversation_id,
           place_name: 'Destination',
           destination_address: 'Address not available',
           travel_mode: 'walking',
           distance: { meters: 0, text: 'Unknown distance' },
           duration: { seconds: 0, text: 'Unknown duration' },
           key_steps: [],
-          summary: 'Location access required for directions. Please grant location permissions in your browser and try again.',
+          summary: 'Location data not available for this conversation. Please ensure location is being tracked.',
           has_directions: false,
-          error: 'Location unavailable - please enable location access'
+          error: 'Location unavailable for conversation'
         }),
         { 
           status: 200, 
@@ -114,7 +94,7 @@ serve(async (req) => {
       longitude: locationData.longitude
     };
 
-    console.log(`[GET-PLACE-DIRECTIONS] Using live user coordinates: ${from_coordinates.latitude}, ${from_coordinates.longitude} (updated: ${locationData.updated_at})`);
+    console.log(`[GET-PLACE-DIRECTIONS] Using agent coordinates for conversation ${conversation_id}: ${from_coordinates.latitude}, ${from_coordinates.longitude} (updated: ${locationData.updated_at})`);
 
     // Use Google Routes API for directions
     const routesUrl = 'https://routes.googleapis.com/directions/v2:computeRoutes';
@@ -176,6 +156,7 @@ serve(async (req) => {
 
     const result = {
       place_id,
+      conversation_id,
       place_name: 'Destination',
       destination_address: 'Address not available',
       travel_mode: 'walking',

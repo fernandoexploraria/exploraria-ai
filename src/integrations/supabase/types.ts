@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_locations: {
+        Row: {
+          accuracy: number | null
+          conversation_id: string
+          created_at: string
+          latitude: number
+          longitude: number
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          accuracy?: number | null
+          conversation_id: string
+          created_at?: string
+          latitude: number
+          longitude: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          accuracy?: number | null
+          conversation_id?: string
+          created_at?: string
+          latitude?: number
+          longitude?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       generated_landmarks: {
         Row: {
           api_calls_made: number | null
@@ -550,36 +580,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      user_locations: {
-        Row: {
-          accuracy: number | null
-          created_at: string
-          id: string
-          latitude: number
-          longitude: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          accuracy?: number | null
-          created_at?: string
-          id?: string
-          latitude: number
-          longitude: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          accuracy?: number | null
-          created_at?: string
-          id?: string
-          latitude?: number
-          longitude?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
       }
       user_tour_stats: {
         Row: {
