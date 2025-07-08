@@ -66,8 +66,7 @@ serve(async (req) => {
       destination: {
         placeId: place_id
       },
-      travelMode: 'WALKING',
-      routingPreference: 'TRAFFIC_AWARE',
+      travelMode: 'WALK',
       computeAlternativeRoutes: false,
       routeModifiers: {
         avoidTolls: false,
