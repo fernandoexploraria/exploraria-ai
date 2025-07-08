@@ -506,7 +506,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
           
           if (!isUpdatingFromProximitySettings.current) {
             console.log('🌍 GeolocateControl: Enabling proximity (user initiated location)');
-            updateProximityEnabled(true);
+            // updateProximityEnabled(true);
           }
         });
         
@@ -516,7 +516,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
           
           if (!isUpdatingFromProximitySettings.current) {
             console.log('🌍 GeolocateControl: Enabling proximity (tracking started)');
-            updateProximityEnabled(true);
+            // updateProximityEnabled(true);
           }
         });
         
@@ -524,7 +524,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
           console.log('🌍 GeolocateControl: Stopped tracking user location (PASSIVE/INACTIVE state)');
           if (!isUpdatingFromProximitySettings.current) {
             console.log('🌍 GeolocateControl: Disabling proximity (tracking ended)');
-            updateProximityEnabled(false);
+            // updateProximityEnabled(false);
           }
         });
         
@@ -533,7 +533,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
           userInitiatedLocationRequest.current = false;
           if (!isUpdatingFromProximitySettings.current) {
             console.log('🌍 GeolocateControl: Disabling proximity (error occurred)');
-            updateProximityEnabled(false);
+            // updateProximityEnabled(false);
           }
         });
         
