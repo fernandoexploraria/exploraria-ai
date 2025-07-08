@@ -33,6 +33,7 @@ interface UseContextualPOIPollingOptions {
   radius?: number;
   maxResults?: number;
   onUpdate?: (update: ContextualPOIUpdate) => void;
+  conversationId?: string; // Add conversation_id parameter
 }
 
 export const useContextualPOIPolling = ({
@@ -40,7 +41,8 @@ export const useContextualPOIPolling = ({
   pollInterval = 15000, // 15 seconds
   radius = 150, // 150 meters
   maxResults = 3,
-  onUpdate
+  onUpdate,
+  conversationId
 }: UseContextualPOIPollingOptions) => {
   const { userLocation } = useLocationTracking();
   const [isPolling, setIsPolling] = useState(false);
@@ -130,39 +132,44 @@ export const useContextualPOIPolling = ({
     }, pollInterval);
   }, [enabled, userLocation, pollInterval, fetchContextualPOIs, onUpdate]);
 
-  // Consolidated location persistence function
-  const persistUserLocation = useCallback(async (location?: {latitude: number, longitude: number} | null) => {
+  // Updated location persistence function for agent-based tracking
+  const persistAgentLocation = useCallback(async (location?: {latitude: number, longitude: number} | null) => {
+    if (!conversationId) {
+      console.warn('⚠️ No conversation ID available for agent location persistence');
+      return;
+    }
+
     try {
       const { data: userData } = await supabase.auth.getUser();
       
-      if (!userData?.user?.id) {
-        console.warn('⚠️ No user ID available for location persistence');
-        return;
-      }
-
       const locationData = {
-        user_id: userData.user.id,
+        conversation_id: conversationId,
+        user_id: userData?.user?.id || null, // Optional for analytics
         latitude: location?.latitude || null,
         longitude: location?.longitude || null,
-        accuracy: null,
-        updated_at: new Date().toISOString()
+        accuracy: null
       };
 
-      console.log('📍 Persisting user location to database:', {
+      console.log('📍 Persisting agent location to database:', {
+        conversationId,
         hasCoordinates: !!location,
         coordinates: location ? `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}` : 'null'
       });
       
-      await supabase
-        .from('user_locations')
-        .upsert(locationData);
-      
-      console.log('✅ Successfully persisted user location to database');
+      const { error } = await supabase.functions.invoke('store-agent-location', {
+        body: locationData
+      });
+
+      if (error) {
+        console.warn('⚠️ Failed to persist agent location:', error);
+      } else {
+        console.log('✅ Successfully persisted agent location to database');
+      }
     } catch (error) {
-      console.warn('⚠️ Failed to persist location:', error);
+      console.warn('⚠️ Failed to persist agent location:', error);
       // Don't throw - we want to continue even if location persistence fails
     }
-  }, []);
+  }, [conversationId]);
 
   // Handle location changes
   useEffect(() => {
@@ -185,7 +192,7 @@ export const useContextualPOIPolling = ({
       lastLocationRef.current = currentLocation;
       
       // Persist the significant location change
-      persistUserLocation(currentLocation).catch(err => 
+      persistAgentLocation(currentLocation).catch(err => 
         console.warn('⚠️ Failed to persist location change:', err)
       );
       
@@ -196,7 +203,7 @@ export const useContextualPOIPolling = ({
         }
       });
     }
-  }, [enabled, userLocation, fetchContextualPOIs, onUpdate, persistUserLocation]);
+  }, [enabled, userLocation, fetchContextualPOIs, onUpdate, persistAgentLocation]);
 
   // Start/stop polling based on enabled state
   useEffect(() => {
@@ -206,8 +213,8 @@ export const useContextualPOIPolling = ({
       pollCountRef.current = 0;
       
       // ALWAYS persist location when POI polling starts (fresh start every session)
-      // This ensures user_locations record exists even if coordinates are null
-      persistUserLocation(userLocation).catch(err => 
+      // This ensures agent_locations record exists even if coordinates are null
+      persistAgentLocation(userLocation).catch(err => 
         console.warn('⚠️ Failed to persist initial location:', err)
       );
       
@@ -230,7 +237,7 @@ export const useContextualPOIPolling = ({
         pollIntervalRef.current = null;
       }
     };
-  }, [enabled, userLocation, schedulePoll, persistUserLocation]);
+  }, [enabled, userLocation, schedulePoll, persistAgentLocation]);
 
   const manualRefresh = useCallback(async () => {
     if (!userLocation) {

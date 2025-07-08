@@ -33,6 +33,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   const [assistantState, setAssistantState] = useState<AssistantState>('not-started');
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isSessionActive, setIsSessionActive] = useState(false);
+  const [conversationId, setConversationId] = useState<string>('');
 
   // 🚀 IN-MEMORY STATE: Store destination and system prompt from voiceTourData
   const [destination, setDestination] = useState<string>('');
@@ -63,6 +64,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       console.log('Disconnected from ElevenLabs agent');
       setAssistantState('not-started');
       setIsSessionActive(false);
+      setConversationId(''); // Clear conversation ID on disconnect
       onOpenChange(false); // Close dialog when conversation ends
       // toast({
       //   title: "Conversation Ended",
@@ -158,11 +160,12 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
 
   // 🎯 RE-ENABLED: Contextual POI polling for location-aware conversations
   const { isPolling, lastUpdate, error: poiError } = useContextualPOIPolling({
-    enabled: isSessionActive && conversation?.status === 'connected',
+    enabled: isSessionActive && conversation?.status === 'connected' && !!conversationId,
     pollInterval: 15000, // 15 seconds
     radius: 150, // 150 meters  
     maxResults: 3,
-    onUpdate: handleContextualUpdate
+    onUpdate: handleContextualUpdate,
+    conversationId
   });
 
   // Debug contextual POI polling
@@ -290,12 +293,13 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       console.log('Microphone permission granted');
       
       console.log('Starting session with dynamic variables...');
-      const conversationId = await conversation.startSession({ 
+      const sessionConversationId = await conversation.startSession({ 
         agentId: elevenLabsConfig.agentId,
         dynamicVariables: dynamicVariables
       });
       
-      console.log('ElevenLabs session started successfully:', conversationId);
+      console.log('ElevenLabs session started successfully:', sessionConversationId);
+      setConversationId(sessionConversationId);
       
     } catch (error) {
       console.error('Error starting tour:', error);
