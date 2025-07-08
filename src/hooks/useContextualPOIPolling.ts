@@ -51,7 +51,23 @@ export const useContextualPOIPolling = ({
   
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastLocationRef = useRef<{latitude: number, longitude: number} | null>(null);
+  const lastPersistedLocationRef = useRef<{latitude: number, longitude: number} | null>(null);
   const pollCountRef = useRef(0);
+
+  // Helper function to check for significant location changes (approx 50+ meters)
+  const isSignificantLocationChange = useCallback((
+    currentLocation: {latitude: number, longitude: number},
+    lastLocation: {latitude: number, longitude: number} | null
+  ): boolean => {
+    if (!lastLocation) return true;
+    
+    const latDiff = Math.abs(lastLocation.latitude - currentLocation.latitude);
+    const lngDiff = Math.abs(lastLocation.longitude - currentLocation.longitude);
+    
+    // ~0.0005 degrees is approximately 50 meters
+    const threshold = 0.0005;
+    return latDiff > threshold || lngDiff > threshold;
+  }, []);
 
   const fetchContextualPOIs = useCallback(async (
     location: {latitude: number, longitude: number},
@@ -191,12 +207,19 @@ export const useContextualPOIPolling = ({
       console.log('📍 User location changed, triggering contextual POI update');
       lastLocationRef.current = currentLocation;
       
-      // Persist the significant location change
-      persistAgentLocation(currentLocation).catch(err => 
-        console.warn('⚠️ Failed to persist location change:', err)
-      );
+      // Only persist location if it's a significant change (50+ meters)
+      const shouldPersistLocation = isSignificantLocationChange(currentLocation, lastPersistedLocationRef.current);
+      if (shouldPersistLocation) {
+        console.log('📍 Significant location change detected, persisting to database');
+        lastPersistedLocationRef.current = currentLocation;
+        persistAgentLocation(currentLocation).catch(err => 
+          console.warn('⚠️ Failed to persist location change:', err)
+        );
+      } else {
+        console.log('📍 Minor location change, skipping persistence');
+      }
       
-      // Immediate update on location change
+      // Immediate update on location change (always trigger POI updates)
       fetchContextualPOIs(currentLocation, 'location_change').then(update => {
         if (update && onUpdate) {
           onUpdate(update);
