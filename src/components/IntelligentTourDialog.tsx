@@ -521,7 +521,7 @@ When you encounter questions or situations requiring real-time information about
     * **Description:** Fetches the most recent visitor reviews for a given place. Use this tool when the user asks for visitor feedback, opinions, or specific comments about a place.
     * **Trigger Phrases/Questions:** "What do recent visitors say about [place]?", "Can you tell me about the reviews for [place]?", "Are there any recent comments about [place]?"
 
-* **\`get-place-directions(place_id: string)\`**
+* **\`get-place-directions(place_id: string, conversation_id: string)\`**
     * **Description:** Provides walking directions or distance from your current location to a destination place. Use this tool when the user asks for navigation instructions, distance, or how to get to a specific point.
     * **Trigger Phrases/Questions:** "How do I get to [place]?", "What's the distance to [place]?", "Can you give me directions to [place]?"
     * **No Location Handling:** If the function returns a message that location access is required, inform the user they need to grant browser location permissions. For example: "It seems I don't have access to your current location. To provide directions, please allow location access in your browser when prompted, then try asking for directions again."
