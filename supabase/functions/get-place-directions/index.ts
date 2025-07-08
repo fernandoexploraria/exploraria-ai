@@ -17,21 +17,11 @@ serve(async (req) => {
   }
 
   try {
-    const { place_id, travel_mode = 'WALKING', user_id } = await req.json();
+    const { place_id } = await req.json();
     
     if (!place_id) {
       return new Response(
         JSON.stringify({ error: 'place_id is required' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
-    }
-
-    if (!user_id) {
-      return new Response(
-        JSON.stringify({ error: 'user_id is required to get current location' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -51,87 +41,15 @@ serve(async (req) => {
       );
     }
 
-    // Initialize Supabase client to get user's current location
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    console.log(`[GET-PLACE-DIRECTIONS] Getting directions to place_id: ${place_id}`);
 
-    console.log(`[GET-PLACE-DIRECTIONS] Getting directions to place_id: ${place_id} for user: ${user_id}`);
-
-    // Get user's current location - try multiple sources for freshest data
-    console.log(`[GET-PLACE-DIRECTIONS] Looking for user location for user: ${user_id}`);
-    
-    // First try proximity_notifications (most recent activity)
-    const { data: recentProximityLocation } = await supabase
-      .from('proximity_notifications')
-      .select('created_at')
-      .eq('user_id', user_id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    // Then try interactions table (fallback)
-    const { data: userLocation, error: locationError } = await supabase
-      .from('interactions')
-      .select('user_location, created_at')
-      .eq('user_id', user_id)
-      .not('user_location', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    console.log(`[GET-PLACE-DIRECTIONS] Found location data: ${userLocation ? 'Yes' : 'No'}, Recent proximity activity: ${recentProximityLocation ? 'Yes' : 'No'}`);
-
-    if (locationError || !userLocation?.user_location) {
-      console.log('[GET-PLACE-DIRECTIONS] No user location found, returning destination info only');
-      
-      // Still get place details for basic info
-      const placeDetailsUrl = `https://places.googleapis.com/v1/places/${place_id}?fields=location,displayName,formattedAddress&key=${GOOGLE_API_KEY}`;
-      const placeResponse = await fetch(placeDetailsUrl, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      if (!placeResponse.ok) {
-        throw new Error(`Place Details API error: ${placeResponse.status}`);
-      }
-
-      const placeData = await placeResponse.json();
-      const destination = placeData.location;
-
-      return new Response(
-        JSON.stringify({
-          place_id,
-          place_name: placeData.displayName?.text || 'Unknown place',
-          destination_address: placeData.formattedAddress || 'Address not available',
-          destination_coordinates: {
-            latitude: destination.latitude,
-            longitude: destination.longitude
-          },
-          message: 'To get precise directions, I need your current location. Please enable location services and try asking for directions again.',
-          has_directions: false
-        }),
-        { 
-          status: 200, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
-    }
-
-    // Extract coordinates from PostGIS point format (x,y)
-    const locationStr = userLocation.user_location.toString();
-    const coordMatch = locationStr.match(/\(([^,]+),([^)]+)\)/);
-    
-    if (!coordMatch) {
-      throw new Error('Invalid user location format');
-    }
-
+    // Use hardcoded coordinates (Mexico City area)
     const from_coordinates = {
-      longitude: parseFloat(coordMatch[1]),
-      latitude: parseFloat(coordMatch[2])
+      latitude: 19.3483994,
+      longitude: -99.1683188
     };
 
-    console.log(`[GET-PLACE-DIRECTIONS] Using user location: ${from_coordinates.latitude}, ${from_coordinates.longitude}`);
+    console.log(`[GET-PLACE-DIRECTIONS] Using hardcoded coordinates: ${from_coordinates.latitude}, ${from_coordinates.longitude}`);
 
     // Get place details for destination
     const placeDetailsUrl = `https://places.googleapis.com/v1/places/${place_id}?fields=location,displayName,formattedAddress&key=${GOOGLE_API_KEY}`;
@@ -173,7 +91,7 @@ serve(async (req) => {
           }
         }
       },
-      travelMode: travel_mode,
+      travelMode: 'WALKING',
       routingPreference: 'TRAFFIC_AWARE',
       computeAlternativeRoutes: false,
       routeModifiers: {
@@ -221,7 +139,7 @@ serve(async (req) => {
       place_id,
       place_name: placeData.displayName?.text || 'Unknown place',
       destination_address: placeData.formattedAddress || 'Address not available',
-      travel_mode: travel_mode.toLowerCase(),
+      travel_mode: 'walking',
       distance: {
         meters: route.distanceMeters || 0,
         text: route.distanceMeters ? `${(route.distanceMeters / 1609.34).toFixed(1)} miles` : 'Unknown distance'
@@ -231,7 +149,7 @@ serve(async (req) => {
         text: route.duration ? `${Math.ceil(parseInt(route.duration.replace('s', '')) / 60)} minutes` : 'Unknown duration'
       },
       key_steps: steps,
-      summary: `${travel_mode.toLowerCase() === 'walking' ? 'Walk' : 'Drive'} ${route.distanceMeters ? `${(route.distanceMeters / 1609.34).toFixed(1)} miles` : ''} to reach ${placeData.displayName?.text || 'your destination'}${route.duration ? ` (approximately ${Math.ceil(parseInt(route.duration.replace('s', '')) / 60)} minutes)` : ''}.`,
+      summary: `Walk ${route.distanceMeters ? `${(route.distanceMeters / 1609.34).toFixed(1)} miles` : ''} to reach ${placeData.displayName?.text || 'your destination'}${route.duration ? ` (approximately ${Math.ceil(parseInt(route.duration.replace('s', '')) / 60)} minutes)` : ''}.`,
       has_directions: true
     };
 
