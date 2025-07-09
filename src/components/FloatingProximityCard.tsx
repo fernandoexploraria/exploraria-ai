@@ -284,10 +284,23 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = React.memo((
     return stars;
   };
 
+  // Handle touch events to prevent mobile expansion
+  const handleCardTouch = (e: React.TouchEvent) => {
+    e.stopPropagation();
+  };
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   if (selectedService) {
     // Detailed service view - UPDATED: Dark background to match travel log
     return (
-      <Card className="fixed bottom-4 right-4 w-80 max-h-96 bg-gray-900 backdrop-blur-sm shadow-xl border border-gray-700 z-50 overflow-hidden">
+      <Card 
+        className="fixed bottom-4 right-4 w-80 max-w-[calc(100vw-2rem)] sm:w-80 max-h-96 bg-gray-900 backdrop-blur-sm shadow-xl border border-gray-700 z-50 overflow-hidden touch-manipulation select-none will-change-auto"
+        onTouchStart={handleCardTouch}
+        onClick={handleCardClick}
+      >
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between">
             <div className="flex-1">
@@ -363,7 +376,11 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = React.memo((
 
   // Main services list view - UPDATED: Dark background to match travel log
   return (
-    <Card className="fixed bottom-4 right-4 w-80 max-h-96 bg-gray-900 backdrop-blur-sm shadow-xl border border-gray-700 z-50">
+    <Card 
+      className="fixed bottom-4 right-4 w-80 max-w-[calc(100vw-2rem)] sm:w-80 max-h-96 bg-gray-900 backdrop-blur-sm shadow-xl border border-gray-700 z-50 touch-manipulation select-none will-change-auto"
+      onTouchStart={handleCardTouch}
+      onClick={handleCardClick}
+    >
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -378,22 +395,27 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = React.memo((
         </div>
         
         {/* Enhanced search input with ProximityAutocomplete */}
-        <ProximityAutocomplete
-          placeholder="Search nearby services..."
-          value={searchQuery}
-          onChange={setSearchQuery}
-          onSuggestionSelect={handleSuggestionSelect}
-          locationBias={{
-            circle: {
-              center: {
-                latitude: landmark.coordinates[1],
-                longitude: landmark.coordinates[0]
-              },
-              radius: 1000 // 1km radius from landmark
-            }
-          }}
-          serviceTypes={TOURIST_SERVICE_TYPES}
-        />
+        <div
+          onTouchStart={handleCardTouch}
+          onClick={handleCardClick}
+        >
+          <ProximityAutocomplete
+            placeholder="Search nearby services..."
+            value={searchQuery}
+            onChange={setSearchQuery}
+            onSuggestionSelect={handleSuggestionSelect}
+            locationBias={{
+              circle: {
+                center: {
+                  latitude: landmark.coordinates[1],
+                  longitude: landmark.coordinates[0]
+                },
+                radius: 1000 // 1km radius from landmark
+              }
+            }}
+            serviceTypes={TOURIST_SERVICE_TYPES}
+          />
+        </div>
       </CardHeader>
 
       <CardContent className="pt-0">
