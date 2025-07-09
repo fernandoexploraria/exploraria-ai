@@ -35,6 +35,7 @@ interface MapProps {
   selectedLandmark: Landmark | null;
   plannedLandmarks: Landmark[];
   onClearTransitRouteRef?: (clearFn: () => void) => void;
+  onMapFlyToRef?: (flyToFn: (coordinates: [number, number], zoom: number) => void) => void;
   onIntelligentTourOpen?: (landmarkDestination?: Landmark) => void;
   onAuthDialogOpen?: () => void;
 }
@@ -57,6 +58,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
   selectedLandmark, 
   plannedLandmarks,
   onClearTransitRouteRef,
+  onMapFlyToRef,
   onIntelligentTourOpen,
   onAuthDialogOpen
 }) => {
@@ -173,6 +175,31 @@ const MapComponent: React.FC<MapProps> = React.memo(({
       onClearTransitRouteRef(clearTransitRoute);
     }
   }, [clearTransitRoute, onClearTransitRouteRef]);
+
+  // Create flyTo function for experience destinations
+  const flyToDestination = useCallback((coordinates: [number, number], zoom: number) => {
+    if (!map.current) {
+      console.warn('🗺️ flyToDestination: Map not initialized');
+      return;
+    }
+    
+    console.log('🗺️ Flying to destination:', { coordinates, zoom });
+    
+    map.current.flyTo({
+      center: coordinates,
+      zoom: zoom,
+      speed: 0.6,
+      curve: 1,
+      easing: (t) => t,
+    });
+  }, []);
+
+  // Pass flyTo function to parent component
+  useEffect(() => {
+    if (onMapFlyToRef) {
+      onMapFlyToRef(flyToDestination);
+    }
+  }, [flyToDestination, onMapFlyToRef]);
 
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
 

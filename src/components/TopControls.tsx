@@ -37,6 +37,7 @@ interface TopControlsProps {
     landmarks: any[];
     agentId?: string;
   }) => void;
+  onMapFlyTo?: (coordinates: [number, number], zoom: number) => void;
 }
 
 const TopControls: React.FC<TopControlsProps> = ({
@@ -51,6 +52,7 @@ const TopControls: React.FC<TopControlsProps> = ({
   onAuthDialogOpen,
   onTestProximityCard,
   onExperienceLaunch,
+  onMapFlyTo,
 }) => {
   const { user: authUser } = useAuth();
   const isMobile = useIsMobile();
@@ -327,6 +329,7 @@ const TopControls: React.FC<TopControlsProps> = ({
         open={isExperiencesDrawerOpen}
         onOpenChange={setIsExperiencesDrawerOpen}
         onExperienceLaunch={onExperienceLaunch}
+        onMapFlyTo={onMapFlyTo}
       />
     </>
   );

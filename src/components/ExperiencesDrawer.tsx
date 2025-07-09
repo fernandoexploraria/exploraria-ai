@@ -17,12 +17,35 @@ interface ExperiencesDrawerProps {
     landmarks: any[];
     agentId?: string;
   }) => void;
+  onMapFlyTo?: (coordinates: [number, number], zoom: number) => void;
 }
 
-const ExperiencesDrawer: React.FC<ExperiencesDrawerProps> = ({ open, onOpenChange, onExperienceLaunch }) => {
+const ExperiencesDrawer: React.FC<ExperiencesDrawerProps> = ({ open, onOpenChange, onExperienceLaunch, onMapFlyTo }) => {
   const { data: experiences, isLoading, error } = useExperiences();
   const [isLaunching, setIsLaunching] = useState(false);
   const { toast } = useToast();
+
+  // Determine zoom level based on destination type (based on IntelligentTourDialog priority)
+  const getZoomLevelForDestinationType = (types: string[] = []): number => {
+    // Priority order: locality > sublocality > park > tourist_attraction > museum
+    if (types.includes('locality') || types.includes('administrative_area_level_1')) {
+      return 10; // City level - zoom out more
+    }
+    if (types.includes('sublocality') || types.includes('neighborhood')) {
+      return 12; // Neighborhood level - zoom out less
+    }
+    if (types.includes('park')) {
+      return 14; // Park level - medium zoom
+    }
+    if (types.includes('tourist_attraction')) {
+      return 15; // Tourist attraction - zoom in more
+    }
+    if (types.includes('museum') || types.includes('art_gallery')) {
+      return 16; // Museum level - zoom in most
+    }
+    // Default for unknown types
+    return 13;
+  };
 
   const handleExperienceSelect = async (experience: Experience) => {
     console.log('🎯 Launching experience:', experience.destination);
@@ -78,6 +101,26 @@ const ExperiencesDrawer: React.FC<ExperiencesDrawerProps> = ({ open, onOpenChang
 
       // Set landmarks on the map
       setTourLandmarks(tourLandmarks);
+
+      // Handle map flyTo with appropriate zoom level
+      if (onMapFlyTo && experience.destination_details) {
+        const destinationDetails = experience.destination_details as any;
+        console.log('🗺️ Destination details:', destinationDetails);
+        
+        if (destinationDetails.coordinates) {
+          const coordinates = destinationDetails.coordinates as [number, number];
+          const types = destinationDetails.types || destinationDetails.destination_types || [];
+          const zoomLevel = getZoomLevelForDestinationType(types);
+          
+          console.log('🗺️ Flying to destination:', {
+            coordinates,
+            types,
+            zoomLevel
+          });
+          
+          onMapFlyTo(coordinates, zoomLevel);
+        }
+      }
 
       // Prepare experience data for voice assistant
       const experienceData = {
