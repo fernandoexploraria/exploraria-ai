@@ -79,15 +79,18 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   // 🔥 ADD VOICE AGENT STATE DEBUGGING
   const [voiceAgentDebugState, setVoiceAgentDebugState] = useState<string>('inactive');
   
+  // 🐛 DEBUG: Log proximity card state changes
   useEffect(() => {
     console.log(`🏗️ MainLayout instance ${instanceIdRef.current} mounted`);
     console.log(`🎯 Proximity notifications active instance: ${isActiveInstance}`);
     console.log(`🎙️ Voice agent state: ${voiceAgentDebugState}`);
+    console.log(`🏪 [MainLayout] Active cards state:`, activeCards);
+    console.log(`🏪 [MainLayout] Active cards count:`, Object.keys(activeCards).length);
     
     return () => {
       console.log(`🏗️ MainLayout instance ${instanceIdRef.current} unmounted`);
     };
-  }, [isActiveInstance, voiceAgentDebugState]);
+  }, [isActiveInstance, voiceAgentDebugState, activeCards]);
   
   // Debug state for test proximity card
   const [debugProximityCard, setDebugProximityCard] = useState<Landmark | null>(null);
@@ -257,24 +260,28 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
       {/* Regular Floating Proximity Cards - Convert TourLandmark to Landmark */}
       {/* Only render if this is the active proximity instance */}
-      {isActiveInstance && Object.entries(activeCards).map(([landmarkId, tourLandmark], index) => (
-        <div
-          key={landmarkId}
-          style={{
-            position: 'fixed',
-            bottom: `${24 + (index * 420)}px`, // Stack cards vertically with 420px spacing
-            right: '16px',
-            zIndex: 40 + index // Ensure proper stacking order
-          }}
-        >
-          <FloatingProximityCard
-            landmark={convertTourLandmarkToLandmark(tourLandmark)}
-            userLocation={userLocation}
-            onClose={() => closeProximityCard(landmarkId)}
-            onGetDirections={showRouteToService}
-          />
-        </div>
-      ))}
+      {(() => {
+        console.log(`🏪 [MainLayout] Rendering cards - isActiveInstance: ${isActiveInstance}, activeCards:`, activeCards);
+        console.log(`🏪 [MainLayout] Cards to render:`, Object.entries(activeCards));
+        return isActiveInstance && Object.entries(activeCards).map(([landmarkId, tourLandmark], index) => (
+          <div
+            key={landmarkId}
+            style={{
+              position: 'fixed',
+              bottom: `${24 + (index * 420)}px`, // Stack cards vertically with 420px spacing
+              right: '16px',
+              zIndex: 40 + index // Ensure proper stacking order
+            }}
+          >
+            <FloatingProximityCard
+              landmark={convertTourLandmarkToLandmark(tourLandmark)}
+              userLocation={userLocation}
+              onClose={() => closeProximityCard(landmarkId)}
+              onGetDirections={showRouteToService}
+            />
+          </div>
+        ));
+      })()}
 
       {/* Floating Tour Guide FAB - shows when session is active but dialog is closed */}
       <FloatingTourGuideFAB
