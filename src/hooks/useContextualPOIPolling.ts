@@ -39,7 +39,7 @@ interface UseContextualPOIPollingOptions {
 
 export const useContextualPOIPolling = ({
   enabled,
-  pollInterval = 30000, // 30 seconds
+  pollInterval = 15000, // 15 seconds
   radius = 150, // 150 meters
   maxResults = 3,
   onUpdate,
