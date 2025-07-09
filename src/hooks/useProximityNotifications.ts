@@ -446,13 +446,10 @@ export const useProximityNotifications = () => {
     const currentCardZoneIds = new Set(cardZoneLandmarks.map(nl => nl.landmark.placeId));
     const previousCardZoneIds = previousCardZoneLandmarksRef.current;
 
-    // Handle both initial presence and newly entered landmarks
-    const isFirstEvaluation = previousCardZoneIds.size === 0;
-    const newlyEnteredCardIds = isFirstEvaluation 
-      ? Array.from(currentCardZoneIds) // First run: treat all as newly entered
-      : Array.from(currentCardZoneIds).filter(id => !previousCardZoneIds.has(id));
+    // Find newly entered card zone landmarks
+    const newlyEnteredCardIds = Array.from(currentCardZoneIds).filter(id => !previousCardZoneIds.has(id));
 
-    console.log(`🏪 [${instanceIdRef.current}] Card zone check: ${currentCardZoneIds.size} in zone, ${newlyEnteredCardIds.length} ${isFirstEvaluation ? 'initial' : 'newly entered'}`);
+    console.log(`🏪 [${instanceIdRef.current}] Card zone check: ${currentCardZoneIds.size} in zone, ${newlyEnteredCardIds.length} newly entered`);
 
     // Show card for newly entered landmarks (one at a time, closest first)
     if (newlyEnteredCardIds.length > 0) {
@@ -460,7 +457,7 @@ export const useProximityNotifications = () => {
         newlyEnteredCardIds.includes(nl.landmark.placeId)
       );
 
-      if (closestNewCardLandmark && !activeCards[closestNewCardLandmark.landmark.placeId]) {
+      if (closestNewCardLandmark) {
         showProximityCard(closestNewCardLandmark.landmark);
       }
     }
@@ -487,13 +484,10 @@ export const useProximityNotifications = () => {
     const currentNearbyIds = new Set(nearbyLandmarks.map(nl => nl.landmark.placeId));
     const previousNearbyIds = previousNearbyLandmarksRef.current;
 
-    // Handle both initial presence and newly entered landmarks
-    const isFirstEvaluation = previousNearbyIds.size === 0;
-    const newlyEnteredIds = isFirstEvaluation 
-      ? Array.from(currentNearbyIds) // First run: treat all as newly entered
-      : Array.from(currentNearbyIds).filter(id => !previousNearbyIds.has(id));
+    // Find newly entered landmarks (in current but not in previous)
+    const newlyEnteredIds = Array.from(currentNearbyIds).filter(id => !previousNearbyIds.has(id));
 
-    console.log(`🎯 [${instanceIdRef.current}] Proximity check: ${currentNearbyIds.size} nearby, ${newlyEnteredIds.length} ${isFirstEvaluation ? 'initial' : 'newly entered'} - Round ${currentPollRound}`);
+    console.log(`🎯 [${instanceIdRef.current}] Proximity check: ${currentNearbyIds.size} nearby, ${newlyEnteredIds.length} newly entered - Round ${currentPollRound}`);
 
     // Show notification for ONLY the closest newly entered landmark
     // Cooldown is now handled inside showProximityToast

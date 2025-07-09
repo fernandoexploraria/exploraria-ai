@@ -6,7 +6,7 @@ import { useNearbyLandmarks } from '@/hooks/useNearbyLandmarks';
 import { useStreetViewNavigation } from '@/hooks/useStreetViewNavigation';
 import { useEnhancedStreetViewMulti } from '@/hooks/useEnhancedStreetViewMulti';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-// Proximity data now passed as props
+import { useProximityNotifications } from '@/hooks/useProximityNotifications';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -17,25 +17,13 @@ import NetworkTestingPanel from '@/components/NetworkTestingPanel';
 interface DebugWindowProps {
   isVisible: boolean;
   onClose: () => void;
-  proximityData?: {
-    activeCards: {[placeId: string]: any};
-    isActiveInstance: boolean;
-    nearbyLandmarks: any[];
-    cardZoneLandmarks: any[];
-  };
 }
 
-const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose, proximityData }) => {
+const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
   const { proximitySettings, combinedLandmarks } = useProximityAlerts();
   const { locationState, userLocation } = useLocationTracking();
   const { effectiveType } = useNetworkStatus();
-  // Use proximity data passed from MainLayout
-  const { 
-    activeCards = {}, 
-    isActiveInstance = false, 
-    nearbyLandmarks = [], 
-    cardZoneLandmarks = [] 
-  } = proximityData || {};
+  const { cardZoneLandmarks, activeCards, cardState } = useProximityNotifications();
   
   // Get landmarks within notification zone (for toast notifications)
   const notificationZoneLandmarks = useNearbyLandmarks({
@@ -323,7 +311,7 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose, proximity
                   {cardZoneLandmarks.map((nearby, index) => {
                     const placeId = nearby.landmark.placeId;
                     const isActive = !!activeCards[placeId];
-                    // Card state is no longer available directly - use active cards status
+                    const cardInfo = cardState[placeId];
                     
                     return (
                       <div 
@@ -354,11 +342,11 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose, proximity
                           <span className="text-green-800 dark:text-green-200 font-medium">{formatDistance(nearby.distance)}</span>
                         </div>
 
-                        {isActive && (
+                        {cardInfo && (
                           <div className="flex justify-between">
-                            <span className="text-green-700 dark:text-green-300">Card Status:</span>
+                            <span className="text-green-700 dark:text-green-300">Last Card:</span>
                             <span className="text-blue-700 dark:text-blue-300 text-xs">
-                              Currently Active
+                              {new Date(cardInfo.timestamp).toLocaleTimeString()}
                             </span>
                           </div>
                         )}

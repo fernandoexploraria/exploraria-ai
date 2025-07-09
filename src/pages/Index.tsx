@@ -45,7 +45,8 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
     resetAllDialogStates,
   } = useDialogStates();
 
-  // Proximity notifications are handled by MainLayout
+  // Initialize proximity notifications
+  useProximityNotifications();
   
   // Initialize connection monitoring
   useConnectionMonitor();

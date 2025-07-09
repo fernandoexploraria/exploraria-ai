@@ -71,7 +71,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 }) => {
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
   const { userLocation } = useLocationTracking();
-  const { activeCards, closeProximityCard, showRouteToService, isActiveInstance, nearbyLandmarks, cardZoneLandmarks } = useProximityNotifications();
+  const { activeCards, closeProximityCard, showRouteToService, isActiveInstance } = useProximityNotifications();
   
   // Instance tracking for debugging
   const instanceIdRef = useRef(`layout-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
@@ -88,29 +88,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       console.log(`🏗️ MainLayout instance ${instanceIdRef.current} unmounted`);
     };
   }, [isActiveInstance, voiceAgentDebugState]);
-
-  // 🔍 DEBUG: Monitor card state changes
-  useEffect(() => {
-    console.log(`🏪 [${instanceIdRef.current}] Card state changed:`, {
-      isActiveInstance,
-      activeCardsCount: Object.keys(activeCards).length,
-      activeCardIds: Object.keys(activeCards),
-      activeCards: Object.entries(activeCards).map(([id, landmark]) => ({
-        id,
-        name: landmark.name,
-        placeId: landmark.placeId
-      }))
-    });
-  }, [isActiveInstance, activeCards]);
-
-  // 🔍 DEBUG: Monitor rendering conditions
-  const shouldRenderCards = isActiveInstance && Object.entries(activeCards).length > 0;
-  console.log(`🏪 [${instanceIdRef.current}] Render check:`, {
-    shouldRenderCards,
-    isActiveInstance,
-    activeCardsEntries: Object.entries(activeCards).length,
-    renderCondition: `${isActiveInstance} && ${Object.entries(activeCards).length > 0}`
-  });
   
   // Debug state for test proximity card
   const [debugProximityCard, setDebugProximityCard] = useState<Landmark | null>(null);
@@ -216,26 +193,17 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   };
 
   // Convert TourLandmark to Landmark for components that require the Landmark interface
-  const convertTourLandmarkToLandmark = (tourLandmark: any): Landmark => {
-    console.log(`🔄 [${instanceIdRef.current}] Converting TourLandmark to Landmark:`, {
-      inputId: tourLandmark.id,
-      inputPlaceId: tourLandmark.placeId,
-      inputName: tourLandmark.name,
-      outputId: tourLandmark.id || tourLandmark.placeId
-    });
-    
-    return {
-      id: tourLandmark.id || tourLandmark.placeId, // Use id if available, fallback to placeId
-      name: tourLandmark.name,
-      coordinates: tourLandmark.coordinates,
-      description: tourLandmark.description,
-      rating: tourLandmark.rating,
-      photos: tourLandmark.photos,
-      types: tourLandmark.types,
-      placeId: tourLandmark.placeId,
-      formattedAddress: tourLandmark.formattedAddress
-    };
-  };
+  const convertTourLandmarkToLandmark = (tourLandmark: any): Landmark => ({
+    id: tourLandmark.id || tourLandmark.placeId, // Use id if available, fallback to placeId
+    name: tourLandmark.name,
+    coordinates: tourLandmark.coordinates,
+    description: tourLandmark.description,
+    rating: tourLandmark.rating,
+    photos: tourLandmark.photos,
+    types: tourLandmark.types,
+    placeId: tourLandmark.placeId,
+    formattedAddress: tourLandmark.formattedAddress
+  });
 
   return (
     <div className="w-screen h-screen relative">
@@ -289,43 +257,24 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
       {/* Regular Floating Proximity Cards - Convert TourLandmark to Landmark */}
       {/* Only render if this is the active proximity instance */}
-      {(() => {
-        const cardEntries = Object.entries(activeCards);
-        console.log(`🏪 [${instanceIdRef.current}] About to render cards:`, {
-          renderCondition: isActiveInstance,
-          cardEntries: cardEntries.length,
-          willRender: isActiveInstance && cardEntries.length > 0
-        });
-        
-        return isActiveInstance && cardEntries.map(([landmarkId, tourLandmark], index) => {
-          console.log(`🏪 [${instanceIdRef.current}] Rendering card ${index + 1}/${cardEntries.length}:`, {
-            landmarkId,
-            landmarkName: tourLandmark.name,
-            index,
-            bottom: `${24 + (index * 420)}px`,
-            zIndex: 40 + index
-          });
-          
-          return (
-            <div
-              key={landmarkId}
-              style={{
-                position: 'fixed',
-                bottom: `${24 + (index * 420)}px`, // Stack cards vertically with 420px spacing
-                right: '16px',
-                zIndex: 40 + index // Ensure proper stacking order
-              }}
-            >
-              <FloatingProximityCard
-                landmark={convertTourLandmarkToLandmark(tourLandmark)}
-                userLocation={userLocation}
-                onClose={() => closeProximityCard(landmarkId)}
-                onGetDirections={showRouteToService}
-              />
-            </div>
-          );
-        });
-      })()}
+      {isActiveInstance && Object.entries(activeCards).map(([landmarkId, tourLandmark], index) => (
+        <div
+          key={landmarkId}
+          style={{
+            position: 'fixed',
+            bottom: `${24 + (index * 420)}px`, // Stack cards vertically with 420px spacing
+            right: '16px',
+            zIndex: 40 + index // Ensure proper stacking order
+          }}
+        >
+          <FloatingProximityCard
+            landmark={convertTourLandmarkToLandmark(tourLandmark)}
+            userLocation={userLocation}
+            onClose={() => closeProximityCard(landmarkId)}
+            onGetDirections={showRouteToService}
+          />
+        </div>
+      ))}
 
       {/* Floating Tour Guide FAB - shows when session is active but dialog is closed */}
       <FloatingTourGuideFAB
@@ -360,12 +309,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       <DebugWindow
         isVisible={isDebugVisible}
         onClose={toggleDebug}
-        proximityData={{
-          activeCards,
-          isActiveInstance,
-          nearbyLandmarks,
-          cardZoneLandmarks
-        }}
       />
     </div>
   );
