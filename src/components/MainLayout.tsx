@@ -10,7 +10,6 @@ import FloatingProximityCard from '@/components/FloatingProximityCard';
 import DebugWindow from '@/components/DebugWindow';
 import { useDebugWindow } from '@/hooks/useDebugWindow';
 import { useProximityNotifications } from '@/hooks/useProximityNotifications';
-import { useProximityCards } from '@/hooks/useProximityCards';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { Landmark } from '@/data/landmarks';
 import { User } from '@supabase/supabase-js';
@@ -72,8 +71,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 }) => {
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
   const { userLocation } = useLocationTracking();
-  const { isActiveInstance } = useProximityNotifications();
-  const { activeCardLandmark, closeCard } = useProximityCards();
+  const { activeCards, closeProximityCard, showRouteToService, isActiveInstance } = useProximityNotifications();
   
   // Instance tracking for debugging
   const instanceIdRef = useRef(`layout-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
@@ -91,6 +89,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     };
   }, [isActiveInstance, voiceAgentDebugState]);
   
+  // Debug state for test proximity card
+  const [debugProximityCard, setDebugProximityCard] = useState<Landmark | null>(null);
   
   // New state for FAB management
   const [isSessionActive, setIsSessionActive] = useState(false);
@@ -122,6 +122,26 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     onAuthDialogOpen();
   };
 
+  // Create mock test landmark for debugging - FIXED: removed category property
+  const createTestLandmark = (): Landmark => ({
+    id: 'debug-fuente-coyotes',
+    name: 'Fuente de los Coyotes',
+    description: 'A beautiful fountain located in Mexico City, perfect for testing proximity card functionality with nearby services.',
+    coordinates: [-99.1332, 19.4326] // Mexico City coordinates
+  });
+
+  // Handle test proximity card display
+  const handleTestProximityCard = () => {
+    console.log(`🧪 [${instanceIdRef.current}] Debug: Creating test proximity card for Fuente de los Coyotes`);
+    const testLandmark = createTestLandmark();
+    setDebugProximityCard(testLandmark);
+  };
+
+  // Close debug proximity card
+  const closeDebugProximityCard = () => {
+    console.log(`🧪 [${instanceIdRef.current}] Debug: Closing test proximity card`);
+    setDebugProximityCard(null);
+  };
 
   // Helper function to get fallback destination from smart tour landmarks
   const getFallbackDestination = () => {
@@ -172,6 +192,18 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     setAssistantState('not-started');
   };
 
+  // Convert TourLandmark to Landmark for components that require the Landmark interface
+  const convertTourLandmarkToLandmark = (tourLandmark: any): Landmark => ({
+    id: tourLandmark.id || tourLandmark.placeId, // Use id if available, fallback to placeId
+    name: tourLandmark.name,
+    coordinates: tourLandmark.coordinates,
+    description: tourLandmark.description,
+    rating: tourLandmark.rating,
+    photos: tourLandmark.photos,
+    types: tourLandmark.types,
+    placeId: tourLandmark.placeId,
+    formattedAddress: tourLandmark.formattedAddress
+  });
 
   return (
     <div className="w-screen h-screen relative">
@@ -184,6 +216,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         user={user}
         smartTourLandmarks={smartTourLandmarks}
         onIntelligentTourOpen={handleIntelligentTourOpen}
+        onTestProximityCard={handleTestProximityCard}
       />
 
       <UserControls
@@ -203,6 +236,45 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         onAuthDialogOpen={handleAuthRequired}
       />
 
+      {/* Debug Proximity Card - positioned above regular cards */}
+      {debugProximityCard && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '16px',
+            zIndex: 50 // Higher than regular cards
+          }}
+        >
+          <FloatingProximityCard
+            landmark={debugProximityCard}
+            userLocation={userLocation}
+            onClose={closeDebugProximityCard}
+            onGetDirections={showRouteToService}
+          />
+        </div>
+      )}
+
+      {/* Regular Floating Proximity Cards - Convert TourLandmark to Landmark */}
+      {/* Only render if this is the active proximity instance */}
+      {isActiveInstance && Object.entries(activeCards).map(([landmarkId, tourLandmark], index) => (
+        <div
+          key={landmarkId}
+          style={{
+            position: 'fixed',
+            bottom: `${24 + (index * 420)}px`, // Stack cards vertically with 420px spacing
+            right: '16px',
+            zIndex: 40 + index // Ensure proper stacking order
+          }}
+        >
+          <FloatingProximityCard
+            landmark={convertTourLandmarkToLandmark(tourLandmark)}
+            userLocation={userLocation}
+            onClose={() => closeProximityCard(landmarkId)}
+            onGetDirections={showRouteToService}
+          />
+        </div>
+      ))}
 
       {/* Floating Tour Guide FAB - shows when session is active but dialog is closed */}
       <FloatingTourGuideFAB
@@ -233,29 +305,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         landmarks={voiceTourData?.landmarks || smartTourLandmarks}
         onSessionStateChange={handleSessionStateChange}
       />
-
-      {/* Floating Proximity Card */}
-      {activeCardLandmark && userLocation && (
-        <FloatingProximityCard
-          landmark={{
-            id: activeCardLandmark.id || activeCardLandmark.placeId,
-            name: activeCardLandmark.name,
-            coordinates: activeCardLandmark.coordinates,
-            description: activeCardLandmark.description,
-            rating: activeCardLandmark.rating,
-            photos: activeCardLandmark.photos,
-            types: activeCardLandmark.types,
-            placeId: activeCardLandmark.placeId,
-            formattedAddress: activeCardLandmark.formattedAddress
-          }}
-          userLocation={userLocation}
-          onClose={closeCard}
-          onGetDirections={(service) => {
-            console.log('Getting directions to:', service.name);
-            // TODO: Implement directions logic if needed
-          }}
-        />
-      )}
 
       <DebugWindow
         isVisible={isDebugVisible}
