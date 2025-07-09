@@ -493,7 +493,36 @@ export const useProximityNotifications = () => {
       );
 
       if (closestNewCardLandmark) {
-        showProximityCard(closestNewCardLandmark.landmark);
+        const landmark = closestNewCardLandmark.landmark;
+        const placeId = landmark.placeId;
+        const now = Date.now();
+        
+        // INLINE COOLDOWN CHECK - same logic as showProximityCard but without the circular dependency
+        const lastCardTime = lastCardTimeRef.current[placeId] || 0;
+        if (now - lastCardTime < CARD_COOLDOWN) {
+          console.log(`🏪 [${instanceIdRef.current}] Card for ${landmark.name} still in cooldown (${Math.round((CARD_COOLDOWN - (now - lastCardTime)) / 1000)}s remaining)`);
+        } else {
+          // Set cooldown IMMEDIATELY after check passes
+          lastCardTimeRef.current[placeId] = now;
+
+          console.log(`🏪 [${instanceIdRef.current}] Showing proximity card for ${landmark.name}`);
+
+          // Update both local and global state
+          const updatedCards = {
+            ...activeCards,
+            [placeId]: landmark
+          };
+          
+          setActiveCards(updatedCards);
+          globalProximityManager.activeCards = updatedCards;
+          
+          // Update other instances if they exist
+          if (globalProximityManager.setActiveCards && globalProximityManager.setActiveCards !== setActiveCards) {
+            globalProximityManager.setActiveCards(updatedCards);
+          }
+
+          console.log(`🏪 [${instanceIdRef.current}] Updated global activeCards:`, globalProximityManager.activeCards);
+        }
       }
     }
 
@@ -508,7 +537,7 @@ export const useProximityNotifications = () => {
 
     // Update previous card zone landmarks
     previousCardZoneLandmarksRef.current = currentCardZoneIds;
-  }, [cardZoneLandmarks, isProximitySettingsReady, proximitySettings, userLocation, canShowCard, showProximityCard, activeCards, closeProximityCard, isActiveInstance]);
+  }, [cardZoneLandmarks, isProximitySettingsReady, proximitySettings, userLocation, activeCards, closeProximityCard, isActiveInstance]);
 
   // Monitor for newly entered proximity zones - only when settings are ready and this is the active instance
   useEffect(() => {
