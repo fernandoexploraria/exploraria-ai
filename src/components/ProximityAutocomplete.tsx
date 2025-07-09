@@ -201,7 +201,8 @@ const ProximityAutocomplete: React.FC<ProximityAutocompleteProps> = ({
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-          className="pl-7 h-7 text-xs"
+          className="pl-7 h-7 text-xs w-full max-w-full box-border text-base md:text-xs"
+          style={{ minWidth: 0, maxWidth: '100%' }}
         />
         {isLoading && (
           <Loader2 className="absolute right-2 top-1/2 transform -translate-y-1/2 w-3 h-3 animate-spin text-muted-foreground" />
@@ -212,7 +213,7 @@ const ProximityAutocomplete: React.FC<ProximityAutocompleteProps> = ({
       {showSuggestions && suggestions.length > 0 && (
         <div 
           ref={suggestionsRef}
-          className="absolute top-full left-0 right-0 bg-gray-800 border border-gray-600 rounded-md shadow-lg z-50 max-h-64 overflow-y-auto animate-fade-in"
+          className="absolute top-full left-0 w-full max-w-[288px] bg-gray-800 border border-gray-600 rounded-md shadow-lg z-50 max-h-64 overflow-y-auto animate-fade-in"
         >
           {suggestions.map((suggestion, index) => {
             const IconComponent = getServiceIcon(suggestion.types);
@@ -228,21 +229,21 @@ const ProximityAutocomplete: React.FC<ProximityAutocompleteProps> = ({
                   <div className="flex-shrink-0 mt-0.5">
                     <IconComponent className="w-4 h-4 text-gray-400" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium truncate text-white">
-                        {suggestion.structured_formatting?.main_text || suggestion.description}
-                      </span>
-                      <Badge variant="secondary" className="text-xs px-1 py-0 shrink-0">
-                        {getServiceType(suggestion.types)}
-                      </Badge>
-                    </div>
-                    {suggestion.structured_formatting?.secondary_text && (
-                      <p className="text-gray-400 text-xs truncate">
-                        {suggestion.structured_formatting.secondary_text}
-                      </p>
-                    )}
-                  </div>
+                   <div className="flex-1 min-w-0">
+                     <div className="flex items-center gap-2 mb-1">
+                       <span className="font-medium truncate text-white break-words overflow-wrap-anywhere">
+                         {suggestion.structured_formatting?.main_text || suggestion.description}
+                       </span>
+                       <Badge variant="secondary" className="text-xs px-1 py-0 shrink-0">
+                         {getServiceType(suggestion.types)}
+                       </Badge>
+                     </div>
+                     {suggestion.structured_formatting?.secondary_text && (
+                       <p className="text-gray-400 text-xs truncate break-words overflow-wrap-anywhere">
+                         {suggestion.structured_formatting.secondary_text}
+                       </p>
+                     )}
+                   </div>
                 </div>
               </button>
             );
