@@ -457,7 +457,7 @@ export const useProximityNotifications = () => {
         newlyEnteredCardIds.includes(nl.landmark.placeId)
       );
 
-      if (closestNewCardLandmark && canShowCard(closestNewCardLandmark.landmark.placeId)) {
+      if (closestNewCardLandmark) {
         showProximityCard(closestNewCardLandmark.landmark);
       }
     }

@@ -208,6 +208,18 @@ export const useContextualPOIPolling = ({
     }
   }, [enabled, userLocation?.latitude, userLocation?.longitude, handleLocationChange]);
 
+  // Store function refs to prevent useEffect recreation
+  const persistAgentLocationRef = useRef(persistAgentLocation);
+  const fetchContextualPOIsRef = useRef(fetchContextualPOIs);
+  const onUpdateRef = useRef(onUpdate);
+  
+  // Update refs when functions change
+  useEffect(() => {
+    persistAgentLocationRef.current = persistAgentLocation;
+    fetchContextualPOIsRef.current = fetchContextualPOIs;
+    onUpdateRef.current = onUpdate;
+  }, [persistAgentLocation, fetchContextualPOIs, onUpdate]);
+
   // Start/stop polling based on enabled state with initial system alert
   useEffect(() => {
     if (enabled) {
@@ -217,16 +229,16 @@ export const useContextualPOIPolling = ({
       
       // ALWAYS persist location when POI polling starts (fresh start every session)
       // This ensures agent_locations record exists even if coordinates are null
-      persistAgentLocation(userLocation).catch(err => 
+      persistAgentLocationRef.current(userLocation).catch(err => 
         console.warn('⚠️ Failed to persist initial location:', err)
       );
       
       // Send initial system alert if we have valid location
       if (userLocation) {
         console.log('🎯 Sending initial system alert with nearby POIs');
-        fetchContextualPOIs(userLocation, 'initial_location').then(update => {
-          if (update && onUpdate) {
-            onUpdate(update);
+        fetchContextualPOIsRef.current(userLocation, 'initial_location').then(update => {
+          if (update && onUpdateRef.current) {
+            onUpdateRef.current(update);
           }
         });
         
@@ -267,7 +279,7 @@ export const useContextualPOIPolling = ({
         debounceTimeoutRef.current = null;
       }
     };
-  }, [enabled, persistAgentLocation, fetchContextualPOIs, onUpdate]);
+  }, [enabled]);
 
   const manualRefresh = useCallback(async () => {
     if (!userLocation) {
