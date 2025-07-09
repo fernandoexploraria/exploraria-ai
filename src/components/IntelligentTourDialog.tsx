@@ -14,6 +14,7 @@ import { setTourLandmarks, clearTourMarkers } from '@/data/tourLandmarks';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useMarkerLoadingState } from '@/hooks/useMarkerLoadingState';
 import { resetIntelligentTourDialogState } from '@/utils/tourResetUtils';
+import { fetchExperienceLandmarks } from '@/utils/experienceUtils';
 
 interface IntelligentTourDialogProps {
   open: boolean;
@@ -313,6 +314,12 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       const coordinates = [landmark.coordinates[0], landmark.coordinates[1]]; // [lng, lat]
 
       console.log('Searching for nearby landmarks at coordinates:', coordinates);
+
+      // Check if this is an experience tour and fetch experience landmarks
+      const pendingLandmark = (window as any).pendingLandmarkDestination;
+      if (pendingLandmark?.experience === true && pendingLandmark?.tourId) {
+        await fetchExperienceLandmarks(pendingLandmark.tourId);
+      }
 
       const { data: nearbyData, error: nearbyError } = await supabase.functions.invoke('google-places-nearby', {
         body: { 
