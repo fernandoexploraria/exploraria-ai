@@ -39,7 +39,8 @@ const ExperiencesDrawer: React.FC<ExperiencesDrawerProps> = ({ open, onOpenChang
         formattedAddress: details.address,
         types: details.types || details.destination_types || ['tourist_attraction'],
         rating: details.rating,
-        tourId: experience.id
+        tourId: experience.id,
+        experience: true
       };
     };
     
