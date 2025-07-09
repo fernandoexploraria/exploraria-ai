@@ -13,6 +13,7 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({ experience, onSelect })
   const getPhotoUrl = (photo: any): string | null => {
     if (!photo) return null;
     if (typeof photo === 'string') return photo;
+    if (Array.isArray(photo) && photo.length > 0) return photo[0];
     if (typeof photo === 'object' && photo.url) return photo.url;
     return null;
   };
@@ -53,7 +54,7 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({ experience, onSelect })
             onClick={() => onSelect(experience)}
             className="w-full"
           >
-            View Experience
+            Generate Experience
           </Button>
         )}
       </CardContent>

@@ -22,17 +22,15 @@ const ExperiencesDrawer: React.FC<ExperiencesDrawerProps> = ({ open, onOpenChang
     <Drawer 
       open={open} 
       onOpenChange={onOpenChange}
-      snapPoints={[0.85, 1.0]}
-      activeSnapPoint={0.85}
     >
-      <DrawerContent className="max-h-[90vh]">
+      <DrawerContent className="h-screen flex flex-col">
         <DrawerHeader className="text-center">
           <DrawerTitle className="flex items-center justify-center gap-2">
             <Compass className="h-5 w-5" />
             Curated Experiences
           </DrawerTitle>
           <DrawerDescription>
-            Discover amazing places and tours curated by our community
+            Discover amazing places and tours curated by our experts
           </DrawerDescription>
         </DrawerHeader>
         
