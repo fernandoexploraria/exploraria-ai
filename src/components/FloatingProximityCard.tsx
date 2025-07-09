@@ -81,7 +81,29 @@ const getServiceIcon = (types: string[]) => {
   return <MapPin className="w-4 h-4" />;
 };
 
-const FloatingProximityCard: React.FC<FloatingProximityCardProps> = ({
+// Phase 3: Memoized distance calculation to prevent unnecessary recalculations
+const useStableDistance = (service: NearbyService, userLocation: { latitude: number; longitude: number } | null) => {
+  return React.useMemo(() => {
+    if (!userLocation) return 'Unknown';
+    
+    const R = 6371e3; // Earth's radius in meters
+    const φ1 = userLocation.latitude * Math.PI/180;
+    const φ2 = service.geometry.location.lat * Math.PI/180;
+    const Δφ = (service.geometry.location.lat - userLocation.latitude) * Math.PI/180;
+    const Δλ = (service.geometry.location.lng - userLocation.longitude) * Math.PI/180;
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distance = R * c;
+
+    return distance < 1000 ? `${Math.round(distance)}m` : `${(distance/1000).toFixed(1)}km`;
+  }, [service.geometry.location.lat, service.geometry.location.lng, userLocation?.latitude, userLocation?.longitude]);
+};
+
+// Phase 3: React.memo optimization for FloatingProximityCard
+const FloatingProximityCard: React.FC<FloatingProximityCardProps> = React.memo(({
   landmark,
   userLocation,
   onClose,
@@ -229,22 +251,9 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = ({
     }
   };
 
+  // Use memoized distance calculation
   const calculateDistance = (service: NearbyService): string => {
-    if (!userLocation) return 'Unknown';
-    
-    const R = 6371e3; // Earth's radius in meters
-    const φ1 = userLocation.latitude * Math.PI/180;
-    const φ2 = service.geometry.location.lat * Math.PI/180;
-    const Δφ = (service.geometry.location.lat - userLocation.latitude) * Math.PI/180;
-    const Δλ = (service.geometry.location.lng - userLocation.longitude) * Math.PI/180;
-
-    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-            Math.cos(φ1) * Math.cos(φ2) *
-            Math.sin(Δλ/2) * Math.sin(Δλ/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    const distance = R * c;
-
-    return distance < 1000 ? `${Math.round(distance)}m` : `${(distance/1000).toFixed(1)}km`;
+    return useStableDistance(service, userLocation);
   };
 
   const renderStars = (rating: number) => {
@@ -432,6 +441,8 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = ({
       </CardContent>
     </Card>
   );
-};
+});
+
+FloatingProximityCard.displayName = 'FloatingProximityCard';
 
 export default FloatingProximityCard;

@@ -195,27 +195,76 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     setAssistantState('not-started');
   };
 
-  // Convert TourLandmark to Landmark for components that require the Landmark interface
-  const convertTourLandmarkToLandmark = useCallback((tourLandmark: any): Landmark => ({
-    id: tourLandmark.id || tourLandmark.placeId, // Use id if available, fallback to placeId
-    name: tourLandmark.name,
-    coordinates: tourLandmark.coordinates,
-    description: tourLandmark.description,
-    rating: tourLandmark.rating,
-    photos: tourLandmark.photos,
-    types: tourLandmark.types,
-    placeId: tourLandmark.placeId,
-    formattedAddress: tourLandmark.formattedAddress
-  }), []);
+// Phase 2: Memoized Card Component for stable rendering
+const MemoizedProximityCard = React.memo<{
+  landmarkId: string;
+  tourLandmark: any;
+  index: number;
+  userLocation: { latitude: number; longitude: number } | null;
+  stableCallbacks: {
+    handleCloseProximityCard: (landmarkId: string) => void;
+    handleGetDirections: (service: any) => void;
+    convertTourLandmarkToLandmark: (tourLandmark: any) => Landmark;
+  };
+}>(({ landmarkId, tourLandmark, index, userLocation, stableCallbacks }) => {
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        bottom: `${24 + (index * 420)}px`, // Stack cards vertically with 420px spacing
+        right: '16px',
+        zIndex: 40 + index // Ensure proper stacking order
+      }}
+    >
+      <FloatingProximityCard
+        landmark={stableCallbacks.convertTourLandmarkToLandmark(tourLandmark)}
+        userLocation={userLocation}
+        onClose={() => stableCallbacks.handleCloseProximityCard(landmarkId)}
+        onGetDirections={stableCallbacks.handleGetDirections}
+      />
+    </div>
+  );
+});
 
-  // Memoized callback functions to prevent unnecessary re-renders
-  const handleCloseProximityCard = useCallback((landmarkId: string) => {
-    closeProximityCard(landmarkId);
-  }, [closeProximityCard]);
+  // Phase 1: Optimize useMemo Dependencies - Memoize activeCards entries
+  const activeCardsEntries = useMemo(() => {
+    console.log(`🏪 [MainLayout] Computing activeCardsEntries:`, Object.entries(activeCards));
+    return Object.entries(activeCards);
+  }, [activeCards]);
 
-  const handleGetDirections = useCallback((service: any) => {
-    showRouteToService(service);
-  }, [showRouteToService]);
+  // Stabilize callback functions with memoization
+  const stableCallbacks = useMemo(() => ({
+    handleCloseProximityCard: (landmarkId: string) => closeProximityCard(landmarkId),
+    handleGetDirections: (service: any) => showRouteToService(service),
+    convertTourLandmarkToLandmark: (tourLandmark: any): Landmark => ({
+      id: tourLandmark.id || tourLandmark.placeId,
+      name: tourLandmark.name,
+      coordinates: tourLandmark.coordinates,
+      description: tourLandmark.description,
+      rating: tourLandmark.rating,
+      photos: tourLandmark.photos,
+      types: tourLandmark.types,
+      placeId: tourLandmark.placeId,
+      formattedAddress: tourLandmark.formattedAddress
+    })
+  }), [closeProximityCard, showRouteToService]);
+
+  // Phase 2: Extract Card Rendering Logic with memoization (userLocation separated)
+  const renderedCards = useMemo(() => {
+    console.log(`🏪 [MainLayout] Rendering cards - activeCardsEntries:`, activeCardsEntries);
+    console.log(`🏪 [MainLayout] Will render ${activeCardsEntries.length} cards`);
+    
+    return activeCardsEntries.map(([landmarkId, tourLandmark], index) => (
+      <MemoizedProximityCard
+        key={landmarkId}
+        landmarkId={landmarkId}
+        tourLandmark={tourLandmark}
+        index={index}
+        userLocation={userLocation}
+        stableCallbacks={stableCallbacks}
+      />
+    ));
+  }, [activeCardsEntries, stableCallbacks, userLocation]); // Keep userLocation here for now
 
   return (
     <div className="w-screen h-screen relative">
@@ -267,31 +316,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         </div>
       )}
 
-      {/* Regular Floating Proximity Cards - Convert TourLandmark to Landmark */}
-      {/* Render cards from global state regardless of instance status */}
-      {useMemo(() => {
-        console.log(`🏪 [MainLayout] Rendering cards - isActiveInstance: ${isActiveInstance}, activeCards:`, activeCards);
-        console.log(`🏪 [MainLayout] Cards to render:`, Object.entries(activeCards));
-        console.log(`🏪 [MainLayout] Will render:`, Object.entries(activeCards).length > 0);
-        return Object.entries(activeCards).map(([landmarkId, tourLandmark], index) => (
-          <div
-            key={landmarkId}
-            style={{
-              position: 'fixed',
-              bottom: `${24 + (index * 420)}px`, // Stack cards vertically with 420px spacing
-              right: '16px',
-              zIndex: 40 + index // Ensure proper stacking order
-            }}
-          >
-            <FloatingProximityCard
-              landmark={convertTourLandmarkToLandmark(tourLandmark)}
-              userLocation={userLocation}
-              onClose={() => handleCloseProximityCard(landmarkId)}
-              onGetDirections={handleGetDirections}
-            />
-          </div>
-        ));
-      }, [activeCards, isActiveInstance, userLocation, convertTourLandmarkToLandmark, handleCloseProximityCard, handleGetDirections])}
+      {/* Regular Floating Proximity Cards - Optimized rendering */}
+      {renderedCards}
 
       {/* Floating Tour Guide FAB - shows when session is active but dialog is closed */}
       <FloatingTourGuideFAB
