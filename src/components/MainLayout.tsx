@@ -259,11 +259,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       )}
 
       {/* Regular Floating Proximity Cards - Convert TourLandmark to Landmark */}
-      {/* Only render if this is the active proximity instance */}
+      {/* Render cards from global state regardless of instance status */}
       {(() => {
         console.log(`🏪 [MainLayout] Rendering cards - isActiveInstance: ${isActiveInstance}, activeCards:`, activeCards);
         console.log(`🏪 [MainLayout] Cards to render:`, Object.entries(activeCards));
-        return isActiveInstance && Object.entries(activeCards).map(([landmarkId, tourLandmark], index) => (
+        console.log(`🏪 [MainLayout] Will render:`, Object.entries(activeCards).length > 0);
+        return Object.entries(activeCards).map(([landmarkId, tourLandmark], index) => (
           <div
             key={landmarkId}
             style={{
