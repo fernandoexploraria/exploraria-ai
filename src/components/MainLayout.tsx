@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import Map from '@/components/Map';
 import TopControls from '@/components/TopControls';
 import UserControls from '@/components/UserControls';
@@ -196,7 +196,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   };
 
   // Convert TourLandmark to Landmark for components that require the Landmark interface
-  const convertTourLandmarkToLandmark = (tourLandmark: any): Landmark => ({
+  const convertTourLandmarkToLandmark = useCallback((tourLandmark: any): Landmark => ({
     id: tourLandmark.id || tourLandmark.placeId, // Use id if available, fallback to placeId
     name: tourLandmark.name,
     coordinates: tourLandmark.coordinates,
@@ -206,7 +206,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     types: tourLandmark.types,
     placeId: tourLandmark.placeId,
     formattedAddress: tourLandmark.formattedAddress
-  });
+  }), []);
+
+  // Memoized callback functions to prevent unnecessary re-renders
+  const handleCloseProximityCard = useCallback((landmarkId: string) => {
+    closeProximityCard(landmarkId);
+  }, [closeProximityCard]);
+
+  const handleGetDirections = useCallback((service: any) => {
+    showRouteToService(service);
+  }, [showRouteToService]);
 
   return (
     <div className="w-screen h-screen relative">
@@ -260,7 +269,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
       {/* Regular Floating Proximity Cards - Convert TourLandmark to Landmark */}
       {/* Render cards from global state regardless of instance status */}
-      {(() => {
+      {useMemo(() => {
         console.log(`🏪 [MainLayout] Rendering cards - isActiveInstance: ${isActiveInstance}, activeCards:`, activeCards);
         console.log(`🏪 [MainLayout] Cards to render:`, Object.entries(activeCards));
         console.log(`🏪 [MainLayout] Will render:`, Object.entries(activeCards).length > 0);
@@ -277,12 +286,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({
             <FloatingProximityCard
               landmark={convertTourLandmarkToLandmark(tourLandmark)}
               userLocation={userLocation}
-              onClose={() => closeProximityCard(landmarkId)}
-              onGetDirections={showRouteToService}
+              onClose={() => handleCloseProximityCard(landmarkId)}
+              onGetDirections={handleGetDirections}
             />
           </div>
         ));
-      })()}
+      }, [activeCards, isActiveInstance, userLocation, convertTourLandmarkToLandmark, handleCloseProximityCard, handleGetDirections])}
 
       {/* Floating Tour Guide FAB - shows when session is active but dialog is closed */}
       <FloatingTourGuideFAB
