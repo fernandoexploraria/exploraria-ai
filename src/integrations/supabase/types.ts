@@ -147,18 +147,22 @@ export type Database = {
       }
       generated_tours: {
         Row: {
+          agentid: string | null
           coordinate_quality_high: number | null
           coordinate_quality_low: number | null
           coordinate_quality_medium: number | null
           created_at: string
+          description: string
           destination: string
           destination_details: Json | null
           error_count: number | null
+          experience: boolean
           fallbacks_used: string[] | null
           gemini_api_calls: number | null
           generation_end_time: string | null
           generation_start_time: string
           id: string
+          photo: Json | null
           places_api_calls: number | null
           success_rate: number | null
           system_prompt: string
@@ -168,18 +172,22 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          agentid?: string | null
           coordinate_quality_high?: number | null
           coordinate_quality_low?: number | null
           coordinate_quality_medium?: number | null
           created_at?: string
+          description?: string
           destination: string
           destination_details?: Json | null
           error_count?: number | null
+          experience?: boolean
           fallbacks_used?: string[] | null
           gemini_api_calls?: number | null
           generation_end_time?: string | null
           generation_start_time: string
           id?: string
+          photo?: Json | null
           places_api_calls?: number | null
           success_rate?: number | null
           system_prompt: string
@@ -189,18 +197,22 @@ export type Database = {
           user_id: string
         }
         Update: {
+          agentid?: string | null
           coordinate_quality_high?: number | null
           coordinate_quality_low?: number | null
           coordinate_quality_medium?: number | null
           created_at?: string
+          description?: string
           destination?: string
           destination_details?: Json | null
           error_count?: number | null
+          experience?: boolean
           fallbacks_used?: string[] | null
           gemini_api_calls?: number | null
           generation_end_time?: string | null
           generation_start_time?: string
           id?: string
+          photo?: Json | null
           places_api_calls?: number | null
           success_rate?: number | null
           system_prompt?: string
