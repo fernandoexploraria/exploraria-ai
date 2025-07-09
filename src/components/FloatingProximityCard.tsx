@@ -82,25 +82,30 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = ({
   const [isLoadingNearby, setIsLoadingNearby] = useState(true);
   
   // 🐛 DEBUG: Add render counter and instance tracking
-  const [renderCount, setRenderCount] = useState(0);
+  const renderCountRef = useRef(0);
   const instanceIdRef = useRef(`card-${landmark.placeId || landmark.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+  const lastToastTimeRef = useRef(0);
   
-  // 🐛 DEBUG: Track renders and show debug toast
+  // 🐛 DEBUG: Track mount/unmount and show debug toast ONLY on mount
   useEffect(() => {
-    const newCount = renderCount + 1;
-    setRenderCount(newCount);
-    console.log(`🏪 [CARD-${instanceIdRef.current}] FloatingProximityCard mounted/rendered for ${landmark.name} - Render #${newCount}`);
+    renderCountRef.current += 1;
+    const now = Date.now();
     
-    // Show debug toast with render count and instance ID
-    toast(`🏪 Card Debug: ${landmark.name}`, {
-      description: `Render #${newCount} | Instance: ${instanceIdRef.current.split('-').slice(-1)[0]}`,
-      duration: 3000
-    });
+    console.log(`🏪 [CARD-${instanceIdRef.current}] FloatingProximityCard mounted for ${landmark.name} - Instance #${renderCountRef.current}`);
+    
+    // Show debug toast only on mount and with cooldown (prevent spam)
+    if (now - lastToastTimeRef.current > 2000) { // 2 second cooldown
+      lastToastTimeRef.current = now;
+      toast(`🏪 Card Debug: ${landmark.name}`, {
+        description: `Instance: ${instanceIdRef.current.split('-').slice(-1)[0]} | Mount #${renderCountRef.current}`,
+        duration: 2000
+      });
+    }
     
     return () => {
       console.log(`🏪 [CARD-${instanceIdRef.current}] FloatingProximityCard cleanup for ${landmark.name}`);
     };
-  }, [landmark.name, renderCount]);
+  }, []); // Empty dependency array - only run on mount/unmount
 
   // Load nearby services when component mounts
   useEffect(() => {
