@@ -315,26 +315,36 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
 
       console.log('Searching for nearby landmarks at coordinates:', coordinates);
 
-
-      const { data: nearbyData, error: nearbyError } = await supabase.functions.invoke('google-places-nearby', {
-        body: { 
-          coordinates,
-          destinationTypes: ['tourist_attraction'] // This triggers 1000m radius + 10 results
+      // Conditionally fetch landmarks based on experience type
+      const nearbyData = await (async () => {
+        if (experience === true && tourId) {
+          console.log('🎯 This is an experience tour, fetching landmarks for tour ID:', tourId);
+          const { places: experiencePlaces, error: experienceError } = await fetchExperienceLandmarks(tourId);
+          return { data: { places: experiencePlaces }, error: experienceError };
+        } else {
+          console.log('🔍 This is a regular tour, searching Google Places');
+          const { data, error } = await supabase.functions.invoke('google-places-nearby', {
+            body: { 
+              coordinates,
+              destinationTypes: ['tourist_attraction'] // This triggers 1000m radius + 10 results
+            }
+          });
+          return { data, error };
         }
-      });
+      })();
 
-      if (nearbyError) {
-        console.error('Nearby places error:', nearbyError);
-        throw nearbyError;
+      if (nearbyData.error) {
+        console.error('Nearby places error:', nearbyData.error);
+        throw nearbyData.error;
       }
 
-      console.log('Found nearby landmarks:', nearbyData.places?.length || 0);
-      console.log('📍 Nearby landmarks retrieved:', nearbyData.places?.map(p => ({ name: p.name, place_id: p.place_id, rating: p.rating })) || []);
-      setNearbyLandmarks(nearbyData.places || []);
+      console.log('Found nearby landmarks:', nearbyData.data.places?.length || 0);
+      console.log('📍 Nearby landmarks retrieved:', nearbyData.data.places?.map(p => ({ name: p.name, place_id: p.place_id, rating: p.rating })) || []);
+      setNearbyLandmarks(nearbyData.data.places || []);
       setCurrentStep(3);
 
       // Generate tour in database using the landmark destination details
-      await generateTourInDatabase(destinationDetails, nearbyData.places || [], destinationInfo);
+      await generateTourInDatabase(destinationDetails, nearbyData.data.places || [], destinationInfo);
       
     } catch (error) {
       console.error('Landmark tour generation error:', error);
