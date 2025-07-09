@@ -320,26 +320,26 @@ export const useProximityNotifications = () => {
     }
   }, [preloadStreetView, saveNotificationState, isActiveInstance]);
 
-  // Handle card zone entry - FIXED: Apply cooldown-first pattern + Global state sharing
+  // Simple card showing with immediate cooldown (like the working toast)
+  const lastCardTimeRef = useRef<{[placeId: string]: number}>({});
+  
   const showProximityCard = useCallback((landmark: TourLandmark) => {
-    console.log(`🏪 [${instanceIdRef.current}] showProximityCard called for ${landmark.name} - isActiveInstance: ${isActiveInstance}`);
-    
     if (!isActiveInstance) return;
     
     const placeId = landmark.placeId;
+    const now = Date.now();
     
-    if (!canShowCard(placeId)) {
-      console.log(`🏪 [${instanceIdRef.current}] Card for ${landmark.name} still in cooldown`);
+    // EXACT SAME LOGIC AS WORKING TOAST - check cooldown immediately
+    const lastCardTime = lastCardTimeRef.current[placeId] || 0;
+    if (now - lastCardTime < CARD_COOLDOWN) {
+      console.log(`🏪 [${instanceIdRef.current}] Card for ${landmark.name} still in cooldown (${Math.round((CARD_COOLDOWN - (now - lastCardTime)) / 1000)}s remaining)`);
       return;
     }
 
-    console.log(`🏪 [${instanceIdRef.current}] Showing proximity card for ${landmark.name}`);
+    // Set cooldown IMMEDIATELY after check passes (like toast)
+    lastCardTimeRef.current[placeId] = now;
 
-    // FIXED: Set card state IMMEDIATELY after cooldown check passes to prevent race conditions
-    cardStateRef.current[placeId] = {
-      shown: true,
-      timestamp: Date.now()
-    };
+    console.log(`🏪 [${instanceIdRef.current}] Showing proximity card for ${landmark.name}`);
 
     // Update both local and global state
     const updatedCards = {
@@ -356,8 +356,7 @@ export const useProximityNotifications = () => {
     }
 
     console.log(`🏪 [${instanceIdRef.current}] Updated global activeCards:`, globalProximityManager.activeCards);
-    saveNotificationState();
-  }, [canShowCard, saveNotificationState, isActiveInstance, activeCards]);
+  }, [isActiveInstance, activeCards]);
 
   // Function to close a proximity card - FIXED: Update both local and global state
   const closeProximityCard = useCallback((placeId: string) => {
