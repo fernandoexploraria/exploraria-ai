@@ -610,7 +610,25 @@ You will receive occasional, non-interrupting system updates about **new** nearb
       if (landmarks.length > 0) {
         console.log('Inserting enhanced landmarks with consecutive landmark_id values...');
         
-        const landmarkInserts = landmarks.map((landmark, index) => ({
+        // Filter landmarks with valid coordinates before insertion
+        const validLandmarks = landmarks.filter(landmark => {
+          const hasValidCoords = landmark.geometry?.location?.lng && 
+                                landmark.geometry?.location?.lat &&
+                                !isNaN(landmark.geometry.location.lng) && 
+                                !isNaN(landmark.geometry.location.lat) &&
+                                landmark.geometry.location.lng !== 0 && 
+                                landmark.geometry.location.lat !== 0;
+          
+          if (!hasValidCoords) {
+            console.warn('Skipping landmark with invalid coordinates:', landmark.name, landmark.geometry?.location);
+          }
+          
+          return hasValidCoords;
+        });
+        
+        console.log(`Filtered ${validLandmarks.length} valid landmarks out of ${landmarks.length} total`);
+        
+        const landmarkInserts = validLandmarks.map((landmark, index) => ({
           tour_id: tourData.id, // Link to the created tour
           landmark_id: `landmark-${index + 1}`, // 🔥 CONSECUTIVE LANDMARK ID
           name: landmark.name,
