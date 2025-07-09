@@ -99,10 +99,7 @@ const ExperiencesDrawer: React.FC<ExperiencesDrawerProps> = ({ open, onOpenChang
 
       console.log('📍 Formatted tour landmarks:', tourLandmarks.length);
 
-      // Set landmarks on the map
-      setTourLandmarks(tourLandmarks);
-
-      // Handle map flyTo with appropriate zoom level
+      // STEP 1: Handle map flyTo with appropriate zoom level FIRST
       if (onMapFlyTo && experience.destination_details) {
         const destinationDetails = experience.destination_details as any;
         console.log('🗺️ Destination details:', destinationDetails);
@@ -112,7 +109,7 @@ const ExperiencesDrawer: React.FC<ExperiencesDrawerProps> = ({ open, onOpenChang
           const types = destinationDetails.types || destinationDetails.destination_types || [];
           const zoomLevel = getZoomLevelForDestinationType(types);
           
-          console.log('🗺️ Flying to destination:', {
+          console.log('🗺️ Flying to destination first:', {
             coordinates,
             types,
             zoomLevel
@@ -122,7 +119,14 @@ const ExperiencesDrawer: React.FC<ExperiencesDrawerProps> = ({ open, onOpenChang
         }
       }
 
-      // Prepare experience data for voice assistant
+      // STEP 2: Clear existing tour landmarks and set new ones
+      console.log('🧹 Clearing existing tour landmarks before setting new ones');
+      setTourLandmarks(tourLandmarks);
+
+      // STEP 3: Wait a brief moment for map state to sync
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // STEP 4: Prepare experience data for voice assistant
       const experienceData = {
         destination: experience.destination,
         systemPrompt: experience.system_prompt,
@@ -130,10 +134,10 @@ const ExperiencesDrawer: React.FC<ExperiencesDrawerProps> = ({ open, onOpenChang
         agentId: experience.agentid || undefined,
       };
 
-      // Close the drawer
+      // STEP 5: Close the drawer
       onOpenChange(false);
 
-      // Launch the experience via callback
+      // STEP 6: Launch the experience via callback (AFTER map flyTo)
       if (onExperienceLaunch) {
         onExperienceLaunch(experienceData);
       }
