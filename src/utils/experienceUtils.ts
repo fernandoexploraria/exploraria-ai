@@ -18,9 +18,9 @@ export interface GeneratedLandmark {
 
 /**
  * Fetches experience landmarks from the database for a given tour ID
- * Shows a toast notification with the number of retrieved records
+ * Returns data in the same format as Google Places API for consistency
  */
-export const fetchExperienceLandmarks = async (tourId: string): Promise<GeneratedLandmark[]> => {
+export const fetchExperienceLandmarks = async (tourId: string): Promise<{ places: GeneratedLandmark[], error: any }> => {
   try {
     console.log('🎯 Fetching experience landmarks for tour:', tourId);
     
@@ -31,16 +31,15 @@ export const fetchExperienceLandmarks = async (tourId: string): Promise<Generate
 
     if (error) {
       console.error('❌ Error fetching experience landmarks:', error);
-      throw error;
+      return { places: [], error };
     }
 
     const landmarks = data as GeneratedLandmark[];
     console.log('✅ Successfully called fetchExperienceLandmarks - Retrieved', landmarks.length, 'experience landmarks for tour:', tourId);
 
-    return landmarks;
+    return { places: landmarks, error: null };
   } catch (error) {
     console.error('❌ Failed to fetch experience landmarks:', error);
-    
-    return [];
+    return { places: [], error };
   }
 };
