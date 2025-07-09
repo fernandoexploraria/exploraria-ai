@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube, MapPin, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube, MapPin, ToggleLeft, ToggleRight, Compass } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerTrigger, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import SearchControl from '@/components/SearchControl';
 import FreeTourCounter from '@/components/FreeTourCounter';
@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import IntelligentTourDialog from './IntelligentTourDialog';
 import AuthDialog from './AuthDialog';
+import ExperiencesDrawer from './ExperiencesDrawer';
 import { useAuth } from '@/components/AuthProvider';
 import { PostAuthAction } from '@/utils/authActions';
 import { performComprehensiveTourReset } from '@/utils/tourResetUtils';
@@ -51,6 +52,7 @@ const TopControls: React.FC<TopControlsProps> = ({
   const [isTestingCors, setIsTestingCors] = useState(false);
   const [isIntelligentTourOpen, setIsIntelligentTourOpen] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
+  const [isExperiencesDrawerOpen, setIsExperiencesDrawerOpen] = useState(false);
   const { toast } = useToast();
   const { isDemoMode, toggleDemoMode } = useDemoMode();
   
@@ -207,6 +209,17 @@ const TopControls: React.FC<TopControlsProps> = ({
                 <span className="hidden lg:inline">Smart Tour</span>
               </Button>
               
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-gradient-to-r from-purple-400/80 to-pink-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 border-purple-300 hover:from-purple-300/80 hover:to-pink-300/80"
+                onClick={() => setIsExperiencesDrawerOpen(true)}
+              >
+                <Compass className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+                <span className="lg:hidden">Experiences</span>
+                <span className="hidden lg:inline">Experiences</span>
+              </Button>
+              
               {/* Tour Guide Button - only appears when there's an active Smart Tour */}
               {smartTourLandmarks.length > 0 && (
                 <Button
@@ -299,6 +312,11 @@ const TopControls: React.FC<TopControlsProps> = ({
         open={isAuthDialogOpen}
         onOpenChange={setIsAuthDialogOpen}
         postAuthAction="smart-tour"
+      />
+
+      <ExperiencesDrawer
+        open={isExperiencesDrawerOpen}
+        onOpenChange={setIsExperiencesDrawerOpen}
       />
     </>
   );
