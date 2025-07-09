@@ -37,9 +37,13 @@ const CARD_STORAGE_KEY = 'proximity_cards_state';
 let globalProximityManager: {
   isActive: boolean;
   instanceId: string | null;
+  activeCards: {[placeId: string]: TourLandmark};
+  setActiveCards: ((cards: {[placeId: string]: TourLandmark}) => void) | null;
 } = {
   isActive: false,
-  instanceId: null
+  instanceId: null,
+  activeCards: {},
+  setActiveCards: null
 };
 
 export const useProximityNotifications = () => {
@@ -68,10 +72,12 @@ export const useProximityNotifications = () => {
       // Claim the singleton
       globalProximityManager.isActive = true;
       globalProximityManager.instanceId = instanceId;
+      globalProximityManager.setActiveCards = setActiveCards;
       setIsActiveInstance(true);
       console.log(`🎯 Proximity notifications instance ${instanceId} activated as singleton`);
     } else if (globalProximityManager.instanceId === instanceId) {
       // This instance already owns the singleton
+      globalProximityManager.setActiveCards = setActiveCards;
       setIsActiveInstance(true);
       console.log(`🎯 Proximity notifications instance ${instanceId} confirmed as active singleton`);
     } else {
@@ -85,6 +91,8 @@ export const useProximityNotifications = () => {
       if (globalProximityManager.instanceId === instanceId) {
         globalProximityManager.isActive = false;
         globalProximityManager.instanceId = null;
+        globalProximityManager.activeCards = {};
+        globalProximityManager.setActiveCards = null;
         console.log(`🎯 Proximity notifications instance ${instanceId} deactivated singleton`);
       }
     };
@@ -312,10 +320,12 @@ export const useProximityNotifications = () => {
     }
   }, [preloadStreetView, saveNotificationState, isActiveInstance]);
 
-  // Handle card zone entry - FIXED: Apply cooldown-first pattern
+  // Handle card zone entry - FIXED: Apply cooldown-first pattern + Global state sharing
   const showProximityCard = useCallback((landmark: TourLandmark) => {
     // Debug toast to check if function is being called
     toast("hello world");
+    
+    console.log(`🏪 [${instanceIdRef.current}] showProximityCard called for ${landmark.name} - isActiveInstance: ${isActiveInstance}`);
     
     if (!isActiveInstance) return;
     
@@ -334,14 +344,23 @@ export const useProximityNotifications = () => {
       timestamp: Date.now()
     };
 
-    // Add to active cards
-    setActiveCards(prev => ({
-      ...prev,
+    // Update both local and global state
+    const updatedCards = {
+      ...activeCards,
       [placeId]: landmark
-    }));
+    };
+    
+    setActiveCards(updatedCards);
+    globalProximityManager.activeCards = updatedCards;
+    
+    // Update other instances if they exist
+    if (globalProximityManager.setActiveCards && globalProximityManager.setActiveCards !== setActiveCards) {
+      globalProximityManager.setActiveCards(updatedCards);
+    }
 
+    console.log(`🏪 [${instanceIdRef.current}] Updated global activeCards:`, globalProximityManager.activeCards);
     saveNotificationState();
-  }, [canShowCard, saveNotificationState, isActiveInstance]);
+  }, [canShowCard, saveNotificationState, isActiveInstance, activeCards]);
 
   // Function to close a proximity card
   const closeProximityCard = useCallback((placeId: string) => {
@@ -554,7 +573,7 @@ export const useProximityNotifications = () => {
     nearbyLandmarks,
     prepZoneLandmarks,
     cardZoneLandmarks,
-    activeCards: isActiveInstance ? activeCards : {},
+    activeCards: isActiveInstance ? activeCards : globalProximityManager.activeCards,
     notificationState: notificationStateRef.current,
     prepZoneState: prepZoneStateRef.current,
     cardState: cardStateRef.current,
