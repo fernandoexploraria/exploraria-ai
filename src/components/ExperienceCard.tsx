@@ -7,9 +7,10 @@ import { Experience } from '@/hooks/useExperiences';
 interface ExperienceCardProps {
   experience: Experience;
   onSelect?: (experience: Experience) => void;
+  isLaunching?: boolean;
 }
 
-const ExperienceCard: React.FC<ExperienceCardProps> = ({ experience, onSelect }) => {
+const ExperienceCard: React.FC<ExperienceCardProps> = ({ experience, onSelect, isLaunching }) => {
   const getPhotoUrl = (photo: any): string | null => {
     if (!photo) return null;
     if (typeof photo === 'string') return photo;
@@ -53,8 +54,9 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({ experience, onSelect })
             size="sm" 
             onClick={() => onSelect(experience)}
             className="w-full"
+            disabled={isLaunching}
           >
-            Generate Experience
+            {isLaunching ? "Launching..." : "Generate Experience"}
           </Button>
         )}
       </CardContent>

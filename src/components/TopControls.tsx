@@ -31,6 +31,12 @@ interface TopControlsProps {
   onIntelligentTourOpen: () => void;
   onAuthDialogOpen?: () => void;
   onTestProximityCard?: () => void;
+  onExperienceLaunch?: (experienceData: {
+    destination: string;
+    systemPrompt: string;
+    landmarks: any[];
+    agentId?: string;
+  }) => void;
 }
 
 const TopControls: React.FC<TopControlsProps> = ({
@@ -44,6 +50,7 @@ const TopControls: React.FC<TopControlsProps> = ({
   onIntelligentTourOpen,
   onAuthDialogOpen,
   onTestProximityCard,
+  onExperienceLaunch,
 }) => {
   const { user: authUser } = useAuth();
   const isMobile = useIsMobile();
@@ -209,16 +216,18 @@ const TopControls: React.FC<TopControlsProps> = ({
                 <span className="hidden lg:inline">Smart Tour</span>
               </Button>
               
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-gradient-to-r from-purple-400/80 to-pink-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 border-purple-300 hover:from-purple-300/80 hover:to-pink-300/80"
-                onClick={() => setIsExperiencesDrawerOpen(true)}
-              >
-                <Compass className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
-                <span className="lg:hidden">Experiences</span>
-                <span className="hidden lg:inline">Experiences</span>
-              </Button>
+              {authUser && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-gradient-to-r from-purple-400/80 to-pink-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 border-purple-300 hover:from-purple-300/80 hover:to-pink-300/80"
+                  onClick={() => setIsExperiencesDrawerOpen(true)}
+                >
+                  <Compass className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+                  <span className="lg:hidden">Experiences</span>
+                  <span className="hidden lg:inline">Experiences</span>
+                </Button>
+              )}
               
               {/* Tour Guide Button - only appears when there's an active Smart Tour */}
               {smartTourLandmarks.length > 0 && (
@@ -317,6 +326,7 @@ const TopControls: React.FC<TopControlsProps> = ({
       <ExperiencesDrawer
         open={isExperiencesDrawerOpen}
         onOpenChange={setIsExperiencesDrawerOpen}
+        onExperienceLaunch={onExperienceLaunch}
       />
     </>
   );

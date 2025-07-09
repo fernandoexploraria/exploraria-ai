@@ -37,8 +37,8 @@ interface MainLayoutProps {
   isIntelligentTourOpen: boolean;
   onIntelligentTourOpenChange: (open: boolean) => void;
   onTourGenerated?: (landmarks: any[], clearTransitRoute?: () => void) => void;
-  onTourReadyForVoice?: (tourData: { destination: string; systemPrompt: string; landmarks: any[] }) => void;
-  voiceTourData?: { destination: string; systemPrompt: string; landmarks: any[] } | null;
+  onTourReadyForVoice?: (tourData: { destination: string; systemPrompt: string; landmarks: any[]; agentId?: string }) => void;
+  voiceTourData?: { destination: string; systemPrompt: string; landmarks: any[]; agentId?: string } | null;
   tourKey?: string;
   onVoiceAgentStateChange?: (isActive: boolean) => void;
 }
@@ -278,6 +278,7 @@ const MemoizedProximityCard = React.memo<{
         smartTourLandmarks={smartTourLandmarks}
         onIntelligentTourOpen={handleIntelligentTourOpen}
         onTestProximityCard={handleTestProximityCard}
+        onExperienceLaunch={onTourReadyForVoice}
       />
 
       <UserControls

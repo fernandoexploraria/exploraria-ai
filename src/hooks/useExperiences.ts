@@ -7,6 +7,8 @@ export interface Experience {
   description: string;
   photo: any;
   created_at: string;
+  system_prompt: string;
+  agentid: string | null;
 }
 
 export const useExperiences = () => {
@@ -15,7 +17,7 @@ export const useExperiences = () => {
     queryFn: async (): Promise<Experience[]> => {
       const { data, error } = await supabase
         .from('generated_tours')
-        .select('id, destination, description, photo, created_at')
+        .select('id, destination, description, photo, created_at, system_prompt, agentid')
         .eq('experience', true)
         .order('created_at', { ascending: false });
       
