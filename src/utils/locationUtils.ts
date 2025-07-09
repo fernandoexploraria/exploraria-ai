@@ -108,7 +108,7 @@ export const detectMovement = (
 export const calculateAdaptiveInterval = (
   movementState: MovementState,
   nearbyLandmarksCount: number,
-  baseInterval: number = 15000
+  baseInterval: number = 30000
 ): number => {
   let interval = baseInterval;
 

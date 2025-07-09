@@ -171,7 +171,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   // 🎯 RE-ENABLED: Contextual POI polling for location-aware conversations
   const { isPolling, lastUpdate, error: poiError } = useContextualPOIPolling({
     enabled: isSessionActive && conversation?.status === 'connected' && !!conversationId,
-    pollInterval: 15000, // 15 seconds
+    pollInterval: 30000, // 30 seconds
     radius: 150, // 150 meters  
     maxResults: 3,
     onUpdate: handleContextualUpdate,
