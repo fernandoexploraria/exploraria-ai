@@ -1,5 +1,4 @@
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 
 // Define the GeneratedLandmark type based on the database schema
 export interface GeneratedLandmark {
@@ -36,27 +35,11 @@ export const fetchExperienceLandmarks = async (tourId: string): Promise<Generate
     }
 
     const landmarks = data as GeneratedLandmark[];
-    console.log('✅ Retrieved experience landmarks:', landmarks.length);
-    
-    // Show toast notification with number of retrieved records
-    const { toast } = useToast();
-    toast({
-      title: "Experience Landmarks Retrieved",
-      description: `Found ${landmarks.length} landmark${landmarks.length !== 1 ? 's' : ''} from experience tour`,
-      duration: 3000,
-    });
+    console.log('✅ Successfully called fetchExperienceLandmarks - Retrieved', landmarks.length, 'experience landmarks for tour:', tourId);
 
     return landmarks;
   } catch (error) {
     console.error('❌ Failed to fetch experience landmarks:', error);
-    
-    // Show error toast
-    const { toast } = useToast();
-    toast({
-      title: "Error",
-      description: "Failed to retrieve experience landmarks",
-      variant: "destructive",
-    });
     
     return [];
   }
