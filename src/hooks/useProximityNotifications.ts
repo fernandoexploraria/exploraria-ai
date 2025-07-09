@@ -362,16 +362,33 @@ export const useProximityNotifications = () => {
     saveNotificationState();
   }, [canShowCard, saveNotificationState, isActiveInstance, activeCards]);
 
-  // Function to close a proximity card
+  // Function to close a proximity card - FIXED: Update both local and global state
   const closeProximityCard = useCallback((placeId: string) => {
     console.log(`🏪 [${instanceIdRef.current}] Closing proximity card for landmark ${placeId}`);
+    console.log(`🏪 [${instanceIdRef.current}] Current activeCards before close:`, activeCards);
+    console.log(`🏪 [${instanceIdRef.current}] Current globalProximityManager.activeCards before close:`, globalProximityManager.activeCards);
     
+    // Update local state
     setActiveCards(prev => {
       const updated = { ...prev };
       delete updated[placeId];
+      console.log(`🏪 [${instanceIdRef.current}] Updated local activeCards after close:`, updated);
       return updated;
     });
-  }, []);
+    
+    // FIXED: Update global state to sync across all instances
+    const updatedGlobalCards = { ...globalProximityManager.activeCards };
+    delete updatedGlobalCards[placeId];
+    globalProximityManager.activeCards = updatedGlobalCards;
+    
+    // Update other instances if they exist
+    if (globalProximityManager.setActiveCards && globalProximityManager.setActiveCards !== setActiveCards) {
+      console.log(`🏪 [${instanceIdRef.current}] Syncing card closure to other instances`);
+      globalProximityManager.setActiveCards(updatedGlobalCards);
+    }
+    
+    console.log(`🏪 [${instanceIdRef.current}] Final global activeCards after close:`, globalProximityManager.activeCards);
+  }, [activeCards]);
 
   // Show proximity toast notification with sound, TTS, and Street View
   const showProximityToast = useCallback(async (landmark: TourLandmark, distance: number) => {
