@@ -15,7 +15,6 @@ interface DialogManagerProps {
   onTourGenerated?: (landmarks: any[]) => void;
   onAuthRequired: () => void;
   onTourReadyForVoice?: (tourData: { destination: string; systemPrompt: string; landmarks: any[] }) => void;
-  onMapFlyTo?: (coordinates: [number, number], zoom: number) => void;
 }
 
 const DialogManager: React.FC<DialogManagerProps> = ({
@@ -29,7 +28,6 @@ const DialogManager: React.FC<DialogManagerProps> = ({
   onTourGenerated,
   onAuthRequired,
   onTourReadyForVoice,
-  onMapFlyTo,
 }) => {
   const handleLocationSelect = (coordinates: [number, number]) => {
     console.log('Location selected from travel log:', coordinates);

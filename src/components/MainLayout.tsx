@@ -37,8 +37,8 @@ interface MainLayoutProps {
   isIntelligentTourOpen: boolean;
   onIntelligentTourOpenChange: (open: boolean) => void;
   onTourGenerated?: (landmarks: any[], clearTransitRoute?: () => void) => void;
-  onTourReadyForVoice?: (tourData: { destination: string; systemPrompt: string; landmarks: any[]; agentId?: string }) => void;
-  voiceTourData?: { destination: string; systemPrompt: string; landmarks: any[]; agentId?: string } | null;
+  onTourReadyForVoice?: (tourData: { destination: string; systemPrompt: string; landmarks: any[] }) => void;
+  voiceTourData?: { destination: string; systemPrompt: string; landmarks: any[] } | null;
   tourKey?: string;
   onVoiceAgentStateChange?: (isActive: boolean) => void;
 }
@@ -101,9 +101,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   
   // State to track clearTransitRoute function from Map
   const [clearTransitRoute, setClearTransitRoute] = useState<(() => void) | null>(null);
-  
-  // State to track mapFlyTo function from Map
-  const [mapFlyTo, setMapFlyTo] = useState<((coordinates: [number, number], zoom: number) => void) | null>(null);
   
   // Memoize plannedLandmarks to prevent unnecessary Map re-renders
   const memoizedPlannedLandmarks = useMemo(() => [...smartTourLandmarks], [smartTourLandmarks]);
@@ -281,8 +278,6 @@ const MemoizedProximityCard = React.memo<{
         smartTourLandmarks={smartTourLandmarks}
         onIntelligentTourOpen={handleIntelligentTourOpen}
         onTestProximityCard={handleTestProximityCard}
-        onExperienceLaunch={onTourReadyForVoice}
-        onMapFlyTo={mapFlyTo || undefined}
       />
 
       <UserControls
@@ -298,7 +293,6 @@ const MemoizedProximityCard = React.memo<{
         selectedLandmark={selectedLandmark}
         plannedLandmarks={memoizedPlannedLandmarks}
         onClearTransitRouteRef={(clearFn) => setClearTransitRoute(() => clearFn)}
-        onMapFlyToRef={(flyToFn) => setMapFlyTo(() => flyToFn)}
         onIntelligentTourOpen={handleIntelligentTourOpen}
         onAuthDialogOpen={handleAuthRequired}
       />
@@ -344,7 +338,6 @@ const MemoizedProximityCard = React.memo<{
         onTourGenerated={(landmarks) => onTourGenerated?.(landmarks, clearTransitRoute || undefined)}
         onAuthRequired={handleAuthRequired}
         onTourReadyForVoice={onTourReadyForVoice}
-        onMapFlyTo={mapFlyTo || undefined}
       />
 
       <NewTourAssistant

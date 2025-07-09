@@ -12,7 +12,7 @@ import { useContextualPOIPolling } from '@/hooks/useContextualPOIPolling';
 interface NewTourAssistantProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  voiceTourData?: { destination: string; systemPrompt: string; landmarks: any[]; agentId?: string } | null;
+  voiceTourData?: { destination: string; systemPrompt: string; landmarks: any[] } | null;
   landmarks: Landmark[];
   onSessionStateChange?: (isActive: boolean, state: AssistantState) => void;
 }
@@ -303,13 +303,8 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       console.log('Microphone permission granted');
       
       console.log('Starting session with dynamic variables...');
-      
-      // Use agent ID from voice tour data if available, otherwise use default from config
-      const agentIdToUse = voiceTourData?.agentId || elevenLabsConfig.agentId;
-      console.log('Using agent ID:', agentIdToUse, voiceTourData?.agentId ? '(from experience)' : '(from config)');
-      
       const sessionConversationId = await conversation.startSession({ 
-        agentId: agentIdToUse,
+        agentId: elevenLabsConfig.agentId,
         dynamicVariables: dynamicVariables
       });
       
