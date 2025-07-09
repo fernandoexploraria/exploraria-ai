@@ -23,7 +23,7 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
   const { proximitySettings, combinedLandmarks } = useProximityAlerts();
   const { locationState, userLocation } = useLocationTracking();
   const { effectiveType } = useNetworkStatus();
-  const { cardZoneLandmarks, activeCards, cardState } = useProximityNotifications();
+  const {} = useProximityNotifications();
   
   // Get landmarks within notification zone (for toast notifications)
   const notificationZoneLandmarks = useNearbyLandmarks({
@@ -291,78 +291,9 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                   <span className="text-muted-foreground">Notification Zone:</span>
                   <span className="text-orange-600">{notificationZoneLandmarks.length} (≤{formatDistance(proximitySettings?.notification_distance || 100)})</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Card Zone:</span>
-                  <span className="text-green-600">{cardZoneLandmarks.length} (≤{formatDistance(proximitySettings?.card_distance || 75)})</span>
-                </div>
               </div>
             </div>
 
-            {cardZoneLandmarks.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-green-600">
-                  <CreditCard className="w-3 h-3" />
-                  <span className="font-semibold">Tourist Services Card Zone ({cardZoneLandmarks.length})</span>
-                </div>
-                <div className="text-xs text-muted-foreground pl-5 mb-2">
-                  Landmarks within {formatDistance(proximitySettings?.card_distance || 75)} - Tourist services cards shown (Click to view)
-                </div>
-                <div className="pl-5 space-y-2 max-h-40 overflow-y-auto">
-                  {cardZoneLandmarks.map((nearby, index) => {
-                    const placeId = nearby.landmark.placeId;
-                    const isActive = !!activeCards[placeId];
-                    const cardInfo = cardState[placeId];
-                    
-                    return (
-                      <div 
-                        key={placeId} 
-                        className="border border-green-200 dark:border-green-800 rounded p-2 space-y-1 bg-green-100 dark:bg-green-900/20 cursor-pointer hover:bg-green-200 dark:hover:bg-green-900/30 transition-colors relative group"
-                        onClick={() => handleLandmarkClick(nearby, cardZoneLandmarks)}
-                      >
-                        <div className="flex justify-between items-start">
-                          <span className="font-semibold text-xs leading-tight text-green-900 dark:text-green-100">
-                            {nearby.landmark.name}
-                          </span>
-                          <div className="flex gap-1 ml-2 flex-shrink-0">
-                            <Badge variant="outline" className="text-xs border-green-300 dark:border-green-700 text-green-800 dark:text-green-200">
-                              #{index + 1}
-                            </Badge>
-                            {isActive && (
-                              <Badge variant="default" className="text-xs bg-green-600 hover:bg-green-700 text-white">
-                                <CreditCard className="w-2 h-2 mr-1" />
-                                Active
-                              </Badge>
-                            )}
-                            <Eye className="w-3 h-3 text-green-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </div>
-                        </div>
-                        
-                        <div className="flex justify-between">
-                          <span className="text-green-700 dark:text-green-300">Distance:</span>
-                          <span className="text-green-800 dark:text-green-200 font-medium">{formatDistance(nearby.distance)}</span>
-                        </div>
-
-                        {cardInfo && (
-                          <div className="flex justify-between">
-                            <span className="text-green-700 dark:text-green-300">Last Card:</span>
-                            <span className="text-blue-700 dark:text-blue-300 text-xs">
-                              {new Date(cardInfo.timestamp).toLocaleTimeString()}
-                            </span>
-                          </div>
-                        )}
-                        
-                        <div className="flex justify-between">
-                          <span className="text-green-700 dark:text-green-300">Coordinates:</span>
-                          <span className="text-blue-700 dark:text-blue-300 text-xs font-mono">
-                            [{formatCoordinate(nearby.landmark.coordinates[0])}, {formatCoordinate(nearby.landmark.coordinates[1])}]
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
 
             {prepZoneLandmarks.length > 0 && (
               <div className="space-y-2">
@@ -377,7 +308,6 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                   {prepZoneLandmarks.map((nearby, index) => {
                     const placeId = nearby.landmark.placeId;
                     const isInNotificationZone = notificationZoneLandmarks.some(n => n.landmark.placeId === placeId);
-                    const isInCardZone = cardZoneLandmarks.some(n => n.landmark.placeId === placeId);
                     const strategyInfo = getStrategyInfo(nearby.landmark, nearby.distance);
                     
                     return (
@@ -394,12 +324,6 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                             <Badge variant="outline" className="text-xs border-yellow-300 dark:border-yellow-700 text-yellow-800 dark:text-yellow-200">
                               #{index + 1}
                             </Badge>
-                            {isInCardZone && (
-                              <Badge variant="default" className="text-xs bg-green-600 hover:bg-green-700 text-white">
-                                <CreditCard className="w-2 h-2 mr-1" />
-                                Card
-                              </Badge>
-                            )}
                             {isInNotificationZone && (
                               <Badge variant="default" className="text-xs bg-orange-600 hover:bg-orange-700 text-white">
                                 <Bell className="w-2 h-2 mr-1" />
@@ -463,7 +387,7 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                 <div className="pl-5 space-y-2 max-h-40 overflow-y-auto">
                   {notificationZoneLandmarks.map((nearby, index) => {
                     const placeId = nearby.landmark.placeId;
-                    const isInCardZone = cardZoneLandmarks.some(n => n.landmark.placeId === placeId);
+                    
                     const strategyInfo = getStrategyInfo(nearby.landmark, nearby.distance);
                     
                     return (
@@ -480,12 +404,6 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                             <Badge variant="outline" className="text-xs border-orange-300 dark:border-orange-700 text-orange-800 dark:text-orange-200">
                               #{index + 1}
                             </Badge>
-                            {isInCardZone && (
-                              <Badge variant="default" className="text-xs bg-green-600 hover:bg-green-700 text-white">
-                                <CreditCard className="w-2 h-2 mr-1" />
-                                Card
-                              </Badge>
-                            )}
                             <Eye className="w-3 h-3 text-orange-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                           </div>
                         </div>
@@ -529,7 +447,7 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
               </div>
             )}
 
-            {prepZoneLandmarks.length === 0 && notificationZoneLandmarks.length === 0 && cardZoneLandmarks.length === 0 && userLocation && proximitySettings && (
+            {prepZoneLandmarks.length === 0 && notificationZoneLandmarks.length === 0 && userLocation && proximitySettings && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Target className="w-3 h-3" />
@@ -538,7 +456,7 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                 <div className="pl-5 space-y-1 text-muted-foreground text-xs">
                   <div>No landmarks found within Street View prep zone ({formatDistance(proximitySettings?.outer_distance || 250)})</div>
                   <div>No landmarks found within notification zone ({formatDistance(proximitySettings?.notification_distance || 100)})</div>
-                  <div>No landmarks found within card zone ({formatDistance(proximitySettings?.card_distance || 75)})</div>
+                  
                 </div>
               </div>
             )}
@@ -549,10 +467,10 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                 <span className="font-semibold text-xs">Zone Logic</span>
               </div>
               <div className="text-muted-foreground text-xs leading-tight">
-                <div>• Tourist services cards show when landmarks enter card zone (closest)</div>
+                
                 <div>• Street View pre-loads when landmarks enter outer zone</div>
                 <div>• Toast notifications trigger when landmarks enter notification zone</div>
-                <div>• Card zone ⊆ Notification zone ⊆ Prep zone</div>
+                <div>• Notification zone ⊆ Prep zone</div>
                 <div>• Click landmark cards to open Street View modal</div>
                 <div>• Strategy auto-adjusts: Single (&gt;1km) → Cardinal (500m-1km) → Smart (100m-500m) → All (&lt;100m)</div>
               </div>

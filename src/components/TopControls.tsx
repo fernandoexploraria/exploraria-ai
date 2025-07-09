@@ -29,7 +29,7 @@ interface TopControlsProps {
   smartTourLandmarks: Landmark[];
   onIntelligentTourOpen: () => void;
   onAuthDialogOpen?: () => void;
-  onTestProximityCard?: () => void;
+  
 }
 
 const TopControls: React.FC<TopControlsProps> = ({
@@ -42,7 +42,6 @@ const TopControls: React.FC<TopControlsProps> = ({
   smartTourLandmarks,
   onIntelligentTourOpen,
   onAuthDialogOpen,
-  onTestProximityCard,
 }) => {
   const { user: authUser } = useAuth();
   const isMobile = useIsMobile();
@@ -130,16 +129,6 @@ const TopControls: React.FC<TopControlsProps> = ({
     console.log('🔐 Auth required callback - should not happen in new flow');
   };
 
-  const handleTestProximityCard = () => {
-    console.log('🧪 Debug: Testing proximity card display');
-    if (onTestProximityCard) {
-      onTestProximityCard();
-    }
-    toast({
-      title: "Debug: Proximity Card Test",
-      description: "Showing test proximity card for Fuente de los Coyotes",
-    });
-  };
 
   return (
     <>
@@ -251,15 +240,6 @@ const TopControls: React.FC<TopControlsProps> = ({
                     {isTestingCors ? 'Testing...' : 'Test CORS'}
                   </Button>
 
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
-                    onClick={handleTestProximityCard}
-                  >
-                    <MapPin className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
-                    Test Proximity Card
-                  </Button>
                   
                   <Drawer open={isDebugDrawerOpen} onOpenChange={setIsDebugDrawerOpen}>
                     <DrawerTrigger asChild>
