@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, MapPin, Star, Navigation, Clock, Utensils, Coffee, Car, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -80,6 +80,27 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = ({
   const [selectedService, setSelectedService] = useState<NearbyService | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoadingNearby, setIsLoadingNearby] = useState(true);
+  
+  // 🐛 DEBUG: Add render counter and instance tracking
+  const [renderCount, setRenderCount] = useState(0);
+  const instanceIdRef = useRef(`card-${landmark.placeId || landmark.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+  
+  // 🐛 DEBUG: Track renders and show debug toast
+  useEffect(() => {
+    const newCount = renderCount + 1;
+    setRenderCount(newCount);
+    console.log(`🏪 [CARD-${instanceIdRef.current}] FloatingProximityCard mounted/rendered for ${landmark.name} - Render #${newCount}`);
+    
+    // Show debug toast with render count and instance ID
+    toast(`🏪 Card Debug: ${landmark.name}`, {
+      description: `Render #${newCount} | Instance: ${instanceIdRef.current.split('-').slice(-1)[0]}`,
+      duration: 3000
+    });
+    
+    return () => {
+      console.log(`🏪 [CARD-${instanceIdRef.current}] FloatingProximityCard cleanup for ${landmark.name}`);
+    };
+  }, [landmark.name, renderCount]);
 
   // Load nearby services when component mounts
   useEffect(() => {

@@ -322,9 +322,6 @@ export const useProximityNotifications = () => {
 
   // Handle card zone entry - FIXED: Apply cooldown-first pattern + Global state sharing
   const showProximityCard = useCallback((landmark: TourLandmark) => {
-    // Debug toast to check if function is being called
-    toast("hello world");
-    
     console.log(`🏪 [${instanceIdRef.current}] showProximityCard called for ${landmark.name} - isActiveInstance: ${isActiveInstance}`);
     
     if (!isActiveInstance) return;
