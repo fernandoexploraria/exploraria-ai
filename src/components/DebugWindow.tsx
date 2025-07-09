@@ -7,6 +7,7 @@ import { useStreetViewNavigation } from '@/hooks/useStreetViewNavigation';
 import { useEnhancedStreetViewMulti } from '@/hooks/useEnhancedStreetViewMulti';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useProximityNotifications } from '@/hooks/useProximityNotifications';
+import { useProximityCards } from '@/hooks/useProximityCards';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -24,6 +25,7 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
   const { locationState, userLocation } = useLocationTracking();
   const { effectiveType } = useNetworkStatus();
   const {} = useProximityNotifications();
+  const { debugInfo: cardDebugInfo, cardCooldown } = useProximityCards();
   
   // Get landmarks within notification zone (for toast notifications)
   const notificationZoneLandmarks = useNearbyLandmarks({
@@ -272,6 +274,49 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
                 </div>
               </div>
             )}
+
+            {/* Card System Debug Info */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-green-600">
+                <CreditCard className="w-3 h-3" />
+                <span className="font-semibold">Proximity Cards</span>
+              </div>
+              <div className="pl-5 space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Card-Nearby Landmarks:</span>
+                  <span className="text-green-600">{cardDebugInfo.cardNearbyCount}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Active Card:</span>
+                  <Badge variant={cardDebugInfo.hasActiveCard ? "default" : "secondary"} className="text-xs">
+                    {cardDebugInfo.hasActiveCard ? "Showing" : "None"}
+                  </Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Cooldown Entries:</span>
+                  <span className="text-blue-600">{cardDebugInfo.cooldownCount}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Card Distance:</span>
+                  <span className="text-green-600">{formatDistance(cardDebugInfo.cardDistance)}</span>
+                </div>
+                {cardCooldown.length > 0 && (
+                  <div className="mt-2">
+                    <div className="text-muted-foreground mb-1">Recent Cooldowns:</div>
+                    <div className="space-y-1 max-h-20 overflow-y-auto">
+                      {cardCooldown.slice(-3).map((entry, index) => (
+                        <div key={index} className="text-xs flex justify-between bg-muted/50 rounded px-2 py-1">
+                          <span className="truncate">{entry.placeId.slice(-8)}</span>
+                          <span className="text-blue-600">
+                            {Math.round((Date.now() - entry.timestamp) / 1000)}s ago
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
 
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-yellow-600">

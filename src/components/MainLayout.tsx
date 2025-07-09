@@ -10,6 +10,7 @@ import FloatingProximityCard from '@/components/FloatingProximityCard';
 import DebugWindow from '@/components/DebugWindow';
 import { useDebugWindow } from '@/hooks/useDebugWindow';
 import { useProximityNotifications } from '@/hooks/useProximityNotifications';
+import { useProximityCards } from '@/hooks/useProximityCards';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { Landmark } from '@/data/landmarks';
 import { User } from '@supabase/supabase-js';
@@ -72,6 +73,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
   const { userLocation } = useLocationTracking();
   const { isActiveInstance } = useProximityNotifications();
+  const { activeCardLandmark, closeCard } = useProximityCards();
   
   // Instance tracking for debugging
   const instanceIdRef = useRef(`layout-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
@@ -231,6 +233,29 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         landmarks={voiceTourData?.landmarks || smartTourLandmarks}
         onSessionStateChange={handleSessionStateChange}
       />
+
+      {/* Floating Proximity Card */}
+      {activeCardLandmark && userLocation && (
+        <FloatingProximityCard
+          landmark={{
+            id: activeCardLandmark.id || activeCardLandmark.placeId,
+            name: activeCardLandmark.name,
+            coordinates: activeCardLandmark.coordinates,
+            description: activeCardLandmark.description,
+            rating: activeCardLandmark.rating,
+            photos: activeCardLandmark.photos,
+            types: activeCardLandmark.types,
+            placeId: activeCardLandmark.placeId,
+            formattedAddress: activeCardLandmark.formattedAddress
+          }}
+          userLocation={userLocation}
+          onClose={closeCard}
+          onGetDirections={(service) => {
+            console.log('Getting directions to:', service.name);
+            // TODO: Implement directions logic if needed
+          }}
+        />
+      )}
 
       <DebugWindow
         isVisible={isDebugVisible}
