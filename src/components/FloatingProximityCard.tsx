@@ -51,6 +51,17 @@ interface FloatingProximityCardProps {
   onGetDirections: (service: NearbyService) => void;
 }
 
+// Global singleton state to prevent multiple card instances for same landmark
+let globalCardInstances: {
+  [placeId: string]: {
+    instanceId: string;
+    timestamp: number;
+    renderCount: number;
+  };
+} = {};
+
+const CARD_INSTANCE_COOLDOWN = 5000; // 5 seconds cooldown between new instances
+
 // Tourist service types for nearby search - UPDATED to use only 5 types as per Google API limit
 const TOURIST_SERVICE_TYPES = [
   'restaurant',
@@ -86,24 +97,46 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = ({
   const instanceIdRef = useRef(`card-${landmark.placeId || landmark.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
   const lastToastTimeRef = useRef(0);
   
-  // 🐛 DEBUG: Track mount/unmount and show debug toast ONLY on mount
+  // 🐛 DEBUG: Track mount/unmount with cooldown-first strategy (like proximity notifications)
   useEffect(() => {
-    renderCountRef.current += 1;
+    const placeId = landmark.placeId || landmark.id;
     const now = Date.now();
+    const existingInstance = globalCardInstances[placeId];
     
-    console.log(`🏪 [CARD-${instanceIdRef.current}] FloatingProximityCard mounted for ${landmark.name} - Instance #${renderCountRef.current}`);
+    // Check cooldown at the very beginning (cooldown-first pattern)
+    if (existingInstance && (now - existingInstance.timestamp) < CARD_INSTANCE_COOLDOWN) {
+      console.log(`🏪 [CARD-${instanceIdRef.current}] Card instance for ${landmark.name} still in cooldown (${Math.round((CARD_INSTANCE_COOLDOWN - (now - existingInstance.timestamp)) / 1000)}s remaining)`);
+      return;
+    }
     
-    // Show debug toast only on mount and with cooldown (prevent spam)
+    // This is a truly new card instance - update global tracking IMMEDIATELY after cooldown check
+    const newRenderCount = existingInstance ? existingInstance.renderCount + 1 : 1;
+    globalCardInstances[placeId] = {
+      instanceId: instanceIdRef.current,
+      timestamp: now,
+      renderCount: newRenderCount
+    };
+    
+    renderCountRef.current = newRenderCount;
+    
+    console.log(`🏪 [CARD-${instanceIdRef.current}] NEW FloatingProximityCard instance for ${landmark.name} - Global Count #${newRenderCount}`);
+    
+    // Show debug toast only for NEW instances with cooldown
     if (now - lastToastTimeRef.current > 2000) { // 2 second cooldown
       lastToastTimeRef.current = now;
-      toast(`🏪 Card Debug: ${landmark.name}`, {
-        description: `Instance: ${instanceIdRef.current.split('-').slice(-1)[0]} | Mount #${renderCountRef.current}`,
+      toast(`🏪 NEW Card: ${landmark.name}`, {
+        description: `Global Count #${newRenderCount} | Instance: ${instanceIdRef.current.split('-').slice(-1)[0]}`,
         duration: 2000
       });
     }
     
     return () => {
       console.log(`🏪 [CARD-${instanceIdRef.current}] FloatingProximityCard cleanup for ${landmark.name}`);
+      // Clean up global instance if this was the active one
+      if (globalCardInstances[placeId]?.instanceId === instanceIdRef.current) {
+        console.log(`🏪 [CARD-${instanceIdRef.current}] Cleaning up global instance tracking for ${landmark.name}`);
+        delete globalCardInstances[placeId];
+      }
     };
   }, []); // Empty dependency array - only run on mount/unmount
 
