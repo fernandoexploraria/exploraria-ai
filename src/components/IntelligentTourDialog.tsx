@@ -115,7 +115,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
         delete (window as any).pendingLandmarkDestination;
         
         // Start tour generation for the pre-selected landmark immediately
-        handleLandmarkTourGeneration(pendingLandmark, landmarkAsDestination);
+        handleLandmarkTourGeneration(pendingLandmark, landmarkAsDestination, pendingLandmark.experience, pendingLandmark.tourId);
         
       } else {
         // Reset dialog state using utility (normal flow)
@@ -247,7 +247,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
     }
   };
 
-  const handleLandmarkTourGeneration = async (landmark: any, destinationInfo: AutocompleteResult) => {
+  const handleLandmarkTourGeneration = async (landmark: any, destinationInfo: AutocompleteResult, experience?: boolean, tourId?: string) => {
     console.log('🚀 Starting simplified landmark tour generation for:', landmark.name);
     
     // Validate authentication first
@@ -316,9 +316,9 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       console.log('Searching for nearby landmarks at coordinates:', coordinates);
 
       // Check if this is an experience tour and fetch experience landmarks
-      const pendingLandmark = (window as any).pendingLandmarkDestination;
-      if (pendingLandmark?.experience === true && pendingLandmark?.tourId) {
-        await fetchExperienceLandmarks(pendingLandmark.tourId);
+      if (experience === true && tourId) {
+        console.log('🎯 This is an experience tour, fetching landmarks for tour ID:', tourId);
+        await fetchExperienceLandmarks(tourId);
       }
 
       const { data: nearbyData, error: nearbyError } = await supabase.functions.invoke('google-places-nearby', {
