@@ -13,6 +13,7 @@ export interface GeneratedLandmark {
   formatted_address: string | null;
   types: string[] | null;
   photos: any | null;
+  raw_data: any | null;
   created_at: string;
 }
 
@@ -37,23 +38,43 @@ export const fetchExperienceLandmarks = async (tourId: string): Promise<{ places
     const landmarks = data as GeneratedLandmark[];
     
     // Transform database landmarks to match Google Places API structure
-    const transformedLandmarks = landmarks.map(landmark => ({
-      ...landmark,
-      // Add geometry.location structure for consistency with Google Places API
-      geometry: {
-        location: {
-          lng: landmark.coordinates[0],
-          lat: landmark.coordinates[1]
+    const transformedLandmarks = landmarks.map(landmark => {
+      // Parse coordinates from raw_data field
+      let lng, lat;
+      
+      try {
+        if (landmark.raw_data && landmark.raw_data.location) {
+          lng = landmark.raw_data.location.longitude;
+          lat = landmark.raw_data.location.latitude;
         }
-      },
-      // Ensure other expected properties are available
-      name: landmark.name,
-      place_id: landmark.place_id,
-      rating: landmark.rating,
-      formatted_address: landmark.formatted_address,
-      types: landmark.types || [],
-      photos: landmark.photos
-    }));
+      } catch (error) {
+        console.warn('Failed to parse raw_data for landmark:', landmark.name, error);
+      }
+      
+      // Validate coordinates
+      if (!lng || !lat || isNaN(lng) || isNaN(lat)) {
+        console.warn('Invalid coordinates for landmark:', landmark.name, { lng, lat });
+        return null;
+      }
+      
+      return {
+        ...landmark,
+        // Add geometry.location structure for consistency with Google Places API
+        geometry: {
+          location: {
+            lng: lng,
+            lat: lat
+          }
+        },
+        // Ensure other expected properties are available
+        name: landmark.name,
+        place_id: landmark.place_id,
+        rating: landmark.rating,
+        formatted_address: landmark.formatted_address,
+        types: landmark.types || [],
+        photos: landmark.photos
+      };
+    }).filter(landmark => landmark !== null); // Remove landmarks with invalid coordinates
     
     console.log('✅ Successfully called fetchExperienceLandmarks - Retrieved', transformedLandmarks.length, 'experience landmarks for tour:', tourId);
 
