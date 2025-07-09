@@ -315,17 +315,6 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
 
       console.log('Searching for nearby landmarks at coordinates:', coordinates);
 
-      // Check if this is an experience tour and fetch experience landmarks
-      if (experience === true && tourId) {
-        console.log('🎯 This is an experience tour, fetching landmarks for tour ID:', tourId);
-        const { places: experiencePlaces, error: experienceError } = await fetchExperienceLandmarks(tourId);
-        
-        if (experienceError) {
-          console.error('❌ Error fetching experience landmarks:', experienceError);
-        } else {
-          console.log('✅ Experience landmarks fetched:', experiencePlaces.length, 'records found');
-        }
-      }
 
       const { data: nearbyData, error: nearbyError } = await supabase.functions.invoke('google-places-nearby', {
         body: { 
