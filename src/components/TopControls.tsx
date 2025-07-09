@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Search, ChevronDown, ChevronUp, Menu, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube, MapPin, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Drawer, DrawerContent, DrawerTrigger, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import SearchControl from '@/components/SearchControl';
 import FreeTourCounter from '@/components/FreeTourCounter';
 import ImageAnalysis from '@/components/ImageAnalysis';
+import DebugWindow from '@/components/DebugWindow';
+import ConnectionStatus from '@/components/ConnectionStatus';
 import { Landmark } from '@/data/landmarks';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useConnectionMonitor } from '@/hooks/useConnectionMonitor';
 import { useDemoMode } from '@/hooks/useDemoMode';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import IntelligentTourDialog from './IntelligentTourDialog';
 import AuthDialog from './AuthDialog';
@@ -24,6 +29,7 @@ interface TopControlsProps {
   smartTourLandmarks: Landmark[];
   onIntelligentTourOpen: () => void;
   onAuthDialogOpen?: () => void;
+  onTestProximityCard?: () => void;
 }
 
 const TopControls: React.FC<TopControlsProps> = ({
@@ -36,19 +42,58 @@ const TopControls: React.FC<TopControlsProps> = ({
   smartTourLandmarks,
   onIntelligentTourOpen,
   onAuthDialogOpen,
+  onTestProximityCard,
 }) => {
   const { user: authUser } = useAuth();
   const isMobile = useIsMobile();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isDebugDrawerOpen, setIsDebugDrawerOpen] = useState(false);
+  const [isTestingCors, setIsTestingCors] = useState(false);
   const [isIntelligentTourOpen, setIsIntelligentTourOpen] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const { toast } = useToast();
   const { isDemoMode, toggleDemoMode } = useDemoMode();
+  
+  const { connectionHealth } = useConnectionMonitor();
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
   };
 
+  const handleTestCors = async () => {
+    setIsTestingCors(true);
+    console.log('🧪 Starting CORS test...');
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('test-cors', {
+        body: { test: 'cors-functionality' }
+      });
+
+      if (error) {
+        console.error('🧪 CORS test error:', error);
+        toast({
+          title: "CORS Test Failed",
+          description: `Error: ${error.message}`,
+          variant: "destructive",
+        });
+      } else {
+        console.log('🧪 CORS test success:', data);
+        toast({
+          title: "CORS Test Successful!",
+          description: `Response: ${data.message}`,
+        });
+      }
+    } catch (error) {
+      console.error('🧪 CORS test exception:', error);
+      toast({
+        title: "CORS Test Exception",
+        description: `Exception: ${error.message}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsTestingCors(false);
+    }
+  };
 
   const handleSmartTourClick = () => {
     console.log('🎯 Smart Tour clicked from TopControls, user:', authUser?.id);
@@ -85,6 +130,16 @@ const TopControls: React.FC<TopControlsProps> = ({
     console.log('🔐 Auth required callback - should not happen in new flow');
   };
 
+  const handleTestProximityCard = () => {
+    console.log('🧪 Debug: Testing proximity card display');
+    if (onTestProximityCard) {
+      onTestProximityCard();
+    }
+    toast({
+      title: "Debug: Proximity Card Test",
+      description: "Showing test proximity card for Fuente de los Coyotes",
+    });
+  };
 
   return (
     <>
@@ -98,6 +153,10 @@ const TopControls: React.FC<TopControlsProps> = ({
           />
           
           <SearchControl landmarks={allLandmarks} onSelectLandmark={onSelectLandmark} />
+          
+          {!isDemoMode && (isCollapsed || !connectionHealth.isHealthy) && (
+            <ConnectionStatus compact className="w-full" />
+          )}
           
           <Button
             variant="outline"
@@ -175,6 +234,53 @@ const TopControls: React.FC<TopControlsProps> = ({
 
               {/* Image Analysis Button - only appears when there's an active Smart Tour */}
               <ImageAnalysis smartTourLandmarks={smartTourLandmarks} />
+              
+              {/* Debug Tools - Hidden in Demo Mode */}
+              {!isDemoMode && (
+                <>
+                  <ConnectionStatus showDetails className="w-full" />
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
+                    onClick={handleTestCors}
+                    disabled={isTestingCors}
+                  >
+                    <TestTube className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+                    {isTestingCors ? 'Testing...' : 'Test CORS'}
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
+                    onClick={handleTestProximityCard}
+                  >
+                    <MapPin className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+                    Test Proximity Card
+                  </Button>
+                  
+                  <Drawer open={isDebugDrawerOpen} onOpenChange={setIsDebugDrawerOpen}>
+                    <DrawerTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
+                      >
+                        <List className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+                        Debug
+                      </Button>
+                    </DrawerTrigger>
+                    <DrawerContent className="max-h-[85vh]">
+                      <DrawerHeader>
+                        <DrawerTitle>Debug Window</DrawerTitle>
+                      </DrawerHeader>
+                      <DebugWindow isVisible={true} onClose={() => setIsDebugDrawerOpen(false)} />
+                    </DrawerContent>
+                  </Drawer>
+                </>
+              )}
               
               {user && <FreeTourCounter />}
             </div>

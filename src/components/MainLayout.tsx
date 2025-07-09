@@ -7,6 +7,8 @@ import NewTourAssistant from '@/components/NewTourAssistant';
 import FloatingTourGuideFAB from '@/components/FloatingTourGuideFAB';
 import ProximityControlPanel from '@/components/ProximityControlPanel';
 import FloatingProximityCard from '@/components/FloatingProximityCard';
+import DebugWindow from '@/components/DebugWindow';
+import { useDebugWindow } from '@/hooks/useDebugWindow';
 import { useProximityNotifications } from '@/hooks/useProximityNotifications';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { Landmark } from '@/data/landmarks';
@@ -67,6 +69,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   tourKey,
   onVoiceAgentStateChange,
 }) => {
+  const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
   const { userLocation } = useLocationTracking();
   const { activeCards, closeProximityCard, showRouteToService, isActiveInstance } = useProximityNotifications();
   
@@ -86,6 +89,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     };
   }, [isActiveInstance, voiceAgentDebugState]);
   
+  // Debug state for test proximity card
+  const [debugProximityCard, setDebugProximityCard] = useState<Landmark | null>(null);
   
   // New state for FAB management
   const [isSessionActive, setIsSessionActive] = useState(false);
@@ -117,6 +122,26 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     onAuthDialogOpen();
   };
 
+  // Create mock test landmark for debugging - FIXED: removed category property
+  const createTestLandmark = (): Landmark => ({
+    id: 'debug-fuente-coyotes',
+    name: 'Fuente de los Coyotes',
+    description: 'A beautiful fountain located in Mexico City, perfect for testing proximity card functionality with nearby services.',
+    coordinates: [-99.1332, 19.4326] // Mexico City coordinates
+  });
+
+  // Handle test proximity card display
+  const handleTestProximityCard = () => {
+    console.log(`🧪 [${instanceIdRef.current}] Debug: Creating test proximity card for Fuente de los Coyotes`);
+    const testLandmark = createTestLandmark();
+    setDebugProximityCard(testLandmark);
+  };
+
+  // Close debug proximity card
+  const closeDebugProximityCard = () => {
+    console.log(`🧪 [${instanceIdRef.current}] Debug: Closing test proximity card`);
+    setDebugProximityCard(null);
+  };
 
   // Helper function to get fallback destination from smart tour landmarks
   const getFallbackDestination = () => {
@@ -191,6 +216,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         user={user}
         smartTourLandmarks={smartTourLandmarks}
         onIntelligentTourOpen={handleIntelligentTourOpen}
+        onTestProximityCard={handleTestProximityCard}
       />
 
       <UserControls
@@ -209,6 +235,25 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         onIntelligentTourOpen={handleIntelligentTourOpen}
         onAuthDialogOpen={handleAuthRequired}
       />
+
+      {/* Debug Proximity Card - positioned above regular cards */}
+      {debugProximityCard && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '16px',
+            zIndex: 50 // Higher than regular cards
+          }}
+        >
+          <FloatingProximityCard
+            landmark={debugProximityCard}
+            userLocation={userLocation}
+            onClose={closeDebugProximityCard}
+            onGetDirections={showRouteToService}
+          />
+        </div>
+      )}
 
       {/* Regular Floating Proximity Cards - Convert TourLandmark to Landmark */}
       {/* Only render if this is the active proximity instance */}
@@ -261,6 +306,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         onSessionStateChange={handleSessionStateChange}
       />
 
+      <DebugWindow
+        isVisible={isDebugVisible}
+        onClose={toggleDebug}
+      />
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { CleanDialog, CleanDialogContent, CleanDialogHeader, CleanDialogTitle } from '@/components/ui/clean-dialog';
 import { Loader2 } from 'lucide-react';
@@ -92,18 +92,9 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     }
   });
 
-  // Store conversation in ref to prevent callback recreation
-  const conversationRef = useRef(conversation);
-  
-  // Update conversation ref when it changes
-  useEffect(() => {
-    conversationRef.current = conversation;
-  }, [conversation]);
-
   // 🎯 NEW: Contextual POI polling system with direct ElevenLabs WebSocket access
   const handleContextualUpdate = useCallback((update: any) => {
-    const currentConversation = conversationRef.current;
-    if (!currentConversation || currentConversation.status !== 'connected') {
+    if (!conversation || conversation.status !== 'connected') {
       console.log('⚠️ Skipping contextual update - conversation not connected');
       return;
     }
@@ -145,7 +136,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     // Send contextual update using direct WebSocket access as suggested
     try {
       // Type cast to access websocket property (may not be exposed in types)
-      const conversationWithWS = currentConversation as any;
+      const conversationWithWS = conversation as any;
       
       // Check if WebSocket is available and open
       if (conversationWithWS.websocket && conversationWithWS.websocket.readyState === WebSocket.OPEN) {
@@ -159,14 +150,14 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       } else {
         console.warn('⚠️ ElevenLabs conversation WebSocket not active. Cannot send contextual_update.');
         // Fallback: try SDK method if available
-        if ((currentConversation as any).sendContextualUpdate) {
-          (currentConversation as any).sendContextualUpdate(systemAlertMessage);
+        if ((conversation as any).sendContextualUpdate) {
+          (conversation as any).sendContextualUpdate(systemAlertMessage);
         }
       }
     } catch (error) {
       console.error('❌ Failed to send contextual update:', error);
     }
-  }, []);
+  }, [conversation]);
 
   // 🎯 RE-ENABLED: Contextual POI polling for location-aware conversations
   const { isPolling, lastUpdate, error: poiError } = useContextualPOIPolling({
