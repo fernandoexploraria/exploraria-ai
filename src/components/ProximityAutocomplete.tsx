@@ -201,7 +201,7 @@ const ProximityAutocomplete: React.FC<ProximityAutocompleteProps> = ({
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-          className="pl-7 h-7 text-xs"
+          className="pl-7 h-7 text-xs caret-white"
         />
         {isLoading && (
           <Loader2 className="absolute right-2 top-1/2 transform -translate-y-1/2 w-3 h-3 animate-spin text-muted-foreground" />
