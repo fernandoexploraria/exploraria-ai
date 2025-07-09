@@ -275,7 +275,12 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = ({
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <CardTitle className="text-sm font-semibold text-white line-clamp-2">{selectedService.name}</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-sm font-semibold text-white line-clamp-2">{selectedService.name}</CardTitle>
+                <Badge variant="outline" className="text-xs bg-red-500/20 border-red-500 text-red-300">
+                  #{renderCountRef.current} | {globalCardInstances[landmark.placeId || landmark.id]?.renderCount || 0} | {instanceIdRef.current.split('-').slice(-1)[0]}
+                </Badge>
+              </div>
               <p className="text-xs text-gray-300 mt-1">{selectedService.vicinity}</p>
             </div>
             <div className="flex gap-1 ml-2">
@@ -345,7 +350,12 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = ({
     <Card className="fixed bottom-4 right-4 w-80 max-h-96 bg-gray-900 backdrop-blur-sm shadow-xl border border-gray-700 z-50">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-semibold text-white">Services near {landmark.name}</CardTitle>
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-sm font-semibold text-white">Services near {landmark.name}</CardTitle>
+            <Badge variant="outline" className="text-xs bg-red-500/20 border-red-500 text-red-300">
+              #{renderCountRef.current} | {globalCardInstances[landmark.placeId || landmark.id]?.renderCount || 0} | {instanceIdRef.current.split('-').slice(-1)[0]}
+            </Badge>
+          </div>
           <Button variant="ghost" size="sm" onClick={onClose} className="p-1 h-6 w-6 text-gray-300 hover:text-white hover:bg-gray-800">
             <X className="w-3 h-3" />
           </Button>
