@@ -297,7 +297,7 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = React.memo((
     // Detailed service view - UPDATED: Dark background to match travel log
     return (
       <Card 
-        className="fixed bottom-4 right-4 w-80 max-w-[calc(100vw-2rem)] sm:w-80 max-h-96 bg-gray-900 backdrop-blur-sm shadow-xl border border-gray-700 z-50 overflow-hidden touch-manipulation select-none will-change-auto"
+        className="fixed bottom-4 right-4 w-80 max-w-[320px] max-h-96 bg-gray-900 backdrop-blur-sm shadow-xl border border-gray-700 z-50 overflow-x-hidden transform-gpu touch-manipulation select-none will-change-auto"
         onTouchStart={handleCardTouch}
         onClick={handleCardClick}
       >
@@ -377,7 +377,7 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = React.memo((
   // Main services list view - UPDATED: Dark background to match travel log
   return (
     <Card 
-      className="fixed bottom-4 right-4 w-80 max-w-[calc(100vw-2rem)] sm:w-80 max-h-96 bg-gray-900 backdrop-blur-sm shadow-xl border border-gray-700 z-50 touch-manipulation select-none will-change-auto"
+      className="fixed bottom-4 right-4 w-80 max-w-[320px] max-h-96 bg-gray-900 backdrop-blur-sm shadow-xl border border-gray-700 z-50 overflow-x-hidden transform-gpu touch-manipulation select-none will-change-auto"
       onTouchStart={handleCardTouch}
       onClick={handleCardClick}
     >
