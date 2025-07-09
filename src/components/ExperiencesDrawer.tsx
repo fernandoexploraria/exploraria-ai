@@ -8,14 +8,57 @@ import { Loader2, Compass } from 'lucide-react';
 interface ExperiencesDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onIntelligentTourOpen?: () => void;
 }
 
-const ExperiencesDrawer: React.FC<ExperiencesDrawerProps> = ({ open, onOpenChange }) => {
+const ExperiencesDrawer: React.FC<ExperiencesDrawerProps> = ({ open, onOpenChange, onIntelligentTourOpen }) => {
   const { data: experiences, isLoading, error } = useExperiences();
 
   const handleExperienceSelect = (experience: Experience) => {
     console.log('Selected experience:', experience);
-    // Future: Add functionality to load the tour
+    
+    if (!onIntelligentTourOpen) {
+      console.warn('onIntelligentTourOpen not provided to ExperiencesDrawer');
+      return;
+    }
+    
+    // Convert experience to landmark format
+    const convertExperienceToLandmark = (experience: Experience) => {
+      const details = experience.destination_details;
+      if (!details) {
+        console.error('Experience missing destination_details:', experience);
+        return null;
+      }
+      
+      return {
+        id: experience.id,
+        name: details.name || experience.destination,
+        description: details.editorialSummary || experience.description,
+        coordinates: [details.location.longitude, details.location.latitude],
+        placeId: details.placeId,
+        formattedAddress: details.address,
+        types: details.types || details.destination_types || ['tourist_attraction'],
+        rating: details.rating,
+        tourId: experience.id
+      };
+    };
+    
+    const landmark = convertExperienceToLandmark(experience);
+    if (!landmark) {
+      console.error('Failed to convert experience to landmark');
+      return;
+    }
+    
+    console.log('Converted experience to landmark:', landmark);
+    
+    // Store landmark as pending destination for IntelligentTourDialog
+    (window as any).pendingLandmarkDestination = landmark;
+    
+    // Close experiences drawer
+    onOpenChange(false);
+    
+    // Open intelligent tour dialog
+    onIntelligentTourOpen();
   };
 
   return (

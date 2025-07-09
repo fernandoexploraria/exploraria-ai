@@ -317,6 +317,7 @@ const TopControls: React.FC<TopControlsProps> = ({
       <ExperiencesDrawer
         open={isExperiencesDrawerOpen}
         onOpenChange={setIsExperiencesDrawerOpen}
+        onIntelligentTourOpen={onIntelligentTourOpen}
       />
     </>
   );
