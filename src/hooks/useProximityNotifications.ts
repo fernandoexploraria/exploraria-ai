@@ -314,6 +314,9 @@ export const useProximityNotifications = () => {
 
   // Handle card zone entry - FIXED: Apply cooldown-first pattern
   const showProximityCard = useCallback((landmark: TourLandmark) => {
+    // Debug toast to check if function is being called
+    toast("hello world");
+    
     if (!isActiveInstance) return;
     
     const placeId = landmark.placeId;
