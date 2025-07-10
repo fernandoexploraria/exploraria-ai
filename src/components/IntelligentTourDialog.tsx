@@ -344,7 +344,9 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       setCurrentStep(3);
 
       // Generate tour in database using the landmark destination details
-      await generateTourInDatabase(destinationDetails, nearbyData.data.places || [], destinationInfo);
+      // Determine tour type and pass source tour ID for experiences
+      const tourType = (experience === true && tourId) ? 'experience' : 'regular';
+      await generateTourInDatabase(destinationDetails, nearbyData.data.places || [], destinationInfo, tourType, tourId);
       
     } catch (error) {
       console.error('Landmark tour generation error:', error);
@@ -429,8 +431,8 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       setNearbyLandmarks(nearbyData.places || []);
       setCurrentStep(3);
 
-      // Generate tour in database
-      await generateTourInDatabase(detailsData.data, nearbyData.places || [], destination);
+      // Generate tour in database (regular tour)
+      await generateTourInDatabase(detailsData.data, nearbyData.places || [], destination, 'regular');
       
     } catch (error) {
       console.error('Tour generation error:', error);
@@ -445,7 +447,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
     }
   };
 
-  const generateTourInDatabase = async (destination: any, landmarks: any[], destinationInfo: AutocompleteResult) => {
+  const generateTourInDatabase = async (destination: any, landmarks: any[], destinationInfo: AutocompleteResult, tourType: 'experience' | 'regular' = 'regular', sourceTourId?: string) => {
     if (!user?.id) {
       console.error('User authentication failed before database operations');
       throw new Error('User not authenticated');
@@ -460,8 +462,42 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
       // Generate curated highlights for each landmark
       const landmarkHighlights = generateLandmarkHighlights(landmarks);
 
-      // Create Gemini's improved system prompt template with structured data format
-      const alexisPrompt = `You are Alexis, an **enthusiastic and incredibly knowledgeable expert tour guide**. Your current focus is leading a delightful walking tour of **${destination.name}** and its immediate surroundings.
+      // System prompt selection logic based on tour type
+      let systemPrompt: string;
+      
+      if (tourType === 'experience' && sourceTourId) {
+        console.log('🎯 Experience tour detected, fetching system prompt from source tour:', sourceTourId);
+        try {
+          const { data: tourDetails, error: tourDetailsError } = await supabase.functions.invoke('get-tour-details', {
+            body: { tourId: sourceTourId }
+          });
+          
+          if (tourDetailsError) {
+            console.error('❌ Failed to fetch source tour details:', tourDetailsError);
+            throw new Error(`Failed to fetch source tour details: ${tourDetailsError.message}`);
+          }
+          
+          if (!tourDetails || !tourDetails.systemPrompt) {
+            console.error('❌ No system prompt found in source tour');
+            throw new Error('Source tour system prompt not found');
+          }
+          
+          systemPrompt = tourDetails.systemPrompt;
+          console.log('✅ Successfully retrieved system prompt from source tour');
+          
+        } catch (error) {
+          console.error('❌ Error fetching source system prompt, falling back to alexisPrompt:', error);
+          // Fallback to generated alexisPrompt if fetching fails
+          systemPrompt = generateAlexisPrompt(destination, landmarks, landmarkHighlights);
+        }
+      } else {
+        console.log('🔍 Regular tour detected, generating alexisPrompt');
+        systemPrompt = generateAlexisPrompt(destination, landmarks, landmarkHighlights);
+      }
+
+      // Helper function to generate alexisPrompt (extracted from original code)
+      function generateAlexisPrompt(destination: any, landmarks: any[], landmarkHighlights: any[]) {
+        return `You are Alexis, an **enthusiastic and incredibly knowledgeable expert tour guide**. Your current focus is leading a delightful walking tour of **${destination.name}** and its immediate surroundings.
 
 **Your Core Mission:**
 1. **Engage and Inform:** Provide captivating facts, rich historical context, local anecdotes, practical tips.
@@ -572,6 +608,7 @@ You will receive occasional, non-interrupting system updates about **new** nearb
        * **Smooth Transition:** Ask a relevant follow-up question about the newly discovered POI or connect it back to the tour, e.g.: "What are your thoughts on that, or shall we continue exploring ${destination.name}'s charm?"
    * **No New POI:** If no new POI information is available in the \`SYSTEM_ALERT\`s (or all have been discussed), simply continue the conversation based on the main tour plan or the user's previous input.
 3. **Internal Tracking for Repetition Avoidance:** Once you introduce a POI (whether from the initial "Key Landmarks" list or a "Real-time Location Awareness" alert), consider it "discussed" for the remainder of this conversation session. **Do not re-mention it, even if its ID appears again in a new \`SYSTEM_ALERT\`.** You are an expert who remembers what you've already shared.`;
+      }
 
       console.log('Inserting tour record...');
       
@@ -585,7 +622,7 @@ You will receive occasional, non-interrupting system updates about **new** nearb
           destination_types: destinationInfo.types,
           search_radius: landmarks[0]?.searchRadius || 10000
         },
-        system_prompt: alexisPrompt,
+        system_prompt: systemPrompt,
         total_landmarks: landmarks.length,
         generation_start_time: new Date().toISOString(),
         generation_end_time: new Date().toISOString()
@@ -751,7 +788,7 @@ You will receive occasional, non-interrupting system updates about **new** nearb
         
         onTourReadyForVoice({
           destination: destination.name,
-          systemPrompt: alexisPrompt,
+          systemPrompt: systemPrompt,
           landmarks: validLandmarks
         });
       }
