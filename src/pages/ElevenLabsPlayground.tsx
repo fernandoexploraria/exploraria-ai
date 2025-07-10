@@ -154,9 +154,9 @@ const ElevenLabsPlayground: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="border-b border-border bg-card">
+      <header className="border-b border-border bg-card flex-shrink-0">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Link to="/curator-portal">
@@ -177,7 +177,8 @@ const ElevenLabsPlayground: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8 space-y-8">
+      <main className="flex-1 overflow-y-auto">
+        <div className="container mx-auto px-4 py-8 space-y-8">
         {/* API Connection Test */}
         <Card>
           <CardHeader>
@@ -217,9 +218,11 @@ const ElevenLabsPlayground: React.FC = () => {
             {agentData && (
               <div className="mt-4 p-4 bg-muted rounded-lg">
                 <h4 className="font-semibold mb-2">Agent Data:</h4>
-                <pre className="text-sm overflow-auto">
-                  {JSON.stringify(agentData, null, 2)}
-                </pre>
+                <div className="max-h-96 overflow-y-auto bg-background rounded border">
+                  <pre className="text-sm p-4 whitespace-pre-wrap">
+                    {JSON.stringify(agentData, null, 2)}
+                  </pre>
+                </div>
               </div>
             )}
           </CardContent>
@@ -245,9 +248,11 @@ const ElevenLabsPlayground: React.FC = () => {
             {toolsData && (
               <div className="mt-4 p-4 bg-muted rounded-lg">
                 <h4 className="font-semibold mb-2">Tools Data:</h4>
-                <pre className="text-sm overflow-auto">
-                  {JSON.stringify(toolsData, null, 2)}
-                </pre>
+                <div className="max-h-96 overflow-y-auto bg-background rounded border">
+                  <pre className="text-sm p-4 whitespace-pre-wrap">
+                    {JSON.stringify(toolsData, null, 2)}
+                  </pre>
+                </div>
               </div>
             )}
           </CardContent>
@@ -273,13 +278,16 @@ const ElevenLabsPlayground: React.FC = () => {
             {knowledgeData && (
               <div className="mt-4 p-4 bg-muted rounded-lg">
                 <h4 className="font-semibold mb-2">Knowledge Base Data:</h4>
-                <pre className="text-sm overflow-auto">
-                  {JSON.stringify(knowledgeData, null, 2)}
-                </pre>
+                <div className="max-h-96 overflow-y-auto bg-background rounded border">
+                  <pre className="text-sm p-4 whitespace-pre-wrap">
+                    {JSON.stringify(knowledgeData, null, 2)}
+                  </pre>
+                </div>
               </div>
             )}
           </CardContent>
         </Card>
+        </div>
       </main>
     </div>
   );
