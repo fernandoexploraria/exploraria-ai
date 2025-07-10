@@ -397,6 +397,24 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                   <currentStepData.icon className="h-5 w-5" />
                   <span>{currentStepData.title}</span>
                 </CardTitle>
+                {currentStep === 2 && (
+                  <div className="flex items-center justify-between">
+                    <CardDescription>
+                      AI personality prompt automatically generated based on your destination and landmarks using the Alexis template.
+                    </CardDescription>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const regeneratedPrompt = generateSystemPrompt();
+                        setExperienceData(prev => ({ ...prev, systemPrompt: regeneratedPrompt }));
+                        toast.success("Prompt regenerated with latest data");
+                      }}
+                    >
+                      Regenerate
+                    </Button>
+                  </div>
+                )}
               </CardHeader>
               <CardContent className="space-y-6 flex-1 overflow-y-auto">
                 {/* Step Content */}
@@ -500,32 +518,15 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                   </div>
                 )}
 
-                {currentStep === 2 && (
-                  <div className="space-y-4">
-                     <div className="flex items-center justify-between sticky top-0 bg-background z-10 pb-4 border-b">
-                       <CardDescription>
-                         AI personality prompt automatically generated based on your destination and landmarks using the Alexis template.
-                       </CardDescription>
-                       <Button
-                         variant="outline"
-                         size="sm"
-                         onClick={() => {
-                           const regeneratedPrompt = generateSystemPrompt();
-                           setExperienceData(prev => ({ ...prev, systemPrompt: regeneratedPrompt }));
-                           toast.success("Prompt regenerated with latest data");
-                         }}
-                       >
-                         Regenerate
-                       </Button>
-                     </div>
-                    
-                    <PromptSectionViewer prompt={experienceData.systemPrompt} />
-                    
-                    <p className="text-xs text-muted-foreground mt-4">
-                      This prompt defines how Alexis, your AI tour guide, will interact with users. It includes your destination details, landmark information, and function calling capabilities.
-                    </p>
-                  </div>
-                )}
+                 {currentStep === 2 && (
+                   <div className="space-y-4">
+                     <PromptSectionViewer prompt={experienceData.systemPrompt} />
+                     
+                     <p className="text-xs text-muted-foreground mt-4">
+                       This prompt defines how Alexis, your AI tour guide, will interact with users. It includes your destination details, landmark information, and function calling capabilities.
+                     </p>
+                   </div>
+                 )}
 
                 {currentStep === 3 && (
                   <div className="space-y-4">
