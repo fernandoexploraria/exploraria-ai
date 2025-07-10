@@ -232,7 +232,7 @@ async function getAgent(apiKey: string, agentId: string) {
     }
 
     const data = await response.json();
-    
+    console.log(`Retrieved agent: ${data.name}, first_message: ${data.first_message}`);
     return new Response(
       JSON.stringify(data),
       { 
@@ -379,6 +379,7 @@ async function updateFirstMessage(apiKey: string, agentId: string, firstMessage:
 
     const updatedAgent = await response.json();
     console.log(`Successfully updated first message for agent: ${updatedAgent.name}`);
+    console.log('Updated agent first_message:', updatedAgent.first_message);
     
     return new Response(
       JSON.stringify({
