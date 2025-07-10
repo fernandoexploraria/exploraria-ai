@@ -489,7 +489,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
 
                 {currentStep === 2 && (
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between sticky top-0 bg-background z-10 pb-4 border-b">
                       <CardDescription>
                         AI personality prompt automatically generated based on your destination and landmarks using the Alexis template.
                       </CardDescription>
