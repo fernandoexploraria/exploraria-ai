@@ -9,6 +9,7 @@ import { TTSProvider } from "@/contexts/TTSContext";
 import { PostAuthAction } from "@/utils/authActions";
 import Index from "./pages/Index";
 import CuratorPortal from "./pages/CuratorPortal";
+import ElevenLabsPlayground from "./pages/ElevenLabsPlayground";
 import { useState } from "react";
 
 const queryClient = new QueryClient();
@@ -57,6 +58,10 @@ const App = () => {
                 <Route 
                   path="/curator-portal" 
                   element={<CuratorPortal />} 
+                />
+                <Route 
+                  path="/elevenlabs-playground" 
+                  element={<ElevenLabsPlayground />} 
                 />
               </Routes>
             </AuthProvider>

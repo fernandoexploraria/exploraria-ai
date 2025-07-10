@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, ArrowLeft, BookOpen, Users, TrendingUp } from 'lucide-react';
+import { Plus, ArrowLeft, BookOpen, Users, TrendingUp, Zap } from 'lucide-react';
 import { ExperienceCreationWizard } from '@/components/ExperienceCreationWizard';
 import { Link } from 'react-router-dom';
 
@@ -116,14 +116,26 @@ const CuratorPortal: React.FC = () => {
               Create immersive tours that blend your knowledge with cutting-edge AI technology.
             </p>
           </div>
-          <Button
-            onClick={() => setShowCreateExperience(true)}
-            size="lg"
-            className="px-8 py-6 text-lg"
-          >
-            <Plus className="mr-2 h-5 w-5" />
-            Create New Experience
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Button
+              onClick={() => setShowCreateExperience(true)}
+              size="lg"
+              className="px-8 py-6 text-lg"
+            >
+              <Plus className="mr-2 h-5 w-5" />
+              Create New Experience
+            </Button>
+            <Link to="/elevenlabs-playground">
+              <Button
+                variant="outline"
+                size="lg"
+                className="px-8 py-6 text-lg"
+              >
+                <Zap className="mr-2 h-5 w-5" />
+                ElevenLabs Playground
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Coming Soon Features */}
