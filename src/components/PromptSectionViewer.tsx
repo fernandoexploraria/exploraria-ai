@@ -3,39 +3,37 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Sparkles } from 'lucide-react';
-
 interface PromptSectionViewerProps {
   prompt: string;
   onAiRefine?: () => void;
   onSection2Refine?: () => void;
 }
-
 interface PromptSection {
   title: string;
   content: string;
   type: 'text' | 'json' | 'list';
 }
-
-export const PromptSectionViewer: React.FC<PromptSectionViewerProps> = ({ prompt, onAiRefine, onSection2Refine }) => {
+export const PromptSectionViewer: React.FC<PromptSectionViewerProps> = ({
+  prompt,
+  onAiRefine,
+  onSection2Refine
+}) => {
   const parsePromptIntoSections = (promptText: string): PromptSection[] => {
     if (!promptText.trim()) {
       return [];
     }
-
     const lines = promptText.split('\n');
     const sections: PromptSection[] = [];
-    
+
     // Helper function to find content between markers
     const findSection = (startMarker: string, endMarker?: string) => {
       const startIndex = lines.findIndex(line => line.includes(startMarker));
       if (startIndex === -1) return '';
-      
       let endIndex = lines.length;
       if (endMarker) {
         endIndex = lines.findIndex((line, index) => index > startIndex && line.includes(endMarker));
         if (endIndex === -1) endIndex = lines.length;
       }
-      
       return lines.slice(startIndex, endIndex).join('\n');
     };
 
@@ -112,98 +110,68 @@ export const PromptSectionViewer: React.FC<PromptSectionViewerProps> = ({ prompt
       content: protocolContent,
       type: 'list'
     });
-
     return sections.filter(section => section.content.trim().length > 0);
   };
-
   const sections = parsePromptIntoSections(prompt);
-
   const formatContent = (content: string, type: string) => {
     // Remove excessive line breaks and clean up formatting
     const cleaned = content.replace(/\n{3,}/g, '\n\n').trim();
-    
     if (type === 'json') {
       // Extract JSON blocks and format them
       const jsonMatches = cleaned.match(/```json\n([\s\S]*?)\n```/g);
       if (jsonMatches) {
-        return (
-          <div className="space-y-4">
+        return <div className="space-y-4">
             {cleaned.split('```json').map((part, index) => {
-              if (index === 0) {
-                return part.trim() && <p key={index} className="text-sm">{part.trim()}</p>;
-              }
-              
-              const [jsonPart, ...restParts] = part.split('```');
-              return (
-                <div key={index} className="space-y-2">
+            if (index === 0) {
+              return part.trim() && <p key={index} className="text-sm">{part.trim()}</p>;
+            }
+            const [jsonPart, ...restParts] = part.split('```');
+            return <div key={index} className="space-y-2">
                   <div className="bg-muted p-3 rounded-lg">
                     <pre className="text-xs font-mono whitespace-pre-wrap overflow-x-auto">
                       {jsonPart.trim()}
                     </pre>
                   </div>
-                  {restParts.length > 0 && restParts.join('```').trim() && (
-                    <p className="text-sm">{restParts.join('```').trim()}</p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        );
+                  {restParts.length > 0 && restParts.join('```').trim() && <p className="text-sm">{restParts.join('```').trim()}</p>}
+                </div>;
+          })}
+          </div>;
       }
     }
-    
     if (type === 'list') {
       // Format bullet points and numbered lists
       const lines = cleaned.split('\n').filter(line => line.trim());
-      return (
-        <div className="space-y-2">
+      return <div className="space-y-2">
           {lines.map((line, index) => {
-            const trimmed = line.trim();
-            if (trimmed.startsWith('*') || trimmed.startsWith('-') || /^\d+\./.test(trimmed)) {
-              return (
-                <div key={index} className="text-sm pl-4 border-l-2 border-primary/20">
+          const trimmed = line.trim();
+          if (trimmed.startsWith('*') || trimmed.startsWith('-') || /^\d+\./.test(trimmed)) {
+            return <div key={index} className="text-sm pl-4 border-l-2 border-primary/20">
                   {trimmed.replace(/^[*\-\d\.]\s*/, '')}
-                </div>
-              );
-            } else if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
-              return (
-                <h4 key={index} className="font-semibold text-sm mt-3 mb-1">
+                </div>;
+          } else if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
+            return <h4 key={index} className="font-semibold text-sm mt-3 mb-1">
                   {trimmed.slice(2, -2)}
-                </h4>
-              );
-            }
-            return trimmed && <p key={index} className="text-sm">{trimmed}</p>;
-          })}
-        </div>
-      );
+                </h4>;
+          }
+          return trimmed && <p key={index} className="text-sm">{trimmed}</p>;
+        })}
+        </div>;
     }
-    
+
     // Default text formatting
-    return (
-      <div className="space-y-2">
-        {cleaned.split('\n\n').map((paragraph, index) => (
-          paragraph.trim() && (
-            <p key={index} className="text-sm whitespace-pre-wrap">
+    return <div className="space-y-2">
+        {cleaned.split('\n\n').map((paragraph, index) => paragraph.trim() && <p key={index} className="text-sm whitespace-pre-wrap">
               {paragraph.trim()}
-            </p>
-          )
-        ))}
-      </div>
-    );
+            </p>)}
+      </div>;
   };
-
   if (sections.length === 0) {
-    return (
-      <div className="text-center py-8 text-muted-foreground">
+    return <div className="text-center py-8 text-muted-foreground">
         <p>No prompt generated yet. Complete the previous steps to see the AI personality sections.</p>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="grid gap-4">
-      {sections.map((section, index) => (
-        <Card key={index} className="overflow-hidden">
+  return <div className="grid gap-4">
+      {sections.map((section, index) => <Card key={index} className="overflow-hidden">
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -212,26 +180,12 @@ export const PromptSectionViewer: React.FC<PromptSectionViewerProps> = ({ prompt
                   </Badge>
                   {section.title}
                 </div>
-                {index === 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onAiRefine?.()}
-                    className="h-8 w-8 p-0"
-                  >
+                {index === 0 && <Button variant="ghost" size="sm" onClick={() => onAiRefine?.()} className="h-8 w-8 p-0 bg-emerald-500 hover:bg-emerald-400">
                     <Sparkles className="h-4 w-4" />
-                  </Button>
-                )}
-                {index === 1 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onSection2Refine?.()}
-                    className="h-8 w-8 p-0"
-                  >
+                  </Button>}
+                {index === 1 && <Button variant="ghost" size="sm" onClick={() => onSection2Refine?.()} className="h-8 w-8 p-0">
                     <Sparkles className="h-4 w-4" />
-                  </Button>
-                )}
+                  </Button>}
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
@@ -239,8 +193,6 @@ export const PromptSectionViewer: React.FC<PromptSectionViewerProps> = ({ prompt
                 {formatContent(section.content, section.type)}
               </div>
             </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
+        </Card>)}
+    </div>;
 };
