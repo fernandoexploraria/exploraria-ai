@@ -38,8 +38,10 @@ export const PromptSectionViewer: React.FC<PromptSectionViewerProps> = ({ prompt
       return lines.slice(startIndex, endIndex).join('\n');
     };
 
-    // 1. Agent Persona & Role Definition
-    const personaContent = lines.slice(0, 3).join('\n');
+    // 1. Agent Persona & Role Definition (end at '**Your Core Mission:**' but don't include it)
+    const missionStartIndex = lines.findIndex(line => line.includes('**Your Core Mission:**'));
+    const personaEndIndex = missionStartIndex === -1 ? lines.length : missionStartIndex;
+    const personaContent = lines.slice(0, personaEndIndex).join('\n');
     sections.push({
       title: 'Agent Persona & Role Definition',
       content: personaContent,

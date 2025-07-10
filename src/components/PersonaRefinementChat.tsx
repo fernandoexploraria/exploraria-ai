@@ -79,31 +79,23 @@ export const PersonaRefinementChat: React.FC<PersonaRefinementChatProps> = ({
 
   const extractSection1 = (promptText: string): string => {
     const lines = promptText.split('\n');
-    // Section 1 is typically the first few lines before the Core Mission section
-    const sectionEndIndex = lines.findIndex((line, index) => 
-      index > 2 && line.includes('**Your Core Mission:**')
-    );
-    
-    if (sectionEndIndex === -1) {
-      // If no clear section marker found, take first 3 lines
-      return lines.slice(0, 3).join('\n');
-    }
+    // Section 1 ends at '**Your Core Mission:**' but doesn't include it
+    const missionStartIndex = lines.findIndex(line => line.includes('**Your Core Mission:**'));
+    const sectionEndIndex = missionStartIndex === -1 ? lines.length : missionStartIndex;
     
     return lines.slice(0, sectionEndIndex).join('\n');
   };
 
   const integrateRefinedSection1 = (originalPrompt: string, refinedSection1: string): string => {
     const lines = originalPrompt.split('\n');
-    const section2StartIndex = lines.findIndex((line, index) => 
-      index > 2 && line.includes('**Your Core Mission:**')
-    );
+    const section2StartIndex = lines.findIndex(line => line.includes('**Your Core Mission:**'));
     
     if (section2StartIndex === -1) {
-      // If no clear section marker, replace first 3 lines and keep the rest
-      return [refinedSection1, '', ...lines.slice(3)].join('\n');
+      // If no section 2 marker found, just return the refined section 1
+      return refinedSection1;
     }
     
-    // Replace Section 1, add spacing, then keep Section 2 and beyond
+    // Replace Section 1, add spacing, then keep Section 2 and beyond (starting with the marker)
     return [refinedSection1, '', ...lines.slice(section2StartIndex)].join('\n');
   };
 
