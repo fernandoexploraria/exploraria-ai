@@ -15,6 +15,7 @@ import { generateAlexisPrompt } from '@/utils/alexisPromptGenerator';
 import { mapPriceLevel } from '@/utils/priceUtils';
 import { PromptSectionViewer } from '@/components/PromptSectionViewer';
 import { PersonaRefinementChat } from '@/components/PersonaRefinementChat';
+import { Section2RefinementChat } from '@/components/Section2RefinementChat';
 
 interface ExperienceCreationWizardProps {
   onClose: () => void;
@@ -81,6 +82,7 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
   const [destinationSearch, setDestinationSearch] = useState('');
   const [landmarkSearch, setLandmarkSearch] = useState('');
   const [isAiChatOpen, setIsAiChatOpen] = useState(false);
+  const [isSection2ChatOpen, setIsSection2ChatOpen] = useState(false);
   
   const [experienceData, setExperienceData] = useState<ExperienceData>({
     destination: null,
@@ -522,10 +524,11 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
 
                  {currentStep === 2 && (
                    <div className="space-y-4">
-                     <PromptSectionViewer 
-                       prompt={experienceData.systemPrompt} 
-                       onAiRefine={() => setIsAiChatOpen(true)}
-                     />
+                      <PromptSectionViewer 
+                        prompt={experienceData.systemPrompt} 
+                        onAiRefine={() => setIsAiChatOpen(true)}
+                        onSection2Refine={() => setIsSection2ChatOpen(true)}
+                      />
                      
                      <p className="text-xs text-muted-foreground mt-4">
                        This prompt defines how Alexis, your AI tour guide, will interact with users. It includes your destination details, landmark information, and function calling capabilities.
@@ -672,6 +675,18 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
       <PersonaRefinementChat
         isOpen={isAiChatOpen}
         onClose={() => setIsAiChatOpen(false)}
+        initialPrompt={experienceData.systemPrompt}
+        destination={experienceData.destination?.description || ''}
+        landmarks={experienceData.landmarks}
+        onPromptRefined={(refinedPrompt) => {
+          setExperienceData(prev => ({ ...prev, systemPrompt: refinedPrompt }));
+        }}
+      />
+
+      {/* Section 2 (Core Mission) Refinement Chat */}
+      <Section2RefinementChat
+        isOpen={isSection2ChatOpen}
+        onClose={() => setIsSection2ChatOpen(false)}
         initialPrompt={experienceData.systemPrompt}
         destination={experienceData.destination?.description || ''}
         landmarks={experienceData.landmarks}
