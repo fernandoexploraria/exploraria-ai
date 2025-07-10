@@ -3,7 +3,7 @@ import { Search, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { getServiceIcon } from '@/utils/placeTypeIcons';
+import { getServiceIcon, getPlaceTypeIcon, getPlaceTypeLabel } from '@/utils/placeTypeIcons';
 
 interface AutocompleteSuggestion {
   place_id: string;
@@ -85,7 +85,14 @@ const ProximityAutocomplete: React.FC<ProximityAutocompleteProps> = ({
           }
         }));
 
-        setSuggestions(formattedSuggestions);
+        // Sort suggestions by priority using the same logic as Intelligent Tour Generator
+        const sortedSuggestions = formattedSuggestions.sort((a, b) => {
+          const aPriority = getPlaceTypeIcon(a.types, a.structured_formatting?.main_text).priority;
+          const bPriority = getPlaceTypeIcon(b.types, b.structured_formatting?.main_text).priority;
+          return aPriority - bPriority;
+        });
+
+        setSuggestions(sortedSuggestions);
         setShowSuggestions(true);
         setSelectedIndex(-1);
       }
@@ -216,7 +223,12 @@ const ProximityAutocomplete: React.FC<ProximityAutocompleteProps> = ({
           className="absolute top-full left-0 w-full max-w-[288px] bg-gray-800 border border-gray-600 rounded-md shadow-lg z-50 max-h-64 overflow-y-auto animate-fade-in"
         >
           {suggestions.map((suggestion, index) => {
-            const IconComponent = getServiceIcon(suggestion.types);
+            // Use place type icon for destination searches, service icon for others
+            const isDestinationSearch = serviceTypes.includes('locality') || serviceTypes.includes('sublocality');
+            const iconResult = isDestinationSearch 
+              ? getPlaceTypeIcon(suggestion.types, suggestion.structured_formatting?.main_text)
+              : { icon: getServiceIcon(suggestion.types), color: 'text-gray-400', priority: 0 };
+            const IconComponent = iconResult.icon;
             return (
               <button
                 key={suggestion.place_id}
@@ -227,7 +239,7 @@ const ProximityAutocomplete: React.FC<ProximityAutocompleteProps> = ({
               >
                 <div className="flex items-start gap-2">
                   <div className="flex-shrink-0 mt-0.5">
-                    <IconComponent className="w-4 h-4 text-gray-400" />
+                    <IconComponent className={`w-4 h-4 ${isDestinationSearch ? iconResult.color : 'text-gray-400'}`} />
                   </div>
                    <div className="flex-1 min-w-0">
                      <div className="flex items-center gap-2 mb-1">
@@ -235,7 +247,10 @@ const ProximityAutocomplete: React.FC<ProximityAutocompleteProps> = ({
                          {suggestion.structured_formatting?.main_text || suggestion.description}
                        </span>
                        <Badge variant="secondary" className="text-xs px-1 py-0 shrink-0">
-                         {getServiceType(suggestion.types)}
+                         {isDestinationSearch 
+                           ? getPlaceTypeLabel(suggestion.types, suggestion.structured_formatting?.main_text)
+                           : getServiceType(suggestion.types)
+                         }
                        </Badge>
                      </div>
                      {suggestion.structured_formatting?.secondary_text && (

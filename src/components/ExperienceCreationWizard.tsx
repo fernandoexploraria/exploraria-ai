@@ -313,7 +313,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                       value={destinationSearch}
                       onChange={setDestinationSearch}
                       onSuggestionSelect={handleDestinationSelect}
-                      serviceTypes={['tourist_attraction', 'point_of_interest', 'establishment']}
+                      serviceTypes={['locality', 'sublocality', 'tourist_attraction', 'park', 'museum']}
                       className="w-full"
                     />
                     {experienceData.destination && (
