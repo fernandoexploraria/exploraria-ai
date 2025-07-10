@@ -378,7 +378,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
 
           {/* Main Content */}
           <div className="col-span-9">
-            <Card className="flex flex-col h-[700px]">
+            <Card className="flex flex-col h-[1050px]">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <currentStepData.icon className="h-5 w-5" />
