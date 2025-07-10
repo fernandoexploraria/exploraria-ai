@@ -183,7 +183,7 @@ export const PromptSectionViewer: React.FC<PromptSectionViewerProps> = ({
                 {index === 0 && <Button variant="ghost" size="sm" onClick={() => onAiRefine?.()} className="h-8 w-8 p-0 bg-emerald-500 hover:bg-emerald-400">
                     <Sparkles className="h-4 w-4" />
                   </Button>}
-                {index === 1 && <Button variant="ghost" size="sm" onClick={() => onSection2Refine?.()} className="h-8 w-8 p-0">
+                {index === 1 && <Button variant="ghost" size="sm" onClick={() => onSection2Refine?.()} className="h-8 w-8 p-0 bg-emerald-500 hover:bg-emerald-400">
                     <Sparkles className="h-4 w-4" />
                   </Button>}
               </CardTitle>
