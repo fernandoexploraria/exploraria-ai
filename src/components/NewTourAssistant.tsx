@@ -463,7 +463,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
         <CleanDialogTitle className="sr-only">Tour Guide Assistant</CleanDialogTitle>
         <div className="flex items-center justify-center">
           <div className="relative flex items-center justify-center">
-            <div className={`w-48 h-48 rounded-full border-4 flex items-center justify-center transition-all duration-300 ${getCircleColor()}`}>
+            <div className={`w-48 h-48 rounded-full flex items-center justify-center transition-all duration-300 ${getCircleColor()}`}>
               <Button
                 onClick={assistantState === 'not-started' ? handleStartSession : () => {}}
                 disabled={conversation.status === 'connecting' || assistantState === 'listening' || assistantState === 'recording'}
