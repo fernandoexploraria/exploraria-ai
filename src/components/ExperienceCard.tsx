@@ -21,7 +21,7 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({ experience, onSelect })
   const photoUrl = getPhotoUrl(experience.photo);
 
   return (
-    <Card className="w-[280px] h-[320px] flex-shrink-0 overflow-hidden flex flex-col">
+    <Card className="w-[280px] h-[380px] flex-shrink-0 overflow-hidden flex flex-col">
       {photoUrl && (
         <div className="h-[160px] w-full overflow-hidden flex-shrink-0">
           <img 
