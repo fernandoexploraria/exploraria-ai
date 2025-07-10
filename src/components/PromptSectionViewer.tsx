@@ -7,6 +7,7 @@ import { Sparkles } from 'lucide-react';
 interface PromptSectionViewerProps {
   prompt: string;
   onAiRefine?: () => void;
+  onSection2Refine?: () => void;
 }
 
 interface PromptSection {
@@ -15,7 +16,7 @@ interface PromptSection {
   type: 'text' | 'json' | 'list';
 }
 
-export const PromptSectionViewer: React.FC<PromptSectionViewerProps> = ({ prompt, onAiRefine }) => {
+export const PromptSectionViewer: React.FC<PromptSectionViewerProps> = ({ prompt, onAiRefine, onSection2Refine }) => {
   const parsePromptIntoSections = (promptText: string): PromptSection[] => {
     if (!promptText.trim()) {
       return [];
@@ -216,6 +217,16 @@ export const PromptSectionViewer: React.FC<PromptSectionViewerProps> = ({ prompt
                     variant="ghost"
                     size="sm"
                     onClick={() => onAiRefine?.()}
+                    className="h-8 w-8 p-0"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                  </Button>
+                )}
+                {index === 1 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onSection2Refine?.()}
                     className="h-8 w-8 p-0"
                   >
                     <Sparkles className="h-4 w-4" />
