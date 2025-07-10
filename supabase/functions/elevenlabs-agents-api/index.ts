@@ -59,14 +59,27 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { action, agentId } = await req.json();
+    const requestBody = await req.json();
+    const { action, agentId } = requestBody;
+    
+    // COMPREHENSIVE DEBUGGING - Force redeployment
+    console.log('=== ELEVENLABS AGENTS API DEBUG v2.1 ===');
+    console.log('Request body:', JSON.stringify(requestBody));
+    console.log('Extracted action:', action);
+    console.log('Extracted agentId:', agentId);
+    console.log('Action type:', typeof action);
+    console.log('Action === "duplicate_agent":', action === 'duplicate_agent');
+    console.log('Available cases: list_agents, get_agent, duplicate_agent');
 
     switch (action) {
       case 'list_agents':
+        console.log('Executing list_agents case');
         return await listAgents(apiKey);
       
       case 'get_agent':
+        console.log('Executing get_agent case');
         if (!agentId) {
+          console.log('Error: agentId missing for get_agent');
           return new Response(
             JSON.stringify({ error: 'agentId is required for get_agent action' }),
             { 
@@ -78,7 +91,9 @@ Deno.serve(async (req) => {
         return await getAgent(apiKey, agentId);
       
       case 'duplicate_agent':
+        console.log('SUCCESS: Executing duplicate_agent case!');
         if (!agentId) {
+          console.log('Error: agentId missing for duplicate_agent');
           return new Response(
             JSON.stringify({ error: 'agentId is required for duplicate_agent action' }),
             { 
@@ -90,8 +105,15 @@ Deno.serve(async (req) => {
         return await duplicateAgent(apiKey, agentId);
       
       default:
+        console.log('ERROR: Hit default case with action:', action);
+        console.log('This means duplicate_agent case was not matched');
         return new Response(
-          JSON.stringify({ error: 'Invalid action. Supported actions: list_agents, get_agent, duplicate_agent' }),
+          JSON.stringify({ 
+            error: 'Invalid action. Supported actions: list_agents, get_agent, duplicate_agent',
+            received_action: action,
+            action_type: typeof action,
+            debug_timestamp: new Date().toISOString()
+          }),
           { 
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
