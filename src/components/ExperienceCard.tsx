@@ -52,7 +52,7 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({ experience, onSelect })
             variant="outline" 
             size="sm" 
             onClick={() => onSelect(experience)}
-            className="w-full"
+            className="w-full mb-2.5"
           >
             Generate Experience
           </Button>
