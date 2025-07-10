@@ -365,7 +365,13 @@ async function updateFirstMessage(apiKey: string, agentId: string, firstMessage:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        first_message: firstMessage
+        conversation_config: {
+          agent: {
+            prompt: {
+              first_message: firstMessage
+            }
+          }
+        }
       })
     });
 
