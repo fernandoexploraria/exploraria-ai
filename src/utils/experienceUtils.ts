@@ -86,7 +86,7 @@ export const fetchExperienceLandmarks = async (tourId: string): Promise<{ places
         editorialSummary: landmark.editorial_summary,
         website: landmark.website_uri,
         regularOpeningHours: landmark.opening_hours,
-        photos: Array.isArray(landmark.photos) ? landmark.photos.flat() : (landmark.photos ? [landmark.photos] : []),
+        photos: Array.isArray(landmark.photo_references) ? landmark.photo_references.flat() : (landmark.photo_references ? [landmark.photo_references] : []),
         searchRadius: null, // Not applicable for DB results
         maxResults: null, // Not applicable for DB results
         rawGooglePlacesData: landmark.raw_data
