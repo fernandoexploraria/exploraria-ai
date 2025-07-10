@@ -378,14 +378,14 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
 
           {/* Main Content */}
           <div className="col-span-9">
-            <Card>
+            <Card className="flex flex-col h-[700px]">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <currentStepData.icon className="h-5 w-5" />
                   <span>{currentStepData.title}</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6 max-h-[600px] overflow-y-auto">
+              <CardContent className="space-y-6 flex-1 overflow-y-auto">
                 {/* Step Content */}
                 {currentStep === 0 && (
                   <div className="space-y-4">
@@ -614,36 +614,36 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                     </div>
                   </div>
                 )}
-
-                {/* Navigation */}
-                <div className="flex justify-between pt-6 border-t">
-                  <Button
-                    variant="outline"
-                    onClick={() => handleStepChange(Math.max(0, currentStep - 1))}
-                    disabled={currentStep === 0}
-                  >
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Previous
-                  </Button>
-                  
-                  {isLastStep ? (
-                    <Button
-                      onClick={createExperience}
-                      disabled={!canProceed || isCreating}
-                    >
-                      {isCreating ? 'Creating...' : 'Create Experience'}
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={() => handleStepChange(currentStep + 1)}
-                      disabled={!canProceed}
-                    >
-                      Next
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
               </CardContent>
+              
+              {/* Fixed Navigation at Bottom */}
+              <div className="flex justify-between p-6 border-t bg-background">
+                <Button
+                  variant="outline"
+                  onClick={() => handleStepChange(Math.max(0, currentStep - 1))}
+                  disabled={currentStep === 0}
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Previous
+                </Button>
+                
+                {isLastStep ? (
+                  <Button
+                    onClick={createExperience}
+                    disabled={!canProceed || isCreating}
+                  >
+                    {isCreating ? 'Creating...' : 'Create Experience'}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => handleStepChange(currentStep + 1)}
+                    disabled={!canProceed}
+                  >
+                    Next
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </Card>
           </div>
         </div>
