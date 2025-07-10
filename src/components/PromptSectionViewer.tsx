@@ -221,11 +221,11 @@ export const PromptSectionViewer: React.FC<PromptSectionViewerProps> = ({ prompt
                 )}
               </CardTitle>
             </CardHeader>
-          <CardContent className="pt-0">
-            <div className="max-h-64 overflow-y-auto">
-              {formatContent(section.content, section.type)}
-            </div>
-          </CardContent>
+            <CardContent className="pt-0">
+              <div className="max-h-48 overflow-y-auto border rounded-lg p-3 bg-muted/30">
+                {formatContent(section.content, section.type)}
+              </div>
+            </CardContent>
         </Card>
       ))}
     </div>

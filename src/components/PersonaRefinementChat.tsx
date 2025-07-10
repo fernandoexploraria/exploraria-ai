@@ -23,31 +23,26 @@ interface PersonaRefinementChatProps {
   onPromptRefined: (refinedPrompt: string) => void;
 }
 
-const REFINEMENT_SYSTEM_PROMPT = `You are an expert AI Persona Development Assistant. Your primary goal is to collaboratively help a human tour guide (who is your user, hereafter referred to as the 'Creator') define and refine the detailed personality and role of their AI tour guide. The ultimate output will be a highly specific and actionable persona description suitable for integration into an AI system's primary system prompt.
+const REFINEMENT_SYSTEM_PROMPT = `You are an expert AI Persona Development Assistant. Your primary goal is to help refine ONLY the "Agent Persona & Role Definition" section (Section 1) of an AI tour guide's system prompt.
 
-The Creator will provide an initial, broad persona definition. Your task is to engage them in a structured conversation by asking a series of probing, insightful questions. Your questions must be designed to draw out nuanced details, practical implications for the AI's behavior in a travel context, and unique selling propositions.
+Your task is to engage the Creator in a structured conversation to refine the persona and role definition specifically. Focus on:
 
-Key Constraints & Focus Areas for Refinement:
+1. Core personality traits and characteristics
+2. Professional demeanor and communication style  
+3. Unique voice and approach to guiding tourists
+4. Emotional tone and energy level
+5. Cultural sensitivity and inclusiveness
 
-Travel Experience Focus: Every question should directly relate to the AI's role in guiding users through a physical location, informing about landmarks, ensuring visitor experience (safety, comfort, enjoyment), and maintaining engagement during a live tour.
+Do NOT modify or discuss other sections like landmarks, functions, or technical instructions - focus ONLY on the persona and role definition.
 
-AI Actionability: Questions should elicit details that can be translated into concrete AI conversational style, information delivery patterns, and responses to unexpected situations.
+Key Constraints:
+- Keep responses concise and focused on personality refinement
+- Ask one main question at a time
+- Elicit specific examples of how personality traits manifest in conversations
+- Help differentiate this AI guide from generic tour guides
+- Ensure the refined persona is actionable for AI implementation
 
-Uniqueness & Differentiation: Help the Creator articulate what makes their AI guide stand out from a generic tour guide.
-
-Problem Solving: Explore how the AI should handle common tour guide challenges (e.g., off-topic questions, user frustration, safety advice, managing pace).
-
-Your Conversational Process:
-
-Start Broad, Then Drill Down: Begin with high-level questions, then ask follow-up questions to delve into specifics based on the Creator's answers.
-
-Elicit Examples: Encourage the Creator to provide concrete examples or analogies (e.g., "Can you give an example of how your guide would express enthusiasm for a historical fact?").
-
-Focus on Behavior: Translate personality traits into observable behaviors for an AI (e.g., "How does a 'humorous' guide express humor in a way that's appropriate for a historical site?").
-
-Propose Summaries: After a few rounds of questions, offer a synthesized summary of the refined persona, and ask for the Creator's feedback for further iteration.
-
-Be conversational, engaging, and focus on one main question at a time. Keep responses concise but insightful.`;
+When you provide the final refined section, make it comprehensive but focused only on the Agent Persona & Role Definition.`;
 
 export const PersonaRefinementChat: React.FC<PersonaRefinementChatProps> = ({
   isOpen,
@@ -82,16 +77,48 @@ export const PersonaRefinementChat: React.FC<PersonaRefinementChatProps> = ({
     }
   }, [isOpen]);
 
+  const extractSection1 = (promptText: string): string => {
+    const lines = promptText.split('\n');
+    // Section 1 is typically the first 3 lines or until the first section marker
+    const sectionEndIndex = lines.findIndex((line, index) => 
+      index > 2 && (line.includes('**Your Core Mission:**') || line.includes('**Core Mission'))
+    );
+    
+    if (sectionEndIndex === -1) {
+      // If no clear section marker found, take first 3 lines
+      return lines.slice(0, 3).join('\n');
+    }
+    
+    return lines.slice(0, sectionEndIndex).join('\n');
+  };
+
+  const integrateRefinedSection1 = (originalPrompt: string, refinedSection1: string): string => {
+    const lines = originalPrompt.split('\n');
+    const sectionEndIndex = lines.findIndex((line, index) => 
+      index > 2 && (line.includes('**Your Core Mission:**') || line.includes('**Core Mission'))
+    );
+    
+    if (sectionEndIndex === -1) {
+      // If no clear section marker, replace first 3 lines
+      return [refinedSection1, ...lines.slice(3)].join('\n');
+    }
+    
+    // Replace Section 1 and keep the rest
+    return [refinedSection1, ...lines.slice(sectionEndIndex)].join('\n');
+  };
+
   const initializeConversation = async () => {
-    const contextualPrompt = `I need help refining the AI persona for a tour guide experience. Here's my current setup:
+    const section1Content = extractSection1(initialPrompt);
+    
+    const contextualPrompt = `I need help refining the Agent Persona & Role Definition (Section 1) for my AI tour guide. Here's my current setup:
 
 Destination: ${destination}
 Landmarks included: ${landmarks.map(l => l.name).join(', ')}
 
-Current AI persona definition:
-"${initialPrompt}"
+Current Section 1 - Agent Persona & Role Definition:
+"${section1Content}"
 
-Please analyze this initial persona and help me refine it into something more detailed and effective.`;
+Please analyze this persona definition and help me refine it to be more detailed, specific, and effective for an AI tour guide. Focus only on personality, communication style, and role characteristics.`;
 
     const response = await callGemini(contextualPrompt, REFINEMENT_SYSTEM_PROMPT);
     
@@ -151,18 +178,22 @@ Please analyze this initial persona and help me refine it into something more de
       .map(msg => `${msg.role === 'user' ? 'Creator' : 'Assistant'}: ${msg.content}`)
       .join('\n\n');
 
-    const finalPrompt = `Based on our conversation, please generate the final, refined AI persona system prompt. Make it comprehensive, actionable, and ready to use as a system prompt for the AI tour guide. Include all the specific details we've discussed about personality, interaction style, knowledge delivery, and unique characteristics.
+    const finalPrompt = `Based on our conversation, please generate the final, refined Agent Persona & Role Definition section. This should be a comprehensive personality and role description that will replace Section 1 of the AI tour guide's system prompt.
+
+Focus ONLY on the persona and role definition - do not include landmarks, functions, or technical instructions.
 
 Here's our conversation:
 ${conversationContext}
 
-Please provide ONLY the final system prompt, no additional explanation.`;
+Please provide ONLY the refined Agent Persona & Role Definition section text, no additional explanation or formatting.`;
 
     const response = await callGemini(finalPrompt, REFINEMENT_SYSTEM_PROMPT);
     
     if (response) {
-      onPromptRefined(response);
-      toast.success('System prompt has been refined and updated!');
+      // Integrate the refined Section 1 back into the full original prompt
+      const updatedFullPrompt = integrateRefinedSection1(initialPrompt, response);
+      onPromptRefined(updatedFullPrompt);
+      toast.success('Section 1 has been refined and integrated into the full system prompt!');
       onClose();
     }
   };
