@@ -172,7 +172,7 @@ export const PromptSectionViewer: React.FC<PromptSectionViewerProps> = ({
   }
   return <div className="grid gap-4">
       {sections.map((section, index) => <Card key={index} className="overflow-hidden">
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-3 bg-slate-600">
               <CardTitle className="text-base flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-xs">
