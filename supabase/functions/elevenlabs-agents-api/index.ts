@@ -208,75 +208,35 @@ async function duplicateAgent(apiKey: string, sourceAgentId: string) {
   try {
     console.log(`Starting agent duplication for agent: ${sourceAgentId}`);
     
-    // First, get the source agent configuration
-    const sourceResponse = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${sourceAgentId}`, {
-      method: 'GET',
-      headers: {
-        'xi-api-key': apiKey,
-        'Content-Type': 'application/json',
-      }
-    });
-
-    if (!sourceResponse.ok) {
-      const errorText = await sourceResponse.text();
-      console.error(`Failed to get source agent: ${sourceResponse.status} ${errorText}`);
-      throw new Error(`Failed to get source agent: ${sourceResponse.status} ${errorText}`);
-    }
-
-    const sourceAgent = await sourceResponse.json();
-    console.log(`Retrieved source agent: ${sourceAgent.name}`);
-    
-    // Create a new agent with the same configuration but a different name
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
-    const newAgentData = {
-      name: `${sourceAgent.name} (Copy ${timestamp})`,
-      conversation_config: sourceAgent.conversation_config,
-      // Add any missing required fields that might be needed
-      platform_settings: sourceAgent.platform_settings || {}
-    };
-
-    console.log(`Creating new agent with name: ${newAgentData.name}`);
-    console.log('Request payload:', JSON.stringify(newAgentData, null, 2));
-
-    // Create the new agent - try the correct ElevenLabs endpoint
-    const createResponse = await fetch('https://api.elevenlabs.io/v1/convai/agents', {
+    // Use the dedicated duplicate endpoint - much simpler!
+    const duplicateResponse = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${sourceAgentId}/duplicate`, {
       method: 'POST',
       headers: {
         'xi-api-key': apiKey,
         'Content-Type': 'application/json',
-        'Accept': 'application/json'
       },
-      body: JSON.stringify(newAgentData)
+      body: JSON.stringify({})
     });
 
-    console.log(`Create response status: ${createResponse.status}`);
+    console.log(`Duplicate response status: ${duplicateResponse.status}`);
     
-    if (!createResponse.ok) {
-      const errorText = await createResponse.text();
-      console.error(`Failed to create duplicate agent: ${createResponse.status} ${errorText}`);
-      
-      // Try to get more detailed error information
-      let errorDetails;
-      try {
-        errorDetails = JSON.parse(errorText);
-      } catch {
-        errorDetails = errorText;
-      }
-      
-      throw new Error(`Failed to create duplicate agent: ${createResponse.status} ${JSON.stringify(errorDetails)}`);
+    if (!duplicateResponse.ok) {
+      const errorText = await duplicateResponse.text();
+      console.error(`Failed to duplicate agent: ${duplicateResponse.status} ${errorText}`);
+      throw new Error(`Failed to duplicate agent: ${duplicateResponse.status} ${errorText}`);
     }
 
-    const newAgent = await createResponse.json();
-    console.log(`Successfully created duplicate agent with ID: ${newAgent.agent_id}`);
+    const duplicatedAgent = await duplicateResponse.json();
+    console.log(`Successfully duplicated agent with ID: ${duplicatedAgent.agent_id}`);
     
     return new Response(
       JSON.stringify({
         success: true,
         message: 'Agent duplicated successfully',
         source_agent_id: sourceAgentId,
-        agent_id: newAgent.agent_id,
-        agent_url: newAgent.agent_url,
-        name: newAgentData.name
+        agent_id: duplicatedAgent.agent_id,
+        agent_url: duplicatedAgent.agent_url || `https://elevenlabs.io/convai/agents/${duplicatedAgent.agent_id}`,
+        name: duplicatedAgent.name || 'Duplicated Agent'
       }),
       { 
         status: 200,
