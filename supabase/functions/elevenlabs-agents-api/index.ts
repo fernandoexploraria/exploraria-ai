@@ -128,12 +128,36 @@ Deno.serve(async (req) => {
         }
         return await renameAgent(apiKey, agentId, newName);
       
+      case 'update_first_message':
+        console.log('Executing update_first_message case');
+        if (!agentId) {
+          console.log('Error: agentId missing for update_first_message');
+          return new Response(
+            JSON.stringify({ error: 'agentId is required for update_first_message action' }),
+            { 
+              status: 400, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+        const { firstMessage } = requestBody;
+        if (!firstMessage) {
+          return new Response(
+            JSON.stringify({ error: 'firstMessage is required for update_first_message action' }),
+            { 
+              status: 400, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+        return await updateFirstMessage(apiKey, agentId, firstMessage);
+      
       default:
         console.log('ERROR: Hit default case with action:', action);
         console.log('This means duplicate_agent case was not matched');
         return new Response(
           JSON.stringify({ 
-            error: 'Invalid action. Supported actions: list_agents, get_agent, duplicate_agent, rename_agent',
+            error: 'Invalid action. Supported actions: list_agents, get_agent, duplicate_agent, rename_agent, update_first_message',
             received_action: action,
             action_type: typeof action,
             debug_timestamp: new Date().toISOString()
@@ -320,6 +344,57 @@ async function renameAgent(apiKey: string, agentId: string, newName: string) {
     );
   } catch (error) {
     console.error('Error renaming agent:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
+  }
+}
+
+async function updateFirstMessage(apiKey: string, agentId: string, firstMessage: string) {
+  try {
+    console.log(`Starting first message update for agent: ${agentId} to message: ${firstMessage}`);
+    
+    const response = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, {
+      method: 'PATCH',
+      headers: {
+        'xi-api-key': apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        first_message: firstMessage
+      })
+    });
+
+    console.log(`Update first message response status: ${response.status}`);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Failed to update first message: ${response.status} ${errorText}`);
+      throw new Error(`Failed to update first message: ${response.status} ${errorText}`);
+    }
+
+    const updatedAgent = await response.json();
+    console.log(`Successfully updated first message for agent: ${updatedAgent.name}`);
+    
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'First message updated successfully',
+        agent_id: updatedAgent.agent_id,
+        first_message: updatedAgent.first_message,
+        agent_url: updatedAgent.agent_url || `https://elevenlabs.io/convai/agents/${updatedAgent.agent_id}`
+      }),
+      { 
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
+  } catch (error) {
+    console.error('Error updating first message:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { 

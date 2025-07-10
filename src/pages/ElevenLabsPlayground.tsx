@@ -3,8 +3,9 @@ import { useAuth } from '@/components/AuthProvider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowLeft, Bot, Wrench, BookOpen, Play, AlertCircle, Copy, Users, Check, Edit } from 'lucide-react';
+import { ArrowLeft, Bot, Wrench, BookOpen, Play, AlertCircle, Copy, Users, Check, Edit, MessageCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,6 +21,8 @@ const ElevenLabsPlayground: React.FC = () => {
   const [knowledgeData, setKnowledgeData] = useState(null);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [newAgentName, setNewAgentName] = useState('');
+  const [firstMessageDialogOpen, setFirstMessageDialogOpen] = useState(false);
+  const [firstMessage, setFirstMessage] = useState('');
 
   const testApiConnection = async () => {
     setLoading(true);
@@ -213,6 +216,57 @@ const ElevenLabsPlayground: React.FC = () => {
     }
     setNewAgentName(selectedAgent.name);
     setRenameDialogOpen(true);
+  };
+
+  const openFirstMessageDialog = () => {
+    if (!selectedAgent) {
+      toast({
+        title: "No Agent Selected",
+        description: "Please select an agent first",
+        variant: "destructive"
+      });
+      return;
+    }
+    // Get current first message from agent data if available
+    setFirstMessage(agentData?.first_message || '');
+    setFirstMessageDialogOpen(true);
+  };
+
+  const updateFirstMessage = async () => {
+    if (!selectedAgent || !firstMessage.trim()) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('elevenlabs-agents-api', {
+        body: { 
+          action: 'update_first_message',
+          agentId: selectedAgent.agent_id,
+          firstMessage: firstMessage.trim()
+        }
+      });
+
+      if (error) throw error;
+      
+      toast({
+        title: "First Message Updated",
+        description: "Agent's first message has been updated successfully",
+      });
+      
+      setFirstMessageDialogOpen(false);
+      // Refresh agent data to see the updated first message
+      fetchAgentInfo();
+    } catch (error) {
+      console.error('First message update error:', error);
+      toast({
+        title: "Failed to Update First Message",
+        description: "Could not update the agent's first message",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const renameAgent = async () => {
@@ -435,6 +489,10 @@ const ElevenLabsPlayground: React.FC = () => {
                 <Edit className="mr-2 h-4 w-4" />
                 Rename Agent
               </Button>
+              <Button onClick={openFirstMessageDialog} disabled={loading} variant="outline">
+                <MessageCircle className="mr-2 h-4 w-4" />
+                First Message
+              </Button>
             </div>
             
             {agentData && (
@@ -548,6 +606,46 @@ const ElevenLabsPlayground: React.FC = () => {
               disabled={loading || !newAgentName.trim()}
             >
               {loading ? 'Renaming...' : 'Rename Agent'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* First Message Dialog */}
+      <Dialog open={firstMessageDialogOpen} onOpenChange={setFirstMessageDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit First Message</DialogTitle>
+            <DialogDescription>
+              Edit the first message for agent: {selectedAgent?.name}
+              <br />
+              <span className="text-sm text-muted-foreground mt-1 block">
+                Note: The {"{{destination}}"} variable will be dynamically replaced when calling the agent.
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Textarea
+              value={firstMessage}
+              onChange={(e) => setFirstMessage(e.target.value)}
+              placeholder="Enter the first message..."
+              className="w-full min-h-[100px]"
+              rows={4}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setFirstMessageDialogOpen(false)}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={updateFirstMessage}
+              disabled={loading || !firstMessage.trim()}
+            >
+              {loading ? 'Updating...' : 'Update First Message'}
             </Button>
           </DialogFooter>
         </DialogContent>
