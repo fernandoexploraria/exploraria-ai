@@ -259,11 +259,12 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
               price_level: mapPriceLevel(landmarkDetails.data.priceLevel),
               user_ratings_total: landmarkDetails.data.userRatingsTotal,
               website_uri: landmarkDetails.data.website,
-              opening_hours: landmarkDetails.data.regularOpeningHours || null, // Match Smart Tour field name
+              opening_hours: landmarkDetails.data.openingHours || null, // Correct field name from API
               editorial_summary: landmarkDetails.data.editorialSummary,
-              photo_references: landmarkDetails.data.photos?.map((p: any) => p.name) || [], // Same format as Smart Tour
-              // Photos field (same as Smart Tour)
-              photos: landmarkDetails.data.photoUrl ? [landmarkDetails.data.photoUrl] : [],
+              // Extract photo references from raw Google Places data (before URL conversion)
+              photo_references: landmarkDetails.rawGooglePlacesData?.photos?.map((p: any) => p.name) || [],
+              // Photos field (processed URLs from API)
+              photos: landmarkDetails.data.photos || [],
               formatted_address: landmarkDetails.data.vicinity || landmarkDetails.data.address, // Match Smart Tour priority
               types: landmark.types || [],
               place_id: landmark.place_id,
