@@ -8,6 +8,7 @@ import { AuthProvider } from "@/components/AuthProvider";
 import { TTSProvider } from "@/contexts/TTSContext";
 import { PostAuthAction } from "@/utils/authActions";
 import Index from "./pages/Index";
+import CuratorPortal from "./pages/CuratorPortal";
 import { useState } from "react";
 
 const queryClient = new QueryClient();
@@ -52,6 +53,10 @@ const App = () => {
                       onVoiceAgentStateChange={setIsVoiceAgentActive}
                     />
                   }
+                />
+                <Route 
+                  path="/curator-portal" 
+                  element={<CuratorPortal />} 
                 />
               </Routes>
             </AuthProvider>
