@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Bot, Wrench, BookOpen, Play, AlertCircle, Copy } from 'lucide-react';
+import { ArrowLeft, Bot, Wrench, BookOpen, Play, AlertCircle, Copy, Users, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,11 +11,11 @@ const ElevenLabsPlayground: React.FC = () => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [agentsList, setAgentsList] = useState([]);
+  const [selectedAgent, setSelectedAgent] = useState(null);
   const [agentData, setAgentData] = useState(null);
   const [toolsData, setToolsData] = useState(null);
   const [knowledgeData, setKnowledgeData] = useState(null);
-
-  const EXISTING_AGENT_ID = 'agent_01jxtaz7mkfwzrefsdqsy3fdwe';
 
   const testApiConnection = async () => {
     setLoading(true);
@@ -43,13 +43,61 @@ const ElevenLabsPlayground: React.FC = () => {
     }
   };
 
+  const fetchAgentsList = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('elevenlabs-agents-api', {
+        body: { action: 'list_agents' }
+      });
+
+      if (error) throw error;
+      setAgentsList(data.agents || []);
+      
+      // Auto-select the first agent if none is selected
+      if (!selectedAgent && data.agents && data.agents.length > 0) {
+        setSelectedAgent(data.agents[0]);
+      }
+      
+      toast({
+        title: "Agents List Retrieved",
+        description: `Found ${data.agents?.length || 0} agents`,
+      });
+    } catch (error) {
+      console.error('Agents list fetch error:', error);
+      toast({
+        title: "Failed to Fetch Agents",
+        description: "Could not retrieve agents list",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Clear dependent data when agent selection changes
+  const handleAgentSelection = (agent: any) => {
+    setSelectedAgent(agent);
+    setAgentData(null);
+    setToolsData(null);
+    setKnowledgeData(null);
+  };
+
   const fetchAgentInfo = async () => {
+    if (!selectedAgent) {
+      toast({
+        title: "No Agent Selected",
+        description: "Please select an agent first",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('elevenlabs-agents-api', {
         body: { 
           action: 'get_agent',
-          agentId: EXISTING_AGENT_ID
+          agentId: selectedAgent.agent_id
         }
       });
 
@@ -73,12 +121,21 @@ const ElevenLabsPlayground: React.FC = () => {
   };
 
   const fetchAgentTools = async () => {
+    if (!selectedAgent) {
+      toast({
+        title: "No Agent Selected",
+        description: "Please select an agent first",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('elevenlabs-tools-api', {
         body: { 
           action: 'list_agent_tools',
-          agentId: EXISTING_AGENT_ID
+          agentId: selectedAgent.agent_id
         }
       });
 
@@ -102,12 +159,21 @@ const ElevenLabsPlayground: React.FC = () => {
   };
 
   const duplicateAgent = async () => {
+    if (!selectedAgent) {
+      toast({
+        title: "No Agent Selected",
+        description: "Please select an agent first",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('elevenlabs-agents-api', {
         body: { 
           action: 'duplicate_agent',
-          agentId: EXISTING_AGENT_ID
+          agentId: selectedAgent.agent_id
         }
       });
 
@@ -117,6 +183,9 @@ const ElevenLabsPlayground: React.FC = () => {
         title: "Agent Duplicated",
         description: `New agent created with ID: ${data.agent_id}`,
       });
+      
+      // Refresh the agents list to show the new agent
+      fetchAgentsList();
     } catch (error) {
       console.error('Agent duplication error:', error);
       toast({
@@ -130,12 +199,21 @@ const ElevenLabsPlayground: React.FC = () => {
   };
 
   const fetchKnowledgeBase = async () => {
+    if (!selectedAgent) {
+      toast({
+        title: "No Agent Selected",
+        description: "Please select an agent first",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
         body: { 
           action: 'list_documents',
-          agentId: EXISTING_AGENT_ID
+          agentId: selectedAgent.agent_id
         }
       });
 
@@ -226,15 +304,66 @@ const ElevenLabsPlayground: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Agent Information */}
+        {/* Agents List */}
         <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Users className="h-5 w-5" />
+              <span>Available Agents</span>
+            </CardTitle>
+            <CardDescription>
+              Select an agent to work with from your ElevenLabs account
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button onClick={fetchAgentsList} disabled={loading}>
+              <Play className="mr-2 h-4 w-4" />
+              Load Agents List
+            </Button>
+            
+            {agentsList.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="font-semibold">Select an Agent:</h4>
+                <div className="grid gap-2 max-h-60 overflow-y-auto">
+                  {agentsList.map((agent: any) => (
+                    <div
+                      key={agent.agent_id}
+                      className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                        selectedAgent?.agent_id === agent.agent_id
+                          ? 'bg-primary/10 border-primary'
+                          : 'bg-muted hover:bg-muted/80 border-border'
+                      }`}
+                      onClick={() => handleAgentSelection(agent)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">{agent.name}</p>
+                          <p className="text-sm text-muted-foreground">ID: {agent.agent_id}</p>
+                        </div>
+                        {selectedAgent?.agent_id === agent.agent_id && (
+                          <Check className="h-4 w-4 text-primary" />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Agent Information */}
+        <Card className={selectedAgent ? '' : 'opacity-50 pointer-events-none'}>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Bot className="h-5 w-5" />
               <span>Agent Information</span>
             </CardTitle>
             <CardDescription>
-              Get information about agent: {EXISTING_AGENT_ID}
+              {selectedAgent 
+                ? `Get information about agent: ${selectedAgent.name} (${selectedAgent.agent_id})`
+                : 'Select an agent first to view its information'
+              }
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -263,14 +392,17 @@ const ElevenLabsPlayground: React.FC = () => {
         </Card>
 
         {/* Tools Management */}
-        <Card>
+        <Card className={selectedAgent ? '' : 'opacity-50 pointer-events-none'}>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Wrench className="h-5 w-5" />
               <span>Agent Tools</span>
             </CardTitle>
             <CardDescription>
-              List and manage tools for the agent
+              {selectedAgent 
+                ? `List and manage tools for agent: ${selectedAgent.name}`
+                : 'Select an agent first to view its tools'
+              }
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -293,14 +425,17 @@ const ElevenLabsPlayground: React.FC = () => {
         </Card>
 
         {/* Knowledge Base */}
-        <Card>
+        <Card className={selectedAgent ? '' : 'opacity-50 pointer-events-none'}>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <BookOpen className="h-5 w-5" />
               <span>Knowledge Base</span>
             </CardTitle>
             <CardDescription>
-              Manage the agent's knowledge base documents
+              {selectedAgent 
+                ? `Manage knowledge base documents for agent: ${selectedAgent.name}`
+                : 'Select an agent first to view its knowledge base'
+              }
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
