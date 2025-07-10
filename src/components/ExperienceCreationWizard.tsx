@@ -10,6 +10,7 @@ import ProximityAutocomplete from '@/components/ProximityAutocomplete';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { toast } from 'sonner';
+import { getHierarchicalLandmarkTypes, calculateDistance } from '@/utils/landmarkTypeHierarchy';
 
 interface ExperienceCreationWizardProps {
   onClose: () => void;
@@ -20,6 +21,10 @@ interface AutocompleteSuggestion {
   place_id: string;
   description: string;
   types: string[];
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
   structured_formatting?: {
     main_text: string;
     secondary_text: string;
@@ -31,6 +36,10 @@ interface Landmark {
   name: string;
   description: string;
   types: string[];
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
 }
 
 interface ExperienceData {
@@ -86,6 +95,11 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
     const initialPrompt = generateInitialSystemPrompt(suggestion.description);
     setExperienceData(prev => ({ ...prev, systemPrompt: initialPrompt }));
     
+    // Store destination coordinates for landmark location bias
+    if (suggestion.coordinates) {
+      console.log('🗺️ Destination coordinates captured:', suggestion.coordinates);
+    }
+    
     // Auto-advance to next step
     setTimeout(() => setCurrentStep(1), 500);
   };
@@ -96,6 +110,7 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
       name: suggestion.structured_formatting?.main_text || suggestion.description,
       description: suggestion.description,
       types: suggestion.types,
+      coordinates: suggestion.coordinates,
     };
     
     setExperienceData(prev => ({
@@ -341,29 +356,62 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                       value={landmarkSearch}
                       onChange={setLandmarkSearch}
                       onSuggestionSelect={handleLandmarkSelect}
-                      serviceTypes={['tourist_attraction', 'museum', 'point_of_interest', 'establishment']}
+                      serviceTypes={
+                        experienceData.destination?.types 
+                          ? getHierarchicalLandmarkTypes(experienceData.destination.types)
+                          : ['tourist_attraction', 'museum', 'point_of_interest', 'establishment']
+                      }
+                      locationBias={
+                        experienceData.destination?.coordinates 
+                          ? {
+                              circle: {
+                                center: experienceData.destination.coordinates,
+                                radius: 8000 // 8km radius around destination
+                              }
+                            }
+                          : undefined
+                      }
                       className="w-full"
                     />
                     
                     {experienceData.landmarks.length > 0 && (
                       <div className="space-y-2">
                         <h4 className="font-medium">Selected Landmarks ({experienceData.landmarks.length})</h4>
-                        <div className="space-y-2">
-                          {experienceData.landmarks.map((landmark) => (
-                            <div key={landmark.place_id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                              <div>
-                                <p className="font-medium">{landmark.name}</p>
-                                <p className="text-sm text-muted-foreground">{landmark.description}</p>
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeLandmark(landmark.place_id)}
-                              >
-                                Remove
-                              </Button>
-                            </div>
-                          ))}
+                         <div className="space-y-2">
+                           {experienceData.landmarks.map((landmark) => {
+                             // Calculate distance from destination if both have coordinates
+                             const distance = (experienceData.destination?.coordinates && landmark.coordinates) 
+                               ? calculateDistance(
+                                   experienceData.destination.coordinates.latitude,
+                                   experienceData.destination.coordinates.longitude,
+                                   landmark.coordinates.latitude,
+                                   landmark.coordinates.longitude
+                                 )
+                               : null;
+                             
+                             return (
+                               <div key={landmark.place_id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                                 <div className="flex-1">
+                                   <div className="flex items-center gap-2 mb-1">
+                                     <p className="font-medium">{landmark.name}</p>
+                                     {distance && (
+                                       <Badge variant="outline" className="text-xs">
+                                         {distance < 1 ? `${(distance * 1000).toFixed(0)}m` : `${distance}km`}
+                                       </Badge>
+                                     )}
+                                   </div>
+                                   <p className="text-sm text-muted-foreground">{landmark.description}</p>
+                                 </div>
+                                 <Button
+                                   variant="ghost"
+                                   size="sm"
+                                   onClick={() => removeLandmark(landmark.place_id)}
+                                 >
+                                   Remove
+                                 </Button>
+                               </div>
+                             );
+                           })}
                         </div>
                       </div>
                     )}

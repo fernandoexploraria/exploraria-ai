@@ -9,6 +9,10 @@ interface AutocompleteSuggestion {
   place_id: string;
   description: string;
   types: string[];
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
   structured_formatting?: {
     main_text: string;
     secondary_text: string;
@@ -79,6 +83,7 @@ const ProximityAutocomplete: React.FC<ProximityAutocompleteProps> = ({
           place_id: prediction.place_id,
           description: prediction.description,
           types: prediction.types || [],
+          coordinates: prediction.coordinates || null,
           structured_formatting: prediction.structured_formatting || {
             main_text: prediction.description,
             secondary_text: ''
