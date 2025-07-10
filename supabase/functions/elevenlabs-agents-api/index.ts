@@ -230,25 +230,40 @@ async function duplicateAgent(apiKey: string, sourceAgentId: string) {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
     const newAgentData = {
       name: `${sourceAgent.name} (Copy ${timestamp})`,
-      conversation_config: sourceAgent.conversation_config
+      conversation_config: sourceAgent.conversation_config,
+      // Add any missing required fields that might be needed
+      platform_settings: sourceAgent.platform_settings || {}
     };
 
     console.log(`Creating new agent with name: ${newAgentData.name}`);
+    console.log('Request payload:', JSON.stringify(newAgentData, null, 2));
 
-    // Create the new agent
+    // Create the new agent - try the correct ElevenLabs endpoint
     const createResponse = await fetch('https://api.elevenlabs.io/v1/convai/agents', {
       method: 'POST',
       headers: {
         'xi-api-key': apiKey,
         'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
       body: JSON.stringify(newAgentData)
     });
 
+    console.log(`Create response status: ${createResponse.status}`);
+    
     if (!createResponse.ok) {
       const errorText = await createResponse.text();
       console.error(`Failed to create duplicate agent: ${createResponse.status} ${errorText}`);
-      throw new Error(`Failed to create duplicate agent: ${createResponse.status} ${errorText}`);
+      
+      // Try to get more detailed error information
+      let errorDetails;
+      try {
+        errorDetails = JSON.parse(errorText);
+      } catch {
+        errorDetails = errorText;
+      }
+      
+      throw new Error(`Failed to create duplicate agent: ${createResponse.status} ${JSON.stringify(errorDetails)}`);
     }
 
     const newAgent = await createResponse.json();
