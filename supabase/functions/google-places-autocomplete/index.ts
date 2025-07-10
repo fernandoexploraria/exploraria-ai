@@ -118,9 +118,9 @@ serve(async (req) => {
 
     console.log('🚀 DEBUG: Final request body:', JSON.stringify(googleRequestBody, null, 2))
 
-    // FIXED: Use CORRECT field mask for the NEW Google Places API with types and geometry included
-    const fieldMask = 'suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.types,suggestions.placePrediction.place'
-    console.log('🚀 DEBUG: Using enhanced field mask with types and geometry:', fieldMask)
+    // FIXED: Use CORRECT field mask for the NEW Google Places API with types included
+    const fieldMask = 'suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.types'
+    console.log('🚀 DEBUG: Using enhanced field mask with types:', fieldMask)
 
     console.log('🚀 DEBUG: Making Google API request...')
     
@@ -204,11 +204,8 @@ serve(async (req) => {
         // CRITICAL: Extract types from the API response
         const types = placePrediction.types || []
         
-        // Extract coordinates from place geometry (backwards compatible)
-        const coordinates = placePrediction.place?.location ? {
-          latitude: placePrediction.place.location.latitude,
-          longitude: placePrediction.place.location.longitude
-        } : null
+        // Note: Coordinates will be fetched separately using place details API when needed
+        console.log(`📍 DEBUG: Place ${i + 1} processed without coordinates (will fetch via details API if needed)`)
         
         // Enhanced logging for type debugging
         console.log(`🔍 ICON DEBUG ${i + 1}: "${displayText}"`)
@@ -224,7 +221,6 @@ serve(async (req) => {
           place_id: placeId,
           description: displayText,
           types: types, // Now we're getting real types from Google!
-          coordinates: coordinates, // Add coordinates (backwards compatible)
           structured_formatting: {
             main_text: displayText,
             secondary_text: ''

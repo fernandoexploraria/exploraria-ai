@@ -48,11 +48,47 @@ serve(async (req) => {
   }
 
   try {
-    const { placeId, landmarkName, coordinates } = await req.json()
+    const { placeId, landmarkName, coordinates, coordinatesOnly } = await req.json()
     const googleApiKey = Deno.env.get('GOOGLE_API_KEY')
     
     if (!googleApiKey) {
       throw new Error('Google API key not configured')
+    }
+
+    // Handle lightweight coordinates-only request
+    if (coordinatesOnly && placeId) {
+      console.log('🚀 Fetching coordinates only for place:', placeId)
+      
+      const detailsUrl = `https://places.googleapis.com/v1/places/${placeId}`
+      
+      const detailsResponse = await fetch(detailsUrl, {
+        method: 'GET',
+        headers: {
+          'X-Goog-Api-Key': googleApiKey,
+          'X-Goog-FieldMask': 'location'
+        }
+      })
+      
+      if (detailsResponse.ok) {
+        const placeData = await detailsResponse.json()
+        console.log('📍 Successfully fetched coordinates for:', placeId)
+        
+        return new Response(
+          JSON.stringify({ 
+            place: {
+              place_id: placeId,
+              coordinates: placeData.location ? {
+                latitude: placeData.location.latitude,
+                longitude: placeData.location.longitude
+              } : null
+            },
+            success: true 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      } else {
+        console.error('Places API coordinates error:', await detailsResponse.text())
+      }
     }
 
     let placeDetails: any = null

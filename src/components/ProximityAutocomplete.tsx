@@ -56,7 +56,22 @@ const ProximityAutocomplete: React.FC<ProximityAutocompleteProps> = ({
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<NodeJS.Timeout>();
 
-  // Debounced search function
+  // Enhanced to fetch coordinates when needed for location bias
+  const fetchPlaceCoordinates = async (placeId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('google-places-details', {
+        body: { placeId, coordinatesOnly: true }
+      });
+
+      if (error) throw error;
+      
+      return data?.place?.coordinates || null;
+    } catch (error) {
+      console.error('Failed to fetch place coordinates:', error);
+      return null;
+    }
+  };
+
   const debouncedSearch = useCallback(async (query: string) => {
     if (query.length < 2) {
       setSuggestions([]);
@@ -83,7 +98,6 @@ const ProximityAutocomplete: React.FC<ProximityAutocompleteProps> = ({
           place_id: prediction.place_id,
           description: prediction.description,
           types: prediction.types || [],
-          coordinates: prediction.coordinates || null,
           structured_formatting: prediction.structured_formatting || {
             main_text: prediction.description,
             secondary_text: ''
@@ -155,10 +169,19 @@ const ProximityAutocomplete: React.FC<ProximityAutocompleteProps> = ({
   };
 
   // Handle suggestion selection
-  const handleSuggestionClick = (suggestion: AutocompleteSuggestion) => {
+  const handleSuggestionClick = async (suggestion: AutocompleteSuggestion) => {
     onChange(suggestion.description);
     setShowSuggestions(false);
     setSelectedIndex(-1);
+    
+    // Fetch coordinates if not already available and needed
+    if (!suggestion.coordinates) {
+      const coordinates = await fetchPlaceCoordinates(suggestion.place_id);
+      if (coordinates) {
+        suggestion.coordinates = coordinates;
+      }
+    }
+    
     onSuggestionSelect(suggestion);
   };
 
