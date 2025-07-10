@@ -68,29 +68,29 @@ export const fetchExperienceLandmarks = async (tourId: string): Promise<{ places
         return null;
       }
 
-      // Clean 1:1 mapping to match the required interface structure
-      const mappedLandmark = {
-        placeId: landmark.place_id,
-        name: landmark.name,
-        rating: landmark.rating,
-        userRatingsTotal: landmark.user_ratings_total,
-        priceLevel: landmark.price_level,
-        types: landmark.types || [],
-        vicinity: landmark.formatted_address || null,
-        openNow: null, // Not stored in database
-        photoReference: landmark.photo_references?.[0] || null,
-        photoUrl: Array.isArray(landmark.photos) ? landmark.photos.flat()[0] : landmark.photos,
-        geometry: {
-          location: { lng, lat }
-        },
-        editorialSummary: landmark.editorial_summary,
-        website: landmark.website_uri,
-        regularOpeningHours: landmark.opening_hours,
-        photos: Array.isArray(landmark.photos) ? landmark.photos.flat() : (landmark.photos ? [landmark.photos] : []),
-        searchRadius: null, // Not applicable for DB results
-        maxResults: null, // Not applicable for DB results
-        rawGooglePlacesData: landmark.raw_data
-      };
+        // Clean 1:1 mapping to match the required interface structure
+        const mappedLandmark = {
+          placeId: landmark.place_id,
+          name: landmark.name,
+          rating: landmark.rating,
+          userRatingsTotal: landmark.user_ratings_total,
+          priceLevel: landmark.price_level,
+          types: landmark.types || [],
+          vicinity: landmark.formatted_address || null,
+          openNow: null, // Not stored in database
+          photoReference: landmark.photo_references?.[0] || null,
+          photoUrl: Array.isArray(landmark.photos) ? landmark.photos.flat()[0] : landmark.photos,
+          geometry: {
+            location: { lng, lat }
+          },
+          editorialSummary: landmark.editorial_summary,
+          website: landmark.website_uri,
+          regularOpeningHours: landmark.opening_hours,
+          photos: landmark.raw_data?.photos?.map((p: any) => p.name) || [],
+          searchRadius: null, // Not applicable for DB results
+          maxResults: null, // Not applicable for DB results
+          rawGooglePlacesData: landmark.raw_data
+        };
 
       return mappedLandmark;
     }).filter(landmark => landmark !== null); // Remove landmarks with invalid coordinates
