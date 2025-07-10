@@ -41,6 +41,7 @@ interface MainLayoutProps {
   voiceTourData?: { destination: string; systemPrompt: string; landmarks: any[] } | null;
   tourKey?: string;
   onVoiceAgentStateChange?: (isActive: boolean) => void;
+  showPortalAccess?: boolean;
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({
@@ -68,6 +69,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   voiceTourData,
   tourKey,
   onVoiceAgentStateChange,
+  showPortalAccess = false,
 }) => {
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
   const { userLocation } = useLocationTracking();
@@ -278,6 +280,7 @@ const MemoizedProximityCard = React.memo<{
         smartTourLandmarks={smartTourLandmarks}
         onIntelligentTourOpen={handleIntelligentTourOpen}
         onTestProximityCard={handleTestProximityCard}
+        showPortalAccess={showPortalAccess}
       />
 
       <UserControls

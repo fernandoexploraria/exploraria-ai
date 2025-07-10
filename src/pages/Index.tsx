@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import SplashScreen from '@/components/SplashScreen';
 import MainLayout from '@/components/MainLayout';
 import DebugWindow from '@/components/DebugWindow';
@@ -11,6 +12,7 @@ import { useProximityNotifications } from '@/hooks/useProximityNotifications';
 import { useDebugWindow } from '@/hooks/useDebugWindow';
 import { useConnectionMonitor } from '@/hooks/useConnectionMonitor';
 import { performComprehensiveTourReset } from '@/utils/tourResetUtils';
+import { useToast } from '@/hooks/use-toast';
 
 interface IndexProps {
   onRegisterPostAuthActions?: (actions: { onSmartTour?: () => void }) => void;
@@ -26,6 +28,14 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
     landmarks: any[];
   } | null>(null);
   const [tourKey, setTourKey] = useState<string>('initial');
+  
+  // Secret portal access state
+  const [clickCount, setClickCount] = useState(0);
+  const [lastClickTime, setLastClickTime] = useState(0);
+  const [showPortalAccess, setShowPortalAccess] = useState(false);
+  
+  const navigate = useNavigate();
+  const { toast } = useToast();
   
   const { user, signOut } = useAuth();
   const mapboxToken = useMapboxToken();
@@ -97,8 +107,55 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
   };
 
   const handleLogoClick = () => {
-    setShowSplash(true);
+    const now = Date.now();
+    const timeDiff = now - lastClickTime;
+    
+    // Reset counter if more than 2 seconds have passed
+    if (timeDiff > 2000) {
+      setClickCount(1);
+      setLastClickTime(now);
+      setShowSplash(true);
+      return;
+    }
+    
+    const newClickCount = clickCount + 1;
+    setClickCount(newClickCount);
+    setLastClickTime(now);
+    
+    // Show visual feedback for clicks 2-4
+    if (newClickCount >= 2 && newClickCount < 5) {
+      setShowPortalAccess(true);
+      setTimeout(() => setShowPortalAccess(false), 200);
+    }
+    
+    // Portal access on 5th click
+    if (newClickCount === 5) {
+      toast({
+        title: "Portal Access Granted!",
+        description: "Welcome to the Curator Portal",
+      });
+      navigate('/curator-portal');
+      setClickCount(0);
+      setShowPortalAccess(false);
+      return;
+    }
+    
+    // Normal behavior for first click or incomplete sequence
+    if (newClickCount === 1) {
+      setShowSplash(true);
+    }
   };
+
+  // Reset click counter after timeout
+  useEffect(() => {
+    if (clickCount > 0) {
+      const timeout = setTimeout(() => {
+        setClickCount(0);
+        setShowPortalAccess(false);
+      }, 2000);
+      return () => clearTimeout(timeout);
+    }
+  }, [clickCount]);
 
   const handleNewTourAssistantOpen = () => {
     if (!user) {
@@ -211,6 +268,7 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
         onVoiceSearchOpen={handleInteractionHistoryOpen}
         onVoiceAssistantOpen={handleVoiceAssistantOpen}
         onLogoClick={handleLogoClick}
+        showPortalAccess={showPortalAccess}
         onSignOut={signOut}
         onAuthDialogOpen={() => setIsAuthDialogOpen(true)}
         isVoiceSearchOpen={isInteractionHistoryOpen}

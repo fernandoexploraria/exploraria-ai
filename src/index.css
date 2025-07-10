@@ -3,6 +3,15 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 5px hsl(var(--primary)), 0 0 10px hsl(var(--primary)), 0 0 15px hsl(var(--primary)); }
+  50% { box-shadow: 0 0 10px hsl(var(--primary)), 0 0 20px hsl(var(--primary)), 0 0 30px hsl(var(--primary)); }
+}
+
+.glow-pulse {
+  animation: glow-pulse 0.5s ease-in-out;
+}
+
 @layer base {
   :root {
     --background: 222.2 84% 4.9%;

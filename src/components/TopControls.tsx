@@ -31,6 +31,7 @@ interface TopControlsProps {
   onIntelligentTourOpen: () => void;
   onAuthDialogOpen?: () => void;
   onTestProximityCard?: () => void;
+  showPortalAccess?: boolean;
 }
 
 const TopControls: React.FC<TopControlsProps> = ({
@@ -44,6 +45,7 @@ const TopControls: React.FC<TopControlsProps> = ({
   onIntelligentTourOpen,
   onAuthDialogOpen,
   onTestProximityCard,
+  showPortalAccess = false,
 }) => {
   const { user: authUser } = useAuth();
   const isMobile = useIsMobile();
@@ -150,7 +152,9 @@ const TopControls: React.FC<TopControlsProps> = ({
           <img 
             src="/lovable-uploads/ac9cbebd-b083-4d3d-a85e-782e03045422.png" 
             alt="Exploraria Logo" 
-            className="h-16 w-auto bg-yellow-400 rounded-lg p-1 flex-shrink-0 lg:h-20 cursor-pointer hover:bg-yellow-300 transition-colors"
+            className={`h-16 w-auto bg-yellow-400 rounded-lg p-1 flex-shrink-0 lg:h-20 cursor-pointer hover:bg-yellow-300 transition-all duration-200 ${
+              showPortalAccess ? 'ring-2 ring-primary glow-pulse' : ''
+            }`}
             onClick={onLogoClick}
           />
           
