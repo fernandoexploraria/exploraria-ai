@@ -22,7 +22,7 @@ const ElevenLabsPlayground: React.FC = () => {
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [newAgentName, setNewAgentName] = useState('');
   const [firstMessageDialogOpen, setFirstMessageDialogOpen] = useState(false);
-  const [firstMessage, setFirstMessage] = useState('');
+  const [agentName, setAgentName] = useState('');
 
   const testApiConnection = async () => {
     setLoading(true);
@@ -227,15 +227,16 @@ const ElevenLabsPlayground: React.FC = () => {
       });
       return;
     }
-    // Get current first message from agent data if available
-    setFirstMessage(agentData?.first_message || '');
+    setAgentName('');
     setFirstMessageDialogOpen(true);
   };
 
   const updateFirstMessage = async () => {
-    if (!selectedAgent || !firstMessage.trim()) {
+    if (!selectedAgent || !agentName.trim()) {
       return;
     }
+
+    const firstMessage = `Hey there, I'm ${agentName.trim()}, your {{destination}} tour guide.`;
 
     setLoading(true);
     try {
@@ -243,7 +244,7 @@ const ElevenLabsPlayground: React.FC = () => {
         body: { 
           action: 'update_first_message',
           agentId: selectedAgent.agent_id,
-          firstMessage: firstMessage.trim()
+          firstMessage: firstMessage
         }
       });
 
@@ -613,24 +614,23 @@ const ElevenLabsPlayground: React.FC = () => {
 
       {/* First Message Dialog */}
       <Dialog open={firstMessageDialogOpen} onOpenChange={setFirstMessageDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit First Message</DialogTitle>
+            <DialogTitle>Set Agent Name</DialogTitle>
             <DialogDescription>
-              Edit the first message for agent: {selectedAgent?.name}
+              Enter the name for the agent: {selectedAgent?.name}
               <br />
               <span className="text-sm text-muted-foreground mt-1 block">
-                Note: The {"{{destination}}"} variable will be dynamically replaced when calling the agent.
+                This will set the first message to: "Hey there, I'm [name], your {`{{destination}}`} tour guide."
               </span>
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <Textarea
-              value={firstMessage}
-              onChange={(e) => setFirstMessage(e.target.value)}
-              placeholder="Enter the first message..."
-              className="w-full min-h-[100px]"
-              rows={4}
+            <Input
+              value={agentName}
+              onChange={(e) => setAgentName(e.target.value)}
+              placeholder="Enter agent name for first message"
+              className="w-full"
             />
           </div>
           <DialogFooter>
@@ -643,9 +643,9 @@ const ElevenLabsPlayground: React.FC = () => {
             </Button>
             <Button
               onClick={updateFirstMessage}
-              disabled={loading || !firstMessage.trim()}
+              disabled={loading || !agentName.trim()}
             >
-              {loading ? 'Updating...' : 'Update First Message'}
+              {loading ? 'Updating...' : 'Set First Message'}
             </Button>
           </DialogFooter>
         </DialogContent>
