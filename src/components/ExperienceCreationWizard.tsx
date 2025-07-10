@@ -335,17 +335,6 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
               <p className="text-sm text-muted-foreground">Step {currentStep + 1} of {WIZARD_STEPS.length}</p>
             </div>
           </div>
-          {currentStep === 2 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsAiChatOpen(true)}
-              className="flex items-center gap-2"
-            >
-              <Sparkles className="h-4 w-4" />
-              AI Refine
-            </Button>
-          )}
         </div>
       </header>
 
@@ -533,7 +522,10 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
 
                  {currentStep === 2 && (
                    <div className="space-y-4">
-                     <PromptSectionViewer prompt={experienceData.systemPrompt} />
+                     <PromptSectionViewer 
+                       prompt={experienceData.systemPrompt} 
+                       onAiRefine={() => setIsAiChatOpen(true)}
+                     />
                      
                      <p className="text-xs text-muted-foreground mt-4">
                        This prompt defines how Alexis, your AI tour guide, will interact with users. It includes your destination details, landmark information, and function calling capabilities.

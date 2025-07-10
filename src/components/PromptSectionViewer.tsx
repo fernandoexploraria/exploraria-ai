@@ -1,10 +1,12 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { Sparkles } from 'lucide-react';
 
 interface PromptSectionViewerProps {
   prompt: string;
+  onAiRefine?: () => void;
 }
 
 interface PromptSection {
@@ -13,7 +15,7 @@ interface PromptSection {
   type: 'text' | 'json' | 'list';
 }
 
-export const PromptSectionViewer: React.FC<PromptSectionViewerProps> = ({ prompt }) => {
+export const PromptSectionViewer: React.FC<PromptSectionViewerProps> = ({ prompt, onAiRefine }) => {
   const parsePromptIntoSections = (promptText: string): PromptSection[] => {
     if (!promptText.trim()) {
       return [];
@@ -199,14 +201,26 @@ export const PromptSectionViewer: React.FC<PromptSectionViewerProps> = ({ prompt
     <div className="grid gap-4">
       {sections.map((section, index) => (
         <Card key={index} className="overflow-hidden">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">
-                {index + 1}
-              </Badge>
-              {section.title}
-            </CardTitle>
-          </CardHeader>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">
+                    {index + 1}
+                  </Badge>
+                  {section.title}
+                </div>
+                {index === 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onAiRefine?.()}
+                    className="h-8 w-8 p-0"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                  </Button>
+                )}
+              </CardTitle>
+            </CardHeader>
           <CardContent className="pt-0">
             <div className="max-h-64 overflow-y-auto">
               {formatContent(section.content, section.type)}
