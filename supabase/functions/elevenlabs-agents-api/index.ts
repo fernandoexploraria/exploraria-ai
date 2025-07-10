@@ -104,12 +104,36 @@ Deno.serve(async (req) => {
         }
         return await duplicateAgent(apiKey, agentId);
       
+      case 'rename_agent':
+        console.log('Executing rename_agent case');
+        if (!agentId) {
+          console.log('Error: agentId missing for rename_agent');
+          return new Response(
+            JSON.stringify({ error: 'agentId is required for rename_agent action' }),
+            { 
+              status: 400, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+        const { newName } = requestBody;
+        if (!newName) {
+          return new Response(
+            JSON.stringify({ error: 'newName is required for rename_agent action' }),
+            { 
+              status: 400, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+        return await renameAgent(apiKey, agentId, newName);
+      
       default:
         console.log('ERROR: Hit default case with action:', action);
         console.log('This means duplicate_agent case was not matched');
         return new Response(
           JSON.stringify({ 
-            error: 'Invalid action. Supported actions: list_agents, get_agent, duplicate_agent',
+            error: 'Invalid action. Supported actions: list_agents, get_agent, duplicate_agent, rename_agent',
             received_action: action,
             action_type: typeof action,
             debug_timestamp: new Date().toISOString()
@@ -245,6 +269,57 @@ async function duplicateAgent(apiKey: string, sourceAgentId: string) {
     );
   } catch (error) {
     console.error('Error duplicating agent:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
+  }
+}
+
+async function renameAgent(apiKey: string, agentId: string, newName: string) {
+  try {
+    console.log(`Starting agent rename for agent: ${agentId} to name: ${newName}`);
+    
+    const response = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, {
+      method: 'PATCH',
+      headers: {
+        'xi-api-key': apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: newName
+      })
+    });
+
+    console.log(`Rename response status: ${response.status}`);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Failed to rename agent: ${response.status} ${errorText}`);
+      throw new Error(`Failed to rename agent: ${response.status} ${errorText}`);
+    }
+
+    const updatedAgent = await response.json();
+    console.log(`Successfully renamed agent to: ${updatedAgent.name}`);
+    
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'Agent renamed successfully',
+        agent_id: updatedAgent.agent_id,
+        name: updatedAgent.name,
+        agent_url: updatedAgent.agent_url || `https://elevenlabs.io/convai/agents/${updatedAgent.agent_id}`
+      }),
+      { 
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
+  } catch (error) {
+    console.error('Error renaming agent:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { 

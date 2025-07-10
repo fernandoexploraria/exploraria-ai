@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Bot, Wrench, BookOpen, Play, AlertCircle, Copy, Users, Check } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ArrowLeft, Bot, Wrench, BookOpen, Play, AlertCircle, Copy, Users, Check, Edit } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,6 +18,8 @@ const ElevenLabsPlayground: React.FC = () => {
   const [agentData, setAgentData] = useState(null);
   const [toolsData, setToolsData] = useState(null);
   const [knowledgeData, setKnowledgeData] = useState(null);
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [newAgentName, setNewAgentName] = useState('');
 
   const testApiConnection = async () => {
     setLoading(true);
@@ -191,6 +195,57 @@ const ElevenLabsPlayground: React.FC = () => {
       toast({
         title: "Failed to Duplicate Agent",
         description: "Could not duplicate the agent",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openRenameDialog = () => {
+    if (!selectedAgent) {
+      toast({
+        title: "No Agent Selected",
+        description: "Please select an agent first",
+        variant: "destructive"
+      });
+      return;
+    }
+    setNewAgentName(selectedAgent.name);
+    setRenameDialogOpen(true);
+  };
+
+  const renameAgent = async () => {
+    if (!selectedAgent || !newAgentName.trim()) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('elevenlabs-agents-api', {
+        body: { 
+          action: 'rename_agent',
+          agentId: selectedAgent.agent_id,
+          newName: newAgentName.trim()
+        }
+      });
+
+      if (error) throw error;
+      
+      toast({
+        title: "Agent Renamed",
+        description: `Agent renamed to: ${data.name}`,
+      });
+      
+      // Update the selected agent name and refresh the agents list
+      setSelectedAgent({ ...selectedAgent, name: data.name });
+      setRenameDialogOpen(false);
+      fetchAgentsList();
+    } catch (error) {
+      console.error('Agent rename error:', error);
+      toast({
+        title: "Failed to Rename Agent",
+        description: "Could not rename the agent",
         variant: "destructive"
       });
     } finally {
@@ -376,6 +431,10 @@ const ElevenLabsPlayground: React.FC = () => {
                 <Copy className="mr-2 h-4 w-4" />
                 Duplicate Agent
               </Button>
+              <Button onClick={openRenameDialog} disabled={loading} variant="outline">
+                <Edit className="mr-2 h-4 w-4" />
+                Rename Agent
+              </Button>
             </div>
             
             {agentData && (
@@ -458,6 +517,41 @@ const ElevenLabsPlayground: React.FC = () => {
         </Card>
         </div>
       </main>
+
+      {/* Rename Agent Dialog */}
+      <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Agent</DialogTitle>
+            <DialogDescription>
+              Enter a new name for the agent: {selectedAgent?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              value={newAgentName}
+              onChange={(e) => setNewAgentName(e.target.value)}
+              placeholder="Enter new agent name"
+              className="w-full"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRenameDialogOpen(false)}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={renameAgent}
+              disabled={loading || !newAgentName.trim()}
+            >
+              {loading ? 'Renaming...' : 'Rename Agent'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
