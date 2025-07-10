@@ -269,8 +269,8 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
               place_id: landmark.place_id,
               confidence: 'high',
               coordinate_source: 'google_places_api',
-              // Complete raw data preservation (same as Smart Tour)
-              raw_data: landmarkDetails.data.rawGooglePlacesData || landmarkDetails.data
+              // Store original Google Places API response (consistent with Smart Tour)
+              raw_data: landmarkDetails.rawGooglePlacesData || landmarkDetails.data
             });
           } else {
             console.warn('Skipping landmark with invalid coordinates:', landmark.name, location);

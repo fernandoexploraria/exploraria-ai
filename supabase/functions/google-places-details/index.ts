@@ -189,7 +189,11 @@ serve(async (req) => {
       }
 
       return new Response(
-        JSON.stringify({ data: enrichedData, success: true }),
+        JSON.stringify({ 
+          data: enrichedData, 
+          rawGooglePlacesData: placeDetails,
+          success: true 
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
