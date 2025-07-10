@@ -79,14 +79,14 @@ export const fetchExperienceLandmarks = async (tourId: string): Promise<{ places
         vicinity: landmark.formatted_address || null,
         openNow: null, // Not stored in database
         photoReference: landmark.photo_references?.[0] || null,
-        photoUrl: landmark.photos || null,
+        photoUrl: Array.isArray(landmark.photos) ? landmark.photos.flat()[0] : landmark.photos,
         geometry: {
           location: { lng, lat }
         },
         editorialSummary: landmark.editorial_summary,
         website: landmark.website_uri,
         regularOpeningHours: landmark.opening_hours,
-        photos: landmark.photo_references || [],
+        photos: Array.isArray(landmark.photos) ? landmark.photos.flat() : (landmark.photos ? [landmark.photos] : []),
         searchRadius: null, // Not applicable for DB results
         maxResults: null, // Not applicable for DB results
         rawGooglePlacesData: landmark.raw_data
