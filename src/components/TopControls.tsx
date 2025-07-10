@@ -113,28 +113,8 @@ const TopControls: React.FC<TopControlsProps> = ({
   };
 
   const handleExperiencesClick = () => {
-    console.log('🎯 Experiences button clicked, user:', authUser?.id);
-    
-    if (!authUser) {
-      console.log('🚨 User not authenticated, setting up post-auth flow for experiences');
-      
-      // Create a default experience destination to persist
-      const defaultExperienceDestination = {
-        id: 'default-experience',
-        name: 'Curated Experience',
-        description: 'Discover amazing places and tours curated by our experts',
-        coordinates: [0, 0], // Will be updated based on user location or popular destination
-        experience: true
-      };
-      
-      // Persist the default destination and set post-auth action
-      setPostAuthLandmark(defaultExperienceDestination);
-      setPostAuthAction('smart-tour');
-      setIsAuthDialogOpen(true);
-    } else {
-      console.log('✅ User authenticated, opening experiences drawer');
-      setIsExperiencesDrawerOpen(true);
-    }
+    console.log('🎯 Experiences button clicked - opening carousel');
+    setIsExperiencesDrawerOpen(true);
   };
 
   const handlePostAuthAction = (action: PostAuthAction) => {
@@ -347,6 +327,7 @@ const TopControls: React.FC<TopControlsProps> = ({
         open={isExperiencesDrawerOpen}
         onOpenChange={setIsExperiencesDrawerOpen}
         onIntelligentTourOpen={onIntelligentTourOpen}
+        onAuthDialogOpen={() => setIsAuthDialogOpen(true)}
       />
     </>
   );

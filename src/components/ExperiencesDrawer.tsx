@@ -4,23 +4,77 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { useExperiences, Experience } from '@/hooks/useExperiences';
 import ExperienceCard from './ExperienceCard';
 import { Loader2, Compass } from 'lucide-react';
+import { useAuth } from '@/components/AuthProvider';
+import { setPostAuthAction, setPostAuthLandmark } from '@/utils/authActions';
 interface ExperiencesDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onIntelligentTourOpen?: () => void;
+  onAuthDialogOpen?: () => void;
 }
 const ExperiencesDrawer: React.FC<ExperiencesDrawerProps> = ({
   open,
   onOpenChange,
-  onIntelligentTourOpen
+  onIntelligentTourOpen,
+  onAuthDialogOpen
 }) => {
+  const { user: authUser } = useAuth();
   const {
     data: experiences,
     isLoading,
     error
   } = useExperiences();
   const handleExperienceSelect = (experience: Experience) => {
-    console.log('Selected experience:', experience);
+    console.log('🎯 Generate Experience clicked for:', experience.destination, 'user:', authUser?.id);
+    
+    if (!authUser) {
+      console.log('🚨 User not authenticated, setting up post-auth flow for experience');
+      
+      // Convert experience to landmark format for persistence
+      const convertExperienceToLandmark = (experience: Experience) => {
+        const details = experience.destination_details;
+        if (!details) {
+          console.error('Experience missing destination_details:', experience);
+          return {
+            id: experience.id,
+            name: experience.destination,
+            description: experience.description,
+            coordinates: [0, 0], // Will be updated later
+            experience: true
+          };
+        }
+        return {
+          id: experience.id,
+          name: details.name || experience.destination,
+          description: details.editorialSummary || experience.description,
+          coordinates: [details.location.longitude, details.location.latitude],
+          placeId: details.placeId,
+          formattedAddress: details.address,
+          types: details.types || details.destination_types || ['tourist_attraction'],
+          rating: details.rating,
+          tourId: experience.id,
+          experience: true
+        };
+      };
+      
+      const landmark = convertExperienceToLandmark(experience);
+      
+      // Persist the experience and set post-auth action
+      setPostAuthLandmark(landmark);
+      setPostAuthAction('smart-tour');
+      
+      // Close experiences drawer
+      onOpenChange(false);
+      
+      // Open auth dialog
+      if (onAuthDialogOpen) {
+        onAuthDialogOpen();
+      }
+      return;
+    }
+
+    // User is authenticated, proceed with normal flow
+    console.log('✅ User authenticated, proceeding with experience selection');
     if (!onIntelligentTourOpen) {
       console.warn('onIntelligentTourOpen not provided to ExperiencesDrawer');
       return;
