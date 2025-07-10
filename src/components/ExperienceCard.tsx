@@ -40,7 +40,7 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
           </CardDescription>
         </div>
         
-        {onSelect && <Button variant="outline" size="sm" onClick={() => onSelect(experience)} className="bg-gradient-to-r from-purple-400/80 to-pink-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 border-purple-300 hover:from-purple-300/80 hover:to-pink-300/80">
+        {onSelect && <Button variant="outline" size="sm" onClick={() => onSelect(experience)} className="bg-gradient-to-r from-purple-400/80 to-pink-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:py-2 border-purple-300 hover:from-purple-300/80 hover:to-pink-300/80 lg:px-[53px]">
             Generate Experience
           </Button>}
       </CardContent>
