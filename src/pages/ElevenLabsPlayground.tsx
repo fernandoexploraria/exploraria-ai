@@ -154,7 +154,7 @@ const ElevenLabsPlayground: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="border-b border-border bg-card flex-shrink-0">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -177,8 +177,8 @@ const ElevenLabsPlayground: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="container mx-auto px-4 py-8 space-y-8">
+      <main className="flex-1 overflow-y-auto min-h-0">
+        <div className="container mx-auto px-4 py-8 pb-16 space-y-8">
         {/* API Connection Test */}
         <Card>
           <CardHeader>
