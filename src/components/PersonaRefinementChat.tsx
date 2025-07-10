@@ -79,9 +79,9 @@ export const PersonaRefinementChat: React.FC<PersonaRefinementChatProps> = ({
 
   const extractSection1 = (promptText: string): string => {
     const lines = promptText.split('\n');
-    // Section 1 is everything before the Core Mission section marker
+    // Section 1 is typically the first few lines before the Core Mission section
     const sectionEndIndex = lines.findIndex((line, index) => 
-      index > 0 && line.includes('**Your Core Mission:**')
+      index > 2 && line.includes('**Your Core Mission:**')
     );
     
     if (sectionEndIndex === -1) {
@@ -89,8 +89,7 @@ export const PersonaRefinementChat: React.FC<PersonaRefinementChatProps> = ({
       return lines.slice(0, 3).join('\n');
     }
     
-    // Return everything BEFORE the Core Mission marker (excluding it)
-    return lines.slice(0, sectionEndIndex).join('\n').trim();
+    return lines.slice(0, sectionEndIndex).join('\n');
   };
 
   const integrateRefinedSection1 = (originalPrompt: string, refinedSection1: string): string => {
