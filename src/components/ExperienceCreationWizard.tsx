@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { toast } from 'sonner';
 import { getHierarchicalLandmarkTypes, calculateDistance } from '@/utils/landmarkTypeHierarchy';
+import { generateAlexisPrompt } from '@/utils/alexisPromptGenerator';
 
 interface ExperienceCreationWizardProps {
   onClose: () => void;
@@ -91,10 +92,6 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
   const handleDestinationSelect = async (suggestion: AutocompleteSuggestion) => {
     setExperienceData(prev => ({ ...prev, destination: suggestion }));
     
-    // Generate initial system prompt based on destination
-    const initialPrompt = generateInitialSystemPrompt(suggestion.description);
-    setExperienceData(prev => ({ ...prev, systemPrompt: initialPrompt }));
-    
     // Store destination coordinates for landmark location bias
     if (suggestion.coordinates) {
       console.log('🗺️ Destination coordinates captured:', suggestion.coordinates);
@@ -102,6 +99,40 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
     
     // Auto-advance to next step
     setTimeout(() => setCurrentStep(1), 500);
+  };
+
+  const generateSystemPrompt = () => {
+    if (!experienceData.destination) return '';
+    
+    // Convert destination format for Alexis prompt
+    const destination = {
+      name: experienceData.destination.structured_formatting?.main_text || experienceData.destination.description,
+      placeId: experienceData.destination.place_id,
+      address: experienceData.destination.description,
+      coordinates: experienceData.destination.coordinates,
+      types: experienceData.destination.types || []
+    };
+
+    // Use the landmarks data
+    const landmarks = experienceData.landmarks.map(landmark => ({
+      place_id: landmark.place_id,
+      name: landmark.name,
+      description: landmark.description,
+      types: landmark.types,
+      coordinates: landmark.coordinates
+    }));
+
+    return generateAlexisPrompt(destination, landmarks);
+  };
+
+  // Auto-generate prompt when moving to prompt step
+  const handleStepChange = (newStep: number) => {
+    if (newStep === 2 && currentStep === 1) {
+      // Moving to AI personality step - auto-generate Alexis prompt
+      const generatedPrompt = generateSystemPrompt();
+      setExperienceData(prev => ({ ...prev, systemPrompt: generatedPrompt }));
+    }
+    setCurrentStep(newStep);
   };
 
   const handleLandmarkSelect = (suggestion: AutocompleteSuggestion) => {
@@ -421,18 +452,33 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                 {currentStep === 2 && (
                   <div className="space-y-4">
                     <CardDescription>
-                      Customize the AI guide's personality and knowledge. This prompt defines how your AI guide will interact with users.
+                      AI personality prompt automatically generated based on your destination and landmarks using the Alexis template. You can customize it below if needed.
                     </CardDescription>
-                    <Textarea
-                      placeholder="Define your AI guide's personality..."
-                      value={experienceData.systemPrompt}
-                      onChange={(e) => setExperienceData(prev => ({ ...prev, systemPrompt: e.target.value }))}
-                      rows={12}
-                      className="w-full"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Characters: {experienceData.systemPrompt.length}
-                    </p>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm font-medium">Generated AI Guide Prompt</label>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const regeneratedPrompt = generateSystemPrompt();
+                            setExperienceData(prev => ({ ...prev, systemPrompt: regeneratedPrompt }));
+                            toast.success("Prompt regenerated with latest data");
+                          }}
+                        >
+                          Regenerate
+                        </Button>
+                      </div>
+                      <Textarea
+                        placeholder="The AI guide's personality and instructions will be generated based on your destination and landmarks..."
+                        value={experienceData.systemPrompt}
+                        onChange={(e) => setExperienceData(prev => ({ ...prev, systemPrompt: e.target.value }))}
+                        className="min-h-[400px] font-mono text-xs"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        This prompt defines how Alexis, your AI tour guide, will interact with users. It includes your destination details, landmark information, and function calling capabilities.
+                      </p>
+                    </div>
                   </div>
                 )}
 
@@ -541,7 +587,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                 <div className="flex justify-between pt-6 border-t">
                   <Button
                     variant="outline"
-                    onClick={() => setCurrentStep(prev => Math.max(0, prev - 1))}
+                    onClick={() => handleStepChange(Math.max(0, currentStep - 1))}
                     disabled={currentStep === 0}
                   >
                     <ArrowLeft className="mr-2 h-4 w-4" />
@@ -557,7 +603,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                     </Button>
                   ) : (
                     <Button
-                      onClick={() => setCurrentStep(prev => prev + 1)}
+                      onClick={() => handleStepChange(currentStep + 1)}
                       disabled={!canProceed}
                     >
                       Next
