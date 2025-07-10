@@ -508,11 +508,9 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                     
                     <PromptSectionViewer prompt={experienceData.systemPrompt} />
                     
-                    <div className="sticky bottom-0 bg-background z-10 pt-4 border-t">
-                      <p className="text-xs text-muted-foreground">
-                        This prompt defines how Alexis, your AI tour guide, will interact with users. It includes your destination details, landmark information, and function calling capabilities.
-                      </p>
-                    </div>
+                    <p className="text-xs text-muted-foreground mt-4">
+                      This prompt defines how Alexis, your AI tour guide, will interact with users. It includes your destination details, landmark information, and function calling capabilities.
+                    </p>
                   </div>
                 )}
 
