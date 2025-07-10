@@ -491,32 +491,30 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
 
                 {currentStep === 2 && (
                   <div className="space-y-4">
-                     <div className="flex items-start justify-between sticky top-0 bg-background z-10 pb-4 border-b">
-                       <CardDescription className="flex-1 pr-4">
+                     <div className="flex items-center justify-between sticky top-0 bg-background z-10 pb-4 border-b">
+                       <CardDescription>
                          AI personality prompt automatically generated based on your destination and landmarks using the Alexis template.
                        </CardDescription>
-                       <div className="flex gap-1 flex-shrink-0">
+                       <div className="flex gap-2">
                          <Button
-                           variant="ghost"
+                           variant="outline"
                            size="sm"
                            onClick={() => setIsAiChatOpen(true)}
-                           className="h-8 w-8 p-0"
-                           title="AI Refine"
+                           className="flex items-center gap-2"
                          >
                            <Bot className="h-4 w-4" />
+                           AI Refine
                          </Button>
                          <Button
-                           variant="ghost"
+                           variant="outline"
                            size="sm"
                            onClick={() => {
                              const regeneratedPrompt = generateSystemPrompt();
                              setExperienceData(prev => ({ ...prev, systemPrompt: regeneratedPrompt }));
                              toast.success("Prompt regenerated with latest data");
                            }}
-                           className="h-8 w-8 p-0"
-                           title="Regenerate"
                          >
-                           <ArrowRight className="h-4 w-4" />
+                           Regenerate
                          </Button>
                        </div>
                      </div>
