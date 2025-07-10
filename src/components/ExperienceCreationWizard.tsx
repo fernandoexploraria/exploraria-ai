@@ -398,21 +398,34 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                   <span>{currentStepData.title}</span>
                 </CardTitle>
                 {currentStep === 2 && (
-                  <div className="flex items-center justify-between">
-                    <CardDescription>
-                      AI personality prompt automatically generated based on your destination and landmarks using the Alexis template.
-                    </CardDescription>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const regeneratedPrompt = generateSystemPrompt();
-                        setExperienceData(prev => ({ ...prev, systemPrompt: regeneratedPrompt }));
-                        toast.success("Prompt regenerated with latest data");
-                      }}
-                    >
-                      Regenerate
-                    </Button>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <CardDescription>
+                        AI personality prompt automatically generated based on your destination and landmarks using the Alexis template.
+                      </CardDescription>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const regeneratedPrompt = generateSystemPrompt();
+                          setExperienceData(prev => ({ ...prev, systemPrompt: regeneratedPrompt }));
+                          toast.success("Prompt regenerated with latest data");
+                        }}
+                      >
+                        Regenerate
+                      </Button>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-semibold">AI Personality Breakdown</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Your AI guide's prompt organized into logical sections
+                        </p>
+                      </div>
+                      <Badge variant="secondary">
+                        {experienceData.systemPrompt.length.toLocaleString()} characters
+                      </Badge>
+                    </div>
                   </div>
                 )}
               </CardHeader>

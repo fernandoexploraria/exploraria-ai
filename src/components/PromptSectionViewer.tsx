@@ -196,40 +196,24 @@ export const PromptSectionViewer: React.FC<PromptSectionViewerProps> = ({ prompt
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between sticky top-0 bg-background z-10 pb-4">
-        <div>
-          <h3 className="text-lg font-semibold">AI Personality Breakdown</h3>
-          <p className="text-sm text-muted-foreground">
-            Your AI guide's prompt organized into {sections.length} logical sections
-          </p>
-        </div>
-        <Badge variant="secondary">
-          {prompt.length.toLocaleString()} characters
-        </Badge>
-      </div>
-      
-      <Separator />
-      
-      <div className="grid gap-4">
-        {sections.map((section, index) => (
-          <Card key={index} className="overflow-hidden">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Badge variant="outline" className="text-xs">
-                  {index + 1}
-                </Badge>
-                {section.title}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="max-h-64 overflow-y-auto">
-                {formatContent(section.content, section.type)}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+    <div className="grid gap-4">
+      {sections.map((section, index) => (
+        <Card key={index} className="overflow-hidden">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Badge variant="outline" className="text-xs">
+                {index + 1}
+              </Badge>
+              {section.title}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="max-h-64 overflow-y-auto">
+              {formatContent(section.content, section.type)}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 };
