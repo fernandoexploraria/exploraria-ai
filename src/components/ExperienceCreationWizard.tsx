@@ -230,7 +230,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
 
       if (tourError) throw tourError;
 
-      // 4. Create landmarks
+      // 4. Create landmarks using the same process as IntelligentTourDialog
       const landmarkInserts = [];
       
       for (let index = 0; index < experienceData.landmarks.length; index++) {
@@ -242,32 +242,35 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
         });
 
         if (!landmarkError && landmarkDetails.data) {
-          // Validate coordinates
+          // Validate coordinates exactly like IntelligentTourDialog
           const location = landmarkDetails.data.location;
-          if (location && location.longitude && location.latitude) {
+          if (location && location.longitude && location.latitude && 
+              !isNaN(location.longitude) && !isNaN(location.latitude) &&
+              location.longitude !== 0 && location.latitude !== 0) {
+            
             landmarkInserts.push({
               tour_id: tourData.id,
-              landmark_id: `landmark-${index + 1}`, // Consecutive landmark ID
+              landmark_id: `landmark-${index + 1}`, // Consecutive landmark ID (same as Smart Tour)
               name: landmark.name,
-              coordinates: `(${location.longitude},${location.latitude})`,
-              description: landmarkDetails.data.editorialSummary || `${landmark.name} - ${landmark.types?.join(', ')}`,
+              coordinates: `(${location.longitude},${location.latitude})`, // Same format as Smart Tour
+              description: landmarkDetails.data.editorialSummary || `${landmark.name} - ${landmark.types?.join(', ')}`, // Same format as Smart Tour
               rating: landmarkDetails.data.rating,
-              // Enhanced fields with price level mapping
+              // Enhanced fields with price level mapping (same as Smart Tour)
               price_level: mapPriceLevel(landmarkDetails.data.priceLevel),
               user_ratings_total: landmarkDetails.data.userRatingsTotal,
               website_uri: landmarkDetails.data.website,
-              opening_hours: landmarkDetails.data.openingHours || null,
+              opening_hours: landmarkDetails.data.regularOpeningHours || null, // Match Smart Tour field name
               editorial_summary: landmarkDetails.data.editorialSummary,
-              photo_references: landmarkDetails.data.photos || [],
-              // Additional fields
-              photos: landmarkDetails.data.photos ? { urls: landmarkDetails.data.photos } : null,
-              formatted_address: landmarkDetails.data.address,
+              photo_references: landmarkDetails.data.photos?.map((p: any) => p.name) || [], // Same format as Smart Tour
+              // Photos field (same as Smart Tour)
+              photos: landmarkDetails.data.photoUrl ? [landmarkDetails.data.photoUrl] : [],
+              formatted_address: landmarkDetails.data.vicinity || landmarkDetails.data.address, // Match Smart Tour priority
               types: landmark.types || [],
               place_id: landmark.place_id,
               confidence: 'high',
               coordinate_source: 'google_places_api',
-              // Complete raw data preservation
-              raw_data: landmarkDetails.data
+              // Complete raw data preservation (same as Smart Tour)
+              raw_data: landmarkDetails.data.rawGooglePlacesData || landmarkDetails.data
             });
           } else {
             console.warn('Skipping landmark with invalid coordinates:', landmark.name, location);
