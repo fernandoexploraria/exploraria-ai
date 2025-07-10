@@ -185,19 +185,19 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
     setIsCreating(true);
     
     try {
-      // 1. Create ElevenLabs agent
-      const { data: agentData, error: agentError } = await supabase.functions.invoke('elevenlabs-agent-management', {
-        body: {
-          action: 'create',
-          agentConfig: {
-            name: experienceData.title || `${experienceData.destination.description} Experience`,
-            system_prompt: experienceData.systemPrompt,
-            voice_id: experienceData.voiceId,
-          }
-        }
-      });
+      // 1. Create ElevenLabs agent - COMMENTED OUT FOR NOW
+      // const { data: agentData, error: agentError } = await supabase.functions.invoke('elevenlabs-agent-management', {
+      //   body: {
+      //     action: 'create',
+      //     agentConfig: {
+      //       name: experienceData.title || `${experienceData.destination.description} Experience`,
+      //       system_prompt: experienceData.systemPrompt,
+      //       voice_id: experienceData.voiceId,
+      //     }
+      //   }
+      // });
 
-      if (agentError) throw agentError;
+      // if (agentError) throw agentError;
 
       // 2. Get destination details
       const { data: destinationData, error: destinationError } = await supabase.functions.invoke('google-places-details', {
@@ -217,7 +217,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
           description: experienceData.description,
           system_prompt: experienceData.systemPrompt,
           experience: true,
-          agentid: agentData.agent_id,
+          agentid: 'agent_01jxtaz7mkfwzrefsdqsy3fdwe',
           total_landmarks: experienceData.landmarks.length,
           generation_start_time: new Date().toISOString(),
           generation_end_time: new Date().toISOString(),
