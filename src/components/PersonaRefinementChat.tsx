@@ -79,9 +79,9 @@ export const PersonaRefinementChat: React.FC<PersonaRefinementChatProps> = ({
 
   const extractSection1 = (promptText: string): string => {
     const lines = promptText.split('\n');
-    // Section 1 is typically the first 3 lines or until the first section marker
+    // Section 1 is typically the first few lines before the Core Mission section
     const sectionEndIndex = lines.findIndex((line, index) => 
-      index > 2 && (line.includes('**Your Core Mission:**') || line.includes('**Core Mission'))
+      index > 2 && line.includes('**Your Core Mission:**')
     );
     
     if (sectionEndIndex === -1) {
@@ -94,17 +94,17 @@ export const PersonaRefinementChat: React.FC<PersonaRefinementChatProps> = ({
 
   const integrateRefinedSection1 = (originalPrompt: string, refinedSection1: string): string => {
     const lines = originalPrompt.split('\n');
-    const sectionEndIndex = lines.findIndex((line, index) => 
-      index > 2 && (line.includes('**Your Core Mission:**') || line.includes('**Core Mission'))
+    const section2StartIndex = lines.findIndex((line, index) => 
+      index > 2 && line.includes('**Your Core Mission:**')
     );
     
-    if (sectionEndIndex === -1) {
-      // If no clear section marker, replace first 3 lines
-      return [refinedSection1, ...lines.slice(3)].join('\n');
+    if (section2StartIndex === -1) {
+      // If no clear section marker, replace first 3 lines and keep the rest
+      return [refinedSection1, '', ...lines.slice(3)].join('\n');
     }
     
-    // Replace Section 1 and keep the rest
-    return [refinedSection1, ...lines.slice(sectionEndIndex)].join('\n');
+    // Replace Section 1, add spacing, then keep Section 2 and beyond
+    return [refinedSection1, '', ...lines.slice(section2StartIndex)].join('\n');
   };
 
   const initializeConversation = async () => {
