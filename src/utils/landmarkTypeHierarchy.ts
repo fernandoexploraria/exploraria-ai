@@ -1,63 +1,48 @@
 // Utility for determining landmark types based on destination type hierarchy
 
 export const getHierarchicalLandmarkTypes = (destinationTypes: string[]): string[] => {
-  // Base granular types that are always included for landmarks
-  const baseGranularTypes = [
-    'restaurant', 'cafe', 'bar', 'bakery',
-    'art_gallery', 'book_store', 'shopping_mall', 'store',
-    'historic_site', 'statue', 'monument',
-    'church', 'synagogue', 'mosque', 'hindu_temple', 'place_of_worship',
-    'square', 'zoo', 'aquarium', 'amusement_park',
-    'convenience_store', 'pharmacy', 'gas_station',
-    'subway_station', 'bus_station', 'train_station', 'transit_station',
-    'hospital', 'school', 'university', 'library',
-    'hotel', 'lodging', 'travel_agency',
-    'bank', 'atm', 'post_office',
-    'gym', 'spa', 'beauty_salon',
-    'night_club', 'movie_theater', 'bowling_alley'
-  ];
-
-  // Hierarchical types based on destination level
-  const hierarchicalTypes: string[] = [];
-
-  // Determine destination level and add appropriate hierarchical types
+  // Google Places API allows MAXIMUM 5 types and only specific valid types
+  // Reference: https://developers.google.com/maps/documentation/places/web-service/place-types
+  
+  console.log('🏛️ Input destination types:', destinationTypes);
+  
+  // Determine destination level and return appropriate LIMITED types (max 5)
   const hasLocality = destinationTypes.includes('locality') || destinationTypes.includes('administrative_area_level_1');
   const hasSublocality = destinationTypes.includes('sublocality') || destinationTypes.includes('administrative_area_level_2');
   const hasTouristAttraction = destinationTypes.includes('tourist_attraction') || destinationTypes.includes('point_of_interest');
   const hasPark = destinationTypes.includes('park');
   const hasMuseum = destinationTypes.includes('museum');
 
-  // If destination is locality level, include all hierarchical types
+  let hierarchicalTypes: string[] = [];
+
+  // If destination is locality level, include broader search types
   if (hasLocality) {
-    hierarchicalTypes.push('locality', 'sublocality', 'tourist_attraction', 'park', 'museum', 'establishment', 'point_of_interest');
+    hierarchicalTypes = ['tourist_attraction', 'point_of_interest', 'establishment', 'park', 'museum'];
   }
-  // If destination is sublocality level, exclude locality but include rest
+  // If destination is sublocality level, focus on attractions and establishments
   else if (hasSublocality) {
-    hierarchicalTypes.push('sublocality', 'tourist_attraction', 'park', 'museum', 'establishment', 'point_of_interest');
+    hierarchicalTypes = ['tourist_attraction', 'point_of_interest', 'establishment', 'restaurant', 'park'];
   }
-  // If destination is tourist attraction level, exclude locality and sublocality
+  // If destination is tourist attraction level, focus on nearby points of interest
   else if (hasTouristAttraction) {
-    hierarchicalTypes.push('tourist_attraction', 'park', 'museum', 'establishment', 'point_of_interest');
+    hierarchicalTypes = ['point_of_interest', 'establishment', 'restaurant', 'park', 'museum'];
   }
-  // If destination is park level, exclude broader geographic types
+  // If destination is park level, focus on specific nearby amenities
   else if (hasPark) {
-    hierarchicalTypes.push('park', 'museum', 'establishment', 'point_of_interest');
+    hierarchicalTypes = ['point_of_interest', 'establishment', 'restaurant', 'cafe', 'museum'];
   }
-  // If destination is museum level, include only specific types
+  // If destination is museum level, focus on cultural and dining nearby
   else if (hasMuseum) {
-    hierarchicalTypes.push('museum', 'establishment', 'point_of_interest');
+    hierarchicalTypes = ['point_of_interest', 'establishment', 'restaurant', 'cafe', 'park'];
   }
   // Fallback for any other destination type
   else {
-    hierarchicalTypes.push('establishment', 'point_of_interest', 'tourist_attraction');
+    hierarchicalTypes = ['tourist_attraction', 'point_of_interest', 'establishment', 'restaurant', 'park'];
   }
-
-  // Combine hierarchical types with base granular types, removing duplicates
-  const allTypes = [...new Set([...hierarchicalTypes, ...baseGranularTypes])];
   
-  console.log('🏛️ Landmark types for destination types', destinationTypes, ':', allTypes);
+  console.log('🏛️ Hierarchical landmark types (max 5):', hierarchicalTypes);
   
-  return allTypes;
+  return hierarchicalTypes;
 };
 
 // Helper function to calculate distance between two coordinates (for UX)
