@@ -3,13 +3,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { MapPin } from 'lucide-react';
 import { Experience } from '@/hooks/useExperiences';
-
 interface ExperienceCardProps {
   experience: Experience;
   onSelect?: (experience: Experience) => void;
 }
-
-const ExperienceCard: React.FC<ExperienceCardProps> = ({ experience, onSelect }) => {
+const ExperienceCard: React.FC<ExperienceCardProps> = ({
+  experience,
+  onSelect
+}) => {
   const getPhotoUrl = (photo: any): string | null => {
     if (!photo) return null;
     if (typeof photo === 'string') return photo;
@@ -17,23 +18,13 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({ experience, onSelect })
     if (typeof photo === 'object' && photo.url) return photo.url;
     return null;
   };
-
   const photoUrl = getPhotoUrl(experience.photo);
-
-  return (
-    <Card className="w-[280px] h-[380px] flex-shrink-0 overflow-hidden flex flex-col">
-      {photoUrl && (
-        <div className="h-[160px] w-full overflow-hidden flex-shrink-0">
-          <img 
-            src={photoUrl} 
-            alt={experience.destination}
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-            }}
-          />
-        </div>
-      )}
+  return <Card className="w-[280px] h-[380px] flex-shrink-0 overflow-hidden flex flex-col">
+      {photoUrl && <div className="h-[160px] w-full overflow-hidden flex-shrink-0">
+          <img src={photoUrl} alt={experience.destination} className="w-full h-full object-cover" onError={e => {
+        e.currentTarget.style.display = 'none';
+      }} />
+        </div>}
       
       <CardHeader className="pb-2 flex-shrink-0">
         <CardTitle className="text-lg line-clamp-2 flex items-center gap-2 h-[56px]">
@@ -49,19 +40,10 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({ experience, onSelect })
           </CardDescription>
         </div>
         
-        {onSelect && (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => onSelect(experience)}
-            className="w-full flex-shrink-0"
-          >
+        {onSelect && <Button variant="outline" size="sm" onClick={() => onSelect(experience)} className="bg-gradient-to-r from-purple-400/80 to-pink-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 border-purple-300 hover:from-purple-300/80 hover:to-pink-300/80">
             Generate Experience
-          </Button>
-        )}
+          </Button>}
       </CardContent>
-    </Card>
-  );
+    </Card>;
 };
-
 export default ExperienceCard;
