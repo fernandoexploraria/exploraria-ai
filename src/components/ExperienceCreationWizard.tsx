@@ -223,7 +223,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
           generation_start_time: new Date().toISOString(),
           generation_end_time: new Date().toISOString(),
           destination_details: destinationData.data,
-          photo: destinationData?.data?.photos || null,
+          photo: destinationData?.data?.photos?.[0] ? [destinationData.data.photos[0]] : null,
         })
         .select()
         .single();
