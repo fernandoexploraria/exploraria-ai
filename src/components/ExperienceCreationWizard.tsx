@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, Check, MapPin, Building, MessageSquare, Mic, Database, Bot } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, MapPin, Building, MessageSquare, Mic, Database, Bot, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -335,6 +335,17 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
               <p className="text-sm text-muted-foreground">Step {currentStep + 1} of {WIZARD_STEPS.length}</p>
             </div>
           </div>
+          {currentStep === 2 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsAiChatOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <Sparkles className="h-4 w-4" />
+              AI Refine
+            </Button>
+          )}
         </div>
       </header>
 
@@ -495,28 +506,17 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                        <CardDescription>
                          AI personality prompt automatically generated based on your destination and landmarks using the Alexis template.
                        </CardDescription>
-                       <div className="flex gap-2">
-                         <Button
-                           variant="outline"
-                           size="sm"
-                           onClick={() => setIsAiChatOpen(true)}
-                           className="flex items-center gap-2"
-                         >
-                           <Bot className="h-4 w-4" />
-                           AI Refine
-                         </Button>
-                         <Button
-                           variant="outline"
-                           size="sm"
-                           onClick={() => {
-                             const regeneratedPrompt = generateSystemPrompt();
-                             setExperienceData(prev => ({ ...prev, systemPrompt: regeneratedPrompt }));
-                             toast.success("Prompt regenerated with latest data");
-                           }}
-                         >
-                           Regenerate
-                         </Button>
-                       </div>
+                       <Button
+                         variant="outline"
+                         size="sm"
+                         onClick={() => {
+                           const regeneratedPrompt = generateSystemPrompt();
+                           setExperienceData(prev => ({ ...prev, systemPrompt: regeneratedPrompt }));
+                           toast.success("Prompt regenerated with latest data");
+                         }}
+                       >
+                         Regenerate
+                       </Button>
                      </div>
                     
                     <PromptSectionViewer prompt={experienceData.systemPrompt} />
