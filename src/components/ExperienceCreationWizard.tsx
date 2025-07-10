@@ -385,7 +385,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                   <span>{currentStepData.title}</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-6 max-h-[600px] overflow-y-auto">
                 {/* Step Content */}
                 {currentStep === 0 && (
                   <div className="space-y-4">
