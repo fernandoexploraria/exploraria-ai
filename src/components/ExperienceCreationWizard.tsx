@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { getHierarchicalLandmarkTypes, calculateDistance } from '@/utils/landmarkTypeHierarchy';
 import { generateAlexisPrompt } from '@/utils/alexisPromptGenerator';
 import { mapPriceLevel } from '@/utils/priceUtils';
+import { PromptSectionViewer } from '@/components/PromptSectionViewer';
 
 interface ExperienceCreationWizardProps {
   onClose: () => void;
@@ -488,34 +489,28 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
 
                 {currentStep === 2 && (
                   <div className="space-y-4">
-                    <CardDescription>
-                      AI personality prompt automatically generated based on your destination and landmarks using the Alexis template. You can customize it below if needed.
-                    </CardDescription>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <label className="text-sm font-medium">Generated AI Guide Prompt</label>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const regeneratedPrompt = generateSystemPrompt();
-                            setExperienceData(prev => ({ ...prev, systemPrompt: regeneratedPrompt }));
-                            toast.success("Prompt regenerated with latest data");
-                          }}
-                        >
-                          Regenerate
-                        </Button>
-                      </div>
-                      <Textarea
-                        placeholder="The AI guide's personality and instructions will be generated based on your destination and landmarks..."
-                        value={experienceData.systemPrompt}
-                        onChange={(e) => setExperienceData(prev => ({ ...prev, systemPrompt: e.target.value }))}
-                        className="min-h-[400px] font-mono text-xs"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        This prompt defines how Alexis, your AI tour guide, will interact with users. It includes your destination details, landmark information, and function calling capabilities.
-                      </p>
+                    <div className="flex items-center justify-between">
+                      <CardDescription>
+                        AI personality prompt automatically generated based on your destination and landmarks using the Alexis template.
+                      </CardDescription>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const regeneratedPrompt = generateSystemPrompt();
+                          setExperienceData(prev => ({ ...prev, systemPrompt: regeneratedPrompt }));
+                          toast.success("Prompt regenerated with latest data");
+                        }}
+                      >
+                        Regenerate
+                      </Button>
                     </div>
+                    
+                    <PromptSectionViewer prompt={experienceData.systemPrompt} />
+                    
+                    <p className="text-xs text-muted-foreground mt-4">
+                      This prompt defines how Alexis, your AI tour guide, will interact with users. It includes your destination details, landmark information, and function calling capabilities.
+                    </p>
                   </div>
                 )}
 
