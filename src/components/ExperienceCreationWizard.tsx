@@ -12,6 +12,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { toast } from 'sonner';
 import { getHierarchicalLandmarkTypes, calculateDistance } from '@/utils/landmarkTypeHierarchy';
 import { generateAlexisPrompt } from '@/utils/alexisPromptGenerator';
+import { mapPriceLevel } from '@/utils/priceUtils';
 
 interface ExperienceCreationWizardProps {
   onClose: () => void;
@@ -230,7 +231,10 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
       if (tourError) throw tourError;
 
       // 4. Create landmarks
-      for (const landmark of experienceData.landmarks) {
+      const landmarkInserts = [];
+      
+      for (let index = 0; index < experienceData.landmarks.length; index++) {
+        const landmark = experienceData.landmarks[index];
         const { data: landmarkDetails, error: landmarkError } = await supabase.functions.invoke('google-places-details', {
           body: {
             placeId: landmark.place_id,
@@ -238,20 +242,48 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
         });
 
         if (!landmarkError && landmarkDetails.data) {
-          await supabase
-            .from('generated_landmarks')
-            .insert({
+          // Validate coordinates
+          const location = landmarkDetails.data.location;
+          if (location && location.longitude && location.latitude) {
+            landmarkInserts.push({
               tour_id: tourData.id,
-              landmark_id: landmark.place_id,
+              landmark_id: `landmark-${index + 1}`, // Consecutive landmark ID
               name: landmark.name,
-              description: landmark.description,
+              coordinates: `(${location.longitude},${location.latitude})`,
+              description: landmarkDetails.data.editorialSummary || `${landmark.name} - ${landmark.types?.join(', ')}`,
+              rating: landmarkDetails.data.rating,
+              // Enhanced fields with price level mapping
+              price_level: mapPriceLevel(landmarkDetails.data.priceLevel),
+              user_ratings_total: landmarkDetails.data.userRatingsTotal,
+              website_uri: landmarkDetails.data.website,
+              opening_hours: landmarkDetails.data.openingHours || null,
+              editorial_summary: landmarkDetails.data.editorialSummary,
+              photo_references: landmarkDetails.data.photos || [],
+              // Additional fields
+              photos: landmarkDetails.data.photos ? { urls: landmarkDetails.data.photos } : null,
+              formatted_address: landmarkDetails.data.address,
+              types: landmark.types || [],
               place_id: landmark.place_id,
-              types: landmark.types,
-              coordinates: `(${landmarkDetails.data.location?.longitude || 0}, ${landmarkDetails.data.location?.latitude || 0})`,
-              raw_data: landmarkDetails.data,
               confidence: 'high',
               coordinate_source: 'google_places_api',
+              // Complete raw data preservation
+              raw_data: landmarkDetails.data
             });
+          } else {
+            console.warn('Skipping landmark with invalid coordinates:', landmark.name, location);
+          }
+        }
+      }
+
+      // Bulk insert landmarks
+      if (landmarkInserts.length > 0) {
+        const { error: landmarksError } = await supabase
+          .from('generated_landmarks')
+          .insert(landmarkInserts);
+
+        if (landmarksError) {
+          console.error('Landmarks insertion error:', landmarksError);
+          throw new Error(`Failed to create landmarks: ${landmarksError.message}`);
         }
       }
 
