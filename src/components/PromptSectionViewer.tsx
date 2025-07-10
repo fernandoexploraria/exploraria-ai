@@ -197,7 +197,7 @@ export const PromptSectionViewer: React.FC<PromptSectionViewerProps> = ({ prompt
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between sticky top-0 bg-background z-10 pb-4">
         <div>
           <h3 className="text-lg font-semibold">AI Personality Breakdown</h3>
           <p className="text-sm text-muted-foreground">
