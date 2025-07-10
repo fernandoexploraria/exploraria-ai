@@ -113,74 +113,9 @@ export const PromptSectionViewer: React.FC<PromptSectionViewerProps> = ({
     return sections.filter(section => section.content.trim().length > 0);
   };
   const sections = parsePromptIntoSections(prompt);
-  const formatContent = (content: string, type: string, sectionTitle?: string) => {
+  const formatContent = (content: string, type: string) => {
     // Remove excessive line breaks and clean up formatting
     const cleaned = content.replace(/\n{3,}/g, '\n\n').trim();
-    
-    // Special handling for Section 3 - Primary Tour Destination Overview
-    if (type === 'json' && sectionTitle === 'Primary Tour Destination Overview (Static Data)') {
-      const jsonMatches = cleaned.match(/```json\n([\s\S]*?)\n```/g);
-      if (jsonMatches) {
-        try {
-          const jsonString = jsonMatches[0].replace(/```json\n/, '').replace(/\n```/, '');
-          const destinationData = JSON.parse(jsonString);
-          
-          return <div className="space-y-4">
-            {cleaned.split('```json')[0].trim() && (
-              <p className="text-sm mb-4">{cleaned.split('```json')[0].trim()}</p>
-            )}
-            
-            <div className="bg-gradient-to-br from-primary/5 to-primary/10 p-4 rounded-lg border border-primary/20">
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <h4 className="font-semibold text-lg text-primary">{destinationData.name}</h4>
-                  {destinationData.rating && (
-                    <div className="flex items-center gap-1 mt-1">
-                      <span className="text-sm text-muted-foreground">★ {destinationData.rating}</span>
-                      {destinationData.user_ratings_total && (
-                        <span className="text-xs text-muted-foreground">({destinationData.user_ratings_total} reviews)</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-                {destinationData.types && destinationData.types.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {destinationData.types.slice(0, 2).map((type: string, i: number) => (
-                      <Badge key={i} variant="secondary" className="text-xs">
-                        {type.replace(/_/g, ' ')}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-              
-              {destinationData.formatted_address && (
-                <div className="mb-3">
-                  <p className="text-sm text-muted-foreground">📍 {destinationData.formatted_address}</p>
-                </div>
-              )}
-              
-              {destinationData.geometry?.location && (
-                <div className="mb-3">
-                  <p className="text-xs text-muted-foreground font-mono">
-                    {destinationData.geometry.location.lat}, {destinationData.geometry.location.lng}
-                  </p>
-                </div>
-              )}
-              
-              {destinationData.editorial_summary && (
-                <div className="mt-3 p-3 bg-background/50 rounded border">
-                  <p className="text-sm">{destinationData.editorial_summary}</p>
-                </div>
-              )}
-            </div>
-          </div>;
-        } catch (error) {
-          // Fallback to original JSON display if parsing fails
-        }
-      }
-    }
-    
     if (type === 'json') {
       // Extract JSON blocks and format them
       const jsonMatches = cleaned.match(/```json\n([\s\S]*?)\n```/g);
@@ -255,7 +190,7 @@ export const PromptSectionViewer: React.FC<PromptSectionViewerProps> = ({
             </CardHeader>
             <CardContent className="pt-0">
               <div className="max-h-48 overflow-y-auto border rounded-lg p-3 bg-muted/30">
-                {formatContent(section.content, section.type, section.title)}
+                {formatContent(section.content, section.type)}
               </div>
             </CardContent>
         </Card>)}
