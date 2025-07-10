@@ -21,9 +21,9 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({ experience, onSelect })
   const photoUrl = getPhotoUrl(experience.photo);
 
   return (
-    <Card className="w-[280px] h-[320px] flex-shrink-0 overflow-hidden">
+    <Card className="w-[280px] h-[320px] flex-shrink-0 overflow-hidden flex flex-col">
       {photoUrl && (
-        <div className="h-[160px] w-full overflow-hidden">
+        <div className="h-[160px] w-full overflow-hidden flex-shrink-0">
           <img 
             src={photoUrl} 
             alt={experience.destination}
@@ -35,24 +35,26 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({ experience, onSelect })
         </div>
       )}
       
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg line-clamp-2 flex items-center gap-2">
+      <CardHeader className="pb-2 flex-shrink-0">
+        <CardTitle className="text-lg line-clamp-2 flex items-center gap-2 h-[56px]">
           <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
-          {experience.destination}
+          <span className="line-clamp-2">{experience.destination}</span>
         </CardTitle>
       </CardHeader>
       
-      <CardContent className="flex-1 flex flex-col justify-between">
-        <CardDescription className="line-clamp-3 text-sm mb-4">
-          {experience.description || 'Discover amazing places and experiences in this curated tour.'}
-        </CardDescription>
+      <CardContent className="flex-1 flex flex-col p-6 pt-0">
+        <div className="flex-1 mb-4">
+          <CardDescription className="text-sm h-[72px] overflow-y-auto">
+            {experience.description || 'Discover amazing places and experiences in this curated tour.'}
+          </CardDescription>
+        </div>
         
         {onSelect && (
           <Button 
             variant="outline" 
             size="sm" 
             onClick={() => onSelect(experience)}
-            className="w-full mb-2.5"
+            className="w-full flex-shrink-0"
           >
             Generate Experience
           </Button>
