@@ -193,10 +193,12 @@ Please analyze this Core Mission section and help me refine it to be more detail
 
 Focus ONLY on the Core Mission & Behavioral Principles - do not include persona, landmarks, or technical instructions.
 
+IMPORTANT: Start your response with "**Your Core Mission:**" followed by the refined content.
+
 Here's our conversation:
 ${conversationContext}
 
-Please provide ONLY the refined Core Mission & Behavioral Principles section text, no additional explanation or formatting.`;
+Please provide ONLY the refined Core Mission & Behavioral Principles section text starting with "**Your Core Mission:**", no additional explanation or formatting.`;
 
     const response = await callGemini(finalPrompt, SECTION2_REFINEMENT_SYSTEM_PROMPT);
     
