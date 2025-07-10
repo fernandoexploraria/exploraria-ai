@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, Check, MapPin, Building, MessageSquare, Mic, Database } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, MapPin, Building, MessageSquare, Mic, Database, Bot } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,7 @@ import { getHierarchicalLandmarkTypes, calculateDistance } from '@/utils/landmar
 import { generateAlexisPrompt } from '@/utils/alexisPromptGenerator';
 import { mapPriceLevel } from '@/utils/priceUtils';
 import { PromptSectionViewer } from '@/components/PromptSectionViewer';
+import { PersonaRefinementChat } from '@/components/PersonaRefinementChat';
 
 interface ExperienceCreationWizardProps {
   onClose: () => void;
@@ -79,6 +80,7 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
   const [isCreating, setIsCreating] = useState(false);
   const [destinationSearch, setDestinationSearch] = useState('');
   const [landmarkSearch, setLandmarkSearch] = useState('');
+  const [isAiChatOpen, setIsAiChatOpen] = useState(false);
   
   const [experienceData, setExperienceData] = useState<ExperienceData>({
     destination: null,
@@ -489,22 +491,33 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
 
                 {currentStep === 2 && (
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between sticky top-0 bg-background z-10 pb-4 border-b">
-                      <CardDescription>
-                        AI personality prompt automatically generated based on your destination and landmarks using the Alexis template.
-                      </CardDescription>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const regeneratedPrompt = generateSystemPrompt();
-                          setExperienceData(prev => ({ ...prev, systemPrompt: regeneratedPrompt }));
-                          toast.success("Prompt regenerated with latest data");
-                        }}
-                      >
-                        Regenerate
-                      </Button>
-                    </div>
+                     <div className="flex items-center justify-between sticky top-0 bg-background z-10 pb-4 border-b">
+                       <CardDescription>
+                         AI personality prompt automatically generated based on your destination and landmarks using the Alexis template.
+                       </CardDescription>
+                       <div className="flex gap-2">
+                         <Button
+                           variant="outline"
+                           size="sm"
+                           onClick={() => setIsAiChatOpen(true)}
+                           className="flex items-center gap-2"
+                         >
+                           <Bot className="h-4 w-4" />
+                           AI Refine
+                         </Button>
+                         <Button
+                           variant="outline"
+                           size="sm"
+                           onClick={() => {
+                             const regeneratedPrompt = generateSystemPrompt();
+                             setExperienceData(prev => ({ ...prev, systemPrompt: regeneratedPrompt }));
+                             toast.success("Prompt regenerated with latest data");
+                           }}
+                         >
+                           Regenerate
+                         </Button>
+                       </div>
+                     </div>
                     
                     <PromptSectionViewer prompt={experienceData.systemPrompt} />
                     
@@ -648,6 +661,18 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
           </div>
         </div>
       </div>
+
+      {/* AI Persona Refinement Chat */}
+      <PersonaRefinementChat
+        isOpen={isAiChatOpen}
+        onClose={() => setIsAiChatOpen(false)}
+        initialPrompt={experienceData.systemPrompt}
+        destination={experienceData.destination?.description || ''}
+        landmarks={experienceData.landmarks}
+        onPromptRefined={(refinedPrompt) => {
+          setExperienceData(prev => ({ ...prev, systemPrompt: refinedPrompt }));
+        }}
+      />
     </div>
   );
 };
