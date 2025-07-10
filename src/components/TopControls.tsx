@@ -17,7 +17,7 @@ import IntelligentTourDialog from './IntelligentTourDialog';
 import AuthDialog from './AuthDialog';
 import ExperiencesDrawer from './ExperiencesDrawer';
 import { useAuth } from '@/components/AuthProvider';
-import { PostAuthAction } from '@/utils/authActions';
+import { PostAuthAction, setPostAuthAction, setPostAuthLandmark } from '@/utils/authActions';
 import { performComprehensiveTourReset } from '@/utils/tourResetUtils';
 
 interface TopControlsProps {
@@ -109,6 +109,31 @@ const TopControls: React.FC<TopControlsProps> = ({
       console.log('✅ User authenticated, opening smart tour dialog');
       // Note: Reset logic is now handled by onIntelligentTourOpen from parent
       onIntelligentTourOpen();
+    }
+  };
+
+  const handleExperiencesClick = () => {
+    console.log('🎯 Experiences button clicked, user:', authUser?.id);
+    
+    if (!authUser) {
+      console.log('🚨 User not authenticated, setting up post-auth flow for experiences');
+      
+      // Create a default experience destination to persist
+      const defaultExperienceDestination = {
+        id: 'default-experience',
+        name: 'Curated Experience',
+        description: 'Discover amazing places and tours curated by our experts',
+        coordinates: [0, 0], // Will be updated based on user location or popular destination
+        experience: true
+      };
+      
+      // Persist the default destination and set post-auth action
+      setPostAuthLandmark(defaultExperienceDestination);
+      setPostAuthAction('smart-tour');
+      setIsAuthDialogOpen(true);
+    } else {
+      console.log('✅ User authenticated, opening experiences drawer');
+      setIsExperiencesDrawerOpen(true);
     }
   };
 
@@ -217,7 +242,7 @@ const TopControls: React.FC<TopControlsProps> = ({
                 variant="outline"
                 size="sm"
                 className="bg-gradient-to-r from-purple-400/80 to-pink-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 border-purple-300 hover:from-purple-300/80 hover:to-pink-300/80"
-                onClick={() => setIsExperiencesDrawerOpen(true)}
+                onClick={handleExperiencesClick}
               >
                 <Compass className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
                 <span className="lg:hidden">Experiences</span>
