@@ -78,7 +78,7 @@ export const fetchExperienceLandmarks = async (tourId: string): Promise<{ places
         types: landmark.types || [],
         vicinity: landmark.formatted_address || null,
         openNow: null, // Not stored in database
-        photoReference: landmark.photo_references?.[0] || "DEBUG_DUMMY_REFERENCE",
+        photoReference: landmark.photo_references?.[0] || null,
         photoUrl: Array.isArray(landmark.photos) ? landmark.photos.flat()[0] : landmark.photos,
         geometry: {
           location: { lng, lat }
