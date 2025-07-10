@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Bot, Wrench, BookOpen, Play, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Bot, Wrench, BookOpen, Play, AlertCircle, Copy } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -94,6 +94,34 @@ const ElevenLabsPlayground: React.FC = () => {
       toast({
         title: "Failed to Fetch Tools",
         description: "Could not retrieve agent tools",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const duplicateAgent = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('elevenlabs-agents-api', {
+        body: { 
+          action: 'duplicate_agent',
+          agentId: EXISTING_AGENT_ID
+        }
+      });
+
+      if (error) throw error;
+      
+      toast({
+        title: "Agent Duplicated",
+        description: `New agent created with ID: ${data.agent_id}`,
+      });
+    } catch (error) {
+      console.error('Agent duplication error:', error);
+      toast({
+        title: "Failed to Duplicate Agent",
+        description: "Could not duplicate the agent",
         variant: "destructive"
       });
     } finally {
@@ -210,10 +238,16 @@ const ElevenLabsPlayground: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Button onClick={fetchAgentInfo} disabled={loading}>
-              <Play className="mr-2 h-4 w-4" />
-              Fetch Agent Info
-            </Button>
+            <div className="flex gap-4">
+              <Button onClick={fetchAgentInfo} disabled={loading}>
+                <Play className="mr-2 h-4 w-4" />
+                Fetch Agent Info
+              </Button>
+              <Button onClick={duplicateAgent} disabled={loading} variant="outline">
+                <Copy className="mr-2 h-4 w-4" />
+                Duplicate Agent
+              </Button>
+            </div>
             
             {agentData && (
               <div className="mt-4 p-4 bg-muted rounded-lg">
