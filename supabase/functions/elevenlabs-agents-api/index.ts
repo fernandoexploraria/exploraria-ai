@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
       
       default:
         return new Response(
-          JSON.stringify({ error: 'Invalid action. Supported: list_agents, get_agent, duplicate_agent' }),
+          JSON.stringify({ error: 'Invalid action. Supported actions: list_agents, get_agent, duplicate_agent' }),
           { 
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
