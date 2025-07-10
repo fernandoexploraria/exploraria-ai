@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, Check, MapPin, Building, MessageSquare, Mic, Database, Bot } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, MapPin, Building, MessageSquare, Mic, Database, Bot, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -491,41 +491,42 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
 
                 {currentStep === 2 && (
                   <div className="space-y-4">
-                     <div className="flex items-start justify-between sticky top-0 bg-background z-10 pb-4 border-b">
-                       <CardDescription className="flex-1 pr-4">
-                         AI personality prompt automatically generated based on your destination and landmarks using the Alexis template.
-                       </CardDescription>
-                       <div className="flex gap-1 flex-shrink-0">
-                         <Button
-                           variant="ghost"
-                           size="sm"
-                           onClick={() => setIsAiChatOpen(true)}
-                           className="h-8 w-8 p-0"
-                           title="AI Refine"
-                         >
-                           <Bot className="h-4 w-4" />
-                         </Button>
-                         <Button
-                           variant="ghost"
-                           size="sm"
-                           onClick={() => {
-                             const regeneratedPrompt = generateSystemPrompt();
-                             setExperienceData(prev => ({ ...prev, systemPrompt: regeneratedPrompt }));
-                             toast.success("Prompt regenerated with latest data");
-                           }}
-                           className="h-8 w-8 p-0"
-                           title="Regenerate"
-                         >
-                           <ArrowRight className="h-4 w-4" />
-                         </Button>
-                       </div>
-                     </div>
+                    {/* Single Fixed Header Section */}
+                    <div className="sticky top-0 bg-background z-10 pb-4 border-b space-y-4">
+                      {/* AI Personality Header */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2">
+                          <MessageSquare className="h-5 w-5" />
+                          <h3 className="text-lg font-semibold">AI Personality</h3>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsAiChatOpen(true)}
+                          className="h-8 w-8 p-0"
+                          title="AI Refine"
+                        >
+                          <Sparkles className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      
+                      <CardDescription>
+                        AI personality prompt automatically generated based on your destination and landmarks using the Alexis template.
+                      </CardDescription>
+                      
+                      {/* AI Personality Breakdown */}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-semibold text-foreground">AI Personality Breakdown</h4>
+                          <p className="text-sm text-muted-foreground">Your AI guide's prompt organized into 9 logical sections</p>
+                        </div>
+                        <div className="text-sm font-medium text-muted-foreground">
+                          {experienceData.systemPrompt.length.toLocaleString()} characters
+                        </div>
+                      </div>
+                    </div>
                     
                     <PromptSectionViewer prompt={experienceData.systemPrompt} />
-                    
-                    <p className="text-xs text-muted-foreground mt-4">
-                      This prompt defines how Alexis, your AI tour guide, will interact with users. It includes your destination details, landmark information, and function calling capabilities.
-                    </p>
                   </div>
                 )}
 
