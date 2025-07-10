@@ -45,16 +45,21 @@ export const fetchExperienceLandmarks = async (tourId: string): Promise<{ places
     
     // Transform database landmarks to match Google Places API structure
     const transformedLandmarks = landmarks.map(landmark => {
-      // Parse coordinates from raw_data field (always from raw_data)
+      // Parse coordinates from the coordinates point field (PostgreSQL format: "(lng,lat)")
       let lng, lat;
       
       try {
-        if (landmark.raw_data && landmark.raw_data.location) {
-          lng = landmark.raw_data.location.longitude;
-          lat = landmark.raw_data.location.latitude;
+        if (landmark.coordinates) {
+          // PostgreSQL point format: "(lng,lat)" 
+          const coordsStr = landmark.coordinates.toString();
+          const matches = coordsStr.match(/\(([^,]+),([^)]+)\)/);
+          if (matches) {
+            lng = parseFloat(matches[1]);
+            lat = parseFloat(matches[2]);
+          }
         }
       } catch (error) {
-        console.warn('Failed to parse raw_data for landmark:', landmark.name, error);
+        console.warn('Failed to parse coordinates for landmark:', landmark.name, error);
       }
       
       // Validate coordinates
@@ -63,43 +68,28 @@ export const fetchExperienceLandmarks = async (tourId: string): Promise<{ places
         return null;
       }
 
-      // Helper function to safely extract from raw_data
-      const safeExtractFromRawData = (path: string) => {
-        try {
-          const keys = path.split('.');
-          let value = landmark.raw_data;
-          for (const key of keys) {
-            value = value?.[key];
-          }
-          return value;
-        } catch {
-          return null;
-        }
-      };
-
-      // Priority mapping: use table fields first, fallback to raw_data
+      // Clean 1:1 mapping to match the required interface structure
       const mappedLandmark = {
-        ...landmark,
-        // Add geometry.location structure (always from raw_data)
+        placeId: landmark.place_id,
+        name: landmark.name,
+        rating: landmark.rating,
+        userRatingsTotal: landmark.user_ratings_total,
+        priceLevel: landmark.price_level,
+        types: landmark.types || [],
+        vicinity: landmark.formatted_address || null,
+        openNow: null, // Not stored in database
+        photoReference: landmark.photo_references?.[0] || null,
+        photoUrl: landmark.photos || null,
         geometry: {
           location: { lng, lat }
         },
-        // Priority mapping for core fields
-        name: landmark.name || safeExtractFromRawData('displayName.text') || landmark.name,
-        place_id: landmark.place_id || safeExtractFromRawData('id'),
-        rating: landmark.rating || safeExtractFromRawData('rating'),
-        formatted_address: landmark.formatted_address || safeExtractFromRawData('formattedAddress'),
-        types: landmark.types?.length ? landmark.types : (safeExtractFromRawData('types') || []),
-        
-        // Enhanced fields with fallbacks
-        editorial_summary: landmark.editorial_summary || safeExtractFromRawData('editorialSummary.text'),
-        website_uri: landmark.website_uri || safeExtractFromRawData('websiteUri'),
-        opening_hours: landmark.opening_hours || safeExtractFromRawData('regularOpeningHours'),
-        user_ratings_total: landmark.user_ratings_total || safeExtractFromRawData('userRatingCount'),
-        price_level: landmark.price_level || safeExtractFromRawData('priceLevel'),
-        
-        // Enhanced photo handling
-        photos: landmark.photos || landmark.photo_references || safeExtractFromRawData('photos') || []
+        editorialSummary: landmark.editorial_summary,
+        website: landmark.website_uri,
+        regularOpeningHours: landmark.opening_hours,
+        photos: landmark.photo_references || [],
+        searchRadius: null, // Not applicable for DB results
+        maxResults: null, // Not applicable for DB results
+        rawGooglePlacesData: landmark.raw_data
       };
 
       return mappedLandmark;
