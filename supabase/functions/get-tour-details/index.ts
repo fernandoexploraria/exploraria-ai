@@ -37,7 +37,7 @@ serve(async (req) => {
     // Fetch tour details from the database
     const { data: tourData, error: tourError } = await supabase
       .from('generated_tours')
-      .select('destination, system_prompt')
+      .select('destination, system_prompt, agentid')
       .eq('id', tourId)
       .single();
 
@@ -53,12 +53,14 @@ serve(async (req) => {
 
     console.log('✅ Successfully fetched tour details:', {
       destination: tourData.destination,
-      hasSystemPrompt: !!tourData.system_prompt
+      hasSystemPrompt: !!tourData.system_prompt,
+      hasAgentId: !!tourData.agentid
     });
 
     const response = {
       destination: tourData.destination,
-      systemPrompt: tourData.system_prompt
+      systemPrompt: tourData.system_prompt,
+      agentId: tourData.agentid
     };
 
     return new Response(

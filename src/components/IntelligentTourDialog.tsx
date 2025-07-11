@@ -464,9 +464,10 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
 
       // System prompt selection logic based on tour type
       let systemPrompt: string;
+      let sourceAgentId: string | null = null;
       
       if (tourType === 'experience' && sourceTourId) {
-        console.log('🎯 Experience tour detected, fetching system prompt from source tour:', sourceTourId);
+        console.log('🎯 Experience tour detected, fetching system prompt and agent ID from source tour:', sourceTourId);
         try {
           const { data: tourDetails, error: tourDetailsError } = await supabase.functions.invoke('get-tour-details', {
             body: { tourId: sourceTourId }
@@ -483,12 +484,18 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
           }
           
           systemPrompt = tourDetails.systemPrompt;
-          console.log('✅ Successfully retrieved system prompt from source tour');
+          sourceAgentId = tourDetails.agentId || null;
+          console.log('✅ Successfully retrieved system prompt and agent ID from source tour:', {
+            hasSystemPrompt: !!systemPrompt,
+            hasAgentId: !!sourceAgentId,
+            agentId: sourceAgentId
+          });
           
         } catch (error) {
           console.error('❌ Error fetching source system prompt, falling back to alexisPrompt:', error);
           // Fallback to generated alexisPrompt if fetching fails
           systemPrompt = generateAlexisPrompt(destination, landmarks, landmarkHighlights);
+          sourceAgentId = null;
         }
       } else {
         console.log('🔍 Regular tour detected, generating alexisPrompt');
@@ -625,7 +632,9 @@ You will receive occasional, non-interrupting system updates about **new** nearb
         system_prompt: systemPrompt,
         total_landmarks: landmarks.length,
         generation_start_time: new Date().toISOString(),
-        generation_end_time: new Date().toISOString()
+        generation_end_time: new Date().toISOString(),
+        // Include agentid for experience tours
+        ...(tourType === 'experience' && sourceAgentId && { agentid: sourceAgentId })
       };
 
       console.log('Tour insert data:', tourInsertData);
