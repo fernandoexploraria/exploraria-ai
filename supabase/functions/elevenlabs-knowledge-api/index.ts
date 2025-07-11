@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
 
     // Handle JSON requests
     const requestBody = await req.json();
-    const { action, agentId, text, title } = requestBody;
+    const { action, agentId, text, title, file, url } = requestBody;
 
     switch (action) {
       case 'upload_text':
@@ -73,6 +73,30 @@ Deno.serve(async (req) => {
           );
         }
         return await uploadTextToKnowledgeBase(apiKey, text, title);
+      
+      case 'upload_file':
+        if (!file || !file.data || !file.name) {
+          return new Response(
+            JSON.stringify({ error: 'file data and name are required for upload_file action' }),
+            { 
+              status: 400, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+        return await uploadFileToKnowledgeBase(apiKey, file, title);
+      
+      case 'upload_url':
+        if (!url) {
+          return new Response(
+            JSON.stringify({ error: 'url is required for upload_url action' }),
+            { 
+              status: 400, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+        return await uploadUrlToKnowledgeBase(apiKey, url, title);
       
       case 'list_knowledge_bases':
         return await listKnowledgeBases(apiKey);
@@ -91,7 +115,7 @@ Deno.serve(async (req) => {
       
       default:
         return new Response(
-          JSON.stringify({ error: 'Invalid action. Supported: upload_text, list_knowledge_bases, list_documents' }),
+          JSON.stringify({ error: 'Invalid action. Supported: upload_text, upload_file, upload_url, list_knowledge_bases, list_documents' }),
           { 
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -352,6 +376,156 @@ async function uploadTextToKnowledgeBase(apiKey: string, text: string, title?: s
     
   } catch (error) {
     console.error('Error in uploadTextToKnowledgeBase:', error);
+    return new Response(
+      JSON.stringify({ error: 'Internal server error', message: error.message }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+}
+
+async function uploadFileToKnowledgeBase(apiKey: string, file: any, title?: string) {
+  try {
+    console.log('Uploading file to ElevenLabs knowledge base...');
+    
+    // Convert file data to Blob
+    const fileBlob = new Blob([new Uint8Array(file.data)], { type: file.type });
+    
+    // Create FormData for file upload
+    const formData = new FormData();
+    formData.append('file', fileBlob, file.name);
+    if (title) {
+      formData.append('name', title);
+    }
+    
+    const response = await fetch('https://api.elevenlabs.io/v1/convai/knowledge-base/file', {
+      method: 'POST',
+      headers: {
+        'xi-api-key': apiKey,
+      },
+      body: formData
+    });
+    
+    const responseData = await response.json();
+    
+    if (!response.ok) {
+      console.error('ElevenLabs API Error:', responseData);
+      
+      let userMessage = responseData.detail || 'Failed to upload file to ElevenLabs';
+      if (responseData.detail?.includes('rag_limit_exceeded')) {
+        userMessage = 'You have exceeded your RAG indexing limit. Please upgrade your ElevenLabs plan or try again later.';
+      } else if (responseData.detail?.includes('document_too_small')) {
+        userMessage = 'The document is too small to index. Please provide more content.';
+      }
+      
+      return new Response(
+        JSON.stringify({
+          error: 'ElevenLabs API Error',
+          message: userMessage,
+          elevenLabsStatus: response.status,
+          originalDetail: responseData.detail
+        }),
+        { 
+          status: response.status, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+    
+    console.log('File uploaded successfully:', responseData);
+    
+    // Compute RAG index after file upload
+    const knowledgeBaseId = responseData.knowledge_base_id || responseData.id;
+    let ragIndexResult = null;
+    
+    if (knowledgeBaseId) {
+      console.log('Starting RAG index computation for KB:', knowledgeBaseId);
+      ragIndexResult = await computeRagIndex(apiKey, knowledgeBaseId);
+    }
+    
+    return new Response(
+      JSON.stringify({
+        message: knowledgeBaseId ? 'File uploaded and RAG indexing completed' : 'File uploaded but no knowledge base ID returned',
+        knowledgeBaseId: knowledgeBaseId,
+        status: responseData.status,
+        ragIndexResult: ragIndexResult,
+        fullResponse: responseData,
+      }),
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+    
+  } catch (error) {
+    console.error('Error in uploadFileToKnowledgeBase:', error);
+    return new Response(
+      JSON.stringify({ error: 'Internal server error', message: error.message }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+}
+
+async function uploadUrlToKnowledgeBase(apiKey: string, url: string, title?: string) {
+  try {
+    console.log('Uploading URL to ElevenLabs knowledge base...');
+    
+    const response = await fetch('https://api.elevenlabs.io/v1/convai/knowledge-base/url', {
+      method: 'POST',
+      headers: {
+        'xi-api-key': apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        url,
+        ...(title && { name: title })
+      })
+    });
+    
+    const responseData = await response.json();
+    
+    if (!response.ok) {
+      console.error('ElevenLabs API Error:', responseData);
+      
+      let userMessage = responseData.detail || 'Failed to upload URL to ElevenLabs';
+      
+      return new Response(
+        JSON.stringify({
+          error: 'ElevenLabs API Error',
+          message: userMessage,
+          elevenLabsStatus: response.status,
+          originalDetail: responseData.detail
+        }),
+        { 
+          status: response.status, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+    
+    console.log('URL uploaded successfully:', responseData);
+    
+    // URLs don't need RAG indexing as per requirement
+    return new Response(
+      JSON.stringify({
+        message: 'URL uploaded successfully',
+        knowledgeBaseId: responseData.knowledge_base_id || responseData.id,
+        status: responseData.status,
+        fullResponse: responseData,
+      }),
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+    
+  } catch (error) {
+    console.error('Error in uploadUrlToKnowledgeBase:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error', message: error.message }),
       { 
