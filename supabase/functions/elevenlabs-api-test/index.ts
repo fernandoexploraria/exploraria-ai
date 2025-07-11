@@ -175,8 +175,8 @@ Deno.serve(async (req) => {
       }
 
       try {
-        // Get all voices to extract unique filter values
-        const response = await fetch('https://api.elevenlabs.io/v1/voices', {
+        // Get all voices from public voice library to extract unique filter values
+        const response = await fetch('https://api.elevenlabs.io/v1/shared-voices?page_size=100', {
           method: 'GET',
           headers: {
             'xi-api-key': apiKey,
@@ -197,7 +197,9 @@ Deno.serve(async (req) => {
           age: [...new Set(voices.map(v => v.labels?.age).filter(Boolean))].sort(),
           accent: [...new Set(voices.map(v => v.labels?.accent).filter(Boolean))].sort(),
           category: [...new Set(voices.map(v => v.category).filter(Boolean))].sort(),
-          language: [...new Set(voices.map(v => v.labels?.language).filter(Boolean))].sort()
+          language: [...new Set(voices.map(v => v.labels?.language).filter(Boolean))].sort(),
+          use_cases: [...new Set(voices.flatMap(v => v.labels?.use_case ? [v.labels.use_case] : []).filter(Boolean))].sort(),
+          descriptives: [...new Set(voices.flatMap(v => v.labels?.descriptive ? [v.labels.descriptive] : []).filter(Boolean))].sort()
         };
 
         return new Response(
@@ -243,8 +245,8 @@ Deno.serve(async (req) => {
 
       const { filters, searchTerm } = reqBody;
       
-      // Get all voices first
-      const response = await fetch('https://api.elevenlabs.io/v1/voices', {
+      // Get all voices from public voice library
+      const response = await fetch('https://api.elevenlabs.io/v1/shared-voices?page_size=100', {
         method: 'GET',
         headers: {
           'xi-api-key': apiKey,
@@ -281,6 +283,16 @@ Deno.serve(async (req) => {
             
             // Check language filter (only if filter is set)
             if (filters.language && filters.language.trim() && voice.labels?.language !== filters.language) {
+              return false;
+            }
+            
+            // Check use case filter (only if filter is set)
+            if (filters.use_cases && filters.use_cases.trim() && voice.labels?.use_case !== filters.use_cases) {
+              return false;
+            }
+            
+            // Check descriptives filter (only if filter is set)
+            if (filters.descriptives && filters.descriptives.trim() && voice.labels?.descriptive !== filters.descriptives) {
               return false;
             }
             

@@ -34,7 +34,9 @@ const ElevenLabsPlayground: React.FC = () => {
     age: [],
     accent: [],
     category: [],
-    language: []
+    language: [],
+    use_cases: [],
+    descriptives: []
   });
   const [filters, setFilters] = useState({
     gender: '',
@@ -42,6 +44,8 @@ const ElevenLabsPlayground: React.FC = () => {
     accent: '',
     category: '',
     language: '',
+    use_cases: '',
+    descriptives: ''
   });
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -735,8 +739,8 @@ const ElevenLabsPlayground: React.FC = () => {
                   </div>
 
                   {/* Filter Dropdowns */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                    {['gender', 'age', 'accent', 'category', 'language'].map(field => (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {['gender', 'age', 'accent', 'category', 'language', 'use_cases', 'descriptives'].map(field => (
                       <div key={field}>
                         <label htmlFor={field} className="block text-sm font-medium text-muted-foreground capitalize mb-1">
                           {field.replace('_', ' ')}:
