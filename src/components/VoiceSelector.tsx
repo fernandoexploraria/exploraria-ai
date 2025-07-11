@@ -82,24 +82,18 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
   };
 
   const playVoiceSample = async (voice: Voice) => {
-    if (!voice.samples || voice.samples.length === 0) {
-      toast({
-        title: "No Sample Available",
-        description: "This voice doesn't have a preview sample",
-        variant: "default"
-      });
-      return;
-    }
-
     setPlayingVoiceId(voice.voice_id);
 
+    // Use the voice description, or fallback to the voice name if no description
+    const textToSpeak = voice.description || `Hello, I'm ${voice.name}. This is how I sound.`;
+
     try {
-      // Call edge function to get audio sample
+      // Call edge function to generate TTS audio sample
       const { data, error } = await supabase.functions.invoke('elevenlabs-api-test', {
         body: { 
-          action: 'get_voice_sample',
+          action: 'generate_voice_sample',
           voice_id: voice.voice_id,
-          sample_id: voice.samples[0].sample_id
+          text: textToSpeak
         }
       });
 
@@ -119,14 +113,14 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
         
         await audio.play();
       } else {
-        throw new Error('Failed to get audio sample');
+        throw new Error(data.error || 'Failed to generate audio sample');
       }
     } catch (error) {
       console.error('Error playing voice sample:', error);
       setPlayingVoiceId(null);
       toast({
         title: "Playback Error",
-        description: "Could not play voice sample",
+        description: "Could not generate or play voice sample",
         variant: "destructive"
       });
     }
@@ -228,11 +222,10 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            console.log('Voice samples:', voice.samples);
                             playVoiceSample(voice);
                           }}
                           disabled={playingVoiceId === voice.voice_id}
-                          title={voice.samples && voice.samples.length > 0 ? "Play sample" : "No sample available"}
+                          title="Play voice sample"
                         >
                           {playingVoiceId === voice.voice_id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />

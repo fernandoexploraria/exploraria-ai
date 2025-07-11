@@ -341,6 +341,101 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (action === 'generate_voice_sample') {
+      const apiKey = Deno.env.get('ELEVENLABS_API_KEY');
+      
+      if (!apiKey) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'ELEVENLABS_API_KEY not configured' 
+          }),
+          { 
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+
+      const { voice_id, text } = reqBody;
+
+      if (!voice_id || !text) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Voice ID and text are required' 
+          }),
+          { 
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+
+      try {
+        // Generate TTS audio using ElevenLabs API
+        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice_id}`, {
+          method: 'POST',
+          headers: {
+            'xi-api-key': apiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            text: text,
+            model_id: 'eleven_multilingual_v2',
+            voice_settings: {
+              stability: 0.5,
+              similarity_boost: 0.8,
+              style: 0.0,
+              use_speaker_boost: true
+            }
+          })
+        });
+
+        if (response.ok) {
+          // Convert the audio blob to base64 for transmission
+          const audioBlob = await response.arrayBuffer();
+          const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioBlob)));
+          const audioUrl = `data:audio/mpeg;base64,${base64Audio}`;
+
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              audioUrl: audioUrl
+            }),
+            { 
+              status: 200,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            }
+          );
+        } else {
+          const errorText = await response.text();
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: `Failed to generate voice sample: ${response.status} ${errorText}` 
+            }),
+            { 
+              status: 200,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            }
+          );
+        }
+      } catch (error) {
+        console.error('Generate voice sample error:', error);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: `Failed to generate voice sample: ${error.message}` 
+          }),
+          { 
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            }
+          );
+        }
+      }
+
     if (action === 'get_voice_sample') {
       const apiKey = Deno.env.get('ELEVENLABS_API_KEY');
       
