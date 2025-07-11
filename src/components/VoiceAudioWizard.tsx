@@ -131,8 +131,8 @@ export const VoiceAudioWizard: React.FC<VoiceAudioWizardProps> = ({
           title: "First Message Set",
           description: `Updated first message for ${experienceData.agentName}`,
         });
-        // Auto-advance to voice selection
-        setTimeout(() => setCurrentSubStep(2), 500);
+        // Don't auto-advance, let user manually proceed to voice selection
+        setCurrentSubStep(2);
       } else {
         throw new Error(data.error || 'Failed to update first message');
       }
