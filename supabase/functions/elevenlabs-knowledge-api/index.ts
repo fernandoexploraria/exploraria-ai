@@ -510,12 +510,21 @@ async function uploadUrlToKnowledgeBase(apiKey: string, url: string, title?: str
     
     console.log('URL uploaded successfully:', responseData);
     
-    // URLs don't need RAG indexing as per requirement
+    // Compute RAG index after URL upload
+    const knowledgeBaseId = responseData.knowledge_base_id || responseData.id;
+    let ragIndexResult = null;
+    
+    if (knowledgeBaseId) {
+      console.log('Starting RAG index computation for URL KB:', knowledgeBaseId);
+      ragIndexResult = await computeRagIndex(apiKey, knowledgeBaseId);
+    }
+    
     return new Response(
       JSON.stringify({
-        message: 'URL uploaded successfully',
-        knowledgeBaseId: responseData.knowledge_base_id || responseData.id,
+        message: knowledgeBaseId ? 'URL uploaded and RAG indexing completed' : 'URL uploaded but no knowledge base ID returned',
+        knowledgeBaseId: knowledgeBaseId,
         status: responseData.status,
+        ragIndexResult: ragIndexResult,
         fullResponse: responseData,
       }),
       { 
