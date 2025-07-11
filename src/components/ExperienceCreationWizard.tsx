@@ -194,6 +194,14 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
       return;
     }
 
+    // Ensure we have a custom agent ID from the Voice & Audio phase
+    if (!experienceData.agentId) {
+      toast.error('Please complete the Voice & Audio setup to create a custom agent');
+      return;
+    }
+
+    console.log('Creating experience with agent ID:', experienceData.agentId);
+    
     setIsCreating(true);
     
     try {
@@ -229,7 +237,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
           description: experienceData.description,
           system_prompt: experienceData.systemPrompt,
           experience: true,
-          agentid: experienceData.agentId || 'agent_01jxtaz7mkfwzrefsdqsy3fdwe',
+          agentid: experienceData.agentId, // Use the new agent created in Voice & Audio phase
           total_landmarks: experienceData.landmarks.length,
           generation_start_time: new Date().toISOString(),
           generation_end_time: new Date().toISOString(),
