@@ -287,19 +287,19 @@ const ElevenLabsPlayground: React.FC = () => {
   const filterVoices = () => {
     let filtered = voices;
     
-    if (voiceFilters.gender) {
+    if (voiceFilters.gender && voiceFilters.gender !== 'any') {
       filtered = filtered.filter(voice => voice.gender?.toLowerCase() === voiceFilters.gender.toLowerCase());
     }
-    if (voiceFilters.age) {
+    if (voiceFilters.age && voiceFilters.age !== 'any') {
       filtered = filtered.filter(voice => voice.age?.toLowerCase() === voiceFilters.age.toLowerCase());
     }
-    if (voiceFilters.accent) {
+    if (voiceFilters.accent && voiceFilters.accent !== 'any') {
       filtered = filtered.filter(voice => voice.accent?.toLowerCase().includes(voiceFilters.accent.toLowerCase()));
     }
-    if (voiceFilters.category) {
+    if (voiceFilters.category && voiceFilters.category !== 'any') {
       filtered = filtered.filter(voice => voice.category?.toLowerCase() === voiceFilters.category.toLowerCase());
     }
-    if (voiceFilters.language) {
+    if (voiceFilters.language && voiceFilters.language !== 'any') {
       filtered = filtered.filter(voice => voice.language?.toLowerCase() === voiceFilters.language.toLowerCase());
     }
     
@@ -793,7 +793,7 @@ const ElevenLabsPlayground: React.FC = () => {
                     <SelectValue placeholder="Any" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any</SelectItem>
+                    <SelectItem value="any">Any</SelectItem>
                     <SelectItem value="male">Male</SelectItem>
                     <SelectItem value="female">Female</SelectItem>
                   </SelectContent>
@@ -807,7 +807,7 @@ const ElevenLabsPlayground: React.FC = () => {
                     <SelectValue placeholder="Any" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any</SelectItem>
+                    <SelectItem value="any">Any</SelectItem>
                     <SelectItem value="young">Young</SelectItem>
                     <SelectItem value="middle aged">Middle Aged</SelectItem>
                     <SelectItem value="old">Old</SelectItem>
@@ -822,7 +822,7 @@ const ElevenLabsPlayground: React.FC = () => {
                     <SelectValue placeholder="Any" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any</SelectItem>
+                    <SelectItem value="any">Any</SelectItem>
                     <SelectItem value="american">American</SelectItem>
                     <SelectItem value="british">British</SelectItem>
                     <SelectItem value="australian">Australian</SelectItem>
@@ -838,7 +838,7 @@ const ElevenLabsPlayground: React.FC = () => {
                     <SelectValue placeholder="Any" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any</SelectItem>
+                    <SelectItem value="any">Any</SelectItem>
                     <SelectItem value="professional">Professional</SelectItem>
                     <SelectItem value="conversational">Conversational</SelectItem>
                     <SelectItem value="characters_animation">Characters/Animation</SelectItem>
@@ -853,6 +853,7 @@ const ElevenLabsPlayground: React.FC = () => {
                     <SelectValue placeholder="Any" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="any">Any</SelectItem>
                     <SelectItem value="en">English</SelectItem>
                     <SelectItem value="es">Spanish</SelectItem>
                     <SelectItem value="fr">French</SelectItem>
