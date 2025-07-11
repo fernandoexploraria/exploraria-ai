@@ -300,7 +300,7 @@ export const VoiceAudioWizard: React.FC<VoiceAudioWizardProps> = ({
         )}
 
         {/* Step 1: Set Agent Name */}
-        {currentSubStep >= 1 && (
+        {currentSubStep === 1 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
@@ -325,34 +325,44 @@ export const VoiceAudioWizard: React.FC<VoiceAudioWizardProps> = ({
                   </p>
                 </div>
 
-                {currentSubStep === 1 && (
-                  <Button 
-                    onClick={updateFirstMessage}
-                    disabled={loading || !experienceData.agentName?.trim()}
-                    className="w-full"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Setting First Message...
-                      </>
-                    ) : (
-                      <>
-                        <Check className="mr-2 h-4 w-4" />
-                        Accept
-                      </>
-                    )}
-                  </Button>
-                )}
+                <Button 
+                  onClick={updateFirstMessage}
+                  disabled={loading || !experienceData.agentName?.trim()}
+                  className="w-full"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Setting First Message...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="mr-2 h-4 w-4" />
+                      Accept
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-                {currentSubStep > 1 && experienceData.agentName && (
-                  <div className="p-4 bg-primary/10 rounded-lg">
-                    <p className="text-sm font-medium text-primary">First Message Set</p>
-                    <p className="text-sm text-muted-foreground">
-                      "Hey there, I'm {experienceData.agentName}, your tour guide."
-                    </p>
-                  </div>
-                )}
+        {/* Show completed Agent Name step */}
+        {currentSubStep > 1 && experienceData.agentName && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Edit className="h-5 w-5" />
+                <span>Agent Name</span>
+                <Check className="h-5 w-5 text-primary ml-auto" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="p-4 bg-primary/10 rounded-lg">
+                <p className="text-sm font-medium text-primary">First Message Set</p>
+                <p className="text-sm text-muted-foreground">
+                  "Hey there, I'm {experienceData.agentName}, your tour guide."
+                </p>
               </div>
             </CardContent>
           </Card>
