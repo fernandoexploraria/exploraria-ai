@@ -296,14 +296,18 @@ async function uploadTextToKnowledgeBase(apiKey: string, text: string, title?: s
     // Start RAG index computation in background
     const knowledgeBaseId = responseData.knowledge_base_id;
     if (knowledgeBaseId) {
+      console.log('Starting RAG index computation for KB:', knowledgeBaseId);
       EdgeRuntime.waitUntil(computeRagIndex(apiKey, knowledgeBaseId));
+    } else {
+      console.error('No knowledge base ID returned from ElevenLabs:', responseData);
     }
     
     return new Response(
       JSON.stringify({
-        message: 'Text uploaded successfully, RAG indexing started in background',
+        message: knowledgeBaseId ? 'Text uploaded successfully, RAG indexing started in background' : 'Text uploaded but no knowledge base ID returned',
         knowledgeBaseId: responseData.knowledge_base_id,
         status: responseData.status,
+        fullResponse: responseData, // Include full response for debugging
       }),
       { 
         status: 200, 

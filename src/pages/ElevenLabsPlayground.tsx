@@ -564,8 +564,15 @@ const ElevenLabsPlayground: React.FC = () => {
         try {
           console.log('Uploading file:', fileObj.file.name);
           
-          // Read file content as text
-          const fileContent = await fileObj.file.text();
+          // Read file content as text (for text files) or extract text (for PDFs)
+          let fileContent;
+          if (fileObj.file.type === 'application/pdf') {
+            // For PDFs, we need to extract text content properly
+            // For now, show error message asking for text files
+            throw new Error('PDF text extraction not yet implemented. Please upload text files (.txt, .md, etc.) or copy-paste the PDF content as text.');
+          } else {
+            fileContent = await fileObj.file.text();
+          }
           
           // Upload via edge function using text upload
           const { data, error } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
