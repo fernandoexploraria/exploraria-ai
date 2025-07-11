@@ -5,7 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowLeft, Bot, Wrench, BookOpen, Play, AlertCircle, Copy, Users, Check, Edit, MessageCircle } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, Bot, Wrench, BookOpen, Play, AlertCircle, Copy, Users, Check, Edit, MessageCircle, Mic, Search, Volume2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,6 +25,17 @@ const ElevenLabsPlayground: React.FC = () => {
   const [newAgentName, setNewAgentName] = useState('');
   const [firstMessageDialogOpen, setFirstMessageDialogOpen] = useState(false);
   const [agentName, setAgentName] = useState('');
+  const [voiceDialogOpen, setVoiceDialogOpen] = useState(false);
+  const [voices, setVoices] = useState([]);
+  const [filteredVoices, setFilteredVoices] = useState([]);
+  const [selectedVoice, setSelectedVoice] = useState(null);
+  const [voiceFilters, setVoiceFilters] = useState({
+    gender: '',
+    age: '',
+    accent: '',
+    category: '',
+    language: 'en'
+  });
 
   const testApiConnection = async () => {
     setLoading(true);
@@ -230,6 +243,111 @@ const ElevenLabsPlayground: React.FC = () => {
     setAgentName('');
     setFirstMessageDialogOpen(true);
   };
+
+  const openVoiceDialog = async () => {
+    if (!selectedAgent) {
+      toast({
+        title: "No Agent Selected",
+        description: "Please select an agent first",
+        variant: "destructive"
+      });
+      return;
+    }
+    setVoiceDialogOpen(true);
+    await fetchVoices();
+  };
+
+  const fetchVoices = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('elevenlabs-agents-api', {
+        body: { action: 'list_voices' }
+      });
+
+      if (error) throw error;
+      setVoices(data.voices || []);
+      setFilteredVoices(data.voices || []);
+      
+      toast({
+        title: "Voices Retrieved",
+        description: `Found ${data.voices?.length || 0} voices`,
+      });
+    } catch (error) {
+      console.error('Voices fetch error:', error);
+      toast({
+        title: "Failed to Fetch Voices",
+        description: "Could not retrieve voices list",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filterVoices = () => {
+    let filtered = voices;
+    
+    if (voiceFilters.gender) {
+      filtered = filtered.filter(voice => voice.gender?.toLowerCase() === voiceFilters.gender.toLowerCase());
+    }
+    if (voiceFilters.age) {
+      filtered = filtered.filter(voice => voice.age?.toLowerCase() === voiceFilters.age.toLowerCase());
+    }
+    if (voiceFilters.accent) {
+      filtered = filtered.filter(voice => voice.accent?.toLowerCase().includes(voiceFilters.accent.toLowerCase()));
+    }
+    if (voiceFilters.category) {
+      filtered = filtered.filter(voice => voice.category?.toLowerCase() === voiceFilters.category.toLowerCase());
+    }
+    if (voiceFilters.language) {
+      filtered = filtered.filter(voice => voice.language?.toLowerCase() === voiceFilters.language.toLowerCase());
+    }
+    
+    setFilteredVoices(filtered);
+  };
+
+  const updateAgentVoice = async () => {
+    if (!selectedAgent || !selectedVoice) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('elevenlabs-agents-api', {
+        body: { 
+          action: 'update_voice',
+          agentId: selectedAgent.agent_id,
+          voiceId: selectedVoice.voice_id
+        }
+      });
+
+      if (error) throw error;
+      
+      toast({
+        title: "Voice Updated",
+        description: `Agent voice updated to: ${selectedVoice.name}`,
+      });
+      
+      setVoiceDialogOpen(false);
+      setSelectedVoice(null);
+      // Refresh agent data to see the updated voice
+      fetchAgentInfo();
+    } catch (error) {
+      console.error('Voice update error:', error);
+      toast({
+        title: "Failed to Update Voice",
+        description: "Could not update the agent's voice",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Apply filters whenever they change
+  React.useEffect(() => {
+    filterVoices();
+  }, [voiceFilters, voices]);
 
   const updateFirstMessage = async () => {
     if (!selectedAgent || !agentName.trim()) {
@@ -494,6 +612,10 @@ const ElevenLabsPlayground: React.FC = () => {
                 <MessageCircle className="mr-2 h-4 w-4" />
                 First Message
               </Button>
+              <Button onClick={openVoiceDialog} disabled={loading} variant="outline">
+                <Mic className="mr-2 h-4 w-4" />
+                Voice
+              </Button>
             </div>
             
             {agentData && (
@@ -646,6 +768,190 @@ const ElevenLabsPlayground: React.FC = () => {
               disabled={loading || !agentName.trim()}
             >
               {loading ? 'Updating...' : 'Set First Message'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Voice Selection Dialog */}
+      <Dialog open={voiceDialogOpen} onOpenChange={setVoiceDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Select Voice</DialogTitle>
+            <DialogDescription>
+              Choose a voice for agent: {selectedAgent?.name}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex flex-col space-y-4 overflow-hidden">
+            {/* Filters */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 p-4 bg-muted rounded-lg">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Gender</label>
+                <Select value={voiceFilters.gender} onValueChange={(value) => setVoiceFilters({...voiceFilters, gender: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Any" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Any</SelectItem>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium mb-1 block">Age</label>
+                <Select value={voiceFilters.age} onValueChange={(value) => setVoiceFilters({...voiceFilters, age: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Any" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Any</SelectItem>
+                    <SelectItem value="young">Young</SelectItem>
+                    <SelectItem value="middle aged">Middle Aged</SelectItem>
+                    <SelectItem value="old">Old</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium mb-1 block">Accent</label>
+                <Select value={voiceFilters.accent} onValueChange={(value) => setVoiceFilters({...voiceFilters, accent: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Any" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Any</SelectItem>
+                    <SelectItem value="american">American</SelectItem>
+                    <SelectItem value="british">British</SelectItem>
+                    <SelectItem value="australian">Australian</SelectItem>
+                    <SelectItem value="irish">Irish</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium mb-1 block">Category</label>
+                <Select value={voiceFilters.category} onValueChange={(value) => setVoiceFilters({...voiceFilters, category: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Any" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Any</SelectItem>
+                    <SelectItem value="professional">Professional</SelectItem>
+                    <SelectItem value="conversational">Conversational</SelectItem>
+                    <SelectItem value="characters_animation">Characters/Animation</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium mb-1 block">Language</label>
+                <Select value={voiceFilters.language} onValueChange={(value) => setVoiceFilters({...voiceFilters, language: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Any" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="en">English</SelectItem>
+                    <SelectItem value="es">Spanish</SelectItem>
+                    <SelectItem value="fr">French</SelectItem>
+                    <SelectItem value="de">German</SelectItem>
+                    <SelectItem value="it">Italian</SelectItem>
+                    <SelectItem value="pt">Portuguese</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            {/* Voice List */}
+            <div className="flex-1 overflow-y-auto space-y-2 max-h-96">
+              {filteredVoices.length === 0 && !loading && (
+                <div className="text-center text-muted-foreground py-8">
+                  {voices.length === 0 ? 'No voices loaded. Try fetching voices first.' : 'No voices match the current filters.'}
+                </div>
+              )}
+              
+              {filteredVoices.map((voice: any) => (
+                <div
+                  key={voice.voice_id}
+                  className={`p-4 rounded-lg border cursor-pointer transition-colors ${
+                    selectedVoice?.voice_id === voice.voice_id
+                      ? 'bg-primary/10 border-primary'
+                      : 'bg-background hover:bg-muted/50 border-border'
+                  }`}
+                  onClick={() => setSelectedVoice(voice)}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <h4 className="font-medium">{voice.name}</h4>
+                        {selectedVoice?.voice_id === voice.voice_id && (
+                          <Check className="h-4 w-4 text-primary" />
+                        )}
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {voice.gender && <Badge variant="outline">{voice.gender}</Badge>}
+                        {voice.age && <Badge variant="outline">{voice.age}</Badge>}
+                        {voice.accent && <Badge variant="outline">{voice.accent}</Badge>}
+                        {voice.category && <Badge variant="outline">{voice.category}</Badge>}
+                        {voice.language && <Badge variant="outline">{voice.language}</Badge>}
+                      </div>
+                      
+                      {voice.description && (
+                        <p className="text-sm text-muted-foreground mb-2">
+                          {voice.description}
+                        </p>
+                      )}
+                      
+                      <div className="flex items-center space-x-4 text-xs text-muted-foreground">
+                        {voice.usage_character_count_1y > 0 && (
+                          <span>Used: {voice.usage_character_count_1y.toLocaleString()} chars/year</span>
+                        )}
+                        {voice.cloned_by_count > 0 && (
+                          <span>Cloned: {voice.cloned_by_count} times</span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="ml-4">
+                      {voice.preview_url && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const audio = new Audio(voice.preview_url);
+                            audio.play();
+                          }}
+                        >
+                          <Volume2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setVoiceDialogOpen(false);
+                setSelectedVoice(null);
+              }}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={updateAgentVoice}
+              disabled={loading || !selectedVoice}
+            >
+              {loading ? 'Updating...' : 'Update Voice'}
             </Button>
           </DialogFooter>
         </DialogContent>
