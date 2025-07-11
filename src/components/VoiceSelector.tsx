@@ -63,13 +63,13 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
   });
   
   const [filters, setFilters] = useState({
-    gender: '',
-    age: '',
-    accent: '',
-    category: '',
-    language: '',
-    use_cases: '',
-    descriptives: ''
+    gender: 'all',
+    age: 'all',
+    accent: 'all',
+    category: 'all',
+    language: 'all',
+    use_cases: 'all',
+    descriptives: 'all'
   });
 
   const fetchVoices = async () => {
@@ -178,13 +178,13 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
     }
 
     // Apply filters
-    if (filters.gender && voice.labels?.gender !== filters.gender) return false;
-    if (filters.age && voice.labels?.age !== filters.age) return false;
-    if (filters.accent && voice.labels?.accent !== filters.accent) return false;
-    if (filters.category && voice.category !== filters.category) return false;
-    if (filters.language && voice.labels?.language !== filters.language) return false;
-    if (filters.use_cases && voice.labels?.use_case !== filters.use_cases) return false;
-    if (filters.descriptives && voice.labels?.descriptive !== filters.descriptives) return false;
+    if (filters.gender !== 'all' && voice.labels?.gender !== filters.gender) return false;
+    if (filters.age !== 'all' && voice.labels?.age !== filters.age) return false;
+    if (filters.accent !== 'all' && voice.labels?.accent !== filters.accent) return false;
+    if (filters.category !== 'all' && voice.category !== filters.category) return false;
+    if (filters.language !== 'all' && voice.labels?.language !== filters.language) return false;
+    if (filters.use_cases !== 'all' && voice.labels?.use_case !== filters.use_cases) return false;
+    if (filters.descriptives !== 'all' && voice.labels?.descriptive !== filters.descriptives) return false;
 
     return true;
   });
@@ -197,13 +197,13 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
 
   const clearFilters = () => {
     setFilters({
-      gender: '',
-      age: '',
-      accent: '',
-      category: '',
-      language: '',
-      use_cases: '',
-      descriptives: ''
+      gender: 'all',
+      age: 'all',
+      accent: 'all',
+      category: 'all',
+      language: 'all',
+      use_cases: 'all',
+      descriptives: 'all'
     });
     setSearchTerm('');
   };
@@ -247,7 +247,7 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
                     <SelectValue placeholder={filterKey.replace('_', ' ')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All {filterKey.replace('_', ' ')}</SelectItem>
+                    <SelectItem value="all">All {filterKey.replace('_', ' ')}</SelectItem>
                     {options.map(option => (
                       <SelectItem key={option} value={option}>
                         {option}
