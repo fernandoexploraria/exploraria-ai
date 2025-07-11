@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowLeft, Bot, Wrench, BookOpen, Play, AlertCircle, Copy, Users, Check, Edit, MessageCircle, Search } from 'lucide-react';
+import { ArrowLeft, Bot, Wrench, BookOpen, Play, AlertCircle, Copy, Users, Check, Edit, MessageCircle, Search, Mic } from 'lucide-react';
+import { VoiceSelector } from '@/components/VoiceSelector';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,6 +23,8 @@ const ElevenLabsPlayground: React.FC = () => {
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [newAgentName, setNewAgentName] = useState('');
   const [firstMessageDialogOpen, setFirstMessageDialogOpen] = useState(false);
+  const [voiceSelectorOpen, setVoiceSelectorOpen] = useState(false);
+  const [selectedVoice, setSelectedVoice] = useState(null);
   const [agentName, setAgentName] = useState('');
 
   // Voice Explorer state
@@ -616,6 +619,10 @@ const ElevenLabsPlayground: React.FC = () => {
                 <MessageCircle className="mr-2 h-4 w-4" />
                 First Message
               </Button>
+              <Button onClick={() => setVoiceSelectorOpen(true)} disabled={loading} variant="outline">
+                <Mic className="mr-2 h-4 w-4" />
+                Voice
+              </Button>
             </div>
             
             {agentData && (
@@ -882,6 +889,21 @@ const ElevenLabsPlayground: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Voice Selector Dialog */}
+      <VoiceSelector
+        isOpen={voiceSelectorOpen}
+        onClose={() => setVoiceSelectorOpen(false)}
+        onVoiceSelect={(voice) => {
+          setSelectedVoice(voice);
+          setVoiceSelectorOpen(false);
+          toast({
+            title: "Voice Selected",
+            description: `Selected voice: ${voice.name}`,
+          });
+        }}
+        selectedVoiceId={selectedVoice?.voice_id}
+      />
     </div>
   );
 };

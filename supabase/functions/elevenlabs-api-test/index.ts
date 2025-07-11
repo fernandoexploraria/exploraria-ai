@@ -175,8 +175,8 @@ Deno.serve(async (req) => {
       }
 
       try {
-        // Get all voices from public voice library to extract unique filter values
-        const response = await fetch('https://api.elevenlabs.io/v1/shared-voices?page_size=100', {
+        // Get all voices from default ElevenLabs voices to extract unique filter values
+        const response = await fetch('https://api.elevenlabs.io/v1/voices', {
           method: 'GET',
           headers: {
             'xi-api-key': apiKey,
@@ -245,8 +245,8 @@ Deno.serve(async (req) => {
 
       const { filters, searchTerm } = reqBody;
       
-      // Get all voices from public voice library
-      const response = await fetch('https://api.elevenlabs.io/v1/shared-voices?page_size=100', {
+      // Get all voices from default ElevenLabs voices
+      const response = await fetch('https://api.elevenlabs.io/v1/voices', {
         method: 'GET',
         headers: {
           'xi-api-key': apiKey,
