@@ -339,7 +339,7 @@ export const VoiceAudioWizard: React.FC<VoiceAudioWizardProps> = ({
                     ) : (
                       <>
                         <Check className="mr-2 h-4 w-4" />
-                        Set First Message
+                        Accept
                       </>
                     )}
                   </Button>
