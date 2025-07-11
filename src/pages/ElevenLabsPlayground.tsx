@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,7 +27,6 @@ const ElevenLabsPlayground: React.FC = () => {
   const [agentName, setAgentName] = useState('');
   const [voiceDialogOpen, setVoiceDialogOpen] = useState(false);
   const [voices, setVoices] = useState([]);
-  const [filteredVoices, setFilteredVoices] = useState([]);
   const [selectedVoice, setSelectedVoice] = useState(null);
   const [voiceFilters, setVoiceFilters] = useState({
     gender: '',
@@ -266,7 +265,6 @@ const ElevenLabsPlayground: React.FC = () => {
 
       if (error) throw error;
       setVoices(data.voices || []);
-      setFilteredVoices(data.voices || []);
       
       toast({
         title: "Voices Retrieved",
@@ -284,36 +282,39 @@ const ElevenLabsPlayground: React.FC = () => {
     }
   };
 
-  // Get unique filter values from voices
-  const getUniqueValues = (field: keyof typeof voices[0]) => {
-    const values = voices
-      .map(voice => voice[field])
-      .filter((value, index, self) => value && self.indexOf(value) === index)
-      .sort();
-    return values as string[];
-  };
+  // Extract unique filter values using useMemo for performance
+  const uniqueFilterOptions = useMemo(() => {
+    const filterFields = ['gender', 'age', 'accent', 'category', 'language'];
+    const options: Record<string, string[]> = {};
 
-  const filterVoices = () => {
-    let filtered = voices;
-    
-    if (voiceFilters.gender && voiceFilters.gender !== 'any') {
-      filtered = filtered.filter(voice => voice.gender?.toLowerCase() === voiceFilters.gender.toLowerCase());
-    }
-    if (voiceFilters.age && voiceFilters.age !== 'any') {
-      filtered = filtered.filter(voice => voice.age?.toLowerCase() === voiceFilters.age.toLowerCase());
-    }
-    if (voiceFilters.accent && voiceFilters.accent !== 'any') {
-      filtered = filtered.filter(voice => voice.accent?.toLowerCase().includes(voiceFilters.accent.toLowerCase()));
-    }
-    if (voiceFilters.category && voiceFilters.category !== 'any') {
-      filtered = filtered.filter(voice => voice.category?.toLowerCase() === voiceFilters.category.toLowerCase());
-    }
-    if (voiceFilters.language && voiceFilters.language !== 'any') {
-      filtered = filtered.filter(voice => voice.language?.toLowerCase() === voiceFilters.language.toLowerCase());
-    }
-    
-    setFilteredVoices(filtered);
-  };
+    filterFields.forEach(field => {
+      const values = voices
+        .map((voice: any) => voice[field])
+        .filter(value => value) // Filter out null, undefined, or empty strings
+        .filter((value, index, self) => self.indexOf(value) === index) // Get unique values
+        .sort((a, b) => a.localeCompare(b)); // Sort alphabetically
+
+      options[field] = values;
+    });
+    return options;
+  }, [voices]);
+
+  // Filtering logic using useMemo for performance
+  const filteredVoices = useMemo(() => {
+    if (!voices.length) return [];
+
+    return voices.filter((voice: any) => {
+      // Check each active filter
+      for (const field in voiceFilters) {
+        const selectedValue = voiceFilters[field as keyof typeof voiceFilters];
+        // If a filter is selected (not empty string and not 'any') AND the voice's field doesn't match
+        if (selectedValue && selectedValue !== 'any' && voice[field]?.toLowerCase() !== selectedValue.toLowerCase()) {
+          return false; // This voice does not match the current filter
+        }
+      }
+      return true; // This voice matches all active filters
+    });
+  }, [voices, voiceFilters]);
 
   const updateAgentVoice = async () => {
     if (!selectedAgent || !selectedVoice) {
@@ -353,10 +354,6 @@ const ElevenLabsPlayground: React.FC = () => {
     }
   };
 
-  // Apply filters whenever they change
-  React.useEffect(() => {
-    filterVoices();
-  }, [voiceFilters, voices]);
 
   const updateFirstMessage = async () => {
     if (!selectedAgent || !agentName.trim()) {
@@ -803,7 +800,7 @@ const ElevenLabsPlayground: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="any">Any</SelectItem>
-                    {getUniqueValues('gender').map(gender => (
+                    {uniqueFilterOptions.gender?.map(gender => (
                       <SelectItem key={gender} value={gender.toLowerCase()}>
                         {gender.charAt(0).toUpperCase() + gender.slice(1)}
                       </SelectItem>
@@ -820,7 +817,7 @@ const ElevenLabsPlayground: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="any">Any</SelectItem>
-                    {getUniqueValues('age').map(age => (
+                    {uniqueFilterOptions.age?.map(age => (
                       <SelectItem key={age} value={age.toLowerCase()}>
                         {age.charAt(0).toUpperCase() + age.slice(1)}
                       </SelectItem>
@@ -837,7 +834,7 @@ const ElevenLabsPlayground: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="any">Any</SelectItem>
-                    {getUniqueValues('accent').map(accent => (
+                    {uniqueFilterOptions.accent?.map(accent => (
                       <SelectItem key={accent} value={accent.toLowerCase()}>
                         {accent.charAt(0).toUpperCase() + accent.slice(1)}
                       </SelectItem>
@@ -854,7 +851,7 @@ const ElevenLabsPlayground: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="any">Any</SelectItem>
-                    {getUniqueValues('category').map(category => (
+                    {uniqueFilterOptions.category?.map(category => (
                       <SelectItem key={category} value={category.toLowerCase()}>
                         {category.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                       </SelectItem>
@@ -871,7 +868,7 @@ const ElevenLabsPlayground: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="any">Any</SelectItem>
-                    {getUniqueValues('language').map(language => (
+                    {uniqueFilterOptions.language?.map(language => (
                       <SelectItem key={language} value={language.toLowerCase()}>
                         {language.toUpperCase()}
                       </SelectItem>
