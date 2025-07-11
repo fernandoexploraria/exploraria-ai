@@ -170,9 +170,19 @@ async function computeRagIndex(apiKey: string, knowledgeBaseId: string) {
     
     if (!response.ok) {
       console.error('RAG index computation failed:', response.status, responseData);
+      
+      // Handle specific RAG indexing errors
+      let errorMessage = responseData.detail || 'RAG index computation failed';
+      if (responseData.detail?.includes('rag_limit_exceeded')) {
+        errorMessage = 'RAG indexing limit exceeded. Please upgrade your ElevenLabs plan.';
+      } else if (responseData.detail?.includes('document_too_small')) {
+        errorMessage = 'Document too small for RAG indexing. Please provide more content.';
+      }
+      
       return {
         success: false,
-        error: responseData,
+        error: errorMessage,
+        originalError: responseData,
         status: response.status
       };
     }
@@ -290,11 +300,21 @@ async function uploadTextToKnowledgeBase(apiKey: string, text: string, title?: s
     
     if (!response.ok) {
       console.error('ElevenLabs API Error:', responseData);
+      
+      // Handle specific ElevenLabs error statuses
+      let userMessage = responseData.detail || 'Failed to upload text to ElevenLabs';
+      if (responseData.detail?.includes('rag_limit_exceeded')) {
+        userMessage = 'You have exceeded your RAG indexing limit. Please upgrade your ElevenLabs plan or try again later.';
+      } else if (responseData.detail?.includes('document_too_small')) {
+        userMessage = 'The document is too small to index. Please provide more text content.';
+      }
+      
       return new Response(
         JSON.stringify({
           error: 'ElevenLabs API Error',
-          message: responseData.detail || 'Failed to upload text to ElevenLabs',
+          message: userMessage,
           elevenLabsStatus: response.status,
+          originalDetail: responseData.detail
         }),
         { 
           status: response.status, 
