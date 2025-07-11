@@ -57,7 +57,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { action, agentId, knowledgeBaseId, documentData, files, documentId } = await req.json();
+    const requestBody = await req.json();
+    const { action, agentId, knowledgeBaseId, documentData, files, documentId } = requestBody;
 
     switch (action) {
       case 'list_knowledge_bases':
@@ -297,44 +298,64 @@ async function createKnowledgeBase(apiKey: string, knowledgeBaseData: any) {
 
 async function uploadFiles(apiKey: string, files: Array<{name: string, content: string, title: string}>) {
   try {
+    console.log('Starting file upload process for', files.length, 'files');
     const uploadResults = [];
     
     for (const file of files) {
-      const formData = new FormData();
+      console.log('Processing file:', file.name);
       
-      // Convert base64 content to blob
-      const byteCharacters = atob(file.content.split(',')[1]);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray]);
-      
-      formData.append('file', blob, file.name);
-      
-      const response = await fetch('https://api.elevenlabs.io/v1/convai/knowledge-base/file', {
-        method: 'POST',
-        headers: {
-          'xi-api-key': apiKey,
-        },
-        body: formData
-      });
+      try {
+        // Convert base64 content to blob
+        const base64Data = file.content.includes(',') ? file.content.split(',')[1] : file.content;
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray]);
+        
+        const formData = new FormData();
+        formData.append('file', blob, file.name);
+        
+        console.log('Uploading file to ElevenLabs:', file.name);
+        const response = await fetch('https://api.elevenlabs.io/v1/convai/knowledge-base/file', {
+          method: 'POST',
+          headers: {
+            'xi-api-key': apiKey,
+          },
+          body: formData
+        });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to upload file ${file.name}: ${response.status} ${errorText}`);
-      }
+        console.log('Upload response status:', response.status);
+        const responseText = await response.text();
+        console.log('Upload response:', responseText);
 
-      const uploadData = await response.json();
-      uploadResults.push({
-        file: file.name,
-        title: file.title,
-        document_id: uploadData.document_id,
-        success: true
-      });
+        if (!response.ok) {
+          throw new Error(`Failed to upload file ${file.name}: ${response.status} ${responseText}`);
+        }
+
+        const uploadData = JSON.parse(responseText);
+        uploadResults.push({
+          file: file.name,
+          title: file.title,
+          document_id: uploadData.document_id || uploadData.id,
+          success: true
+        });
+        console.log('Successfully uploaded:', file.name, 'with ID:', uploadData.document_id || uploadData.id);
+      } catch (fileError) {
+        console.error('Error uploading file:', file.name, fileError);
+        uploadResults.push({
+          file: file.name,
+          title: file.title,
+          document_id: null,
+          success: false,
+          error: fileError.message
+        });
+      }
     }
     
+    console.log('Upload process complete. Results:', uploadResults);
     return new Response(
       JSON.stringify({ uploadResults }),
       { 
@@ -343,7 +364,7 @@ async function uploadFiles(apiKey: string, files: Array<{name: string, content: 
       }
     );
   } catch (error) {
-    console.error('Error uploading files:', error);
+    console.error('Error in uploadFiles function:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
