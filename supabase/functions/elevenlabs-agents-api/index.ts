@@ -446,8 +446,10 @@ async function updateAgentVoice(apiKey: string, agentId: string, voiceId: string
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        tts_config: {
-          voice_id: voiceId
+        conversation_config: {
+          tts: {
+            voice_id: voiceId
+          }
         }
       })
     });
