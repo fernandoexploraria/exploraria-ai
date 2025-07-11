@@ -158,6 +158,73 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (action === 'get_filter_options') {
+      const apiKey = Deno.env.get('ELEVENLABS_API_KEY');
+      
+      if (!apiKey) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'ELEVENLABS_API_KEY not configured' 
+          }),
+          { 
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+
+      try {
+        // Get all voices to extract unique filter values
+        const response = await fetch('https://api.elevenlabs.io/v1/voices', {
+          method: 'GET',
+          headers: {
+            'xi-api-key': apiKey,
+            'Content-Type': 'application/json',
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        const voices = data.voices || [];
+
+        // Extract unique filter options from all voices
+        const filterOptions = {
+          gender: [...new Set(voices.map(v => v.labels?.gender).filter(Boolean))].sort(),
+          age: [...new Set(voices.map(v => v.labels?.age).filter(Boolean))].sort(),
+          accent: [...new Set(voices.map(v => v.labels?.accent).filter(Boolean))].sort(),
+          category: [...new Set(voices.map(v => v.category).filter(Boolean))].sort(),
+          language: [...new Set(voices.map(v => v.labels?.language).filter(Boolean))].sort()
+        };
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            filterOptions: filterOptions
+          }),
+          { 
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      } catch (error) {
+        console.error('Get filter options error:', error);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: `Failed to get filter options: ${error.message}` 
+          }),
+          { 
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+    }
+
     if (action === 'search_voices') {
       const apiKey = Deno.env.get('ELEVENLABS_API_KEY');
       
@@ -189,31 +256,31 @@ Deno.serve(async (req) => {
         const data = await response.json();
         let voices = data.voices || [];
 
-        // Apply server-side filtering
+        // Apply server-side filtering (only apply filters that have values)
         if (filters) {
           voices = voices.filter(voice => {
-            // Check gender filter
-            if (filters.gender && voice.labels?.gender !== filters.gender) {
+            // Check gender filter (only if filter is set)
+            if (filters.gender && filters.gender.trim() && voice.labels?.gender !== filters.gender) {
               return false;
             }
             
-            // Check age filter
-            if (filters.age && voice.labels?.age !== filters.age) {
+            // Check age filter (only if filter is set)
+            if (filters.age && filters.age.trim() && voice.labels?.age !== filters.age) {
               return false;
             }
             
-            // Check accent filter
-            if (filters.accent && voice.labels?.accent !== filters.accent) {
+            // Check accent filter (only if filter is set)
+            if (filters.accent && filters.accent.trim() && voice.labels?.accent !== filters.accent) {
               return false;
             }
             
-            // Check category filter
-            if (filters.category && voice.category !== filters.category) {
+            // Check category filter (only if filter is set)
+            if (filters.category && filters.category.trim() && voice.category !== filters.category) {
               return false;
             }
             
-            // Check language filter
-            if (filters.language && voice.labels?.language !== filters.language) {
+            // Check language filter (only if filter is set)
+            if (filters.language && filters.language.trim() && voice.labels?.language !== filters.language) {
               return false;
             }
             
