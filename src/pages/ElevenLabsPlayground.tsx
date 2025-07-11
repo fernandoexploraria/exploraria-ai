@@ -396,42 +396,6 @@ const ElevenLabsPlayground: React.FC = () => {
             category: "professional",
             language: "en",
             description: "Clear and authoritative voice."
-          },
-          {
-            voice_id: "EXAVITQu4vr4xnSDxMaL",
-            name: "Sarah",
-            accent: "american",
-            gender: "Female",
-            age: "adult",
-            descriptive: "friendly",
-            use_case: "customer_service",
-            category: "standard",
-            language: "en",
-            description: "Friendly and approachable voice."
-          },
-          {
-            voice_id: "pirate_voice_01",
-            name: "Captain Blackheart",
-            accent: "british",
-            gender: "Male",
-            age: "adult",
-            descriptive: "gruff",
-            use_case: "characters_animation",
-            category: "community",
-            language: "en",
-            description: "A deep, raspy voice perfect for a pirate captain. Arrr!"
-          },
-          {
-            voice_id: "old_lady_voice_01",
-            name: "Granny Mae",
-            accent: "american",
-            gender: "Female",
-            age: "old",
-            descriptive: "sweet",
-            use_case: "storytelling",
-            category: "community",
-            language: "en",
-            description: "A warm, comforting, and sweet old lady voice, perfect for bedtime stories."
           }
         ];
         
@@ -444,10 +408,26 @@ const ElevenLabsPlayground: React.FC = () => {
       }
       
       if (data && Array.isArray(data.voices)) {
-        setVoices(data.voices);
+        // Transform the real ElevenLabs API response to match our expected format
+        const transformedVoices = data.voices.map(voice => ({
+          voice_id: voice.voice_id,
+          name: voice.name,
+          description: voice.description,
+          // Extract from labels object if available, with fallbacks
+          accent: voice.labels?.accent || 'unknown',
+          gender: voice.labels?.gender || 'unknown',
+          age: voice.labels?.age || 'unknown',
+          descriptive: voice.labels?.descriptive || 'unknown',
+          use_case: voice.labels?.use_case || 'unknown',
+          category: voice.category || 'unknown',
+          language: voice.labels?.language || 'en',
+          preview_url: voice.preview_url
+        }));
+
+        setVoices(transformedVoices);
         toast({
           title: "Voices Retrieved",
-          description: `Found ${data.voices.length} voices`,
+          description: `Found ${transformedVoices.length} voices from ElevenLabs`,
         });
       } else {
         throw new Error("Invalid API response format");
