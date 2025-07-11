@@ -97,8 +97,8 @@ export const VoiceAudioWizard: React.FC<VoiceAudioWizardProps> = ({
 
       if (data.success) {
         console.log('Agent renamed successfully to:', data.name);
-        // Auto-advance to step 3 (set first message)
-        setTimeout(() => setCurrentSubStep(2), 1000);
+        // Stay on step 1 - let user manually proceed by clicking Accept
+        // DO NOT auto-advance to step 2
       }
     } catch (error) {
       console.error('Error renaming agent:', error);
