@@ -552,94 +552,76 @@ const ElevenLabsPlayground: React.FC = () => {
 
   const processDocumentUpload = async () => {
     if (!selectedAgent || uploadFiles.length === 0) return;
+    
+    // First get the knowledge base ID from the agent
+    if (!knowledgeData?.knowledge_base_id) {
+      toast({
+        title: "No Knowledge Base",
+        description: "Please fetch the knowledge base first to get the knowledge base ID",
+        variant: "destructive"
+      });
+      return;
+    }
 
     setUploadingDocuments(true);
+    
+    const successfulUploads = [];
+    const failedUploads = [];
+
     try {
-      console.log('Starting document upload process...');
-      console.log('Selected agent:', selectedAgent.agent_id);
-      console.log('Files to upload:', uploadFiles.length);
-
-      // Step 1: Get or create knowledge base for the agent
-      console.log('Getting or creating knowledge base for agent...');
-      const { data: kbData, error: kbError } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
-        body: { 
-          action: 'get_or_create_kb',
-          agentId: selectedAgent.agent_id
-        }
-      });
-
-      if (kbError) {
-        console.error('KB creation error:', kbError);
-        throw kbError;
-      }
-
-      const knowledgeBaseId = kbData.knowledge_base_id;
-      console.log('Using knowledge base:', knowledgeBaseId);
-
-      // Convert files to base64
-      const filesWithContent = await Promise.all(
-        uploadFiles.map(async (fileObj) => {
-          return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-              resolve({
-                name: fileObj.file.name,
-                title: fileObj.title,
-                content: reader.result
-              });
-            };
-            reader.readAsDataURL(fileObj.file);
+      // Upload files one by one using multipart/form-data
+      for (const fileObj of uploadFiles) {
+        try {
+          console.log('Uploading file:', fileObj.file.name);
+          
+          // Create FormData for this file
+          const formData = new FormData();
+          formData.append('file', fileObj.file);
+          formData.append('knowledgeBaseId', knowledgeData.knowledge_base_id);
+          formData.append('documentName', fileObj.title);
+          
+          // Upload via edge function - use supabase.functions.invoke with FormData
+          const session = await supabase.auth.getSession();
+          const response = await fetch(`https://ejqgdmbuabrcjxbhpxup.supabase.co/functions/v1/elevenlabs-knowledge-api`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${session.data.session?.access_token}`,
+            },
+            body: formData
           });
-        })
-      );
-
-      console.log('Files converted to base64, starting upload to knowledge base...');
-
-      // Step 2: Upload files to knowledge base
-      const { data: uploadData, error: uploadError } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
-        body: { 
-          action: 'upload_files_to_kb',
-          knowledgeBaseId: knowledgeBaseId,
-          files: filesWithContent
-        }
-      });
-
-      if (uploadError) {
-        console.error('Upload error:', uploadError);
-        throw uploadError;
-      }
-
-      console.log('Upload successful:', uploadData);
-
-      // Step 3: Associate knowledge base to agent (if not already associated)
-      if (!kbData.exists) {
-        console.log('Associating knowledge base to agent...');
-        const { data: associateData, error: associateError } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
-          body: { 
-            action: 'associate_kb_to_agent',
-            agentId: selectedAgent.agent_id,
-            knowledgeBaseId: knowledgeBaseId
+          
+          const result = await response.json();
+          
+          if (!response.ok) {
+            throw new Error(result.message || result.error || 'Upload failed');
           }
-        });
-
-        if (associateError) {
-          console.error('Association error:', associateError);
-          throw associateError;
+          
+          successfulUploads.push({
+            file: fileObj.file.name,
+            documentId: result.documentId
+          });
+          
+        } catch (fileError) {
+          console.error('Error uploading file:', fileObj.file.name, fileError);
+          failedUploads.push({
+            file: fileObj.file.name,
+            error: fileError.message
+          });
         }
-
-        console.log('Knowledge base associated to agent successfully');
-      } else {
-        console.log('Knowledge base already associated to agent');
       }
 
-      const successCount = uploadData.uploadResults.filter(r => r.success).length;
-      const failureCount = uploadData.uploadResults.length - successCount;
+      const successCount = successfulUploads.length;
+      const failureCount = failedUploads.length;
 
       toast({
-        title: "Knowledge Upload Complete",
+        title: "Upload Complete",
         description: `Successfully uploaded ${successCount} documents${failureCount > 0 ? `, ${failureCount} failed` : ''}`,
         variant: failureCount > 0 ? "destructive" : "default"
       });
+
+      if (failureCount > 0) {
+        console.log('Failed uploads:', failedUploads);
+      }
 
       setKnowledgeDialogOpen(false);
       setUploadFiles([]);
@@ -651,7 +633,7 @@ const ElevenLabsPlayground: React.FC = () => {
       console.error('Document upload error:', error);
       toast({
         title: "Upload Failed",
-        description: error.message || "Failed to upload and process documents",
+        description: error.message || "Failed to upload documents",
         variant: "destructive"
       });
     } finally {

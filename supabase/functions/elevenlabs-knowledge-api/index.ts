@@ -57,8 +57,17 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Check if this is a multipart form data request (file upload)
+    const contentType = req.headers.get('content-type') || '';
+    
+    if (contentType.includes('multipart/form-data')) {
+      // Handle direct file upload
+      return await handleFileUpload(req, apiKey);
+    }
+    
+    // Handle JSON requests for other actions
     const requestBody = await req.json();
-    const { action, agentId, knowledgeBaseId, documentData, files, documentId } = requestBody;
+    const { action, agentId } = requestBody;
 
     switch (action) {
       case 'list_knowledge_bases':
@@ -76,57 +85,9 @@ Deno.serve(async (req) => {
         }
         return await listAgentDocuments(apiKey, agentId);
       
-      case 'create_knowledge_base':
-        if (!documentData) {
-          return new Response(
-            JSON.stringify({ error: 'documentData is required for create_knowledge_base action' }),
-            { 
-              status: 400, 
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-            }
-          );
-        }
-        return await createKnowledgeBase(apiKey, documentData);
-      
-      case 'upload_files_to_kb':
-        if (!files || !Array.isArray(files) || !knowledgeBaseId) {
-          return new Response(
-            JSON.stringify({ error: 'files array and knowledgeBaseId are required for upload_files_to_kb action' }),
-            { 
-              status: 400, 
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-            }
-          );
-        }
-        return await uploadFilesToKnowledgeBase(apiKey, knowledgeBaseId, files);
-      
-      case 'associate_kb_to_agent':
-        if (!agentId || !knowledgeBaseId) {
-          return new Response(
-            JSON.stringify({ error: 'agentId and knowledgeBaseId are required for associate_kb_to_agent action' }),
-            { 
-              status: 400, 
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-            }
-          );
-        }
-        return await associateKnowledgeBaseToAgent(apiKey, agentId, knowledgeBaseId);
-      
-      case 'get_or_create_kb':
-        if (!agentId) {
-          return new Response(
-            JSON.stringify({ error: 'agentId is required for get_or_create_kb action' }),
-            { 
-              status: 400, 
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-            }
-          );
-        }
-        return await getOrCreateKnowledgeBase(apiKey, agentId);
-      
       default:
         return new Response(
-          JSON.stringify({ error: 'Invalid action. Supported: list_knowledge_bases, list_documents, create_knowledge_base, upload_files_to_kb, associate_kb_to_agent, get_or_create_kb' }),
+          JSON.stringify({ error: 'Invalid action. Supported: list_knowledge_bases, list_documents' }),
           { 
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -264,309 +225,95 @@ async function listAgentDocuments(apiKey: string, agentId: string) {
   }
 }
 
-async function createKnowledgeBase(apiKey: string, knowledgeBaseData: any) {
+async function handleFileUpload(req: Request, apiKey: string) {
   try {
-    const response = await fetch('https://api.elevenlabs.io/v1/knowledge-base', {
-      method: 'POST',
-      headers: {
-        'xi-api-key': apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(knowledgeBaseData)
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to create knowledge base: ${response.status} ${errorText}`);
-    }
-
-    const data = await response.json();
+    console.log('Processing file upload request...');
     
-    return new Response(
-      JSON.stringify(data),
-      { 
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    );
-  } catch (error) {
-    console.error('Error creating knowledge base:', error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    );
-  }
-}
-
-async function uploadFilesToKnowledgeBase(apiKey: string, knowledgeBaseId: string, files: Array<{name: string, content: string, title: string}>) {
-  try {
-    console.log('Starting file upload to knowledge base:', knowledgeBaseId, 'for', files.length, 'files');
-    const uploadResults = [];
+    // Parse the multipart form data
+    const formData = await req.formData();
     
-    for (const file of files) {
-      console.log('Processing file:', file.name);
-      
-      try {
-        // Convert base64 content to Uint8Array
-        const base64Data = file.content.includes(',') ? file.content.split(',')[1] : file.content;
-        
-        // Decode base64 to bytes
-        const binaryString = atob(base64Data);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        
-        // Create form data using Deno's FormData
-        const formData = new FormData();
-        const fileBlob = new Blob([bytes]);
-        formData.append('file', fileBlob, file.name);
-        formData.append('name', file.title || file.name); // Use title as document name
-        
-        console.log('Uploading file to ElevenLabs KB:', file.name);
-        const response = await fetch(`https://api.elevenlabs.io/v1/knowledge-base/${knowledgeBaseId}/documents`, {
-          method: 'POST',
-          headers: {
-            'xi-api-key': apiKey,
-          },
-          body: formData
-        });
-
-        console.log('Upload response status:', response.status);
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Upload failed:', errorText);
-          uploadResults.push({
-            file: file.name,
-            title: file.title,
-            success: false,
-            error: `Upload failed: ${response.status} ${errorText}`
-          });
-          continue;
-        }
-
-        const responseText = await response.text();
-        console.log('Upload response body:', responseText);
-        
-        let uploadData;
-        try {
-          uploadData = JSON.parse(responseText);
-        } catch (parseError) {
-          console.error('Failed to parse response as JSON:', parseError);
-          uploadResults.push({
-            file: file.name,
-            title: file.title,
-            success: false,
-            error: `Invalid JSON response: ${responseText}`
-          });
-          continue;
-        }
-        
-        const documentId = uploadData.document_id || uploadData.id;
-        if (!documentId) {
-          console.error('No document ID found in response:', uploadData);
-          uploadResults.push({
-            file: file.name,
-            title: file.title,
-            success: false,
-            error: 'No document ID returned from upload'
-          });
-          continue;
-        }
-
-        uploadResults.push({
-          file: file.name,
-          title: file.title,
-          document_id: documentId,
-          success: true
-        });
-        
-        console.log('Successfully uploaded:', file.name, 'with ID:', documentId);
-      } catch (fileError) {
-        console.error('Error uploading file:', file.name, fileError);
-        uploadResults.push({
-          file: file.name,
-          title: file.title,
-          success: false,
-          error: fileError.message
-        });
-      }
-    }
+    // Extract required fields
+    const file = formData.get('file') as Blob | null;
+    const knowledgeBaseId = formData.get('knowledgeBaseId') as string | null;
+    const documentName = formData.get('documentName') as string | null;
     
-    console.log('Upload process complete. Results:', uploadResults);
-    return new Response(
-      JSON.stringify({ uploadResults }),
-      { 
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    );
-  } catch (error) {
-    console.error('Error in uploadFilesToKnowledgeBase function:', error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    );
-  }
-}
-
-async function associateKnowledgeBaseToAgent(apiKey: string, agentId: string, knowledgeBaseId: string) {
-  try {
-    console.log('Associating knowledge base to agent:', agentId, 'KB:', knowledgeBaseId);
-    
-    // First get the current agent configuration
-    const getAgentResponse = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, {
-      method: 'GET',
-      headers: {
-        'xi-api-key': apiKey,
-        'Content-Type': 'application/json',
-      }
-    });
-
-    if (!getAgentResponse.ok) {
-      const errorText = await getAgentResponse.text();
-      throw new Error(`Failed to get agent: ${getAgentResponse.status} ${errorText}`);
-    }
-
-    const agentData = await getAgentResponse.json();
-    console.log('Retrieved agent data for update');
-    
-    // Update the agent with the knowledge base ID
-    const updatePayload = {
-      name: agentData.name,
-      description: agentData.description,
-      system_prompt: agentData.system_prompt,
-      conversation_config: agentData.conversation_config,
-      platform_settings: agentData.platform_settings,
-      voice_id: agentData.voice_id,
-      knowledge_base_id: knowledgeBaseId // This is the key parameter
-    };
-
-    console.log('Updating agent with knowledge base...');
-    const response = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, {
-      method: 'PATCH',
-      headers: {
-        'xi-api-key': apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(updatePayload)
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to associate knowledge base to agent: ${response.status} ${errorText}`);
-    }
-
-    const data = await response.json();
-    console.log('Successfully associated knowledge base to agent');
-    
-    return new Response(
-      JSON.stringify({ 
-        success: true,
-        agent_id: agentId,
-        knowledge_base_id: knowledgeBaseId,
-        updated_agent: data
-      }),
-      { 
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    );
-  } catch (error) {
-    console.error('Error associating knowledge base to agent:', error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    );
-  }
-}
-
-async function getOrCreateKnowledgeBase(apiKey: string, agentId: string) {
-  try {
-    console.log('Getting or creating knowledge base for agent:', agentId);
-    
-    // First check if agent already has a knowledge base
-    const agentResponse = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, {
-      method: 'GET',
-      headers: {
-        'xi-api-key': apiKey,
-        'Content-Type': 'application/json',
-      }
-    });
-
-    if (!agentResponse.ok) {
-      const errorText = await agentResponse.text();
-      throw new Error(`Failed to get agent: ${agentResponse.status} ${errorText}`);
-    }
-
-    const agentData = await agentResponse.json();
-    
-    if (agentData.knowledge_base_id) {
-      console.log('Agent already has knowledge base:', agentData.knowledge_base_id);
+    // Validate inputs
+    if (!file || !(file instanceof Blob)) {
       return new Response(
-        JSON.stringify({ 
-          knowledge_base_id: agentData.knowledge_base_id,
-          exists: true
-        }),
+        JSON.stringify({ error: 'No file provided or invalid file type' }),
         { 
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       );
     }
-
-    // Create a new knowledge base
-    console.log('Creating new knowledge base for agent');
-    const createKbResponse = await fetch('https://api.elevenlabs.io/v1/knowledge-base', {
+    
+    if (!knowledgeBaseId) {
+      return new Response(
+        JSON.stringify({ error: 'Knowledge Base ID is required' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+    
+    console.log('Uploading file to ElevenLabs knowledge base:', knowledgeBaseId);
+    
+    // Create new FormData for ElevenLabs API
+    const elevenLabsFormData = new FormData();
+    elevenLabsFormData.append('file', file, documentName || 'uploaded_document.pdf');
+    if (documentName) {
+      elevenLabsFormData.append('name', documentName);
+    }
+    
+    // Upload to ElevenLabs
+    const response = await fetch(`https://api.elevenlabs.io/v1/knowledge-base/${knowledgeBaseId}/documents`, {
       method: 'POST',
       headers: {
         'xi-api-key': apiKey,
-        'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        name: `Knowledge Base for ${agentData.name}`,
-        description: `Auto-created knowledge base for agent ${agentData.name}`
-      })
+      body: elevenLabsFormData
     });
-
-    if (!createKbResponse.ok) {
-      const errorText = await createKbResponse.text();
-      throw new Error(`Failed to create knowledge base: ${createKbResponse.status} ${errorText}`);
-    }
-
-    const kbData = await createKbResponse.json();
-    const knowledgeBaseId = kbData.knowledge_base_id || kbData.id;
     
-    console.log('Created knowledge base:', knowledgeBaseId);
+    const responseData = await response.json();
+    
+    if (!response.ok) {
+      console.error('ElevenLabs API Error:', responseData);
+      return new Response(
+        JSON.stringify({
+          error: 'ElevenLabs API Error',
+          message: responseData.detail || 'Failed to upload document to ElevenLabs',
+          elevenLabsStatus: response.status,
+        }),
+        { 
+          status: response.status, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+    
+    console.log('File uploaded successfully:', responseData);
     
     return new Response(
-      JSON.stringify({ 
-        knowledge_base_id: knowledgeBaseId,
-        exists: false,
-        created: true
+      JSON.stringify({
+        message: 'Document upload initiated successfully',
+        documentId: responseData.document_id,
+        initialStatus: responseData.status,
       }),
       { 
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );
+    
   } catch (error) {
-    console.error('Error in getOrCreateKnowledgeBase:', error);
+    console.error('Error in handleFileUpload:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: 'Internal server error', message: error.message }),
       { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );
   }
