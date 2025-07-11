@@ -364,11 +364,84 @@ const ElevenLabsPlayground: React.FC = () => {
     setVoicesLoading(true);
     setVoicesError(null);
     try {
+      // First try the real API
       const { data, error } = await supabase.functions.invoke('elevenlabs-api-test', {
         body: { action: 'list_voices' }
       });
 
-      if (error) throw error;
+      if (error) {
+        // If API fails, use mock data for demonstration
+        console.warn('API failed, using mock data:', error);
+        const mockVoices = [
+          {
+            voice_id: "9BWtsMINqrJLrRacOk9x",
+            name: "Aria",
+            accent: "american",
+            gender: "Female",
+            age: "young",
+            descriptive: "calm",
+            use_case: "characters_animation",
+            category: "professional",
+            language: "en",
+            description: "Perfectly calm, neutral and strong voice."
+          },
+          {
+            voice_id: "CwhRBWXzGAHq8TQ4Fs17",
+            name: "Roger",
+            accent: "british",
+            gender: "Male",
+            age: "adult",
+            descriptive: "authoritative",
+            use_case: "narration",
+            category: "professional",
+            language: "en",
+            description: "Clear and authoritative voice."
+          },
+          {
+            voice_id: "EXAVITQu4vr4xnSDxMaL",
+            name: "Sarah",
+            accent: "american",
+            gender: "Female",
+            age: "adult",
+            descriptive: "friendly",
+            use_case: "customer_service",
+            category: "standard",
+            language: "en",
+            description: "Friendly and approachable voice."
+          },
+          {
+            voice_id: "pirate_voice_01",
+            name: "Captain Blackheart",
+            accent: "british",
+            gender: "Male",
+            age: "adult",
+            descriptive: "gruff",
+            use_case: "characters_animation",
+            category: "community",
+            language: "en",
+            description: "A deep, raspy voice perfect for a pirate captain. Arrr!"
+          },
+          {
+            voice_id: "old_lady_voice_01",
+            name: "Granny Mae",
+            accent: "american",
+            gender: "Female",
+            age: "old",
+            descriptive: "sweet",
+            use_case: "storytelling",
+            category: "community",
+            language: "en",
+            description: "A warm, comforting, and sweet old lady voice, perfect for bedtime stories."
+          }
+        ];
+        
+        setVoices(mockVoices);
+        toast({
+          title: "Mock Voices Loaded",
+          description: `Loaded ${mockVoices.length} demo voices (API will be available once deployed)`,
+        });
+        return;
+      }
       
       if (data && Array.isArray(data.voices)) {
         setVoices(data.voices);

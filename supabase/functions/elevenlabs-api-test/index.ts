@@ -105,6 +105,58 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (action === 'list_voices') {
+      const apiKey = Deno.env.get('ELEVENLABS_API_KEY');
+      
+      if (!apiKey) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'ELEVENLABS_API_KEY not configured' 
+          }),
+          { 
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+
+      // Fetch the voices from ElevenLabs API
+      const response = await fetch('https://api.elevenlabs.io/v1/voices', {
+        method: 'GET',
+        headers: {
+          'xi-api-key': apiKey,
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (response.ok) {
+        const voicesData = await response.json();
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            voices: voicesData.voices || []
+          }),
+          { 
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      } else {
+        const errorText = await response.text();
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: `Failed to fetch voices: ${response.status} ${errorText}` 
+          }),
+          { 
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+    }
+
     return new Response(
       JSON.stringify({ error: 'Invalid action' }),
       { 
