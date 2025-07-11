@@ -298,6 +298,50 @@ const ElevenLabsPlayground: React.FC = () => {
     }
   };
 
+  const updateAgentVoice = async (voiceId: string, voiceName: string) => {
+    if (!selectedAgent) {
+      toast({
+        title: "No Agent Selected",
+        description: "Please select an agent first",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('elevenlabs-agents-api', {
+        body: { 
+          action: 'update_voice',
+          agentId: selectedAgent.agent_id,
+          voiceId: voiceId
+        }
+      });
+
+      if (error) throw error;
+      
+      toast({
+        title: "Voice Updated",
+        description: `Agent voice changed to: ${voiceName}`,
+      });
+      
+      // Update the selected voice state
+      setSelectedVoice({ voice_id: voiceId, name: voiceName });
+      
+      // Refresh agent data to see the updated voice
+      fetchAgentInfo();
+    } catch (error) {
+      console.error('Voice update error:', error);
+      toast({
+        title: "Failed to Update Voice",
+        description: "Could not update the agent's voice",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const renameAgent = async () => {
     if (!selectedAgent || !newAgentName.trim()) {
       return;
@@ -895,12 +939,8 @@ const ElevenLabsPlayground: React.FC = () => {
         isOpen={voiceSelectorOpen}
         onClose={() => setVoiceSelectorOpen(false)}
         onVoiceSelect={(voice) => {
-          setSelectedVoice(voice);
+          updateAgentVoice(voice.voice_id, voice.name);
           setVoiceSelectorOpen(false);
-          toast({
-            title: "Voice Selected",
-            description: `Selected voice: ${voice.name}`,
-          });
         }}
         selectedVoiceId={selectedVoice?.voice_id}
       />

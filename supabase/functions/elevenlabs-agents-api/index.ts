@@ -152,12 +152,36 @@ Deno.serve(async (req) => {
         }
         return await updateFirstMessage(apiKey, agentId, firstMessage);
       
+      case 'update_voice':
+        console.log('Executing update_voice case');
+        if (!agentId) {
+          console.log('Error: agentId missing for update_voice');
+          return new Response(
+            JSON.stringify({ error: 'agentId is required for update_voice action' }),
+            { 
+              status: 400, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+        const { voiceId } = requestBody;
+        if (!voiceId) {
+          return new Response(
+            JSON.stringify({ error: 'voiceId is required for update_voice action' }),
+            { 
+              status: 400, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+        return await updateAgentVoice(apiKey, agentId, voiceId);
+      
       default:
         console.log('ERROR: Hit default case with action:', action);
-        console.log('This means duplicate_agent case was not matched');
+        console.log('This means the action was not matched');
         return new Response(
           JSON.stringify({ 
-            error: 'Invalid action. Supported actions: list_agents, get_agent, duplicate_agent, rename_agent, update_first_message',
+            error: 'Invalid action. Supported actions: list_agents, get_agent, duplicate_agent, rename_agent, update_first_message, update_voice',
             received_action: action,
             action_type: typeof action,
             debug_timestamp: new Date().toISOString()
@@ -402,6 +426,60 @@ async function updateFirstMessage(apiKey: string, agentId: string, firstMessage:
     console.error('Error updating first message:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
+  }
+}
+
+// Function to update agent voice
+async function updateAgentVoice(apiKey: string, agentId: string, voiceId: string) {
+  console.log(`Updating agent ${agentId} voice to: ${voiceId}`);
+  
+  try {
+    const response = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, {
+      method: 'PATCH',
+      headers: {
+        'xi-api-key': apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        tts_config: {
+          voice_id: voiceId
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.log('ElevenLabs API Error Response:', errorText);
+      throw new Error(`ElevenLabs API error: ${response.status} ${errorText}`);
+    }
+
+    const agentData = await response.json();
+    console.log('Agent voice updated successfully:', agentData);
+
+    return new Response(
+      JSON.stringify({ 
+        success: true,
+        agent: agentData,
+        message: 'Agent voice updated successfully'
+      }),
+      { 
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
+
+  } catch (error) {
+    console.error('Update agent voice error:', error);
+    return new Response(
+      JSON.stringify({ 
+        error: 'Failed to update agent voice',
+        details: error.message 
+      }),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
