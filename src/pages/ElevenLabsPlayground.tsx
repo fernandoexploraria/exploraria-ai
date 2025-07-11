@@ -360,52 +360,19 @@ const ElevenLabsPlayground: React.FC = () => {
   };
 
   // Voice Explorer functions
-  const fetchVoices = async () => {
+  const searchVoices = async () => {
     setVoicesLoading(true);
     setVoicesError(null);
     try {
-      // First try the real API
       const { data, error } = await supabase.functions.invoke('elevenlabs-api-test', {
-        body: { action: 'list_voices' }
+        body: { 
+          action: 'search_voices',
+          filters: filters,
+          searchTerm: searchTerm
+        }
       });
 
-      if (error) {
-        // If API fails, use mock data for demonstration
-        console.warn('API failed, using mock data:', error);
-        const mockVoices = [
-          {
-            voice_id: "9BWtsMINqrJLrRacOk9x",
-            name: "Aria",
-            accent: "american",
-            gender: "Female",
-            age: "young",
-            descriptive: "calm",
-            use_case: "characters_animation",
-            category: "professional",
-            language: "en",
-            description: "Perfectly calm, neutral and strong voice."
-          },
-          {
-            voice_id: "CwhRBWXzGAHq8TQ4Fs17",
-            name: "Roger",
-            accent: "british",
-            gender: "Male",
-            age: "adult",
-            descriptive: "authoritative",
-            use_case: "narration",
-            category: "professional",
-            language: "en",
-            description: "Clear and authoritative voice."
-          }
-        ];
-        
-        setVoices(mockVoices);
-        toast({
-          title: "Mock Voices Loaded",
-          description: `Loaded ${mockVoices.length} demo voices (API will be available once deployed)`,
-        });
-        return;
-      }
+      if (error) throw error;
       
       if (data && Array.isArray(data.voices)) {
         // Transform the real ElevenLabs API response to match our expected format
@@ -426,18 +393,18 @@ const ElevenLabsPlayground: React.FC = () => {
 
         setVoices(transformedVoices);
         toast({
-          title: "Voices Retrieved",
-          description: `Found ${transformedVoices.length} voices from ElevenLabs`,
+          title: "Voice Search Complete",
+          description: `Found ${transformedVoices.length} matching voices`,
         });
       } else {
         throw new Error("Invalid API response format");
       }
     } catch (error) {
-      console.error('Voices fetch error:', error);
+      console.error('Voice search error:', error);
       setVoicesError(error.message);
       toast({
-        title: "Failed to Fetch Voices",
-        description: "Could not retrieve voices list",
+        title: "Search Failed",
+        description: "Could not search voices",
         variant: "destructive"
       });
     } finally {
@@ -445,55 +412,14 @@ const ElevenLabsPlayground: React.FC = () => {
     }
   };
 
-  // Extract unique values for filter dropdowns
-  const uniqueFilterOptions = useMemo(() => {
-    const filterFields = ['gender', 'age', 'accent', 'category', 'language'];
-    const options = {};
-
-    filterFields.forEach(field => {
-      const values = voices
-        .map(voice => voice[field])
-        .filter(value => value)
-        .filter((value, index, self) => self.indexOf(value) === index)
-        .sort((a, b) => a.localeCompare(b));
-
-      options[field] = values;
-    });
-    return options;
-  }, [voices]);
-
-  // Combined filtering and searching
-  const filteredAndSearchedVoices = useMemo(() => {
-    if (!voices.length) return [];
-
-    let currentVoices = voices;
-
-    // Apply dropdown filters
-    currentVoices = currentVoices.filter(voice => {
-      for (const field in filters) {
-        const selectedValue = filters[field];
-        if (selectedValue && voice[field]?.toLowerCase() !== selectedValue.toLowerCase()) {
-          return false;
-        }
-      }
-      return true;
-    });
-
-    // Apply search term
-    if (searchTerm) {
-      const lowerCaseSearchTerm = searchTerm.toLowerCase();
-      currentVoices = currentVoices.filter(voice => {
-        return (
-          voice.name?.toLowerCase().includes(lowerCaseSearchTerm) ||
-          voice.description?.toLowerCase().includes(lowerCaseSearchTerm) ||
-          voice.descriptive?.toLowerCase().includes(lowerCaseSearchTerm) ||
-          voice.use_case?.toLowerCase().includes(lowerCaseSearchTerm)
-        );
-      });
-    }
-
-    return currentVoices;
-  }, [voices, filters, searchTerm]);
+  // Predefined filter options based on ElevenLabs API documentation
+  const predefinedFilterOptions = {
+    gender: ['male', 'female'],
+    age: ['young', 'middle_aged', 'old'],
+    accent: ['american', 'british', 'australian', 'canadian', 'indian', 'irish', 'scottish'],
+    category: ['premade', 'generated', 'professional', 'cloned'],
+    language: ['en', 'es', 'fr', 'de', 'it', 'pt', 'pl', 'tr', 'ru', 'nl', 'cs', 'ar', 'zh', 'ja', 'hi', 'ko']
+  };
 
   const handleFilterChange = (field, value) => {
     setFilters(prevFilters => ({
@@ -747,10 +673,55 @@ const ElevenLabsPlayground: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <Button onClick={fetchVoices} disabled={voicesLoading}>
-              <Play className="mr-2 h-4 w-4" />
-              {voicesLoading ? 'Loading Voices...' : 'Load Voices'}
-            </Button>
+            {/* Search and Filter Controls */}
+            <div className="bg-muted p-6 rounded-lg space-y-4">
+              {/* Search Input */}
+              <div>
+                <label htmlFor="voice-search" className="block text-sm font-medium mb-2">
+                  Search by Description (e.g., "pirate voice", "sweet old lady"):
+                </label>
+                <Input
+                  id="voice-search"
+                  type="text"
+                  placeholder="e.g., 'mafia voice', 'energetic narrator'"
+                  value={searchTerm}
+                  onChange={handleSearchTermChange}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Filter Dropdowns */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                {['gender', 'age', 'accent', 'category', 'language'].map(field => (
+                  <div key={field}>
+                    <label htmlFor={field} className="block text-sm font-medium text-muted-foreground capitalize mb-1">
+                      {field.replace('_', ' ')}:
+                    </label>
+                    <select
+                      id={field}
+                      className="w-full p-2 text-sm border border-border rounded-md bg-background"
+                      value={filters[field]}
+                      onChange={(e) => handleFilterChange(field, e.target.value)}
+                    >
+                      <option value="">All {field.replace('_', ' ')}</option>
+                      {predefinedFilterOptions[field]?.map(option => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+
+              {/* Search Button */}
+              <div className="flex justify-center">
+                <Button onClick={searchVoices} disabled={voicesLoading} className="w-full sm:w-auto">
+                  <Search className="mr-2 h-4 w-4" />
+                  {voicesLoading ? 'Searching Voices...' : 'Search Voices'}
+                </Button>
+              </div>
+            </div>
 
             {voicesError && (
               <div className="p-4 bg-destructive/10 border border-destructive text-destructive rounded-lg">
@@ -760,74 +731,26 @@ const ElevenLabsPlayground: React.FC = () => {
 
             {voices.length > 0 && (
               <>
-                {/* Search and Filter Controls */}
-                <div className="bg-muted p-6 rounded-lg space-y-4">
-                  {/* Search Input */}
-                  <div>
-                    <label htmlFor="voice-search" className="block text-sm font-medium mb-2">
-                      Search by Description (e.g., "pirate voice", "sweet old lady"):
-                    </label>
-                    <Input
-                      id="voice-search"
-                      type="text"
-                      placeholder="e.g., 'mafia voice', 'energetic narrator'"
-                      value={searchTerm}
-                      onChange={handleSearchTermChange}
-                      className="w-full"
-                    />
-                  </div>
-
-                  {/* Filter Dropdowns */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                    {['gender', 'age', 'accent', 'category', 'language'].map(field => (
-                      <div key={field}>
-                        <label htmlFor={field} className="block text-sm font-medium text-muted-foreground capitalize mb-1">
-                          {field.replace('_', ' ')}:
-                        </label>
-                        <select
-                          id={field}
-                          className="w-full p-2 text-sm border border-border rounded-md bg-background"
-                          value={filters[field]}
-                          onChange={(e) => handleFilterChange(field, e.target.value)}
-                        >
-                          <option value="">All {field.replace('_', ' ')}</option>
-                          {uniqueFilterOptions[field]?.map(option => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
                 {/* Voice Results */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredAndSearchedVoices.length > 0 ? (
-                    filteredAndSearchedVoices.map(voice => (
-                      <div key={voice.voice_id} className="bg-card p-4 rounded-lg border border-border hover:border-primary/50 transition-colors">
-                        <h3 className="text-lg font-semibold text-primary mb-2">{voice.name}</h3>
-                        <p className="text-sm text-muted-foreground mb-3">{voice.description}</p>
-                        <div className="flex flex-wrap gap-1 text-xs mb-4">
-                          {voice.gender && <span className="px-2 py-1 bg-muted rounded-full">{voice.gender}</span>}
-                          {voice.age && <span className="px-2 py-1 bg-muted rounded-full">{voice.age}</span>}
-                          {voice.accent && <span className="px-2 py-1 bg-muted rounded-full">{voice.accent}</span>}
-                          {voice.category && <span className="px-2 py-1 bg-muted rounded-full">{voice.category}</span>}
-                          {voice.language && <span className="px-2 py-1 bg-muted rounded-full">{voice.language}</span>}
-                          {voice.descriptive && <span className="px-2 py-1 bg-muted rounded-full">{voice.descriptive}</span>}
-                          {voice.use_case && <span className="px-2 py-1 bg-muted rounded-full">{voice.use_case.replace(/_/g, ' ')}</span>}
-                        </div>
-                        <Button variant="outline" size="sm" className="w-full">
-                          Select Voice
-                        </Button>
+                  {voices.map(voice => (
+                    <div key={voice.voice_id} className="bg-card p-4 rounded-lg border border-border hover:border-primary/50 transition-colors">
+                      <h3 className="text-lg font-semibold text-primary mb-2">{voice.name}</h3>
+                      <p className="text-sm text-muted-foreground mb-3">{voice.description}</p>
+                      <div className="flex flex-wrap gap-1 text-xs mb-4">
+                        {voice.gender && <span className="px-2 py-1 bg-muted rounded-full">{voice.gender}</span>}
+                        {voice.age && <span className="px-2 py-1 bg-muted rounded-full">{voice.age}</span>}
+                        {voice.accent && <span className="px-2 py-1 bg-muted rounded-full">{voice.accent}</span>}
+                        {voice.category && <span className="px-2 py-1 bg-muted rounded-full">{voice.category}</span>}
+                        {voice.language && <span className="px-2 py-1 bg-muted rounded-full">{voice.language}</span>}
+                        {voice.descriptive && <span className="px-2 py-1 bg-muted rounded-full">{voice.descriptive}</span>}
+                        {voice.use_case && <span className="px-2 py-1 bg-muted rounded-full">{voice.use_case.replace(/_/g, ' ')}</span>}
                       </div>
-                    ))
-                  ) : (
-                    <p className="col-span-full text-center text-muted-foreground py-8">
-                      No voices found matching your criteria. Try adjusting your filters or search term.
-                    </p>
-                  )}
+                      <Button variant="outline" size="sm" className="w-full">
+                        Select Voice
+                      </Button>
+                    </div>
+                  ))}
                 </div>
               </>
             )}

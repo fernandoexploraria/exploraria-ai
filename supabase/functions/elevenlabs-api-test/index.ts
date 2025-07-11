@@ -46,7 +46,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { action } = await req.json();
+    const reqBody = await req.json();
+    const { action } = reqBody;
 
     if (action === 'test_connection') {
       const apiKey = Deno.env.get('ELEVENLABS_API_KEY');
@@ -148,6 +149,110 @@ Deno.serve(async (req) => {
           JSON.stringify({ 
             success: false, 
             error: `Failed to fetch voices: ${response.status} ${errorText}` 
+          }),
+          { 
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+    }
+
+    if (action === 'search_voices') {
+      const apiKey = Deno.env.get('ELEVENLABS_API_KEY');
+      
+      if (!apiKey) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'ELEVENLABS_API_KEY not configured' 
+          }),
+          { 
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+
+      const { filters, searchTerm } = reqBody;
+      
+      // Get all voices first
+      const response = await fetch('https://api.elevenlabs.io/v1/voices', {
+        method: 'GET',
+        headers: {
+          'xi-api-key': apiKey,
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        let voices = data.voices || [];
+
+        // Apply server-side filtering
+        if (filters) {
+          voices = voices.filter(voice => {
+            // Check gender filter
+            if (filters.gender && voice.labels?.gender !== filters.gender) {
+              return false;
+            }
+            
+            // Check age filter
+            if (filters.age && voice.labels?.age !== filters.age) {
+              return false;
+            }
+            
+            // Check accent filter
+            if (filters.accent && voice.labels?.accent !== filters.accent) {
+              return false;
+            }
+            
+            // Check category filter
+            if (filters.category && voice.category !== filters.category) {
+              return false;
+            }
+            
+            // Check language filter
+            if (filters.language && voice.labels?.language !== filters.language) {
+              return false;
+            }
+            
+            return true;
+          });
+        }
+
+        // Apply search term filtering
+        if (searchTerm && searchTerm.trim()) {
+          const lowerSearchTerm = searchTerm.toLowerCase();
+          voices = voices.filter(voice => {
+            return (
+              voice.name?.toLowerCase().includes(lowerSearchTerm) ||
+              voice.description?.toLowerCase().includes(lowerSearchTerm) ||
+              voice.labels?.descriptive?.toLowerCase().includes(lowerSearchTerm) ||
+              voice.labels?.use_case?.toLowerCase().includes(lowerSearchTerm)
+            );
+          });
+        }
+
+        // Limit to 100 results as requested
+        voices = voices.slice(0, 100);
+        
+        return new Response(
+          JSON.stringify({
+            success: true,
+            voices: voices
+          }),
+          { 
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      } else {
+        const errorText = await response.text();
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: `Failed to search voices: ${response.status} ${errorText}` 
           }),
           { 
             status: 200,
