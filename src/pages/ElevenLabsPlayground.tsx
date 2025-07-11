@@ -307,8 +307,8 @@ const ElevenLabsPlayground: React.FC = () => {
       // Check each active filter
       for (const field in voiceFilters) {
         const selectedValue = voiceFilters[field as keyof typeof voiceFilters];
-        // If a filter is selected (not empty string and not 'any') AND the voice's field doesn't match
-        if (selectedValue && selectedValue !== 'any' && voice[field]?.toLowerCase() !== selectedValue.toLowerCase()) {
+        // If a filter is selected (not empty string) AND the voice's field doesn't match
+        if (selectedValue && voice[field]?.toLowerCase() !== selectedValue.toLowerCase()) {
           return false; // This voice does not match the current filter
         }
       }
