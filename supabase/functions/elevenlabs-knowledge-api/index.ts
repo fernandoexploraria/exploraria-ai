@@ -135,8 +135,13 @@ Deno.serve(async (req) => {
     }
   } catch (error) {
     console.error('Error in elevenlabs-knowledge-api:', error);
+    console.error('Error stack:', error.stack);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ 
+        error: 'Internal server error',
+        message: error.message,
+        details: error.stack 
+      }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -305,18 +310,20 @@ async function uploadFiles(apiKey: string, files: Array<{name: string, content: 
       console.log('Processing file:', file.name);
       
       try {
-        // Convert base64 content to blob
+        // Convert base64 content to Uint8Array
         const base64Data = file.content.includes(',') ? file.content.split(',')[1] : file.content;
-        const byteCharacters = atob(base64Data);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray]);
         
+        // Decode base64 to bytes
+        const binaryString = atob(base64Data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        // Create form data using Deno's FormData
         const formData = new FormData();
-        formData.append('file', blob, file.name);
+        const fileBlob = new Blob([bytes]);
+        formData.append('file', fileBlob, file.name);
         
         console.log('Uploading file to ElevenLabs:', file.name);
         const response = await fetch('https://api.elevenlabs.io/v1/convai/knowledge-base/file', {
@@ -328,21 +335,38 @@ async function uploadFiles(apiKey: string, files: Array<{name: string, content: 
         });
 
         console.log('Upload response status:', response.status);
-        const responseText = await response.text();
-        console.log('Upload response:', responseText);
-
+        
         if (!response.ok) {
-          throw new Error(`Failed to upload file ${file.name}: ${response.status} ${responseText}`);
+          const errorText = await response.text();
+          console.error('Upload failed:', errorText);
+          throw new Error(`Failed to upload file ${file.name}: ${response.status} ${errorText}`);
         }
 
-        const uploadData = JSON.parse(responseText);
+        const responseText = await response.text();
+        console.log('Upload response body:', responseText);
+        
+        let uploadData;
+        try {
+          uploadData = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('Failed to parse response as JSON:', parseError);
+          throw new Error(`Invalid JSON response: ${responseText}`);
+        }
+        
+        const documentId = uploadData.document_id || uploadData.id || uploadData.knowledgeBaseId;
+        if (!documentId) {
+          console.error('No document ID found in response:', uploadData);
+          throw new Error('No document ID returned from upload');
+        }
+
         uploadResults.push({
           file: file.name,
           title: file.title,
-          document_id: uploadData.document_id || uploadData.id,
+          document_id: documentId,
           success: true
         });
-        console.log('Successfully uploaded:', file.name, 'with ID:', uploadData.document_id || uploadData.id);
+        
+        console.log('Successfully uploaded:', file.name, 'with ID:', documentId);
       } catch (fileError) {
         console.error('Error uploading file:', file.name, fileError);
         uploadResults.push({

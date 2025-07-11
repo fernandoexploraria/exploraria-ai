@@ -555,6 +555,10 @@ const ElevenLabsPlayground: React.FC = () => {
 
     setUploadingDocuments(true);
     try {
+      console.log('Starting document upload process...');
+      console.log('Selected agent:', selectedAgent.agent_id);
+      console.log('Files to upload:', uploadFiles.length);
+
       // Convert files to base64
       const filesWithContent = await Promise.all(
         uploadFiles.map(async (fileObj) => {
@@ -572,6 +576,8 @@ const ElevenLabsPlayground: React.FC = () => {
         })
       );
 
+      console.log('Files converted to base64, starting upload...');
+
       // Step 1: Upload files
       const { data: uploadData, error: uploadError } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
         body: { 
@@ -580,23 +586,40 @@ const ElevenLabsPlayground: React.FC = () => {
         }
       });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw uploadError;
+      }
+
+      console.log('Upload successful:', uploadData);
 
       // Step 2: Process RAG index for each uploaded document
       const processPromises = uploadData.uploadResults.map(async (result) => {
-        const { data: ragData, error: ragError } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
-          body: { 
-            action: 'process_rag_index',
-            documentId: result.document_id
-          }
-        });
-        
-        if (ragError) {
-          console.error(`Failed to process RAG for ${result.file}:`, ragError);
-          return { ...result, ragProcessed: false, ragError: ragError.message };
+        if (!result.success) {
+          console.log('Skipping RAG processing for failed upload:', result.file);
+          return { ...result, ragProcessed: false, ragError: 'Upload failed' };
         }
-        
-        return { ...result, ragProcessed: true, ragData };
+
+        try {
+          console.log('Processing RAG for document:', result.document_id);
+          const { data: ragData, error: ragError } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
+            body: { 
+              action: 'process_rag_index',
+              documentId: result.document_id
+            }
+          });
+          
+          if (ragError) {
+            console.error(`Failed to process RAG for ${result.file}:`, ragError);
+            return { ...result, ragProcessed: false, ragError: ragError.message };
+          }
+          
+          console.log('RAG processing successful for:', result.file);
+          return { ...result, ragProcessed: true, ragData };
+        } catch (error) {
+          console.error(`Exception processing RAG for ${result.file}:`, error);
+          return { ...result, ragProcessed: false, ragError: error.message };
+        }
       });
 
       const processResults = await Promise.all(processPromises);
