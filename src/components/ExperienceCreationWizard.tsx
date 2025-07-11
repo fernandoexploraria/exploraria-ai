@@ -16,6 +16,8 @@ import { mapPriceLevel } from '@/utils/priceUtils';
 import { PromptSectionViewer } from '@/components/PromptSectionViewer';
 import { PersonaRefinementChat } from '@/components/PersonaRefinementChat';
 import { Section2RefinementChat } from '@/components/Section2RefinementChat';
+import { VoiceSelector } from '@/components/VoiceSelector';
+import { VoiceAudioWizard } from '@/components/VoiceAudioWizard';
 
 interface ExperienceCreationWizardProps {
   onClose: () => void;
@@ -54,6 +56,8 @@ interface ExperienceData {
   voiceId: string;
   title: string;
   description: string;
+  agentId?: string;
+  agentName?: string;
 }
 
 const WIZARD_STEPS = [
@@ -91,6 +95,8 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
     voiceId: ELEVENLABS_VOICES[0].id,
     title: '',
     description: '',
+    agentId: undefined,
+    agentName: '',
   });
 
   const currentStepData = WIZARD_STEPS[currentStep];
@@ -223,7 +229,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
           description: experienceData.description,
           system_prompt: experienceData.systemPrompt,
           experience: true,
-          agentid: 'agent_01jxtaz7mkfwzrefsdqsy3fdwe',
+          agentid: experienceData.agentId || 'agent_01jxtaz7mkfwzrefsdqsy3fdwe',
           total_landmarks: experienceData.landmarks.length,
           generation_start_time: new Date().toISOString(),
           generation_end_time: new Date().toISOString(),
@@ -312,7 +318,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
       case 0: return !!experienceData.destination;
       case 1: return experienceData.landmarks.length > 0;
       case 2: return experienceData.systemPrompt.length > 50;
-      case 3: return !!experienceData.voiceId;
+      case 3: return !!experienceData.agentId && !!experienceData.agentName?.trim() && !!experienceData.voiceId;
       case 4: return true; // Knowledge base is optional for MVP
       case 5: return experienceData.title.length > 0 && experienceData.description.length > 0;
       default: return false;
@@ -537,34 +543,10 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                  )}
 
                 {currentStep === 3 && (
-                  <div className="space-y-4">
-                    <CardDescription>
-                      Choose the voice that will represent your AI tour guide.
-                    </CardDescription>
-                    <div className="grid grid-cols-2 gap-4">
-                      {ELEVENLABS_VOICES.map((voice) => (
-                        <Card
-                          key={voice.id}
-                          className={`cursor-pointer transition-colors ${
-                            experienceData.voiceId === voice.id
-                              ? 'ring-2 ring-primary'
-                              : 'hover:bg-muted/50'
-                          }`}
-                          onClick={() => setExperienceData(prev => ({ ...prev, voiceId: voice.id }))}
-                        >
-                          <CardContent className="p-4">
-                            <div className="flex items-center space-x-3">
-                              <Mic className="h-4 w-4" />
-                              <div>
-                                <p className="font-medium">{voice.name}</p>
-                                <p className="text-sm text-muted-foreground">{voice.description}</p>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
+                  <VoiceAudioWizard 
+                    experienceData={experienceData}
+                    setExperienceData={setExperienceData}
+                  />
                 )}
 
                 {currentStep === 4 && (
