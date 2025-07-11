@@ -63,6 +63,7 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
       if (error) throw error;
 
       if (data.success) {
+        console.log('Fetched voices:', data.voices);
         setVoices(data.voices || []);
       } else {
         throw new Error(data.error || 'Failed to fetch voices');
@@ -222,23 +223,23 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
                     <CardHeader className="pb-2">
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-sm font-medium">{voice.name}</CardTitle>
-                        {voice.samples && voice.samples.length > 0 && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              playVoiceSample(voice);
-                            }}
-                            disabled={playingVoiceId === voice.voice_id}
-                          >
-                            {playingVoiceId === voice.voice_id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Play className="h-4 w-4" />
-                            )}
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            console.log('Voice samples:', voice.samples);
+                            playVoiceSample(voice);
+                          }}
+                          disabled={playingVoiceId === voice.voice_id}
+                          title={voice.samples && voice.samples.length > 0 ? "Play sample" : "No sample available"}
+                        >
+                          {playingVoiceId === voice.voice_id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Play className="h-4 w-4" />
+                          )}
+                        </Button>
                       </div>
                       {voice.description && (
                         <CardDescription className="text-xs">
