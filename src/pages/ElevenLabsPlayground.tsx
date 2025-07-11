@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowLeft, Bot, Wrench, BookOpen, Play, AlertCircle, Copy, Users, Check, Edit, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Bot, Wrench, BookOpen, Play, AlertCircle, Copy, Users, Check, Edit, MessageCircle, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,6 +23,19 @@ const ElevenLabsPlayground: React.FC = () => {
   const [newAgentName, setNewAgentName] = useState('');
   const [firstMessageDialogOpen, setFirstMessageDialogOpen] = useState(false);
   const [agentName, setAgentName] = useState('');
+
+  // Voice Explorer state
+  const [voices, setVoices] = useState([]);
+  const [voicesLoading, setVoicesLoading] = useState(false);
+  const [voicesError, setVoicesError] = useState(null);
+  const [filters, setFilters] = useState({
+    gender: '',
+    age: '',
+    accent: '',
+    category: '',
+    language: '',
+  });
+  const [searchTerm, setSearchTerm] = useState('');
 
   const testApiConnection = async () => {
     setLoading(true);
@@ -346,6 +359,100 @@ const ElevenLabsPlayground: React.FC = () => {
     }
   };
 
+  // Voice Explorer functions
+  const fetchVoices = async () => {
+    setVoicesLoading(true);
+    setVoicesError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('elevenlabs-api-test', {
+        body: { action: 'list_voices' }
+      });
+
+      if (error) throw error;
+      
+      if (data && Array.isArray(data.voices)) {
+        setVoices(data.voices);
+        toast({
+          title: "Voices Retrieved",
+          description: `Found ${data.voices.length} voices`,
+        });
+      } else {
+        throw new Error("Invalid API response format");
+      }
+    } catch (error) {
+      console.error('Voices fetch error:', error);
+      setVoicesError(error.message);
+      toast({
+        title: "Failed to Fetch Voices",
+        description: "Could not retrieve voices list",
+        variant: "destructive"
+      });
+    } finally {
+      setVoicesLoading(false);
+    }
+  };
+
+  // Extract unique values for filter dropdowns
+  const uniqueFilterOptions = useMemo(() => {
+    const filterFields = ['gender', 'age', 'accent', 'category', 'language'];
+    const options = {};
+
+    filterFields.forEach(field => {
+      const values = voices
+        .map(voice => voice[field])
+        .filter(value => value)
+        .filter((value, index, self) => self.indexOf(value) === index)
+        .sort((a, b) => a.localeCompare(b));
+
+      options[field] = values;
+    });
+    return options;
+  }, [voices]);
+
+  // Combined filtering and searching
+  const filteredAndSearchedVoices = useMemo(() => {
+    if (!voices.length) return [];
+
+    let currentVoices = voices;
+
+    // Apply dropdown filters
+    currentVoices = currentVoices.filter(voice => {
+      for (const field in filters) {
+        const selectedValue = filters[field];
+        if (selectedValue && voice[field]?.toLowerCase() !== selectedValue.toLowerCase()) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    // Apply search term
+    if (searchTerm) {
+      const lowerCaseSearchTerm = searchTerm.toLowerCase();
+      currentVoices = currentVoices.filter(voice => {
+        return (
+          voice.name?.toLowerCase().includes(lowerCaseSearchTerm) ||
+          voice.description?.toLowerCase().includes(lowerCaseSearchTerm) ||
+          voice.descriptive?.toLowerCase().includes(lowerCaseSearchTerm) ||
+          voice.use_case?.toLowerCase().includes(lowerCaseSearchTerm)
+        );
+      });
+    }
+
+    return currentVoices;
+  }, [voices, filters, searchTerm]);
+
+  const handleFilterChange = (field, value) => {
+    setFilters(prevFilters => ({
+      ...prevFilters,
+      [field]: value,
+    }));
+  };
+
+  const handleSearchTermChange = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -571,6 +678,105 @@ const ElevenLabsPlayground: React.FC = () => {
                   </pre>
                 </div>
               </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Voice Explorer */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Search className="h-5 w-5" />
+              <span>Voice Explorer</span>
+            </CardTitle>
+            <CardDescription>
+              Search and filter ElevenLabs voices with descriptive terms
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <Button onClick={fetchVoices} disabled={voicesLoading}>
+              <Play className="mr-2 h-4 w-4" />
+              {voicesLoading ? 'Loading Voices...' : 'Load Voices'}
+            </Button>
+
+            {voicesError && (
+              <div className="p-4 bg-destructive/10 border border-destructive text-destructive rounded-lg">
+                Error: {voicesError}
+              </div>
+            )}
+
+            {voices.length > 0 && (
+              <>
+                {/* Search and Filter Controls */}
+                <div className="bg-muted p-6 rounded-lg space-y-4">
+                  {/* Search Input */}
+                  <div>
+                    <label htmlFor="voice-search" className="block text-sm font-medium mb-2">
+                      Search by Description (e.g., "pirate voice", "sweet old lady"):
+                    </label>
+                    <Input
+                      id="voice-search"
+                      type="text"
+                      placeholder="e.g., 'mafia voice', 'energetic narrator'"
+                      value={searchTerm}
+                      onChange={handleSearchTermChange}
+                      className="w-full"
+                    />
+                  </div>
+
+                  {/* Filter Dropdowns */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                    {['gender', 'age', 'accent', 'category', 'language'].map(field => (
+                      <div key={field}>
+                        <label htmlFor={field} className="block text-sm font-medium text-muted-foreground capitalize mb-1">
+                          {field.replace('_', ' ')}:
+                        </label>
+                        <select
+                          id={field}
+                          className="w-full p-2 text-sm border border-border rounded-md bg-background"
+                          value={filters[field]}
+                          onChange={(e) => handleFilterChange(field, e.target.value)}
+                        >
+                          <option value="">All {field.replace('_', ' ')}</option>
+                          {uniqueFilterOptions[field]?.map(option => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Voice Results */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredAndSearchedVoices.length > 0 ? (
+                    filteredAndSearchedVoices.map(voice => (
+                      <div key={voice.voice_id} className="bg-card p-4 rounded-lg border border-border hover:border-primary/50 transition-colors">
+                        <h3 className="text-lg font-semibold text-primary mb-2">{voice.name}</h3>
+                        <p className="text-sm text-muted-foreground mb-3">{voice.description}</p>
+                        <div className="flex flex-wrap gap-1 text-xs mb-4">
+                          {voice.gender && <span className="px-2 py-1 bg-muted rounded-full">{voice.gender}</span>}
+                          {voice.age && <span className="px-2 py-1 bg-muted rounded-full">{voice.age}</span>}
+                          {voice.accent && <span className="px-2 py-1 bg-muted rounded-full">{voice.accent}</span>}
+                          {voice.category && <span className="px-2 py-1 bg-muted rounded-full">{voice.category}</span>}
+                          {voice.language && <span className="px-2 py-1 bg-muted rounded-full">{voice.language}</span>}
+                          {voice.descriptive && <span className="px-2 py-1 bg-muted rounded-full">{voice.descriptive}</span>}
+                          {voice.use_case && <span className="px-2 py-1 bg-muted rounded-full">{voice.use_case.replace(/_/g, ' ')}</span>}
+                        </div>
+                        <Button variant="outline" size="sm" className="w-full">
+                          Select Voice
+                        </Button>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="col-span-full text-center text-muted-foreground py-8">
+                      No voices found matching your criteria. Try adjusting your filters or search term.
+                    </p>
+                  )}
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
