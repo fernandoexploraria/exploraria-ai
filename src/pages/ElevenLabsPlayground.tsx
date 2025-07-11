@@ -559,6 +559,23 @@ const ElevenLabsPlayground: React.FC = () => {
       console.log('Selected agent:', selectedAgent.agent_id);
       console.log('Files to upload:', uploadFiles.length);
 
+      // Step 1: Get or create knowledge base for the agent
+      console.log('Getting or creating knowledge base for agent...');
+      const { data: kbData, error: kbError } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
+        body: { 
+          action: 'get_or_create_kb',
+          agentId: selectedAgent.agent_id
+        }
+      });
+
+      if (kbError) {
+        console.error('KB creation error:', kbError);
+        throw kbError;
+      }
+
+      const knowledgeBaseId = kbData.knowledge_base_id;
+      console.log('Using knowledge base:', knowledgeBaseId);
+
       // Convert files to base64
       const filesWithContent = await Promise.all(
         uploadFiles.map(async (fileObj) => {
@@ -576,12 +593,13 @@ const ElevenLabsPlayground: React.FC = () => {
         })
       );
 
-      console.log('Files converted to base64, starting upload...');
+      console.log('Files converted to base64, starting upload to knowledge base...');
 
-      // Step 1: Upload files
+      // Step 2: Upload files to knowledge base
       const { data: uploadData, error: uploadError } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
         body: { 
-          action: 'upload_files',
+          action: 'upload_files_to_kb',
+          knowledgeBaseId: knowledgeBaseId,
           files: filesWithContent
         }
       });
@@ -593,68 +611,33 @@ const ElevenLabsPlayground: React.FC = () => {
 
       console.log('Upload successful:', uploadData);
 
-      // Step 2: Process RAG index for each uploaded document
-      const processPromises = uploadData.uploadResults.map(async (result) => {
-        if (!result.success) {
-          console.log('Skipping RAG processing for failed upload:', result.file);
-          return { ...result, ragProcessed: false, ragError: 'Upload failed' };
-        }
-
-        try {
-          console.log('Processing RAG for document:', result.document_id);
-          const { data: ragData, error: ragError } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
-            body: { 
-              action: 'process_rag_index',
-              documentId: result.document_id
-            }
-          });
-          
-          if (ragError) {
-            console.error(`Failed to process RAG for ${result.file}:`, ragError);
-            return { ...result, ragProcessed: false, ragError: ragError.message };
-          }
-          
-          console.log('RAG processing successful for:', result.file);
-          return { ...result, ragProcessed: true, ragData };
-        } catch (error) {
-          console.error(`Exception processing RAG for ${result.file}:`, error);
-          return { ...result, ragProcessed: false, ragError: error.message };
-        }
-      });
-
-      const processResults = await Promise.all(processPromises);
-
-      // Step 3: Associate documents to agent
-      const documentIds = processResults
-        .filter(r => r.ragProcessed)
-        .map(r => ({ usage_mode: "auto", id: r.document_id }));
-
-      if (documentIds.length > 0) {
+      // Step 3: Associate knowledge base to agent (if not already associated)
+      if (!kbData.exists) {
+        console.log('Associating knowledge base to agent...');
         const { data: associateData, error: associateError } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
           body: { 
-            action: 'associate_documents_to_agent',
+            action: 'associate_kb_to_agent',
             agentId: selectedAgent.agent_id,
-            documentData: {
-              conversation_config: {
-                knowledge_base: {
-                  documents: documentIds
-                }
-              }
-            }
+            knowledgeBaseId: knowledgeBaseId
           }
         });
 
         if (associateError) {
-          console.error('Failed to associate documents to agent:', associateError);
+          console.error('Association error:', associateError);
+          throw associateError;
         }
+
+        console.log('Knowledge base associated to agent successfully');
+      } else {
+        console.log('Knowledge base already associated to agent');
       }
 
-      const successCount = processResults.filter(r => r.ragProcessed).length;
-      const failureCount = processResults.length - successCount;
+      const successCount = uploadData.uploadResults.filter(r => r.success).length;
+      const failureCount = uploadData.uploadResults.length - successCount;
 
       toast({
         title: "Knowledge Upload Complete",
-        description: `Successfully processed ${successCount} documents${failureCount > 0 ? `, ${failureCount} failed` : ''}`,
+        description: `Successfully uploaded ${successCount} documents${failureCount > 0 ? `, ${failureCount} failed` : ''}`,
         variant: failureCount > 0 ? "destructive" : "default"
       });
 
@@ -668,7 +651,7 @@ const ElevenLabsPlayground: React.FC = () => {
       console.error('Document upload error:', error);
       toast({
         title: "Upload Failed",
-        description: "Failed to upload and process documents",
+        description: error.message || "Failed to upload and process documents",
         variant: "destructive"
       });
     } finally {
