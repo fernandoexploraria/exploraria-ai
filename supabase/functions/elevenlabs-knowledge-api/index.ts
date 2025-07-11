@@ -306,7 +306,7 @@ async function uploadTextToKnowledgeBase(apiKey: string, text: string, title?: s
     console.log('Text uploaded successfully:', responseData);
     
     // Compute RAG index synchronously 
-    const knowledgeBaseId = responseData.knowledge_base_id;
+    const knowledgeBaseId = responseData.knowledge_base_id || responseData.id;
     let ragIndexResult = null;
     
     if (knowledgeBaseId) {
@@ -319,7 +319,7 @@ async function uploadTextToKnowledgeBase(apiKey: string, text: string, title?: s
     return new Response(
       JSON.stringify({
         message: knowledgeBaseId ? 'Text uploaded and RAG indexing completed' : 'Text uploaded but no knowledge base ID returned',
-        knowledgeBaseId: responseData.knowledge_base_id,
+        knowledgeBaseId: knowledgeBaseId,
         status: responseData.status,
         ragIndexResult: ragIndexResult,
         fullResponse: responseData, // Include full response for debugging
