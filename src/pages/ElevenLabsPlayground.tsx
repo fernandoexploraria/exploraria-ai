@@ -284,6 +284,15 @@ const ElevenLabsPlayground: React.FC = () => {
     }
   };
 
+  // Get unique filter values from voices
+  const getUniqueValues = (field: keyof typeof voices[0]) => {
+    const values = voices
+      .map(voice => voice[field])
+      .filter((value, index, self) => value && self.indexOf(value) === index)
+      .sort();
+    return values as string[];
+  };
+
   const filterVoices = () => {
     let filtered = voices;
     
@@ -794,8 +803,11 @@ const ElevenLabsPlayground: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="any">Any</SelectItem>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
+                    {getUniqueValues('gender').map(gender => (
+                      <SelectItem key={gender} value={gender.toLowerCase()}>
+                        {gender.charAt(0).toUpperCase() + gender.slice(1)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -808,9 +820,11 @@ const ElevenLabsPlayground: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="any">Any</SelectItem>
-                    <SelectItem value="young">Young</SelectItem>
-                    <SelectItem value="middle aged">Middle Aged</SelectItem>
-                    <SelectItem value="old">Old</SelectItem>
+                    {getUniqueValues('age').map(age => (
+                      <SelectItem key={age} value={age.toLowerCase()}>
+                        {age.charAt(0).toUpperCase() + age.slice(1)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -823,10 +837,11 @@ const ElevenLabsPlayground: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="any">Any</SelectItem>
-                    <SelectItem value="american">American</SelectItem>
-                    <SelectItem value="british">British</SelectItem>
-                    <SelectItem value="australian">Australian</SelectItem>
-                    <SelectItem value="irish">Irish</SelectItem>
+                    {getUniqueValues('accent').map(accent => (
+                      <SelectItem key={accent} value={accent.toLowerCase()}>
+                        {accent.charAt(0).toUpperCase() + accent.slice(1)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -839,9 +854,11 @@ const ElevenLabsPlayground: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="any">Any</SelectItem>
-                    <SelectItem value="professional">Professional</SelectItem>
-                    <SelectItem value="conversational">Conversational</SelectItem>
-                    <SelectItem value="characters_animation">Characters/Animation</SelectItem>
+                    {getUniqueValues('category').map(category => (
+                      <SelectItem key={category} value={category.toLowerCase()}>
+                        {category.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -854,12 +871,11 @@ const ElevenLabsPlayground: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="any">Any</SelectItem>
-                    <SelectItem value="en">English</SelectItem>
-                    <SelectItem value="es">Spanish</SelectItem>
-                    <SelectItem value="fr">French</SelectItem>
-                    <SelectItem value="de">German</SelectItem>
-                    <SelectItem value="it">Italian</SelectItem>
-                    <SelectItem value="pt">Portuguese</SelectItem>
+                    {getUniqueValues('language').map(language => (
+                      <SelectItem key={language} value={language.toLowerCase()}>
+                        {language.toUpperCase()}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
