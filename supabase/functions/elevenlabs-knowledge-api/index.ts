@@ -151,6 +151,35 @@ async function listKnowledgeBases(apiKey: string) {
   }
 }
 
+async function computeRagIndex(apiKey: string, knowledgeBaseId: string) {
+  try {
+    console.log('Computing RAG index for knowledge base:', knowledgeBaseId);
+    
+    const response = await fetch(`https://api.elevenlabs.io/v1/convai/knowledge-base/${knowledgeBaseId}/rag-index`, {
+      method: 'POST',
+      headers: {
+        'xi-api-key': apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'e5_mistral_7b_instruct'
+      })
+    });
+    
+    const responseData = await response.json();
+    
+    if (!response.ok) {
+      console.error('RAG index computation failed:', responseData);
+      return;
+    }
+    
+    console.log('RAG index computation started successfully:', responseData);
+    
+  } catch (error) {
+    console.error('Error computing RAG index:', error);
+  }
+}
+
 async function listAgentDocuments(apiKey: string, agentId: string) {
   try {
     // First get the agent to see its knowledge base configuration
@@ -264,9 +293,15 @@ async function uploadTextToKnowledgeBase(apiKey: string, text: string, title?: s
     
     console.log('Text uploaded successfully:', responseData);
     
+    // Start RAG index computation in background
+    const knowledgeBaseId = responseData.knowledge_base_id;
+    if (knowledgeBaseId) {
+      EdgeRuntime.waitUntil(computeRagIndex(apiKey, knowledgeBaseId));
+    }
+    
     return new Response(
       JSON.stringify({
-        message: 'Text uploaded successfully',
+        message: 'Text uploaded successfully, RAG indexing started in background',
         knowledgeBaseId: responseData.knowledge_base_id,
         status: responseData.status,
       }),
