@@ -57,19 +57,23 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check if this is a multipart form data request (file upload)
-    const contentType = req.headers.get('content-type') || '';
-    
-    if (contentType.includes('multipart/form-data')) {
-      // Handle direct file upload
-      return await handleFileUpload(req, apiKey);
-    }
-    
-    // Handle JSON requests for other actions
+    // Handle JSON requests
     const requestBody = await req.json();
-    const { action, agentId } = requestBody;
+    const { action, agentId, text } = requestBody;
 
     switch (action) {
+      case 'upload_text':
+        if (!text) {
+          return new Response(
+            JSON.stringify({ error: 'text is required for upload_text action' }),
+            { 
+              status: 400, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+        return await uploadTextToKnowledgeBase(apiKey, text);
+      
       case 'list_knowledge_bases':
         return await listKnowledgeBases(apiKey);
       
@@ -87,7 +91,7 @@ Deno.serve(async (req) => {
       
       default:
         return new Response(
-          JSON.stringify({ error: 'Invalid action. Supported: list_knowledge_bases, list_documents' }),
+          JSON.stringify({ error: 'Invalid action. Supported: upload_text, list_knowledge_bases, list_documents' }),
           { 
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -225,55 +229,17 @@ async function listAgentDocuments(apiKey: string, agentId: string) {
   }
 }
 
-async function handleFileUpload(req: Request, apiKey: string) {
+async function uploadTextToKnowledgeBase(apiKey: string, text: string) {
   try {
-    console.log('Processing file upload request...');
+    console.log('Uploading text to ElevenLabs knowledge base...');
     
-    // Parse the multipart form data
-    const formData = await req.formData();
-    
-    // Extract required fields
-    const file = formData.get('file') as Blob | null;
-    const knowledgeBaseId = formData.get('knowledgeBaseId') as string | null;
-    const documentName = formData.get('documentName') as string | null;
-    
-    // Validate inputs
-    if (!file || !(file instanceof Blob)) {
-      return new Response(
-        JSON.stringify({ error: 'No file provided or invalid file type' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-    
-    if (!knowledgeBaseId) {
-      return new Response(
-        JSON.stringify({ error: 'Knowledge Base ID is required' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-    
-    console.log('Uploading file to ElevenLabs knowledge base:', knowledgeBaseId);
-    
-    // Create new FormData for ElevenLabs API
-    const elevenLabsFormData = new FormData();
-    elevenLabsFormData.append('file', file, documentName || 'uploaded_document.pdf');
-    if (documentName) {
-      elevenLabsFormData.append('name', documentName);
-    }
-    
-    // Upload to ElevenLabs
-    const response = await fetch(`https://api.elevenlabs.io/v1/knowledge-base/${knowledgeBaseId}/documents`, {
+    const response = await fetch('https://api.elevenlabs.io/v1/convai/knowledge-base/text', {
       method: 'POST',
       headers: {
         'xi-api-key': apiKey,
+        'Content-Type': 'application/json',
       },
-      body: elevenLabsFormData
+      body: JSON.stringify({ text })
     });
     
     const responseData = await response.json();
@@ -283,7 +249,7 @@ async function handleFileUpload(req: Request, apiKey: string) {
       return new Response(
         JSON.stringify({
           error: 'ElevenLabs API Error',
-          message: responseData.detail || 'Failed to upload document to ElevenLabs',
+          message: responseData.detail || 'Failed to upload text to ElevenLabs',
           elevenLabsStatus: response.status,
         }),
         { 
@@ -293,13 +259,13 @@ async function handleFileUpload(req: Request, apiKey: string) {
       );
     }
     
-    console.log('File uploaded successfully:', responseData);
+    console.log('Text uploaded successfully:', responseData);
     
     return new Response(
       JSON.stringify({
-        message: 'Document upload initiated successfully',
-        documentId: responseData.document_id,
-        initialStatus: responseData.status,
+        message: 'Text uploaded successfully',
+        knowledgeBaseId: responseData.knowledge_base_id,
+        status: responseData.status,
       }),
       { 
         status: 200, 
@@ -308,7 +274,7 @@ async function handleFileUpload(req: Request, apiKey: string) {
     );
     
   } catch (error) {
-    console.error('Error in handleFileUpload:', error);
+    console.error('Error in uploadTextToKnowledgeBase:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error', message: error.message }),
       { 

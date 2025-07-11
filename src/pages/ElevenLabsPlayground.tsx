@@ -552,16 +552,6 @@ const ElevenLabsPlayground: React.FC = () => {
 
   const processDocumentUpload = async () => {
     if (!selectedAgent || uploadFiles.length === 0) return;
-    
-    // First get the knowledge base ID from the agent
-    if (!knowledgeData?.knowledge_base_id) {
-      toast({
-        title: "No Knowledge Base",
-        description: "Please fetch the knowledge base first to get the knowledge base ID",
-        variant: "destructive"
-      });
-      return;
-    }
 
     setUploadingDocuments(true);
     
@@ -569,36 +559,29 @@ const ElevenLabsPlayground: React.FC = () => {
     const failedUploads = [];
 
     try {
-      // Upload files one by one using multipart/form-data
+      // Upload files one by one using text upload
       for (const fileObj of uploadFiles) {
         try {
           console.log('Uploading file:', fileObj.file.name);
           
-          // Create FormData for this file
-          const formData = new FormData();
-          formData.append('file', fileObj.file);
-          formData.append('knowledgeBaseId', knowledgeData.knowledge_base_id);
-          formData.append('documentName', fileObj.title);
+          // Read file content as text
+          const fileContent = await fileObj.file.text();
           
-          // Upload via edge function - use supabase.functions.invoke with FormData
-          const session = await supabase.auth.getSession();
-          const response = await fetch(`https://ejqgdmbuabrcjxbhpxup.supabase.co/functions/v1/elevenlabs-knowledge-api`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${session.data.session?.access_token}`,
+          // Upload via edge function using text upload
+          const { data, error } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
+            body: {
+              action: 'upload_text',
+              text: fileContent
             },
-            body: formData
           });
           
-          const result = await response.json();
-          
-          if (!response.ok) {
-            throw new Error(result.message || result.error || 'Upload failed');
+          if (error) {
+            throw new Error(error.message || 'Upload failed');
           }
           
           successfulUploads.push({
             file: fileObj.file.name,
-            documentId: result.documentId
+            knowledgeBaseId: data.knowledgeBaseId
           });
           
         } catch (fileError) {
