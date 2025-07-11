@@ -12,7 +12,7 @@ import { useContextualPOIPolling } from '@/hooks/useContextualPOIPolling';
 interface NewTourAssistantProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  voiceTourData?: { destination: string; systemPrompt: string; landmarks: any[] } | null;
+  voiceTourData?: { destination: string; systemPrompt: string; landmarks: any[]; agentId?: string } | null;
   landmarks: Landmark[];
   onSessionStateChange?: (isActive: boolean, state: AssistantState) => void;
 }
@@ -294,7 +294,12 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
 
     try {
       setConnectionError(null);
-      console.log('Starting ElevenLabs conversation with agent:', elevenLabsConfig.agentId);
+      // Use custom agentId from voiceTourData if available, otherwise fall back to hardcoded config
+      const effectiveAgentId = voiceTourData?.agentId || elevenLabsConfig.agentId;
+      console.log('Starting ElevenLabs conversation with agent:', effectiveAgentId, {
+        isCustomAgent: !!voiceTourData?.agentId,
+        tourType: voiceTourData?.agentId ? 'experience' : 'standard'
+      });
       
       const dynamicVariables = prepareDynamicVariables();
       
@@ -304,7 +309,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       
       console.log('Starting session with dynamic variables...');
       const sessionConversationId = await conversation.startSession({ 
-        agentId: elevenLabsConfig.agentId,
+        agentId: effectiveAgentId,
         dynamicVariables: dynamicVariables
       });
       

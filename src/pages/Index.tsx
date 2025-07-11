@@ -26,6 +26,7 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
     destination: string;
     systemPrompt: string;
     landmarks: any[];
+    agentId?: string;
   } | null>(null);
   const [tourKey, setTourKey] = useState<string>('initial');
   
@@ -212,7 +213,7 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
   };
 
   // Enhanced handler for when tour is ready for voice agent
-  const handleTourReadyForVoice = (tourData: { destination: string; systemPrompt: string; landmarks: any[] }) => {
+  const handleTourReadyForVoice = (tourData: { destination: string; systemPrompt: string; landmarks: any[]; agentId?: string }) => {
     console.log('🎙️ Tour ready for voice agent:', tourData.destination);
     console.log('🎙️ Previous voice tour data:', voiceTourData?.destination || 'none');
     

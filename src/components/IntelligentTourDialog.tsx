@@ -21,7 +21,7 @@ interface IntelligentTourDialogProps {
   onOpenChange: (open: boolean) => void;
   onTourGenerated: (landmarks: any[]) => void;
   onAuthRequired: () => void;
-  onTourReadyForVoice?: (tourData: { destination: string; systemPrompt: string; landmarks: any[] }) => void;
+  onTourReadyForVoice?: (tourData: { destination: string; systemPrompt: string; landmarks: any[]; agentId?: string }) => void;
 }
 
 interface AutocompleteResult {
@@ -798,7 +798,8 @@ You will receive occasional, non-interrupting system updates about **new** nearb
         onTourReadyForVoice({
           destination: destination.name,
           systemPrompt: systemPrompt,
-          landmarks: validLandmarks
+          landmarks: validLandmarks,
+          agentId: tourType === 'experience' ? sourceAgentId : undefined
         });
       }
 
