@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Play, Loader2, Mic } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -51,26 +50,6 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
-  
-  const [filterOptions, setFilterOptions] = useState({
-    gender: [],
-    age: [],
-    accent: [],
-    category: [],
-    language: [],
-    use_cases: [],
-    descriptives: []
-  });
-  
-  const [filters, setFilters] = useState({
-    gender: 'all',
-    age: 'all',
-    accent: 'all',
-    category: 'all',
-    language: 'all',
-    use_cases: 'all',
-    descriptives: 'all'
-  });
 
   const fetchVoices = async () => {
     setLoading(true);
@@ -85,7 +64,6 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
 
       if (data.success) {
         setVoices(data.voices || []);
-        await fetchFilterOptions();
       } else {
         throw new Error(data.error || 'Failed to fetch voices');
       }
@@ -102,30 +80,6 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
     }
   };
 
-  const fetchFilterOptions = async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke('elevenlabs-api-test', {
-        body: { action: 'get_filter_options' }
-      });
-
-      if (error) throw error;
-
-      if (data.success) {
-        setFilterOptions(data.filterOptions || {
-          gender: [],
-          age: [],
-          accent: [],
-          category: [],
-          language: [],
-          use_cases: [],
-          descriptives: []
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching filter options:', error);
-    }
-  };
-
   const playVoiceSample = async (voice: Voice) => {
     if (!voice.samples || voice.samples.length === 0) {
       toast({
@@ -139,21 +93,33 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
     setPlayingVoiceId(voice.voice_id);
 
     try {
-      // Use the first sample available
-      const sampleUrl = `https://api.elevenlabs.io/v1/voices/${voice.voice_id}/samples/${voice.samples[0].sample_id}/audio`;
-      
-      const audio = new Audio(sampleUrl);
-      audio.onended = () => setPlayingVoiceId(null);
-      audio.onerror = () => {
-        setPlayingVoiceId(null);
-        toast({
-          title: "Playback Error",
-          description: "Could not play voice sample",
-          variant: "destructive"
-        });
-      };
-      
-      await audio.play();
+      // Call edge function to get audio sample
+      const { data, error } = await supabase.functions.invoke('elevenlabs-api-test', {
+        body: { 
+          action: 'get_voice_sample',
+          voice_id: voice.voice_id,
+          sample_id: voice.samples[0].sample_id
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.success && data.audioUrl) {
+        const audio = new Audio(data.audioUrl);
+        audio.onended = () => setPlayingVoiceId(null);
+        audio.onerror = () => {
+          setPlayingVoiceId(null);
+          toast({
+            title: "Playback Error",
+            description: "Could not play voice sample",
+            variant: "destructive"
+          });
+        };
+        
+        await audio.play();
+      } else {
+        throw new Error('Failed to get audio sample');
+      }
     } catch (error) {
       console.error('Error playing voice sample:', error);
       setPlayingVoiceId(null);
@@ -166,26 +132,19 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
   };
 
   const filteredVoices = voices.filter(voice => {
-    // Apply text search
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch = 
         voice.name.toLowerCase().includes(searchLower) ||
         (voice.description && voice.description.toLowerCase().includes(searchLower)) ||
-        (voice.labels?.descriptive && voice.labels.descriptive.toLowerCase().includes(searchLower));
+        (voice.labels?.descriptive && voice.labels.descriptive.toLowerCase().includes(searchLower)) ||
+        (voice.labels?.use_case && voice.labels.use_case.toLowerCase().includes(searchLower)) ||
+        (voice.labels?.gender && voice.labels.gender.toLowerCase().includes(searchLower)) ||
+        (voice.labels?.age && voice.labels.age.toLowerCase().includes(searchLower)) ||
+        (voice.labels?.accent && voice.labels.accent.toLowerCase().includes(searchLower));
       
-      if (!matchesSearch) return false;
+      return matchesSearch;
     }
-
-    // Apply filters
-    if (filters.gender !== 'all' && voice.labels?.gender !== filters.gender) return false;
-    if (filters.age !== 'all' && voice.labels?.age !== filters.age) return false;
-    if (filters.accent !== 'all' && voice.labels?.accent !== filters.accent) return false;
-    if (filters.category !== 'all' && voice.category !== filters.category) return false;
-    if (filters.language !== 'all' && voice.labels?.language !== filters.language) return false;
-    if (filters.use_cases !== 'all' && voice.labels?.use_case !== filters.use_cases) return false;
-    if (filters.descriptives !== 'all' && voice.labels?.descriptive !== filters.descriptives) return false;
-
     return true;
   });
 
@@ -194,19 +153,6 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
       fetchVoices();
     }
   }, [isOpen]);
-
-  const clearFilters = () => {
-    setFilters({
-      gender: 'all',
-      age: 'all',
-      accent: 'all',
-      category: 'all',
-      language: 'all',
-      use_cases: 'all',
-      descriptives: 'all'
-    });
-    setSearchTerm('');
-  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -222,46 +168,27 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden flex flex-col gap-4">
-          {/* Search and Filters */}
-          <div className="flex flex-col gap-4 p-2 border rounded-lg bg-muted/30">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Search voices by name or description..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="flex-1"
-              />
-              <Button variant="outline" onClick={clearFilters} size="sm">
-                Clear Filters
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-              {Object.entries(filterOptions).map(([filterKey, options]) => (
-                <Select
-                  key={filterKey}
-                  value={filters[filterKey]}
-                  onValueChange={(value) => setFilters(prev => ({ ...prev, [filterKey]: value }))}
-                >
-                  <SelectTrigger className="h-8">
-                    <SelectValue placeholder={filterKey.replace('_', ' ')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All {filterKey.replace('_', ' ')}</SelectItem>
-                    {options.map(option => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ))}
-            </div>
+          {/* Search */}
+          <div className="flex gap-2">
+            <Input
+              placeholder="Search voices by name, description, or tags..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="flex-1"
+            />
+            <Button 
+              variant="outline" 
+              onClick={() => setSearchTerm('')} 
+              size="sm"
+              disabled={!searchTerm}
+            >
+              Clear
+            </Button>
           </div>
 
           {/* Results count */}
           <div className="text-sm text-muted-foreground">
-            Showing {filteredVoices.length} of {voices.length} voices
+            {searchTerm ? `Found ${filteredVoices.length} voices matching "${searchTerm}"` : `Showing all ${voices.length} voices`}
           </div>
 
           {/* Voice Grid */}
@@ -277,6 +204,10 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
                 <Button onClick={fetchVoices} variant="outline" className="mt-2">
                   Try Again
                 </Button>
+              </div>
+            ) : filteredVoices.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                <p>No voices found matching your search.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -335,6 +266,16 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
                         {voice.labels?.accent && (
                           <Badge variant="outline" className="text-xs">
                             {voice.labels.accent}
+                          </Badge>
+                        )}
+                        {voice.labels?.language && (
+                          <Badge variant="outline" className="text-xs">
+                            {voice.labels.language}
+                          </Badge>
+                        )}
+                        {voice.labels?.use_case && (
+                          <Badge variant="default" className="text-xs">
+                            {voice.labels.use_case.replace('_', ' ')}
                           </Badge>
                         )}
                         {voice.labels?.descriptive && (

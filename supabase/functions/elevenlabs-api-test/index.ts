@@ -341,6 +341,90 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (action === 'get_voice_sample') {
+      const apiKey = Deno.env.get('ELEVENLABS_API_KEY');
+      
+      if (!apiKey) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'ELEVENLABS_API_KEY not configured' 
+          }),
+          { 
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+
+      const { voice_id, sample_id } = reqBody;
+
+      if (!voice_id || !sample_id) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Voice ID and Sample ID are required' 
+          }),
+          { 
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+
+      try {
+        // Get the audio sample from ElevenLabs API
+        const response = await fetch(`https://api.elevenlabs.io/v1/voices/${voice_id}/samples/${sample_id}/audio`, {
+          method: 'GET',
+          headers: {
+            'xi-api-key': apiKey,
+          }
+        });
+
+        if (response.ok) {
+          // Convert the audio blob to base64 for transmission
+          const audioBlob = await response.arrayBuffer();
+          const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioBlob)));
+          const audioUrl = `data:audio/mpeg;base64,${base64Audio}`;
+
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              audioUrl: audioUrl
+            }),
+            { 
+              status: 200,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            }
+          );
+        } else {
+          const errorText = await response.text();
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: `Failed to fetch voice sample: ${response.status} ${errorText}` 
+            }),
+            { 
+              status: 200,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            }
+          );
+        }
+      } catch (error) {
+        console.error('Get voice sample error:', error);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: `Failed to get voice sample: ${error.message}` 
+          }),
+          { 
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+    }
+
     return new Response(
       JSON.stringify({ error: 'Invalid action' }),
       { 
