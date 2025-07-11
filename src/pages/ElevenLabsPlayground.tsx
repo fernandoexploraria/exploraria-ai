@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowLeft, Bot, Wrench, BookOpen, Play, AlertCircle, Copy, Users, Check, Edit, MessageCircle, Search, Mic } from 'lucide-react';
+import { ArrowLeft, Bot, Wrench, BookOpen, Play, AlertCircle, Copy, Users, Check, Edit, MessageCircle, Search, Mic, Upload } from 'lucide-react';
 import { VoiceSelector } from '@/components/VoiceSelector';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -26,6 +26,9 @@ const ElevenLabsPlayground: React.FC = () => {
   const [voiceSelectorOpen, setVoiceSelectorOpen] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState(null);
   const [agentName, setAgentName] = useState('');
+  const [knowledgeDialogOpen, setKnowledgeDialogOpen] = useState(false);
+  const [uploadFiles, setUploadFiles] = useState<Array<{id: string, file: File, title: string, name: string}>>([]);
+  const [uploadingDocuments, setUploadingDocuments] = useState(false);
 
   // Voice Explorer state
   const [voiceExplorerInitialized, setVoiceExplorerInitialized] = useState(false);
@@ -515,6 +518,141 @@ const ElevenLabsPlayground: React.FC = () => {
     setSearchTerm(e.target.value);
   };
 
+  const openKnowledgeDialog = () => {
+    if (!selectedAgent) {
+      toast({
+        title: "No Agent Selected",
+        description: "Please select an agent first",
+        variant: "destructive"
+      });
+      return;
+    }
+    setUploadFiles([]);
+    setKnowledgeDialogOpen(true);
+  };
+
+  const addFileToUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    const newFiles = files.map((file: File) => ({
+      id: Math.random().toString(36).substr(2, 9),
+      file: file,
+      title: file.name.replace(/\.[^/.]+$/, ""), // Remove extension for default title
+      name: file.name
+    }));
+    setUploadFiles(prev => [...prev, ...newFiles]);
+  };
+
+  const updateFileTitle = (fileId: string, title: string) => {
+    setUploadFiles(prev => prev.map(f => f.id === fileId ? { ...f, title } : f));
+  };
+
+  const removeFile = (fileId: string) => {
+    setUploadFiles(prev => prev.filter(f => f.id !== fileId));
+  };
+
+  const processDocumentUpload = async () => {
+    if (!selectedAgent || uploadFiles.length === 0) return;
+
+    setUploadingDocuments(true);
+    try {
+      // Convert files to base64
+      const filesWithContent = await Promise.all(
+        uploadFiles.map(async (fileObj) => {
+          return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              resolve({
+                name: fileObj.file.name,
+                title: fileObj.title,
+                content: reader.result
+              });
+            };
+            reader.readAsDataURL(fileObj.file);
+          });
+        })
+      );
+
+      // Step 1: Upload files
+      const { data: uploadData, error: uploadError } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
+        body: { 
+          action: 'upload_files',
+          files: filesWithContent
+        }
+      });
+
+      if (uploadError) throw uploadError;
+
+      // Step 2: Process RAG index for each uploaded document
+      const processPromises = uploadData.uploadResults.map(async (result) => {
+        const { data: ragData, error: ragError } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
+          body: { 
+            action: 'process_rag_index',
+            documentId: result.document_id
+          }
+        });
+        
+        if (ragError) {
+          console.error(`Failed to process RAG for ${result.file}:`, ragError);
+          return { ...result, ragProcessed: false, ragError: ragError.message };
+        }
+        
+        return { ...result, ragProcessed: true, ragData };
+      });
+
+      const processResults = await Promise.all(processPromises);
+
+      // Step 3: Associate documents to agent
+      const documentIds = processResults
+        .filter(r => r.ragProcessed)
+        .map(r => ({ usage_mode: "auto", id: r.document_id }));
+
+      if (documentIds.length > 0) {
+        const { data: associateData, error: associateError } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
+          body: { 
+            action: 'associate_documents_to_agent',
+            agentId: selectedAgent.agent_id,
+            documentData: {
+              conversation_config: {
+                knowledge_base: {
+                  documents: documentIds
+                }
+              }
+            }
+          }
+        });
+
+        if (associateError) {
+          console.error('Failed to associate documents to agent:', associateError);
+        }
+      }
+
+      const successCount = processResults.filter(r => r.ragProcessed).length;
+      const failureCount = processResults.length - successCount;
+
+      toast({
+        title: "Knowledge Upload Complete",
+        description: `Successfully processed ${successCount} documents${failureCount > 0 ? `, ${failureCount} failed` : ''}`,
+        variant: failureCount > 0 ? "destructive" : "default"
+      });
+
+      setKnowledgeDialogOpen(false);
+      setUploadFiles([]);
+      
+      // Refresh knowledge base data
+      fetchKnowledgeBase();
+      
+    } catch (error) {
+      console.error('Document upload error:', error);
+      toast({
+        title: "Upload Failed",
+        description: "Failed to upload and process documents",
+        variant: "destructive"
+      });
+    } finally {
+      setUploadingDocuments(false);
+    }
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -666,6 +804,10 @@ const ElevenLabsPlayground: React.FC = () => {
               <Button onClick={() => setVoiceSelectorOpen(true)} disabled={loading} variant="outline">
                 <Mic className="mr-2 h-4 w-4" />
                 Voice
+              </Button>
+              <Button onClick={() => setKnowledgeDialogOpen(true)} disabled={loading} variant="outline">
+                <Upload className="mr-2 h-4 w-4" />
+                Knowledge
               </Button>
             </div>
             
@@ -929,6 +1071,73 @@ const ElevenLabsPlayground: React.FC = () => {
               disabled={loading || !agentName.trim()}
             >
               {loading ? 'Updating...' : 'Set First Message'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Knowledge Upload Dialog */}
+      <Dialog open={knowledgeDialogOpen} onOpenChange={setKnowledgeDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Upload Knowledge Documents</DialogTitle>
+            <DialogDescription>
+              Upload documents to add to the agent's knowledge base: {selectedAgent?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div>
+              <input
+                type="file"
+                multiple
+                accept=".pdf,.txt,.doc,.docx"
+                onChange={addFileToUpload}
+                className="w-full p-2 border border-border rounded-md"
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                Supported formats: PDF, TXT, DOC, DOCX
+              </p>
+            </div>
+            
+            {uploadFiles.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="font-semibold">Files to Upload:</h4>
+                {uploadFiles.map((fileObj) => (
+                  <div key={fileObj.id} className="flex items-center space-x-3 p-3 border border-border rounded-lg">
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">{fileObj.name}</p>
+                      <Input
+                        value={fileObj.title}
+                        onChange={(e) => updateFileTitle(fileObj.id, e.target.value)}
+                        placeholder="Enter document title"
+                        className="mt-1"
+                      />
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removeFile(fileObj.id)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setKnowledgeDialogOpen(false)}
+              disabled={uploadingDocuments}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={processDocumentUpload}
+              disabled={uploadingDocuments || uploadFiles.length === 0}
+            >
+              {uploadingDocuments ? 'Processing...' : `Upload ${uploadFiles.length} Document${uploadFiles.length !== 1 ? 's' : ''}`}
             </Button>
           </DialogFooter>
         </DialogContent>
