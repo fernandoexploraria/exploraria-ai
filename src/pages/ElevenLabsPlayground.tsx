@@ -571,7 +571,8 @@ const ElevenLabsPlayground: React.FC = () => {
           const { data, error } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
             body: {
               action: 'upload_text',
-              text: fileContent
+              text: fileContent,
+              title: fileObj.title
             },
           });
           

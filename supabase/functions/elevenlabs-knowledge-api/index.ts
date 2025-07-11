@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
 
     // Handle JSON requests
     const requestBody = await req.json();
-    const { action, agentId, text } = requestBody;
+    const { action, agentId, text, title } = requestBody;
 
     switch (action) {
       case 'upload_text':
@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
             }
           );
         }
-        return await uploadTextToKnowledgeBase(apiKey, text);
+        return await uploadTextToKnowledgeBase(apiKey, text, title);
       
       case 'list_knowledge_bases':
         return await listKnowledgeBases(apiKey);
@@ -229,7 +229,7 @@ async function listAgentDocuments(apiKey: string, agentId: string) {
   }
 }
 
-async function uploadTextToKnowledgeBase(apiKey: string, text: string) {
+async function uploadTextToKnowledgeBase(apiKey: string, text: string, title?: string) {
   try {
     console.log('Uploading text to ElevenLabs knowledge base...');
     
@@ -239,7 +239,10 @@ async function uploadTextToKnowledgeBase(apiKey: string, text: string) {
         'xi-api-key': apiKey,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ text })
+      body: JSON.stringify({ 
+        text,
+        ...(title && { name: title })
+      })
     });
     
     const responseData = await response.json();
