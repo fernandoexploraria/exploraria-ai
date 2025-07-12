@@ -949,7 +949,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                                    {kb.type}
                                  </Badge>
                                  <Badge className="text-xs bg-green-600 text-white">
-                                   ✓ Uploaded
+                                   ✓ Processed
                                  </Badge>
                                </div>
                              </div>
