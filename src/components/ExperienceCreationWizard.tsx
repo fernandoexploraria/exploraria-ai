@@ -901,13 +901,19 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                       </Button>
                     </div>
 
-                     {/* Successfully Uploaded to ElevenLabs Section */}
-                     {uploadedKnowledgeBases.length > 0 && (
-                       <div className="space-y-3 p-4 border border-green-200 rounded-lg bg-green-50 dark:bg-green-950/50 dark:border-green-800">
-                         <h4 className="font-semibold flex items-center space-x-2">
-                           <CheckCircle className="h-5 w-5 text-green-600" />
-                           <span>Successfully Uploaded to ElevenLabs ({uploadedKnowledgeBases.length})</span>
-                         </h4>
+                     {/* ALWAYS VISIBLE: Files/URLs/txt added to knowledgebase section */}
+                     <div className="space-y-3 p-4 border border-blue-200 rounded-lg bg-blue-50 dark:bg-blue-950/50 dark:border-blue-800">
+                       <h4 className="font-semibold flex items-center space-x-2">
+                         <Database className="h-5 w-5 text-blue-600" />
+                         <span>Files/URLs/txt added to knowledgebase</span>
+                       </h4>
+                       
+                       {uploadedKnowledgeBases.length === 0 ? (
+                         <div className="text-center py-4">
+                           <p className="text-sm text-muted-foreground">No files uploaded to ElevenLabs yet</p>
+                           <p className="text-xs text-muted-foreground mt-1">Upload documents above and they will appear here</p>
+                         </div>
+                       ) : (
                          <div className="space-y-2">
                            {uploadedKnowledgeBases.map((kb) => (
                              <div key={kb.id} className="flex items-center justify-between p-3 bg-white border border-green-300 rounded-lg dark:bg-green-900/30 dark:border-green-700">
@@ -929,14 +935,14 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                                    {kb.type}
                                  </Badge>
                                  <Badge className="text-xs bg-green-600 text-white">
-                                   Uploaded
+                                   ✓ Uploaded
                                  </Badge>
                                </div>
                              </div>
                            ))}
                          </div>
-                       </div>
-                     )}
+                       )}
+                     </div>
                    </div>
                 )}
 
