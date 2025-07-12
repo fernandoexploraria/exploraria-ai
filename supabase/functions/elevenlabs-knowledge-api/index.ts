@@ -586,16 +586,29 @@ async function updateAgentKnowledgeBases(apiKey: string, agentId: string, knowle
       usage_mode: "auto"
     }));
     
-    // Update agent with knowledge bases
+    // Update agent with knowledge bases - be selective about fields to avoid conflicts
+    const currentPrompt = agentData.conversation_config.agent.prompt;
+    
+    // Create a clean prompt object without tool conflicts
+    const cleanPrompt = {
+      prompt: currentPrompt.prompt,
+      llm: currentPrompt.llm,
+      temperature: currentPrompt.temperature,
+      max_tokens: currentPrompt.max_tokens,
+      knowledge_base: formattedKnowledgeBases
+    };
+    
+    // Only include tool_ids if they exist, not both tools and tool_ids
+    if (currentPrompt.tool_ids && Array.isArray(currentPrompt.tool_ids)) {
+      cleanPrompt.tool_ids = currentPrompt.tool_ids;
+    }
+    
     const updatePayload = {
       conversation_config: {
         ...agentData.conversation_config,
         agent: {
           ...agentData.conversation_config.agent,
-          prompt: {
-            ...agentData.conversation_config.agent.prompt,
-            knowledge_base: formattedKnowledgeBases
-          }
+          prompt: cleanPrompt
         }
       }
     };
