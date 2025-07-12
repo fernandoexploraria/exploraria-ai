@@ -906,7 +906,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                       <div className="space-y-3 pt-4 border-t">
                         <h4 className="font-semibold flex items-center space-x-2">
                           <CheckCircle className="h-5 w-5 text-green-600" />
-                          <span>Uploaded Knowledge Bases ({uploadedKnowledgeBases.length})</span>
+                          <span>Successfully Added to ElevenLabs Knowledge Base ({uploadedKnowledgeBases.length})</span>
                         </h4>
                         <div className="space-y-2">
                           {uploadedKnowledgeBases.map((kb) => (
@@ -920,13 +920,18 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                                 <div className="min-w-0 flex-1">
                                   <p className="font-medium text-sm truncate">{kb.name}</p>
                                   <p className="text-xs text-muted-foreground">
-                                    ID: {kb.id.substring(0, 8)}...
+                                    ElevenLabs ID: {kb.id}
                                   </p>
                                 </div>
                               </div>
-                              <Badge variant="secondary" className="text-xs capitalize">
-                                {kb.type}
-                              </Badge>
+                               <div className="flex items-center space-x-2">
+                                 <Badge variant="secondary" className="text-xs capitalize">
+                                   {kb.type}
+                                 </Badge>
+                                 <Badge className="text-xs bg-green-600 text-white">
+                                   Success
+                                 </Badge>
+                               </div>
                             </div>
                           ))}
                         </div>
