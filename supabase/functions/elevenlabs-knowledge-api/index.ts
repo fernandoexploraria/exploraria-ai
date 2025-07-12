@@ -589,13 +589,8 @@ async function updateAgentKnowledgeBases(apiKey: string, agentId: string, knowle
     const agentData = await agentResponse.json();
     console.log('Current agent data retrieved successfully');
     
-    // Format knowledge bases according to ElevenLabs API spec
-    const formattedKnowledgeBases = knowledgeBases.map(kb => ({
-      type: kb.type,
-      name: kb.name,
-      id: kb.id,
-      usage_mode: "auto"
-    }));
+    // Use the format that works in the playground: just the id string
+    const knowledgeBaseIds = knowledgeBases.map(kb => kb.id);
     
     // Update agent with knowledge bases - be selective about fields to avoid conflicts
     const currentPrompt = agentData.conversation_config.agent.prompt;
@@ -606,7 +601,7 @@ async function updateAgentKnowledgeBases(apiKey: string, agentId: string, knowle
       llm: currentPrompt.llm,
       temperature: currentPrompt.temperature,
       max_tokens: currentPrompt.max_tokens,
-      knowledge_base: formattedKnowledgeBases
+      knowledge_base: knowledgeBaseIds
     };
     
     // Only include tool_ids if they exist, not both tools and tool_ids
@@ -646,7 +641,7 @@ async function updateAgentKnowledgeBases(apiKey: string, agentId: string, knowle
       JSON.stringify({
         message: 'Agent updated successfully with knowledge bases',
         agentId: agentId,
-        knowledgeBasesAdded: formattedKnowledgeBases.length,
+        knowledgeBasesAdded: knowledgeBases.length,
         updatedAgent: updateResponseData
       }),
       { 
