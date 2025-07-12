@@ -905,6 +905,8 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                       </Button>
                     </div>
 
+                    <Separator />
+
                      {/* ALWAYS VISIBLE: Files/URLs/txt added to knowledgebase section */}
                      <div className="space-y-3 p-4 border border-blue-200 rounded-lg bg-blue-50 dark:bg-blue-950/50 dark:border-blue-800">
                        <h4 className="font-semibold flex items-center space-x-2">
