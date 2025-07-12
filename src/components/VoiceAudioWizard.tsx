@@ -345,6 +345,7 @@ export const VoiceAudioWizard: React.FC<VoiceAudioWizardProps> = ({
         variant: failureCount > 0 ? "destructive" : "default"
       });
 
+      // Clear upload dialog but keep the uploaded knowledge bases
       setKnowledgeDialogOpen(false);
       setUploadFiles([]);
       setUploadUrls([]);
