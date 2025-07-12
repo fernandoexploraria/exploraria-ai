@@ -589,19 +589,35 @@ async function updateAgentKnowledgeBases(apiKey: string, agentId: string, knowle
     const agentData = await agentResponse.json();
     console.log('Current agent data retrieved successfully');
     
-    // Use the exact same format as the playground
-    const knowledgeBaseIds = knowledgeBases.map(kb => kb.id);
+    // Transform knowledge bases to the exact format specified in the working instructions
+    const knowledgeBaseObjects = knowledgeBases.map(kb => ({
+      type: kb.type || "file", // file, url, or text
+      name: kb.name || "Knowledge Base",
+      id: kb.id,
+      usage_mode: "auto" // always use "auto" as specified
+    }));
     
-    // Update agent with knowledge bases using PATCH to conversation_config.agent.prompt
+    console.log('Formatted knowledge base objects:', knowledgeBaseObjects);
+    
+    // Preserve the existing agent prompt configuration and only update knowledge_base
+    const currentPrompt = agentData.conversation_config.agent.prompt;
+    
+    const updatedPrompt = {
+      ...currentPrompt, // Preserve all existing fields
+      knowledge_base: knowledgeBaseObjects // Update only the knowledge_base field
+    };
+    
     const updatePayload = {
       conversation_config: {
+        ...agentData.conversation_config, // Preserve all existing conversation config
         agent: {
-          prompt: {
-            knowledge_base: knowledgeBaseIds
-          }
+          ...agentData.conversation_config.agent, // Preserve all existing agent config
+          prompt: updatedPrompt
         }
       }
     };
+    
+    console.log('Update payload:', JSON.stringify(updatePayload, null, 2));
     
     const updateResponse = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, {
       method: 'PATCH',
