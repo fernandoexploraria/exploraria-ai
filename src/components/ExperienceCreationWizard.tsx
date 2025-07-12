@@ -98,6 +98,8 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
   const [uploadedKnowledgeBases, setUploadedKnowledgeBases] = useState<Array<{
     id: string;
     name: string;
+    fileName?: string; // For files
+    url?: string;      // For URLs
     type: 'file' | 'text' | 'url';
   }>>([]);
   
@@ -258,7 +260,8 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
         if (data?.knowledgeBaseId) {
           setUploadedKnowledgeBases(prev => [...prev, {
             id: data.knowledgeBaseId,
-            name: data.fullResponse?.name || fileObj.title,
+            name: fileObj.title,
+            fileName: fileObj.file.name,
             type: 'file'
           }]);
           console.log('File uploaded successfully:', data.knowledgeBaseId);
@@ -284,7 +287,8 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
           if (data?.knowledgeBaseId) {
             setUploadedKnowledgeBases(prev => [...prev, {
               id: data.knowledgeBaseId,
-              name: data.fullResponse?.name || urlObj.title || urlObj.url,
+              name: urlObj.title || urlObj.url,
+              url: urlObj.url,
               type: 'url'
             }]);
             console.log('URL uploaded successfully:', data.knowledgeBaseId);
@@ -310,7 +314,7 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
         if (data?.knowledgeBaseId) {
           setUploadedKnowledgeBases(prev => [...prev, {
             id: data.knowledgeBaseId,
-            name: data.fullResponse?.name || textTitle || 'Text Document',
+            name: textTitle || 'Text Document',
             type: 'text'
           }]);
           console.log('Text uploaded successfully:', data.knowledgeBaseId);
@@ -914,7 +918,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                            <p className="text-xs text-muted-foreground mt-1">Upload documents above and they will appear here</p>
                          </div>
                        ) : (
-                         <div className="space-y-2">
+                         <div className="space-y-2 max-h-60 overflow-y-auto">
                            {uploadedKnowledgeBases.map((kb) => (
                              <div key={kb.id} className="flex items-center justify-between p-3 bg-white border border-green-300 rounded-lg dark:bg-green-900/30 dark:border-green-700">
                                <div className="flex items-center space-x-3">
@@ -926,7 +930,15 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                                  <div className="min-w-0 flex-1">
                                    <p className="font-medium text-sm truncate">{kb.name}</p>
                                    <p className="text-xs text-muted-foreground">
-                                     ElevenLabs ID: {kb.id}
+                                     {kb.type === 'file' && kb.fileName && (
+                                       <>File: {kb.fileName}</>
+                                     )}
+                                     {kb.type === 'url' && kb.url && (
+                                       <>URL: {kb.url}</>
+                                     )}
+                                     {kb.type === 'text' && (
+                                       <>Text Document</>
+                                     )}
                                    </p>
                                  </div>
                                </div>
