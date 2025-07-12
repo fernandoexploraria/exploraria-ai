@@ -938,12 +938,42 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                       </div>
                      )}
                      
-                     {/* BIG CIRCLE FOR TESTING - BETWEEN UPLOAD DOCUMENTS AND NEXT BUTTON */}
-                     <div className="flex justify-center py-8">
-                       <div className="w-32 h-32 bg-red-500 rounded-full flex items-center justify-center">
-                         <span className="text-white font-bold text-xl">TEST CIRCLE</span>
+                     {/* Successfully Uploaded to ElevenLabs Section */}
+                     {uploadedKnowledgeBases.length > 0 && (
+                       <div className="space-y-3 p-4 border border-green-200 rounded-lg bg-green-50 dark:bg-green-950/50 dark:border-green-800">
+                         <h4 className="font-semibold flex items-center space-x-2">
+                           <CheckCircle className="h-5 w-5 text-green-600" />
+                           <span>Successfully Uploaded to ElevenLabs ({uploadedKnowledgeBases.length})</span>
+                         </h4>
+                         <div className="space-y-2">
+                           {uploadedKnowledgeBases.map((kb) => (
+                             <div key={kb.id} className="flex items-center justify-between p-3 bg-white border border-green-300 rounded-lg dark:bg-green-900/30 dark:border-green-700">
+                               <div className="flex items-center space-x-3">
+                                 <div className="flex-shrink-0">
+                                   {kb.type === 'file' && <File className="h-5 w-5 text-blue-600" />}
+                                   {kb.type === 'url' && <Link className="h-5 w-5 text-purple-600" />}
+                                   {kb.type === 'text' && <FileText className="h-5 w-5 text-orange-600" />}
+                                 </div>
+                                 <div className="min-w-0 flex-1">
+                                   <p className="font-medium text-sm truncate">{kb.name}</p>
+                                   <p className="text-xs text-muted-foreground">
+                                     ElevenLabs ID: {kb.id}
+                                   </p>
+                                 </div>
+                               </div>
+                               <div className="flex items-center space-x-2">
+                                 <Badge variant="secondary" className="text-xs capitalize">
+                                   {kb.type}
+                                 </Badge>
+                                 <Badge className="text-xs bg-green-600 text-white">
+                                   Uploaded
+                                 </Badge>
+                               </div>
+                             </div>
+                           ))}
+                         </div>
                        </div>
-                     </div>
+                     )}
                    </div>
                 )}
 
