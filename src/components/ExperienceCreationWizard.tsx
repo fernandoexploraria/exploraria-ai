@@ -236,13 +236,17 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
       for (const fileObj of uploadFiles) {
         const arrayBuffer = await fileObj.file.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
-        const fileArray = Array.from(uint8Array);
 
-        console.log('Uploading file:', fileObj.title);
+        console.log('Uploading file:', fileObj.file.name);
         const { data, error } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
           body: {
             action: 'upload_file',
-            file: fileArray,
+            file: {
+              data: Array.from(uint8Array),
+              name: fileObj.file.name,
+              type: fileObj.file.type,
+              size: fileObj.file.size
+            },
             title: fileObj.title
           }
         });
