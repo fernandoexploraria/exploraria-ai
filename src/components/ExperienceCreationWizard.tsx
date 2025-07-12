@@ -909,10 +909,15 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
 
                      {/* ALWAYS VISIBLE: Files/URLs/txt added to knowledgebase section */}
                      <div className="space-y-3 p-4 border border-blue-200 rounded-lg bg-blue-50 dark:bg-blue-950/50 dark:border-blue-800">
-                       <h4 className="font-semibold flex items-center space-x-2">
-                         <Database className="h-5 w-5 text-blue-600" />
-                         <span>Files/URLs/txt added to knowledgebase</span>
-                       </h4>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <Database className="h-5 w-5 text-blue-600" />
+                            <span>Files/URLs/txt added to knowledgebase</span>
+                          </div>
+                          <Button variant="outline" size="sm">
+                            + Knowledgebase
+                          </Button>
+                        </div>
                        
                        {uploadedKnowledgeBases.length === 0 ? (
                          <div className="text-center py-4">
