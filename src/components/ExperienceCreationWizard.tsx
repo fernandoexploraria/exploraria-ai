@@ -901,7 +901,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                         onClick={uploadDocuments}
                         disabled={uploadingDocuments || (uploadFiles.length === 0 && uploadUrls.length === 0 && !textToUpload.trim())}
                       >
-                        {uploadingDocuments ? 'Uploading...' : 'Upload Documents'}
+                        {uploadingDocuments ? 'Processing...' : 'Process'}
                       </Button>
                     </div>
 
