@@ -55,7 +55,7 @@ interface KnowledgeBaseDocument {
   name: string;
   type: 'file' | 'url' | 'text';
   size?: number;
-  status: 'uploading' | 'processing' | 'indexed' | 'failed';
+  status: 'uploading' | 'processing' | 'indexed' | 'failed' | 'associated';
   error?: string;
 }
 
@@ -391,6 +391,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
 
     setIsUploadingKnowledge(true);
     const uploadedDocs: KnowledgeBaseDocument[] = [];
+    const knowledgeBaseIds: string[] = [];
 
     try {
       // Process files
@@ -425,6 +426,9 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
             if (error) throw new Error(error.message);
             
             doc.status = 'indexed';
+            if (data.knowledgeBaseId) {
+              knowledgeBaseIds.push(data.knowledgeBaseId);
+            }
             console.log(`File uploaded successfully:`, data);
           } catch (error: any) {
             doc.status = 'failed';
@@ -457,6 +461,9 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
             if (error) throw new Error(error.message);
             
             doc.status = 'indexed';
+            if (data.knowledgeBaseId) {
+              knowledgeBaseIds.push(data.knowledgeBaseId);
+            }
             console.log(`URL uploaded successfully:`, data);
           } catch (error: any) {
             doc.status = 'failed';
@@ -488,11 +495,57 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
           if (error) throw new Error(error.message);
           
           doc.status = 'indexed';
+          if (data.knowledgeBaseId) {
+            knowledgeBaseIds.push(data.knowledgeBaseId);
+          }
           console.log(`Text uploaded successfully:`, data);
         } catch (error: any) {
           doc.status = 'failed';
           doc.error = error.message;
           console.error(`Text upload failed:`, error);
+        }
+      }
+
+      // Associate knowledge bases with agent if we have any successful uploads
+      if (knowledgeBaseIds.length > 0) {
+        try {
+          // Get unique knowledge base IDs
+          const uniqueKnowledgeBaseIds = [...new Set(knowledgeBaseIds)];
+          
+          // Create knowledge base objects for the agent update
+          const knowledgeBases = uniqueKnowledgeBaseIds.map(id => ({
+            type: 'file',
+            name: 'Knowledge Base',
+            id: id,
+            usage_mode: 'auto'
+          }));
+
+          console.log('Associating knowledge bases with agent:', experienceData.agentId, knowledgeBases);
+
+          const { data: updateData, error: updateError } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
+            body: {
+              action: 'update_agent_knowledge',
+              agentId: experienceData.agentId,
+              knowledgeBases: knowledgeBases
+            },
+          });
+
+          if (updateError) {
+            console.error('Failed to associate knowledge with agent:', updateError);
+            toast.error('Documents uploaded but failed to associate with agent');
+          } else {
+            console.log('Successfully associated knowledge with agent:', updateData);
+            
+            // Mark all successful uploads as properly associated
+            uploadedDocs.forEach(doc => {
+              if (doc.status === 'indexed') {
+                doc.status = 'associated';
+              }
+            });
+          }
+        } catch (error: any) {
+          console.error('Agent knowledge association error:', error);
+          toast.error('Documents uploaded but failed to associate with agent');
         }
       }
 
@@ -509,11 +562,11 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
       setTextTitle('');
       setIsKnowledgeDialogOpen(false);
 
-      const successCount = uploadedDocs.filter(d => d.status === 'indexed').length;
+      const successCount = uploadedDocs.filter(d => d.status === 'associated' || d.status === 'indexed').length;
       const failCount = uploadedDocs.filter(d => d.status === 'failed').length;
 
       if (successCount > 0) {
-        toast.success(`Successfully uploaded ${successCount} document${successCount !== 1 ? 's' : ''} to knowledge base`);
+        toast.success(`Successfully uploaded and associated ${successCount} document${successCount !== 1 ? 's' : ''} with your agent`);
       }
       if (failCount > 0) {
         toast.error(`Failed to upload ${failCount} document${failCount !== 1 ? 's' : ''}`);
