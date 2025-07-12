@@ -1424,7 +1424,7 @@ const ElevenLabsPlayground: React.FC = () => {
                   value={textToUpload}
                   onChange={(e) => setTextToUpload(e.target.value)}
                   placeholder="Paste your text content here..."
-                  className="w-full h-40 p-3 border border-border rounded-md resize-none text-sm"
+                  className="w-full h-40 p-3 border border-border rounded-md resize-none text-sm text-foreground"
                 />
                 <p className="text-xs text-muted-foreground">
                   {textToUpload.length} characters
