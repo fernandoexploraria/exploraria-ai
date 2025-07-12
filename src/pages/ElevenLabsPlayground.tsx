@@ -788,7 +788,13 @@ const ElevenLabsPlayground: React.FC = () => {
       });
 
       if (error) {
+        console.error('Supabase function error:', error);
         throw new Error(error.message);
+      }
+      
+      if (data && data.error) {
+        console.error('Edge function returned error:', data);
+        throw new Error(data.error || data.message || 'Unknown error from edge function');
       }
 
       console.log('Agent updated successfully:', data);

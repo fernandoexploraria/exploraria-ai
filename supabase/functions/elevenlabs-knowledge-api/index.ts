@@ -631,7 +631,9 @@ async function updateAgentKnowledgeBases(apiKey: string, agentId: string, knowle
     const updateResponseData = await updateResponse.json();
     
     if (!updateResponse.ok) {
-      console.error('Failed to update agent:', updateResponseData);
+      console.error('Failed to update agent. Status:', updateResponse.status);
+      console.error('Response data:', updateResponseData);
+      console.error('Request payload was:', JSON.stringify(updatePayload, null, 2));
       throw new Error(`Failed to update agent: ${updateResponse.status} ${JSON.stringify(updateResponseData)}`);
     }
     
