@@ -589,32 +589,16 @@ async function updateAgentKnowledgeBases(apiKey: string, agentId: string, knowle
     const agentData = await agentResponse.json();
     console.log('Current agent data retrieved successfully');
     
-    // Use the format that works in the playground: just the id string
+    // Use the exact same format as the playground
     const knowledgeBaseIds = knowledgeBases.map(kb => kb.id);
     
-    // Update agent with knowledge bases - be selective about fields to avoid conflicts
-    const currentPrompt = agentData.conversation_config.agent.prompt;
-    
-    // Create a clean prompt object without tool conflicts
-    const cleanPrompt = {
-      prompt: currentPrompt.prompt,
-      llm: currentPrompt.llm,
-      temperature: currentPrompt.temperature,
-      max_tokens: currentPrompt.max_tokens,
-      knowledge_base: knowledgeBaseIds
-    };
-    
-    // Only include tool_ids if they exist, not both tools and tool_ids
-    if (currentPrompt.tool_ids && Array.isArray(currentPrompt.tool_ids)) {
-      cleanPrompt.tool_ids = currentPrompt.tool_ids;
-    }
-    
+    // Update agent with knowledge bases using PATCH to conversation_config.agent.prompt
     const updatePayload = {
       conversation_config: {
-        ...agentData.conversation_config,
         agent: {
-          ...agentData.conversation_config.agent,
-          prompt: cleanPrompt
+          prompt: {
+            knowledge_base: knowledgeBaseIds
+          }
         }
       }
     };
