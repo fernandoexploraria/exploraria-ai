@@ -95,6 +95,7 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
   const [textToUpload, setTextToUpload] = useState('');
   const [textTitle, setTextTitle] = useState('');
   const [uploadingDocuments, setUploadingDocuments] = useState(false);
+  const [isAssociatingKnowledgeBase, setIsAssociatingKnowledgeBase] = useState(false);
   const [uploadedKnowledgeBases, setUploadedKnowledgeBases] = useState<Array<{
     id: string;
     name: string;
@@ -334,6 +335,54 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
       toast.error(error.message || "Failed to upload documents");
     } finally {
       setUploadingDocuments(false);
+    }
+  };
+
+  const handleAssociateKnowledgeBase = async () => {
+    // Validate agent ID exists (from Voice & Audio step)
+    if (!experienceData.agentId) {
+      toast.error('Please complete Voice & Audio setup first');
+      return;
+    }
+
+    // Validate we have knowledge base items to associate
+    if (uploadedKnowledgeBases.length === 0) {
+      toast.error('No knowledge base items to associate');
+      return;
+    }
+
+    setIsAssociatingKnowledgeBase(true);
+
+    try {
+      console.log('Associating knowledge bases with agent:', experienceData.agentId);
+      console.log('Knowledge bases to associate:', uploadedKnowledgeBases);
+
+      // Format knowledge bases for ElevenLabs API
+      const knowledgeBases = uploadedKnowledgeBases.map(kb => ({
+        knowledge_base_id: kb.id,
+        usage_mode: "auto"
+      }));
+
+      const { data, error } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
+        body: {
+          action: 'update_agent_knowledge',
+          agentId: experienceData.agentId,
+          knowledgeBases: knowledgeBases
+        }
+      });
+
+      if (error) {
+        throw new Error(`Failed to associate knowledge bases: ${error.message}`);
+      }
+
+      toast.success(`Successfully associated ${uploadedKnowledgeBases.length} knowledge base items with your agent!`);
+      console.log('Knowledge bases associated successfully:', data);
+
+    } catch (error) {
+      console.error('Error associating knowledge bases:', error);
+      toast.error(error.message || 'Failed to associate knowledge bases with agent');
+    } finally {
+      setIsAssociatingKnowledgeBase(false);
     }
   };
 
@@ -914,8 +963,13 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                             <Database className="h-5 w-5 text-blue-600" />
                             <span>Files/URLs/txt added to knowledgebase</span>
                           </div>
-                          <Button variant="outline" size="sm">
-                            + Knowledgebase
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={handleAssociateKnowledgeBase}
+                            disabled={isAssociatingKnowledgeBase || uploadedKnowledgeBases.length === 0}
+                          >
+                            {isAssociatingKnowledgeBase ? 'Associating...' : '+ Knowledgebase'}
                           </Button>
                         </div>
                        
