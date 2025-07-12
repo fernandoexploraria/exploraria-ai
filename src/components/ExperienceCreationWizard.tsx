@@ -361,7 +361,7 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
         body: {
           action: 'update_agent_knowledge',
           agentId: experienceData.agentId,
-          knowledgeBases: uploadedKnowledgeBases.map(kb => ({ ...kb, usage_mode: "auto" }))
+          knowledgeBases: uploadedKnowledgeBases
         }
       });
 
