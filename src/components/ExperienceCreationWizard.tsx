@@ -357,11 +357,17 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
       console.log('Associating knowledge bases with agent:', experienceData.agentId);
       console.log('Knowledge bases to associate:', uploadedKnowledgeBases);
 
+      // Format knowledge bases for ElevenLabs API with usage_mode: "auto" for all types
+      const knowledgeBases = uploadedKnowledgeBases.map(kb => ({
+        knowledge_base_id: kb.id,
+        usage_mode: "auto"
+      }));
+
       const { data, error } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
         body: {
           action: 'update_agent_knowledge',
           agentId: experienceData.agentId,
-          knowledgeBases: uploadedKnowledgeBases
+          knowledgeBases: knowledgeBases
         }
       });
 
