@@ -391,11 +391,12 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
 
     setIsUploadingKnowledge(true);
     const uploadedDocs: KnowledgeBaseDocument[] = [];
-    const knowledgeBaseIds: string[] = [];
+    const knowledgeBaseIds: { id: string; type: string; name: string }[] = [];
 
     try {
       // Process files
       if (uploadType === 'file' && uploadFiles.length > 0) {
+        console.log(`Processing ${uploadFiles.length} files...`);
         for (const fileObj of uploadFiles) {
           const doc: KnowledgeBaseDocument = {
             id: fileObj.id,
@@ -407,9 +408,12 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
           uploadedDocs.push(doc);
 
           try {
+            console.log(`Uploading file: ${fileObj.file.name} (${fileObj.file.type}, ${fileObj.file.size} bytes)`);
+            
             const arrayBuffer = await fileObj.file.arrayBuffer();
             const uint8Array = new Uint8Array(arrayBuffer);
 
+            console.log(`File converted to array, invoking upload API...`);
             const { data, error } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
               body: {
                 action: 'upload_file',
@@ -423,24 +427,39 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
               },
             });
 
-            if (error) throw new Error(error.message);
+            console.log(`File upload API response:`, { data, error });
+
+            if (error) {
+              console.error(`File upload error details:`, error);
+              throw new Error(error.message || 'Unknown file upload error');
+            }
+            
+            if (!data || !data.knowledgeBaseId) {
+              console.error(`No knowledge base ID returned for file:`, data);
+              throw new Error('No knowledge base ID returned from upload');
+            }
             
             doc.status = 'indexed';
-            if (data.knowledgeBaseId) {
-              knowledgeBaseIds.push(data.knowledgeBaseId);
-            }
-            console.log(`File uploaded successfully:`, data);
+            knowledgeBaseIds.push({
+              id: data.knowledgeBaseId,
+              type: 'file',
+              name: fileObj.title || fileObj.file.name
+            });
+            console.log(`File uploaded successfully with knowledge base ID: ${data.knowledgeBaseId}`);
           } catch (error: any) {
             doc.status = 'failed';
             doc.error = error.message;
-            console.error(`File upload failed:`, error);
+            console.error(`File upload failed for ${fileObj.file.name}:`, error);
           }
         }
       }
 
       // Process URLs
       if (uploadType === 'url' && uploadUrls.length > 0) {
-        for (const urlObj of uploadUrls.filter(u => u.url.trim())) {
+        const validUrls = uploadUrls.filter(u => u.url.trim());
+        console.log(`Processing ${validUrls.length} URLs...`);
+        
+        for (const urlObj of validUrls) {
           const doc: KnowledgeBaseDocument = {
             id: urlObj.id,
             name: urlObj.title || urlObj.url,
@@ -450,6 +469,8 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
           uploadedDocs.push(doc);
 
           try {
+            console.log(`Uploading URL: ${urlObj.url}`);
+            
             const { data, error } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
               body: {
                 action: 'upload_url',
@@ -458,23 +479,36 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
               },
             });
 
-            if (error) throw new Error(error.message);
+            console.log(`URL upload API response:`, { data, error });
+
+            if (error) {
+              console.error(`URL upload error details:`, error);
+              throw new Error(error.message || 'Unknown URL upload error');
+            }
+            
+            if (!data || !data.knowledgeBaseId) {
+              console.error(`No knowledge base ID returned for URL:`, data);
+              throw new Error('No knowledge base ID returned from upload');
+            }
             
             doc.status = 'indexed';
-            if (data.knowledgeBaseId) {
-              knowledgeBaseIds.push(data.knowledgeBaseId);
-            }
-            console.log(`URL uploaded successfully:`, data);
+            knowledgeBaseIds.push({
+              id: data.knowledgeBaseId,
+              type: 'url',
+              name: urlObj.title || urlObj.url
+            });
+            console.log(`URL uploaded successfully with knowledge base ID: ${data.knowledgeBaseId}`);
           } catch (error: any) {
             doc.status = 'failed';
             doc.error = error.message;
-            console.error(`URL upload failed:`, error);
+            console.error(`URL upload failed for ${urlObj.url}:`, error);
           }
         }
       }
 
       // Process text
       if (uploadType === 'text' && textToUpload.trim()) {
+        console.log(`Processing text document...`);
         const doc: KnowledgeBaseDocument = {
           id: `text-${Date.now()}`,
           name: textTitle || 'Text Document',
@@ -484,6 +518,8 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
         uploadedDocs.push(doc);
 
         try {
+          console.log(`Uploading text: ${textTitle || 'Text Document'} (${textToUpload.length} characters)`);
+          
           const { data, error } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
             body: {
               action: 'upload_text',
@@ -492,13 +528,25 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
             },
           });
 
-          if (error) throw new Error(error.message);
+          console.log(`Text upload API response:`, { data, error });
+
+          if (error) {
+            console.error(`Text upload error details:`, error);
+            throw new Error(error.message || 'Unknown text upload error');
+          }
+          
+          if (!data || !data.knowledgeBaseId) {
+            console.error(`No knowledge base ID returned for text:`, data);
+            throw new Error('No knowledge base ID returned from upload');
+          }
           
           doc.status = 'indexed';
-          if (data.knowledgeBaseId) {
-            knowledgeBaseIds.push(data.knowledgeBaseId);
-          }
-          console.log(`Text uploaded successfully:`, data);
+          knowledgeBaseIds.push({
+            id: data.knowledgeBaseId,
+            type: 'text',
+            name: textTitle || 'Text Document'
+          });
+          console.log(`Text uploaded successfully with knowledge base ID: ${data.knowledgeBaseId}`);
         } catch (error: any) {
           doc.status = 'failed';
           doc.error = error.message;
@@ -508,19 +556,18 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
 
       // Associate knowledge bases with agent if we have any successful uploads
       if (knowledgeBaseIds.length > 0) {
+        console.log(`Attempting to associate ${knowledgeBaseIds.length} knowledge bases with agent ${experienceData.agentId}`);
+        
         try {
-          // Get unique knowledge base IDs
-          const uniqueKnowledgeBaseIds = [...new Set(knowledgeBaseIds)];
-          
-          // Create knowledge base objects for the agent update
-          const knowledgeBases = uniqueKnowledgeBaseIds.map(id => ({
-            type: 'file',
-            name: 'Knowledge Base',
-            id: id,
+          // Create knowledge base objects for the agent update with proper structure
+          const knowledgeBases = knowledgeBaseIds.map(kb => ({
+            type: kb.type,
+            name: kb.name,
+            id: kb.id,
             usage_mode: 'auto'
           }));
 
-          console.log('Associating knowledge bases with agent:', experienceData.agentId, knowledgeBases);
+          console.log('Knowledge bases to associate:', knowledgeBases);
 
           const { data: updateData, error: updateError } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
             body: {
@@ -530,11 +577,13 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
             },
           });
 
+          console.log('Agent knowledge update response:', { updateData, updateError });
+
           if (updateError) {
             console.error('Failed to associate knowledge with agent:', updateError);
-            toast.error('Documents uploaded but failed to associate with agent');
+            toast.error(`Documents uploaded but failed to associate with agent: ${updateError.message}`);
           } else {
-            console.log('Successfully associated knowledge with agent:', updateData);
+            console.log(`Successfully associated ${knowledgeBases.length} knowledge bases with agent`);
             
             // Mark all successful uploads as properly associated
             uploadedDocs.forEach(doc => {
@@ -542,11 +591,16 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                 doc.status = 'associated';
               }
             });
+            
+            toast.success(`Successfully associated ${knowledgeBases.length} knowledge base${knowledgeBases.length !== 1 ? 's' : ''} with your agent`);
           }
         } catch (error: any) {
           console.error('Agent knowledge association error:', error);
-          toast.error('Documents uploaded but failed to associate with agent');
+          toast.error(`Documents uploaded but failed to associate with agent: ${error.message}`);
         }
+      } else {
+        console.warn('No knowledge base IDs collected - nothing to associate with agent');
+        toast.warning('No documents were successfully uploaded to associate with the agent');
       }
 
       // Update experience data
