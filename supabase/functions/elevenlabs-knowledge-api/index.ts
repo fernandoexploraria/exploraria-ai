@@ -578,18 +578,24 @@ async function updateAgentKnowledgeBases(apiKey: string, agentId: string, knowle
 
     const agentData = await agentResponse.json();
     
-    // Get the primary knowledge base ID (first one from the array)
-    const primaryKnowledgeBaseId = knowledgeBases.length > 0 ? knowledgeBases[0].id : null;
+    // Format knowledge bases according to ElevenLabs API spec
+    const formattedKnowledgeBases = knowledgeBases.map(kb => ({
+      type: kb.type,
+      name: kb.name,
+      id: kb.id,
+      usage_mode: "auto"
+    }));
     
     // Update agent with knowledge bases - be selective about fields to avoid conflicts
     const currentPrompt = agentData.conversation_config.agent.prompt;
     
-    // Create a clean prompt object without tool conflicts (no knowledge_base here)
+    // Create a clean prompt object without tool conflicts
     const cleanPrompt = {
       prompt: currentPrompt.prompt,
       llm: currentPrompt.llm,
       temperature: currentPrompt.temperature,
-      max_tokens: currentPrompt.max_tokens
+      max_tokens: currentPrompt.max_tokens,
+      knowledge_base: formattedKnowledgeBases
     };
     
     // Only include tool_ids if they exist, not both tools and tool_ids
@@ -597,25 +603,18 @@ async function updateAgentKnowledgeBases(apiKey: string, agentId: string, knowle
       cleanPrompt.tool_ids = currentPrompt.tool_ids;
     }
     
-    // Create full agent payload with knowledge_base_id as direct property
     const updatePayload = {
-      name: agentData.name,
-      description: agentData.description,
-      system_prompt: agentData.system_prompt,
       conversation_config: {
         ...agentData.conversation_config,
         agent: {
           ...agentData.conversation_config.agent,
           prompt: cleanPrompt
         }
-      },
-      platform_settings: agentData.platform_settings,
-      voice_id: agentData.voice_id,
-      knowledge_base_id: primaryKnowledgeBaseId
+      }
     };
     
     const updateResponse = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, {
-      method: 'PUT',
+      method: 'PATCH',
       headers: {
         'xi-api-key': apiKey,
         'Content-Type': 'application/json',
@@ -636,7 +635,7 @@ async function updateAgentKnowledgeBases(apiKey: string, agentId: string, knowle
       JSON.stringify({
         message: 'Agent updated successfully with knowledge bases',
         agentId: agentId,
-        knowledgeBasesAdded: knowledgeBases.length,
+        knowledgeBasesAdded: formattedKnowledgeBases.length,
         updatedAgent: updateResponseData
       }),
       { 
