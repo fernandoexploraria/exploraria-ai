@@ -562,6 +562,15 @@ async function updateAgentKnowledgeBases(apiKey: string, agentId: string, knowle
     console.log('Updating agent knowledge bases for agent:', agentId);
     console.log('Knowledge bases to add:', knowledgeBases);
     
+    // Validate inputs
+    if (!agentId) {
+      throw new Error('Agent ID is required');
+    }
+    
+    if (!knowledgeBases || !Array.isArray(knowledgeBases) || knowledgeBases.length === 0) {
+      throw new Error('Knowledge bases array is required and must not be empty');
+    }
+    
     // First get the current agent configuration
     const agentResponse = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, {
       method: 'GET',
@@ -573,10 +582,12 @@ async function updateAgentKnowledgeBases(apiKey: string, agentId: string, knowle
 
     if (!agentResponse.ok) {
       const errorText = await agentResponse.text();
+      console.error('Failed to get agent:', errorText);
       throw new Error(`Failed to get agent: ${agentResponse.status} ${errorText}`);
     }
 
     const agentData = await agentResponse.json();
+    console.log('Current agent data retrieved successfully');
     
     // Format knowledge bases according to ElevenLabs API spec
     const formattedKnowledgeBases = knowledgeBases.map(kb => ({
