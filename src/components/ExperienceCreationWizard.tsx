@@ -936,8 +936,15 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                           ))}
                         </div>
                       </div>
-                    )}
-                  </div>
+                     )}
+                     
+                     {/* BIG CIRCLE FOR TESTING - BETWEEN UPLOAD DOCUMENTS AND NEXT BUTTON */}
+                     <div className="flex justify-center py-8">
+                       <div className="w-32 h-32 bg-red-500 rounded-full flex items-center justify-center">
+                         <span className="text-white font-bold text-xl">TEST CIRCLE</span>
+                       </div>
+                     </div>
+                   </div>
                 )}
 
                 {currentStep === 5 && (
