@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, Check, MapPin, Building, MessageSquare, Mic, Database, Bot, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, MapPin, Building, MessageSquare, Mic, Database, Bot, Sparkles, CheckCircle, File, Link, FileText } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -905,18 +905,20 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                     {uploadedKnowledgeBases.length > 0 && (
                       <div className="space-y-3 pt-4 border-t">
                         <h4 className="font-semibold flex items-center space-x-2">
-                          <span>✅</span>
+                          <CheckCircle className="h-5 w-5 text-green-600" />
                           <span>Uploaded Knowledge Bases ({uploadedKnowledgeBases.length})</span>
                         </h4>
                         <div className="space-y-2">
                           {uploadedKnowledgeBases.map((kb) => (
-                            <div key={kb.id} className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                            <div key={kb.id} className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg dark:bg-green-950/50 dark:border-green-800">
                               <div className="flex items-center space-x-3">
-                                <span className="text-lg">
-                                  {kb.type === 'file' ? '📄' : kb.type === 'url' ? '🔗' : '📝'}
-                                </span>
-                                <div>
-                                  <p className="font-medium text-sm">{kb.name}</p>
+                                <div className="flex-shrink-0">
+                                  {kb.type === 'file' && <File className="h-5 w-5 text-blue-600" />}
+                                  {kb.type === 'url' && <Link className="h-5 w-5 text-purple-600" />}
+                                  {kb.type === 'text' && <FileText className="h-5 w-5 text-orange-600" />}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-medium text-sm truncate">{kb.name}</p>
                                   <p className="text-xs text-muted-foreground">
                                     ID: {kb.id.substring(0, 8)}...
                                   </p>
