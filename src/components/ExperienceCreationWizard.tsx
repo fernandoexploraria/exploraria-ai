@@ -358,8 +358,10 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
       console.log('Knowledge bases to associate:', uploadedKnowledgeBases);
 
       // Format knowledge bases for ElevenLabs API with usage_mode: "auto" for all types
-      const knowledgeBases = uploadedKnowledgeBases.map(kb => ({
-        knowledge_base_id: kb.id,
+      const knowledge_base = uploadedKnowledgeBases.map(kb => ({
+        type: kb.type,
+        name: kb.name,
+        id: kb.id,
         usage_mode: "auto"
       }));
 
@@ -367,7 +369,7 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
         body: {
           action: 'update_agent_knowledge',
           agentId: experienceData.agentId,
-          knowledgeBases: knowledgeBases
+          knowledge_base: knowledge_base
         }
       });
 
