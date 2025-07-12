@@ -119,8 +119,6 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
   const [textToUpload, setTextToUpload] = useState('');
   const [textTitle, setTextTitle] = useState('');
   const [isUploadingKnowledge, setIsUploadingKnowledge] = useState(false);
-  const [isAssociatingKnowledge, setIsAssociatingKnowledge] = useState(false);
-  const [knowledgeAssociated, setKnowledgeAssociated] = useState(false);
 
   const currentStepData = WIZARD_STEPS[currentStep];
 
@@ -386,12 +384,19 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
   };
 
   const uploadKnowledgeBase = async () => {
+    if (!experienceData.agentId) {
+      toast.error('No agent found. Please complete previous steps first.');
+      return;
+    }
+
     setIsUploadingKnowledge(true);
     const uploadedDocs: KnowledgeBaseDocument[] = [];
+    const knowledgeBaseIds: { id: string; type: string; name: string }[] = [];
 
     try {
       // Process files
       if (uploadType === 'file' && uploadFiles.length > 0) {
+        console.log(`Processing ${uploadFiles.length} files...`);
         for (const fileObj of uploadFiles) {
           const doc: KnowledgeBaseDocument = {
             id: fileObj.id,
@@ -403,9 +408,12 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
           uploadedDocs.push(doc);
 
           try {
+            console.log(`Uploading file: ${fileObj.file.name} (${fileObj.file.type}, ${fileObj.file.size} bytes)`);
+            
             const arrayBuffer = await fileObj.file.arrayBuffer();
             const uint8Array = new Uint8Array(arrayBuffer);
 
+            console.log(`File converted to array, invoking upload API...`);
             const { data, error } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
               body: {
                 action: 'upload_file',
@@ -419,13 +427,29 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
               },
             });
 
-            if (error) throw new Error(error.message || 'Unknown file upload error');
-            if (!data || !data.knowledgeBaseId) throw new Error('No knowledge base ID returned from upload');
+            console.log(`File upload API response:`, { data, error });
+
+            if (error) {
+              console.error(`File upload error details:`, error);
+              throw new Error(error.message || 'Unknown file upload error');
+            }
+            
+            if (!data || !data.knowledgeBaseId) {
+              console.error(`No knowledge base ID returned for file:`, data);
+              throw new Error('No knowledge base ID returned from upload');
+            }
             
             doc.status = 'indexed';
+            knowledgeBaseIds.push({
+              id: data.knowledgeBaseId,
+              type: 'file',
+              name: fileObj.title || fileObj.file.name
+            });
+            console.log(`File uploaded successfully with knowledge base ID: ${data.knowledgeBaseId}`);
           } catch (error: any) {
             doc.status = 'failed';
             doc.error = error.message;
+            console.error(`File upload failed for ${fileObj.file.name}:`, error);
           }
         }
       }
@@ -433,6 +457,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
       // Process URLs
       if (uploadType === 'url' && uploadUrls.length > 0) {
         const validUrls = uploadUrls.filter(u => u.url.trim());
+        console.log(`Processing ${validUrls.length} URLs...`);
         
         for (const urlObj of validUrls) {
           const doc: KnowledgeBaseDocument = {
@@ -444,6 +469,8 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
           uploadedDocs.push(doc);
 
           try {
+            console.log(`Uploading URL: ${urlObj.url}`);
+            
             const { data, error } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
               body: {
                 action: 'upload_url',
@@ -452,19 +479,36 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
               },
             });
 
-            if (error) throw new Error(error.message || 'Unknown URL upload error');
-            if (!data || !data.knowledgeBaseId) throw new Error('No knowledge base ID returned from upload');
+            console.log(`URL upload API response:`, { data, error });
+
+            if (error) {
+              console.error(`URL upload error details:`, error);
+              throw new Error(error.message || 'Unknown URL upload error');
+            }
+            
+            if (!data || !data.knowledgeBaseId) {
+              console.error(`No knowledge base ID returned for URL:`, data);
+              throw new Error('No knowledge base ID returned from upload');
+            }
             
             doc.status = 'indexed';
+            knowledgeBaseIds.push({
+              id: data.knowledgeBaseId,
+              type: 'url',
+              name: urlObj.title || urlObj.url
+            });
+            console.log(`URL uploaded successfully with knowledge base ID: ${data.knowledgeBaseId}`);
           } catch (error: any) {
             doc.status = 'failed';
             doc.error = error.message;
+            console.error(`URL upload failed for ${urlObj.url}:`, error);
           }
         }
       }
 
       // Process text
       if (uploadType === 'text' && textToUpload.trim()) {
+        console.log(`Processing text document...`);
         const doc: KnowledgeBaseDocument = {
           id: `text-${Date.now()}`,
           name: textTitle || 'Text Document',
@@ -474,6 +518,8 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
         uploadedDocs.push(doc);
 
         try {
+          console.log(`Uploading text: ${textTitle || 'Text Document'} (${textToUpload.length} characters)`);
+          
           const { data, error } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
             body: {
               action: 'upload_text',
@@ -482,14 +528,79 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
             },
           });
 
-          if (error) throw new Error(error.message || 'Unknown text upload error');
-          if (!data || !data.knowledgeBaseId) throw new Error('No knowledge base ID returned from upload');
+          console.log(`Text upload API response:`, { data, error });
+
+          if (error) {
+            console.error(`Text upload error details:`, error);
+            throw new Error(error.message || 'Unknown text upload error');
+          }
+          
+          if (!data || !data.knowledgeBaseId) {
+            console.error(`No knowledge base ID returned for text:`, data);
+            throw new Error('No knowledge base ID returned from upload');
+          }
           
           doc.status = 'indexed';
+          knowledgeBaseIds.push({
+            id: data.knowledgeBaseId,
+            type: 'text',
+            name: textTitle || 'Text Document'
+          });
+          console.log(`Text uploaded successfully with knowledge base ID: ${data.knowledgeBaseId}`);
         } catch (error: any) {
           doc.status = 'failed';
           doc.error = error.message;
+          console.error(`Text upload failed:`, error);
         }
+      }
+
+      // Associate knowledge bases with agent if we have any successful uploads
+      if (knowledgeBaseIds.length > 0) {
+        console.log(`Attempting to associate ${knowledgeBaseIds.length} knowledge bases with agent ${experienceData.agentId}`);
+        
+        try {
+          // Create knowledge base objects for the agent update with proper structure
+          const knowledgeBases = knowledgeBaseIds.map(kb => ({
+            type: kb.type,
+            name: kb.name,
+            id: kb.id,
+            usage_mode: 'auto'
+          }));
+
+          console.log('Knowledge bases to associate:', knowledgeBases);
+
+          const { data: updateData, error: updateError } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
+            body: {
+              action: 'update_agent_knowledge',
+              agentId: experienceData.agentId,
+              knowledgeBases: knowledgeBases
+            },
+          });
+
+          console.log('Agent knowledge update response:', { updateData, updateError });
+
+          if (updateError) {
+            console.error('Failed to associate knowledge with agent:', updateError);
+            toast.error(`Documents uploaded but failed to associate with agent: ${updateError.message}`);
+          } else {
+            console.log(`Successfully associated ${knowledgeBases.length} knowledge bases with agent`);
+            
+            // Mark all successful uploads as properly associated
+            uploadedDocs.forEach(doc => {
+              if (doc.status === 'indexed') {
+                doc.status = 'associated';
+              }
+            });
+            
+            toast.success(`Successfully associated ${knowledgeBases.length} knowledge base${knowledgeBases.length !== 1 ? 's' : ''} with your agent`);
+          }
+        } catch (error: any) {
+          console.error('Agent knowledge association error:', error);
+          toast.error(`Documents uploaded but failed to associate with agent: ${error.message}`);
+        }
+      } else {
+        console.warn('No knowledge base IDs collected - nothing to associate with agent');
+        toast.warning('No documents were successfully uploaded to associate with the agent');
       }
 
       // Update experience data
@@ -505,11 +616,11 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
       setTextTitle('');
       setIsKnowledgeDialogOpen(false);
 
-      const successCount = uploadedDocs.filter(d => d.status === 'indexed').length;
+      const successCount = uploadedDocs.filter(d => d.status === 'associated' || d.status === 'indexed').length;
       const failCount = uploadedDocs.filter(d => d.status === 'failed').length;
 
       if (successCount > 0) {
-        toast.success(`Successfully uploaded ${successCount} document${successCount !== 1 ? 's' : ''}`);
+        toast.success(`Successfully uploaded and associated ${successCount} document${successCount !== 1 ? 's' : ''} with your agent`);
       }
       if (failCount > 0) {
         toast.error(`Failed to upload ${failCount} document${failCount !== 1 ? 's' : ''}`);
@@ -520,64 +631,6 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
       toast.error('Failed to upload documents. Please try again.');
     } finally {
       setIsUploadingKnowledge(false);
-    }
-  };
-
-  const associateKnowledgeWithAgent = async () => {
-    if (!experienceData.agentId) {
-      toast.error('No agent found. Please complete previous steps first.');
-      return;
-    }
-
-    const indexedDocs = experienceData.knowledgeBaseDocs?.filter(doc => doc.status === 'indexed') || [];
-    if (indexedDocs.length === 0) {
-      toast.error('No documents available to associate with agent.');
-      return;
-    }
-
-    setIsAssociatingKnowledge(true);
-
-    try {
-      // Get knowledge base IDs by calling the API to get all knowledge bases
-      const { data: knowledgeData, error: knowledgeError } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
-        body: { action: 'get_knowledge_bases' }
-      });
-
-      if (knowledgeError) throw knowledgeError;
-
-      const knowledgeBases = knowledgeData.knowledge_bases || [];
-      
-      const { data: updateData, error: updateError } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
-        body: {
-          action: 'update_agent_knowledge',
-          agentId: experienceData.agentId,
-          knowledgeBases: knowledgeBases.map((kb: any) => ({
-            type: 'knowledge_base',
-            name: kb.name,
-            id: kb.knowledge_base_id,
-            usage_mode: 'auto'
-          }))
-        },
-      });
-
-      if (updateError) throw updateError;
-
-      // Mark documents as associated
-      setExperienceData(prev => ({
-        ...prev,
-        knowledgeBaseDocs: prev.knowledgeBaseDocs?.map(doc => 
-          doc.status === 'indexed' ? { ...doc, status: 'associated' } : doc
-        ) || []
-      }));
-
-      setKnowledgeAssociated(true);
-      toast.success(`Successfully associated ${indexedDocs.length} document${indexedDocs.length !== 1 ? 's' : ''} with your agent`);
-
-    } catch (error: any) {
-      console.error('Agent knowledge association error:', error);
-      toast.error(`Failed to associate documents with agent: ${error.message}`);
-    } finally {
-      setIsAssociatingKnowledge(false);
     }
   };
 
@@ -594,10 +647,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
       case 1: return experienceData.landmarks.length > 0;
       case 2: return experienceData.systemPrompt.length > 50;
       case 3: return !!experienceData.agentId && !!experienceData.agentName?.trim() && !!experienceData.voiceId;
-      case 4: {
-        const hasUploadedDocs = (experienceData.knowledgeBaseDocs?.length || 0) > 0;
-        return !hasUploadedDocs || knowledgeAssociated;
-      }
+      case 4: return true; // Knowledge base is optional for MVP
       case 5: return experienceData.title.length > 0 && experienceData.description.length > 0;
       default: return false;
     }
@@ -905,39 +955,12 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                                 <X className="h-4 w-4" />
                               </Button>
                             </div>
-                           ))}
-                         </div>
-                         
-                         {/* Associate Knowledge Button */}
-                         {experienceData.knowledgeBaseDocs.some(doc => doc.status === 'indexed') && !knowledgeAssociated && (
-                           <div className="pt-4 border-t border-border">
-                             <Button 
-                               onClick={associateKnowledgeWithAgent}
-                               disabled={isAssociatingKnowledge}
-                               className="flex items-center space-x-2 w-full"
-                               variant="default"
-                             >
-                               <BookOpen className="h-4 w-4" />
-                               <span>{isAssociatingKnowledge ? 'Associating...' : '+ Knowledge'}</span>
-                             </Button>
-                             <p className="text-xs text-muted-foreground mt-2 text-center">
-                               Associate uploaded documents with your AI agent
-                             </p>
-                           </div>
-                         )}
-                         
-                         {knowledgeAssociated && (
-                           <div className="pt-4 border-t border-border">
-                             <div className="flex items-center justify-center space-x-2 text-sm text-green-600">
-                               <Check className="h-4 w-4" />
-                               <span>Knowledge successfully associated with agent</span>
-                             </div>
-                           </div>
-                         )}
-                       </div>
-                     )}
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
-                     {/* Empty State */}
+                    {/* Empty State */}
                     {(!experienceData.knowledgeBaseDocs || experienceData.knowledgeBaseDocs.length === 0) && experienceData.agentId && (
                       <div className="p-8 border-2 border-dashed border-muted rounded-lg text-center">
                         <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />

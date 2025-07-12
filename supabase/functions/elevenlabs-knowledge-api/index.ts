@@ -562,15 +562,6 @@ async function updateAgentKnowledgeBases(apiKey: string, agentId: string, knowle
     console.log('Updating agent knowledge bases for agent:', agentId);
     console.log('Knowledge bases to add:', knowledgeBases);
     
-    // Validate inputs
-    if (!agentId) {
-      throw new Error('Agent ID is required');
-    }
-    
-    if (!knowledgeBases || !Array.isArray(knowledgeBases) || knowledgeBases.length === 0) {
-      throw new Error('Knowledge bases array is required and must not be empty');
-    }
-    
     // First get the current agent configuration
     const agentResponse = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, {
       method: 'GET',
@@ -582,42 +573,45 @@ async function updateAgentKnowledgeBases(apiKey: string, agentId: string, knowle
 
     if (!agentResponse.ok) {
       const errorText = await agentResponse.text();
-      console.error('Failed to get agent:', errorText);
       throw new Error(`Failed to get agent: ${agentResponse.status} ${errorText}`);
     }
 
     const agentData = await agentResponse.json();
-    console.log('Current agent data retrieved successfully');
     
-    // Transform knowledge bases to the exact format specified in the working instructions
-    const knowledgeBaseObjects = knowledgeBases.map(kb => ({
-      type: kb.type || "file", // file, url, or text
-      name: kb.name || "Knowledge Base",
+    // Format knowledge bases according to ElevenLabs API spec
+    const formattedKnowledgeBases = knowledgeBases.map(kb => ({
+      type: kb.type,
+      name: kb.name,
       id: kb.id,
-      usage_mode: "auto" // always use "auto" as specified
+      usage_mode: "auto"
     }));
     
-    console.log('Formatted knowledge base objects:', knowledgeBaseObjects);
-    
-    // Preserve the existing agent prompt configuration and only update knowledge_base
+    // Update agent with knowledge bases - be selective about fields to avoid conflicts
     const currentPrompt = agentData.conversation_config.agent.prompt;
     
-    const updatedPrompt = {
-      ...currentPrompt, // Preserve all existing fields
-      knowledge_base: knowledgeBaseObjects // Update only the knowledge_base field
+    // Create a clean prompt object without tool conflicts
+    const cleanPrompt = {
+      prompt: currentPrompt.prompt,
+      llm: currentPrompt.llm,
+      temperature: currentPrompt.temperature,
+      max_tokens: currentPrompt.max_tokens,
+      knowledge_base: formattedKnowledgeBases
     };
+    
+    // Only include tool_ids if they exist, not both tools and tool_ids
+    if (currentPrompt.tool_ids && Array.isArray(currentPrompt.tool_ids)) {
+      cleanPrompt.tool_ids = currentPrompt.tool_ids;
+    }
     
     const updatePayload = {
       conversation_config: {
-        ...agentData.conversation_config, // Preserve all existing conversation config
+        ...agentData.conversation_config,
         agent: {
-          ...agentData.conversation_config.agent, // Preserve all existing agent config
-          prompt: updatedPrompt
+          ...agentData.conversation_config.agent,
+          prompt: cleanPrompt
         }
       }
     };
-    
-    console.log('Update payload:', JSON.stringify(updatePayload, null, 2));
     
     const updateResponse = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, {
       method: 'PATCH',
@@ -631,9 +625,7 @@ async function updateAgentKnowledgeBases(apiKey: string, agentId: string, knowle
     const updateResponseData = await updateResponse.json();
     
     if (!updateResponse.ok) {
-      console.error('Failed to update agent. Status:', updateResponse.status);
-      console.error('Response data:', updateResponseData);
-      console.error('Request payload was:', JSON.stringify(updatePayload, null, 2));
+      console.error('Failed to update agent:', updateResponseData);
       throw new Error(`Failed to update agent: ${updateResponse.status} ${JSON.stringify(updateResponseData)}`);
     }
     
@@ -643,7 +635,7 @@ async function updateAgentKnowledgeBases(apiKey: string, agentId: string, knowle
       JSON.stringify({
         message: 'Agent updated successfully with knowledge bases',
         agentId: agentId,
-        knowledgeBasesAdded: knowledgeBases.length,
+        knowledgeBasesAdded: formattedKnowledgeBases.length,
         updatedAgent: updateResponseData
       }),
       { 

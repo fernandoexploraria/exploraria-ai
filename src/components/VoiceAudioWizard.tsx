@@ -260,7 +260,7 @@ export const VoiceAudioWizard: React.FC<VoiceAudioWizardProps> = ({
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="text-sm font-medium mb-2">Master Agent Template</p>
                   <p className="text-sm text-muted-foreground">
-                    Alexis your Expert Tour Guide
+                    agent_01jxtaz7mkfwzrefsdqsy3fdwe
                   </p>
                   <Badge variant="secondary" className="mt-2">Ready to duplicate</Badge>
                 </div>
