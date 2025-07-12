@@ -33,6 +33,13 @@ const ElevenLabsPlayground: React.FC = () => {
   const [textToUpload, setTextToUpload] = useState('');
   const [textTitle, setTextTitle] = useState('');
   const [uploadingDocuments, setUploadingDocuments] = useState(false);
+  
+  // Track uploaded knowledge bases
+  const [uploadedKnowledgeBases, setUploadedKnowledgeBases] = useState<Array<{
+    id: string;
+    name: string;
+    type: 'file' | 'text' | 'url';
+  }>>([]);
 
   // Voice Explorer state
   const [voiceExplorerInitialized, setVoiceExplorerInitialized] = useState(false);
@@ -624,6 +631,16 @@ const ElevenLabsPlayground: React.FC = () => {
               knowledgeBaseId: data.knowledgeBaseId
             });
             
+            // Track the uploaded knowledge base
+            if (data.knowledgeBaseId) {
+              const newKB = {
+                id: data.knowledgeBaseId,
+                name: fileObj.title,
+                type: 'file' as const
+              };
+              setUploadedKnowledgeBases(prev => [...prev, newKB]);
+            }
+            
           } catch (fileError) {
             console.error('Error uploading file:', fileObj.file.name, fileError);
             failedUploads.push({
@@ -655,6 +672,16 @@ const ElevenLabsPlayground: React.FC = () => {
               knowledgeBaseId: data.knowledgeBaseId
             });
             
+            // Track the uploaded knowledge base
+            if (data.knowledgeBaseId) {
+              const newKB = {
+                id: data.knowledgeBaseId,
+                name: urlObj.title || urlObj.url,
+                type: 'url' as const
+              };
+              setUploadedKnowledgeBases(prev => [...prev, newKB]);
+            }
+            
           } catch (urlError) {
             console.error('Error uploading URL:', urlObj.url, urlError);
             failedUploads.push({
@@ -684,6 +711,16 @@ const ElevenLabsPlayground: React.FC = () => {
             file: textTitle || 'Text Document',
             knowledgeBaseId: data.knowledgeBaseId
           });
+          
+          // Track the uploaded knowledge base
+          if (data.knowledgeBaseId) {
+            const newKB = {
+              id: data.knowledgeBaseId,
+              name: textTitle || 'Text Document',
+              type: 'text' as const
+            };
+            setUploadedKnowledgeBases(prev => [...prev, newKB]);
+          }
           
         } catch (textError) {
           console.error('Error uploading text:', textError);
@@ -725,6 +762,51 @@ const ElevenLabsPlayground: React.FC = () => {
       });
     } finally {
       setUploadingDocuments(false);
+    }
+  };
+
+  const updateAgentWithKnowledgeBases = async () => {
+    if (!selectedAgent || uploadedKnowledgeBases.length === 0) {
+      toast({
+        title: "Cannot Update Agent",
+        description: "Please select an agent and upload some knowledge bases first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      console.log('Updating agent with knowledge bases:', uploadedKnowledgeBases);
+      
+      const { data, error } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
+        body: {
+          action: 'update_agent_knowledge',
+          agentId: selectedAgent.agent_id,
+          knowledgeBases: uploadedKnowledgeBases
+        }
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      console.log('Agent updated successfully:', data);
+      toast({
+        title: "Agent Updated",
+        description: `Agent updated successfully with ${uploadedKnowledgeBases.length} knowledge bases!`,
+        variant: "default"
+      });
+      
+    } catch (error) {
+      console.error('Error updating agent:', error);
+      toast({
+        title: "Update Failed",
+        description: `Error updating agent: ${error.message}`,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -947,10 +1029,37 @@ const ElevenLabsPlayground: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Button onClick={fetchKnowledgeBase} disabled={loading}>
-              <Play className="mr-2 h-4 w-4" />
-              List Knowledge Base Documents
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button onClick={fetchKnowledgeBase} disabled={loading} className="flex-1">
+                <Play className="mr-2 h-4 w-4" />
+                List Knowledge Base Documents
+              </Button>
+              <Button onClick={openKnowledgeDialog} disabled={loading} variant="outline" className="flex-1">
+                <Upload className="mr-2 h-4 w-4" />
+                Upload Documents
+              </Button>
+            </div>
+            
+            {uploadedKnowledgeBases.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="font-medium">Uploaded Knowledge Bases ({uploadedKnowledgeBases.length})</h4>
+                <div className="space-y-1">
+                  {uploadedKnowledgeBases.map((kb, index) => (
+                    <div key={index} className="text-sm p-2 bg-muted rounded flex justify-between items-center">
+                      <span>{kb.name} ({kb.type})</span>
+                      <div className="text-xs text-muted-foreground">{kb.id.substring(0, 8)}...</div>
+                    </div>
+                  ))}
+                </div>
+                <Button 
+                  onClick={updateAgentWithKnowledgeBases}
+                  disabled={!selectedAgent || loading}
+                  className="w-full"
+                >
+                  Update Agent with Knowledge Bases
+                </Button>
+              </div>
+            )}
             
             {knowledgeData && (
               <div className="mt-4 p-4 bg-muted rounded-lg">

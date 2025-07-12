@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
 
     // Handle JSON requests
     const requestBody = await req.json();
-    const { action, agentId, text, title, file, url } = requestBody;
+    const { action, agentId, text, title, file, url, knowledgeBases } = requestBody;
 
     switch (action) {
       case 'upload_text':
@@ -113,9 +113,21 @@ Deno.serve(async (req) => {
         }
         return await listAgentDocuments(apiKey, agentId);
       
+      case 'update_agent_knowledge':
+        if (!agentId || !knowledgeBases) {
+          return new Response(
+            JSON.stringify({ error: 'agentId and knowledgeBases are required for update_agent_knowledge action' }),
+            { 
+              status: 400, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+        return await updateAgentKnowledgeBases(apiKey, agentId, knowledgeBases);
+      
       default:
         return new Response(
-          JSON.stringify({ error: 'Invalid action. Supported: upload_text, upload_file, upload_url, list_knowledge_bases, list_documents' }),
+          JSON.stringify({ error: 'Invalid action. Supported: upload_text, upload_file, upload_url, list_knowledge_bases, list_documents, update_agent_knowledge' }),
           { 
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -535,6 +547,92 @@ async function uploadUrlToKnowledgeBase(apiKey: string, url: string, title?: str
     
   } catch (error) {
     console.error('Error in uploadUrlToKnowledgeBase:', error);
+    return new Response(
+      JSON.stringify({ error: 'Internal server error', message: error.message }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+}
+
+async function updateAgentKnowledgeBases(apiKey: string, agentId: string, knowledgeBases: any[]) {
+  try {
+    console.log('Updating agent knowledge bases for agent:', agentId);
+    console.log('Knowledge bases to add:', knowledgeBases);
+    
+    // First get the current agent configuration
+    const agentResponse = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, {
+      method: 'GET',
+      headers: {
+        'xi-api-key': apiKey,
+        'Content-Type': 'application/json',
+      }
+    });
+
+    if (!agentResponse.ok) {
+      const errorText = await agentResponse.text();
+      throw new Error(`Failed to get agent: ${agentResponse.status} ${errorText}`);
+    }
+
+    const agentData = await agentResponse.json();
+    
+    // Format knowledge bases according to ElevenLabs API spec
+    const formattedKnowledgeBases = knowledgeBases.map(kb => ({
+      type: kb.type,
+      name: kb.name,
+      id: kb.id,
+      usage_mode: "auto"
+    }));
+    
+    // Update agent with knowledge bases
+    const updatePayload = {
+      conversation_config: {
+        ...agentData.conversation_config,
+        agent: {
+          ...agentData.conversation_config.agent,
+          prompt: {
+            ...agentData.conversation_config.agent.prompt,
+            knowledge_base: formattedKnowledgeBases
+          }
+        }
+      }
+    };
+    
+    const updateResponse = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, {
+      method: 'PATCH',
+      headers: {
+        'xi-api-key': apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updatePayload)
+    });
+    
+    const updateResponseData = await updateResponse.json();
+    
+    if (!updateResponse.ok) {
+      console.error('Failed to update agent:', updateResponseData);
+      throw new Error(`Failed to update agent: ${updateResponse.status} ${JSON.stringify(updateResponseData)}`);
+    }
+    
+    console.log('Agent updated successfully with knowledge bases');
+    
+    return new Response(
+      JSON.stringify({
+        message: 'Agent updated successfully with knowledge bases',
+        agentId: agentId,
+        knowledgeBasesAdded: formattedKnowledgeBases.length,
+        updatedAgent: updateResponseData
+      }),
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+    
+  } catch (error) {
+    console.error('Error updating agent knowledge bases:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error', message: error.message }),
       { 
