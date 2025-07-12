@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, Check, MapPin, Building, MessageSquare, Mic, Database, Bot, Sparkles, Upload, FileText, Link, BookOpen, X, FileIcon, Globe, PenTool, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, MapPin, Building, MessageSquare, Mic, Database, Bot, Sparkles, Upload, FileText, Link, BookOpen, X, FileIcon, Globe, PenTool } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -956,71 +956,11 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                               </Button>
                             </div>
                           ))}
-                         </div>
-                         
-                         {/* Associate Knowledge Bases Button */}
-                         <Button 
-                           onClick={async () => {
-                              if (!experienceData.agentId || !experienceData.knowledgeBaseDocs?.length) {
-                                toast.error("Cannot Update Agent", {
-                                  description: "Please upload some knowledge bases first."
-                                });
-                                return;
-                              }
-
-                              try {
-                                setIsUploadingKnowledge(true);
-                                
-                                const knowledgeBases = experienceData.knowledgeBaseDocs.map(doc => ({
-                                  id: doc.id,
-                                  name: doc.name,
-                                  type: doc.type
-                                }));
-
-                                const { data, error } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
-                                  body: {
-                                    action: 'update_agent_knowledge',
-                                    agentId: experienceData.agentId,
-                                    knowledgeBases: knowledgeBases
-                                  }
-                                });
-
-                                if (error) {
-                                  throw new Error(error.message);
-                                }
-
-                                toast.success("Agent Updated", {
-                                  description: `Agent updated successfully with ${knowledgeBases.length} knowledge bases!`
-                                });
-                                
-                              } catch (error: any) {
-                                console.error('Error updating agent:', error);
-                                toast.error("Update Failed", {
-                                  description: `Error updating agent: ${error.message}`
-                                });
-                              } finally {
-                                setIsUploadingKnowledge(false);
-                              }
-                           }}
-                           disabled={isUploadingKnowledge || !experienceData.knowledgeBaseDocs?.length}
-                           className="w-full"
-                         >
-                           {isUploadingKnowledge ? (
-                             <>
-                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                               Updating Agent...
-                             </>
-                           ) : (
-                             <>
-                               <Check className="mr-2 h-4 w-4" />
-                               Associate Knowledge Bases
-                             </>
-                           )}
-                         </Button>
                         </div>
-                      )}
+                      </div>
+                    )}
 
-                     {/* Empty State */}
+                    {/* Empty State */}
                     {(!experienceData.knowledgeBaseDocs || experienceData.knowledgeBaseDocs.length === 0) && experienceData.agentId && (
                       <div className="p-8 border-2 border-dashed border-muted rounded-lg text-center">
                         <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
