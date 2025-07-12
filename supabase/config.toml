@@ -29,6 +29,9 @@ port = 54323
 shadow_port = 54324
 major_version = 15
 
+[functions.elevenlabs-knowledge-api]
+verify_jwt = false
+
 [functions.elevenlabs-webhook]
 verify_jwt = false
 
