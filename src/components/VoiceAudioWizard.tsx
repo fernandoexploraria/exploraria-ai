@@ -40,14 +40,14 @@ export const VoiceAudioWizard: React.FC<VoiceAudioWizardProps> = ({
   const [voiceSelectorOpen, setVoiceSelectorOpen] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState<Voice | null>(null);
 
-  // Step 1: Create Agent (Duplicate agent_01jxtaz7mkfwzrefsdqsy3fdwe)
+  // Step 1: Create Agent (Duplicate agent_01jzydkppmepzbwhyvtwvbyvwf)
   const createAgent = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('elevenlabs-agents-api', {
         body: { 
           action: 'duplicate_agent',
-          agentId: 'agent_01jxtaz7mkfwzrefsdqsy3fdwe'
+          agentId: 'agent_01jzydkppmepzbwhyvtwvbyvwf'
         }
       });
 
@@ -260,7 +260,7 @@ export const VoiceAudioWizard: React.FC<VoiceAudioWizardProps> = ({
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="text-sm font-medium mb-2">Master Agent Template</p>
                   <p className="text-sm text-muted-foreground">
-                    agent_01jxtaz7mkfwzrefsdqsy3fdwe
+                    agent_01jzydkppmepzbwhyvtwvbyvwf
                   </p>
                   <Badge variant="secondary" className="mt-2">Ready to duplicate</Badge>
                 </div>
