@@ -255,13 +255,13 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
           throw new Error(`Failed to upload ${fileObj.title}: ${error.message}`);
         }
 
-        if (data?.document?.document_id) {
+        if (data?.knowledgeBaseId) {
           setUploadedKnowledgeBases(prev => [...prev, {
-            id: data.document.document_id,
-            name: fileObj.title,
+            id: data.knowledgeBaseId,
+            name: data.fullResponse?.name || fileObj.title,
             type: 'file'
           }]);
-          console.log('File uploaded successfully:', data.document.document_id);
+          console.log('File uploaded successfully:', data.knowledgeBaseId);
         }
       }
 
@@ -281,13 +281,13 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
             throw new Error(`Failed to upload URL ${urlObj.url}: ${error.message}`);
           }
 
-          if (data?.document?.document_id) {
+          if (data?.knowledgeBaseId) {
             setUploadedKnowledgeBases(prev => [...prev, {
-              id: data.document.document_id,
-              name: urlObj.title || urlObj.url,
+              id: data.knowledgeBaseId,
+              name: data.fullResponse?.name || urlObj.title || urlObj.url,
               type: 'url'
             }]);
-            console.log('URL uploaded successfully:', data.document.document_id);
+            console.log('URL uploaded successfully:', data.knowledgeBaseId);
           }
         }
       }
@@ -307,13 +307,13 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
           throw new Error(`Failed to upload text: ${error.message}`);
         }
 
-        if (data?.document?.document_id) {
+        if (data?.knowledgeBaseId) {
           setUploadedKnowledgeBases(prev => [...prev, {
-            id: data.document.document_id,
-            name: textTitle || 'Text Document',
+            id: data.knowledgeBaseId,
+            name: data.fullResponse?.name || textTitle || 'Text Document',
             type: 'text'
           }]);
-          console.log('Text uploaded successfully:', data.document.document_id);
+          console.log('Text uploaded successfully:', data.knowledgeBaseId);
         }
       }
 
@@ -901,43 +901,6 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                       </Button>
                     </div>
 
-                    {/* Uploaded Knowledge Bases */}
-                    {uploadedKnowledgeBases.length > 0 && (
-                      <div className="space-y-3 pt-4 border-t">
-                        <h4 className="font-semibold flex items-center space-x-2">
-                          <CheckCircle className="h-5 w-5 text-green-600" />
-                          <span>Successfully Added to ElevenLabs Knowledge Base ({uploadedKnowledgeBases.length})</span>
-                        </h4>
-                        <div className="space-y-2">
-                          {uploadedKnowledgeBases.map((kb) => (
-                            <div key={kb.id} className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg dark:bg-green-950/50 dark:border-green-800">
-                              <div className="flex items-center space-x-3">
-                                <div className="flex-shrink-0">
-                                  {kb.type === 'file' && <File className="h-5 w-5 text-blue-600" />}
-                                  {kb.type === 'url' && <Link className="h-5 w-5 text-purple-600" />}
-                                  {kb.type === 'text' && <FileText className="h-5 w-5 text-orange-600" />}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <p className="font-medium text-sm truncate">{kb.name}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    ElevenLabs ID: {kb.id}
-                                  </p>
-                                </div>
-                              </div>
-                               <div className="flex items-center space-x-2">
-                                 <Badge variant="secondary" className="text-xs capitalize">
-                                   {kb.type}
-                                 </Badge>
-                                 <Badge className="text-xs bg-green-600 text-white">
-                                   Success
-                                 </Badge>
-                               </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                     )}
-                     
                      {/* Successfully Uploaded to ElevenLabs Section */}
                      {uploadedKnowledgeBases.length > 0 && (
                        <div className="space-y-3 p-4 border border-green-200 rounded-lg bg-green-50 dark:bg-green-950/50 dark:border-green-800">
