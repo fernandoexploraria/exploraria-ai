@@ -88,6 +88,19 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
   const [isAiChatOpen, setIsAiChatOpen] = useState(false);
   const [isSection2ChatOpen, setIsSection2ChatOpen] = useState(false);
   
+  // Knowledge base upload state
+  const [uploadType, setUploadType] = useState<'file' | 'url' | 'text'>('file');
+  const [uploadFiles, setUploadFiles] = useState<Array<{id: string, file: File, title: string, name: string, size: number}>>([]);
+  const [uploadUrls, setUploadUrls] = useState<Array<{id: string, url: string, title: string}>>([]);
+  const [textToUpload, setTextToUpload] = useState('');
+  const [textTitle, setTextTitle] = useState('');
+  const [uploadingDocuments, setUploadingDocuments] = useState(false);
+  const [uploadedKnowledgeBases, setUploadedKnowledgeBases] = useState<Array<{
+    id: string;
+    name: string;
+    type: 'file' | 'text' | 'url';
+  }>>([]);
+  
   const [experienceData, setExperienceData] = useState<ExperienceData>({
     destination: null,
     landmarks: [],
@@ -168,6 +181,152 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
       ...prev,
       landmarks: prev.landmarks.filter(l => l.place_id !== placeId)
     }));
+  };
+
+  // Knowledge base upload handlers (from playground)
+  const addFileToUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    files.forEach(file => {
+      const fileObj = {
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        file,
+        title: file.name.replace(/\.[^/.]+$/, ""), // Remove extension
+        name: file.name,
+        size: file.size
+      };
+      setUploadFiles(prev => [...prev, fileObj]);
+    });
+  };
+
+  const updateFileTitle = (fileId: string, newTitle: string) => {
+    setUploadFiles(prev => prev.map(f => f.id === fileId ? { ...f, title: newTitle } : f));
+  };
+
+  const removeFile = (fileId: string) => {
+    setUploadFiles(prev => prev.filter(f => f.id !== fileId));
+  };
+
+  const addUrl = () => {
+    const newUrl = {
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      url: '',
+      title: ''
+    };
+    setUploadUrls(prev => [...prev, newUrl]);
+  };
+
+  const updateUrl = (urlId: string, field: 'url' | 'title', value: string) => {
+    setUploadUrls(prev => prev.map(u => u.id === urlId ? { ...u, [field]: value } : u));
+  };
+
+  const removeUrl = (urlId: string) => {
+    setUploadUrls(prev => prev.filter(u => u.id !== urlId));
+  };
+
+  const uploadDocuments = async () => {
+    if (uploadFiles.length === 0 && uploadUrls.length === 0 && !textToUpload.trim()) {
+      toast.error('Please add some content to upload');
+      return;
+    }
+
+    setUploadingDocuments(true);
+
+    try {
+      // Upload files
+      for (const fileObj of uploadFiles) {
+        const arrayBuffer = await fileObj.file.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        const fileArray = Array.from(uint8Array);
+
+        console.log('Uploading file:', fileObj.title);
+        const { data, error } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
+          body: {
+            action: 'upload_file',
+            file: fileArray,
+            title: fileObj.title
+          }
+        });
+
+        if (error) {
+          throw new Error(`Failed to upload ${fileObj.title}: ${error.message}`);
+        }
+
+        if (data?.document?.document_id) {
+          setUploadedKnowledgeBases(prev => [...prev, {
+            id: data.document.document_id,
+            name: fileObj.title,
+            type: 'file'
+          }]);
+          console.log('File uploaded successfully:', data.document.document_id);
+        }
+      }
+
+      // Upload URLs
+      for (const urlObj of uploadUrls) {
+        if (urlObj.url.trim()) {
+          console.log('Uploading URL:', urlObj.url);
+          const { data, error } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
+            body: {
+              action: 'upload_url',
+              url: urlObj.url,
+              title: urlObj.title || urlObj.url
+            }
+          });
+
+          if (error) {
+            throw new Error(`Failed to upload URL ${urlObj.url}: ${error.message}`);
+          }
+
+          if (data?.document?.document_id) {
+            setUploadedKnowledgeBases(prev => [...prev, {
+              id: data.document.document_id,
+              name: urlObj.title || urlObj.url,
+              type: 'url'
+            }]);
+            console.log('URL uploaded successfully:', data.document.document_id);
+          }
+        }
+      }
+
+      // Upload text
+      if (textToUpload.trim()) {
+        console.log('Uploading text document');
+        const { data, error } = await supabase.functions.invoke('elevenlabs-knowledge-api', {
+          body: {
+            action: 'upload_text',
+            text: textToUpload,
+            title: textTitle || 'Text Document'
+          }
+        });
+
+        if (error) {
+          throw new Error(`Failed to upload text: ${error.message}`);
+        }
+
+        if (data?.document?.document_id) {
+          setUploadedKnowledgeBases(prev => [...prev, {
+            id: data.document.document_id,
+            name: textTitle || 'Text Document',
+            type: 'text'
+          }]);
+          console.log('Text uploaded successfully:', data.document.document_id);
+        }
+      }
+
+      toast.success(`Successfully uploaded ${uploadFiles.length + uploadUrls.filter(u => u.url.trim()).length + (textToUpload.trim() ? 1 : 0)} documents!`);
+      
+      // Clear upload queues
+      setUploadFiles([]);
+      setUploadUrls([]);
+      setTextToUpload('');
+      setTextTitle('');
+
+    } catch (error) {
+      console.error('Document upload error:', error);
+      toast.error(error.message || "Failed to upload documents");
+    } finally {
+      setUploadingDocuments(false);
+    }
   };
 
   const generateInitialSystemPrompt = (destination: string) => {
@@ -558,17 +717,215 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                 )}
 
                 {currentStep === 4 && (
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <CardDescription>
-                      Upload documents and resources that will enhance your AI guide's knowledge (Coming Soon).
+                      Upload documents, URLs, and text content to enhance your AI guide's knowledge base.
                     </CardDescription>
-                    <div className="p-8 border-2 border-dashed border-muted rounded-lg text-center">
-                      <Database className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                      <h3 className="font-medium mb-2">Knowledge Base Upload</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Document upload and knowledge base integration will be available in the next update.
-                      </p>
+                    
+                    {/* Upload Type Tabs */}
+                    <div className="flex space-x-1 bg-muted p-1 rounded-lg">
+                      {[
+                        { id: 'file', label: 'Files', icon: '📄' },
+                        { id: 'url', label: 'URLs', icon: '🔗' },
+                        { id: 'text', label: 'Text', icon: '📝' }
+                      ].map(tab => (
+                        <button
+                          key={tab.id}
+                          onClick={() => setUploadType(tab.id as 'file' | 'url' | 'text')}
+                          className={`flex-1 flex items-center justify-center space-x-2 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                            uploadType === tab.id 
+                              ? 'bg-background text-foreground shadow-sm' 
+                              : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          <span>{tab.icon}</span>
+                          <span>{tab.label}</span>
+                        </button>
+                      ))}
                     </div>
+
+                    {/* File Upload Section */}
+                    {uploadType === 'file' && (
+                      <div className="space-y-4">
+                        <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                          <input
+                            type="file"
+                            multiple
+                            accept=".pdf,.txt,.doc,.docx,.epub"
+                            onChange={addFileToUpload}
+                            className="hidden"
+                            id="file-upload"
+                          />
+                          <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center space-y-2">
+                            <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center">
+                              <span className="text-2xl">📁</span>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">Click to upload files</p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Supported: PDF, TXT, DOC, DOCX, EPUB (with RAG indexing)
+                              </p>
+                            </div>
+                          </label>
+                        </div>
+                        
+                        {uploadFiles.length > 0 && (
+                          <div className="space-y-3">
+                            <h4 className="font-semibold flex items-center space-x-2">
+                              <span>📄</span>
+                              <span>Files to Upload ({uploadFiles.length})</span>
+                            </h4>
+                            {uploadFiles.map((fileObj) => (
+                              <div key={fileObj.id} className="flex items-start space-x-3 p-4 border border-border rounded-lg bg-muted/30">
+                                <div className="flex-1 space-y-2">
+                                  <div className="flex items-center space-x-2">
+                                    <p className="font-medium text-sm">{fileObj.name}</p>
+                                    <Badge variant="outline" className="text-xs">
+                                      {(fileObj.size / 1024).toFixed(1)} KB
+                                    </Badge>
+                                  </div>
+                                  <Input
+                                    value={fileObj.title}
+                                    onChange={(e) => updateFileTitle(fileObj.id, e.target.value)}
+                                    placeholder="Enter document title"
+                                    className="text-sm"
+                                  />
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeFile(fileObj.id)}
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                >
+                                  Remove
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* URL Upload Section */}
+                    {uploadType === 'url' && (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-semibold">URLs to Upload</h4>
+                          <Button onClick={addUrl} size="sm" variant="outline">
+                            Add URL
+                          </Button>
+                        </div>
+                        
+                        {uploadUrls.length === 0 ? (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <p>No URLs added yet. Click "Add URL" to get started.</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {uploadUrls.map((urlObj) => (
+                              <div key={urlObj.id} className="flex items-start space-x-3 p-4 border border-border rounded-lg bg-muted/30">
+                                <div className="flex-1 space-y-2">
+                                  <Input
+                                    value={urlObj.url}
+                                    onChange={(e) => updateUrl(urlObj.id, 'url', e.target.value)}
+                                    placeholder="Enter URL (e.g., https://example.com)"
+                                    className="text-sm"
+                                  />
+                                  <Input
+                                    value={urlObj.title}
+                                    onChange={(e) => updateUrl(urlObj.id, 'title', e.target.value)}
+                                    placeholder="Enter title (optional)"
+                                    className="text-sm"
+                                  />
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeUrl(urlObj.id)}
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                >
+                                  Remove
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Text Upload Section */}
+                    {uploadType === 'text' && (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Document Title</label>
+                          <Input
+                            value={textTitle}
+                            onChange={(e) => setTextTitle(e.target.value)}
+                            placeholder="Enter a title for this text document"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Text Content</label>
+                          <Textarea
+                            value={textToUpload}
+                            onChange={(e) => setTextToUpload(e.target.value)}
+                            placeholder="Paste or type your text content here..."
+                            rows={8}
+                            className="resize-none"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Characters: {textToUpload.length}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Upload Button and Status */}
+                    <div className="flex items-center justify-between pt-4 border-t">
+                      <div className="text-sm text-muted-foreground">
+                        {uploadFiles.length > 0 || uploadUrls.length > 0 || textToUpload.trim() ? (
+                          `Ready to upload: ${uploadFiles.length} files, ${uploadUrls.filter(u => u.url.trim()).length} URLs, ${textToUpload.trim() ? 1 : 0} text`
+                        ) : (
+                          'Add content to upload to the knowledge base'
+                        )}
+                      </div>
+                      <Button
+                        onClick={uploadDocuments}
+                        disabled={uploadingDocuments || (uploadFiles.length === 0 && uploadUrls.length === 0 && !textToUpload.trim())}
+                      >
+                        {uploadingDocuments ? 'Uploading...' : 'Upload Documents'}
+                      </Button>
+                    </div>
+
+                    {/* Uploaded Knowledge Bases */}
+                    {uploadedKnowledgeBases.length > 0 && (
+                      <div className="space-y-3 pt-4 border-t">
+                        <h4 className="font-semibold flex items-center space-x-2">
+                          <span>✅</span>
+                          <span>Uploaded Knowledge Bases ({uploadedKnowledgeBases.length})</span>
+                        </h4>
+                        <div className="space-y-2">
+                          {uploadedKnowledgeBases.map((kb) => (
+                            <div key={kb.id} className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                              <div className="flex items-center space-x-3">
+                                <span className="text-lg">
+                                  {kb.type === 'file' ? '📄' : kb.type === 'url' ? '🔗' : '📝'}
+                                </span>
+                                <div>
+                                  <p className="font-medium text-sm">{kb.name}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    ID: {kb.id.substring(0, 8)}...
+                                  </p>
+                                </div>
+                              </div>
+                              <Badge variant="secondary" className="text-xs capitalize">
+                                {kb.type}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
