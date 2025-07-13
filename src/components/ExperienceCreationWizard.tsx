@@ -564,8 +564,8 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-12 gap-8">
+      <div className="container mx-auto px-4 py-2 h-[calc(100vh-6rem)]">
+        <div className="grid grid-cols-12 gap-4 h-full">
           {/* Progress Sidebar */}
           <div className="col-span-3">
             <Card>
@@ -606,7 +606,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
 
           {/* Main Content */}
           <div className="col-span-9">
-            <Card className="flex flex-col h-[calc(100vh-2rem)] min-h-[600px]">
+            <Card className="flex flex-col h-full">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <currentStepData.icon className="h-5 w-5" />
@@ -644,7 +644,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                   </div>
                 )}
               </CardHeader>
-              <CardContent className="space-y-6 flex-1 overflow-y-auto">
+              <CardContent className="space-y-6 flex-1 overflow-y-auto max-h-[200px]">
                 {/* Step Content */}
                 {currentStep === 0 && (
                   <div className="space-y-4">
