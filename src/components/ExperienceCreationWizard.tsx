@@ -1066,10 +1066,10 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                         <div>
                           <span className="text-muted-foreground">Knowledge Base:</span>
                           <p className="font-medium">
-                            {uploadFiles.length + uploadUrls.filter(u => u.url.trim()).length + (textToUpload.trim() ? 1 : 0)} items
-                            {uploadFiles.length > 0 && ` (${uploadFiles.length} files)`}
-                            {uploadUrls.filter(u => u.url.trim()).length > 0 && ` (${uploadUrls.filter(u => u.url.trim()).length} URLs)`}
-                            {textToUpload.trim() && ' (1 text)'}
+                            {uploadedKnowledgeBases.length} items
+                            {uploadedKnowledgeBases.filter(kb => kb.type === 'file').length > 0 && ` (${uploadedKnowledgeBases.filter(kb => kb.type === 'file').length} files)`}
+                            {uploadedKnowledgeBases.filter(kb => kb.type === 'url').length > 0 && ` (${uploadedKnowledgeBases.filter(kb => kb.type === 'url').length} URLs)`}
+                            {uploadedKnowledgeBases.filter(kb => kb.type === 'text').length > 0 && ` (${uploadedKnowledgeBases.filter(kb => kb.type === 'text').length} text)`}
                           </p>
                         </div>
                       </div>
