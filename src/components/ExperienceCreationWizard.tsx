@@ -1063,6 +1063,15 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                           <span className="text-muted-foreground">System Prompt:</span>
                           <p className="font-medium">{experienceData.systemPrompt.length} characters</p>
                         </div>
+                        <div>
+                          <span className="text-muted-foreground">Knowledge Base:</span>
+                          <p className="font-medium">
+                            {uploadFiles.length + uploadUrls.filter(u => u.url.trim()).length + (textToUpload.trim() ? 1 : 0)} items
+                            {uploadFiles.length > 0 && ` (${uploadFiles.length} files)`}
+                            {uploadUrls.filter(u => u.url.trim()).length > 0 && ` (${uploadUrls.filter(u => u.url.trim()).length} URLs)`}
+                            {textToUpload.trim() && ' (1 text)'}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
