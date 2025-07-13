@@ -644,7 +644,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                   </div>
                 )}
               </CardHeader>
-              <CardContent className="space-y-6 flex-1 overflow-y-auto max-h-[200px]">
+              <CardContent className="space-y-6 flex-1 overflow-y-auto max-h-[calc(100vh-20rem)]">
                 {/* Step Content */}
                 {currentStep === 0 && (
                   <div className="space-y-4">
