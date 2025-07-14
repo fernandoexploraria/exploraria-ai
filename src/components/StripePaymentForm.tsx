@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, Loader2 } from 'lucide-react';
@@ -29,10 +29,17 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const paymentElementRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const initializeStripe = async () => {
       try {
+        // Get Stripe publishable key from environment
+        const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_TEST;
+        if (!publishableKey) {
+          throw new Error('Stripe publishable key not configured. Please add VITE_STRIPE_PUBLISHABLE_KEY_TEST to your environment variables.');
+        }
+
         // Check if Stripe.js is already loaded
         if (!window.Stripe) {
           // Load Stripe.js dynamically
@@ -48,27 +55,32 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
         }
 
         // Initialize Stripe with publishable key
-        const stripeInstance = window.Stripe('pk_test_51QJlDe05kYnItJGT1DcuLQhfSdMJjIXxUKKL2hFHa4XRQH5Kj2JKyRHC7uJJ6p8x1s9QyIw8x7rWdYLTwJrO6xo00BYBz6K6v');
+        const stripeInstance = window.Stripe(publishableKey);
         setStripe(stripeInstance);
 
         // Initialize Elements with client secret
         const elementsInstance = stripeInstance.elements({ clientSecret });
         setElements(elementsInstance);
 
-        // Create and mount Payment Element
-        const paymentElement = elementsInstance.create('payment');
-        paymentElement.mount('#payment-element');
+        // Wait for the DOM element to be ready
+        if (paymentElementRef.current) {
+          // Create and mount Payment Element
+          const paymentElement = elementsInstance.create('payment');
+          paymentElement.mount(paymentElementRef.current);
 
-        setIsLoading(false);
-        setErrorMessage('');
+          setIsLoading(false);
+          setErrorMessage('');
+        } else {
+          throw new Error('Payment element container not found');
+        }
       } catch (error) {
         console.error('Error initializing Stripe:', error);
-        setErrorMessage('Failed to load payment form. Please try again.');
+        setErrorMessage(error instanceof Error ? error.message : 'Failed to load payment form. Please try again.');
         setIsLoading(false);
       }
     };
 
-    if (clientSecret) {
+    if (clientSecret && paymentElementRef.current) {
       initializeStripe();
     }
   }, [clientSecret]);
@@ -131,7 +143,7 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
                 <span>Loading payment form...</span>
               </div>
             ) : (
-              <div id="payment-element" className="w-full" />
+              <div ref={paymentElementRef} className="w-full" />
             )}
           </div>
 
