@@ -147,6 +147,7 @@ export type Database = {
       }
       generated_tours: {
         Row: {
+          account_id: string | null
           agentid: string | null
           coordinate_quality_high: number | null
           coordinate_quality_low: number | null
@@ -173,6 +174,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          account_id?: string | null
           agentid?: string | null
           coordinate_quality_high?: number | null
           coordinate_quality_low?: number | null
@@ -199,6 +201,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          account_id?: string | null
           agentid?: string | null
           coordinate_quality_high?: number | null
           coordinate_quality_low?: number | null
