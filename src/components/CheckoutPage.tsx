@@ -27,25 +27,35 @@ export const CheckoutPage = () => {
   const experienceId = searchParams.get("experience");
 
   useEffect(() => {
+    console.log('🏪 CheckoutPage: Starting initialization with params:', {
+      clientSecret: !!clientSecret,
+      experienceId,
+      user: !!user
+    });
+    
     // Check if user is authenticated
     if (!user) {
+      console.log('🏪 CheckoutPage: User not authenticated, redirecting to home');
       navigate("/");
       return;
     }
 
     // Validate required parameters
     if (!clientSecret || !experienceId) {
+      console.log('🏪 CheckoutPage: Missing required parameters', { clientSecret: !!clientSecret, experienceId });
       setError("Missing payment information. Please start the purchase process again.");
       setIsLoading(false);
       return;
     }
 
+    console.log('🏪 CheckoutPage: Parameters valid, fetching experience data');
     // Fetch experience data
     fetchExperienceData();
   }, [user, clientSecret, experienceId]);
 
   const fetchExperienceData = async () => {
     try {
+      console.log('🏪 CheckoutPage: Fetching experience data for ID:', experienceId);
       const { data, error } = await supabase
         .from('generated_tours')
         .select('*')
@@ -53,9 +63,10 @@ export const CheckoutPage = () => {
         .single();
 
       if (error) throw error;
+      console.log('🏪 CheckoutPage: Experience data fetched successfully:', data.destination);
       setExperienceData(data);
     } catch (error) {
-      console.error('Error fetching experience data:', error);
+      console.error('🏪 CheckoutPage: Error fetching experience data:', error);
       setError('Failed to load experience details');
     }
   };
@@ -84,13 +95,16 @@ export const CheckoutPage = () => {
 
     const initializeStripe = async () => {
       try {
+        console.log('🏪 CheckoutPage: Initializing Stripe...');
         // Fetch the public key from the edge function
         const { data: keyData, error: keyError } = await supabase.functions.invoke('get-stripe-public-key');
         
         if (keyError || !keyData?.publicKey) {
+          console.error('🏪 CheckoutPage: Failed to get Stripe public key:', keyError);
           throw new Error('Failed to get Stripe public key');
         }
         
+        console.log('🏪 CheckoutPage: Got Stripe public key successfully');
         const STRIPE_PUBLIC_KEY = keyData.publicKey;
 
         const stripeInstance = window.Stripe(STRIPE_PUBLIC_KEY);
@@ -98,27 +112,31 @@ export const CheckoutPage = () => {
           throw new Error('Failed to initialize Stripe');
         }
 
+        console.log('🏪 CheckoutPage: Stripe instance created successfully');
         setStripe(stripeInstance);
 
         const elementsInstance = stripeInstance.elements({ clientSecret });
         setElements(elementsInstance);
+        console.log('🏪 CheckoutPage: Stripe Elements created with client secret');
 
         // Wait for DOM to be ready and mount payment element
         const mountPaymentElement = () => {
           const elementContainer = document.getElementById('payment-element');
           
           if (!elementContainer) {
-            console.error('Payment element container not found, retrying...');
+            console.error('🏪 CheckoutPage: Payment element container not found, retrying...');
             setTimeout(mountPaymentElement, 100);
             return;
           }
 
           try {
+            console.log('🏪 CheckoutPage: Mounting payment element...');
             const paymentElement = elementsInstance.create('payment');
             paymentElement.mount('#payment-element');
+            console.log('🏪 CheckoutPage: Payment element mounted successfully!');
             setIsLoading(false);
           } catch (mountError) {
-            console.error('Error mounting payment element:', mountError);
+            console.error('🏪 CheckoutPage: Error mounting payment element:', mountError);
             setError('Failed to load payment form. Please refresh and try again.');
             setIsLoading(false);
           }
