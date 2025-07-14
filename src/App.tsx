@@ -10,6 +10,8 @@ import { PostAuthAction } from "@/utils/authActions";
 import Index from "./pages/Index";
 import CuratorPortal from "./pages/CuratorPortal";
 import ElevenLabsPlayground from "./pages/ElevenLabsPlayground";
+import { PaymentSuccess } from "./components/PaymentSuccess";
+import { PaymentFailure } from "./components/PaymentFailure";
 import { useState } from "react";
 
 const queryClient = new QueryClient();
@@ -62,6 +64,14 @@ const App = () => {
                 <Route 
                   path="/elevenlabs-playground" 
                   element={<ElevenLabsPlayground />} 
+                />
+                <Route 
+                  path="/payment-success" 
+                  element={<PaymentSuccess />} 
+                />
+                <Route 
+                  path="/payment-failed" 
+                  element={<PaymentFailure />} 
                 />
               </Routes>
             </AuthProvider>
