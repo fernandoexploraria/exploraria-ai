@@ -51,18 +51,47 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
             console.log('Executing pending post-auth action:', pendingAction);
             clearPostAuthAction();
             
-            // If it's a smart-tour action, also handle landmark restoration
+            // If it's a smart-tour action, also handle landmark restoration and payment
             if (pendingAction === 'smart-tour') {
               const pendingLandmark = getPostAuthLandmark();
-              if (pendingLandmark) {
+              if (pendingLandmark && pendingLandmark.tourId) {
                 console.log('🎯 Restoring landmark for post-auth tour:', pendingLandmark.name);
-                // Store the landmark for the dialog to use
-                (window as any).pendingLandmarkDestination = pendingLandmark;
-                clearPostAuthLandmark();
+                
+                // Create payment intent for the experience first
+                setTimeout(async () => {
+                  try {
+                    const { data, error } = await supabase.functions.invoke('create-experience-payment', {
+                      body: { 
+                        experienceId: pendingLandmark.tourId,
+                        price: 999 // $9.99 in cents
+                      }
+                    });
+
+                    if (error) {
+                      console.error('Post-auth payment creation failed:', error);
+                      return;
+                    }
+
+                    if (data?.client_secret) {
+                      console.log('✅ Post-auth payment created successfully');
+                      // Store the landmark for the dialog to use
+                      (window as any).pendingLandmarkDestination = pendingLandmark;
+                      clearPostAuthLandmark();
+                      
+                      // Trigger the tour generation
+                      if (onPostAuthAction) {
+                        onPostAuthAction(pendingAction);
+                      }
+                    }
+                  } catch (error) {
+                    console.error('Post-auth payment error:', error);
+                  }
+                }, 1000);
+                return;
               }
             }
             
-            // Delay execution to ensure UI is ready
+            // For other actions or if no payment needed, proceed normally
             setTimeout(() => {
               if (onPostAuthAction) {
                 onPostAuthAction(pendingAction);

@@ -85,7 +85,24 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
 
   const handlePurchaseExperience = async () => {
     try {
-      // First, create the payment intent
+      // Check authentication first
+      if (!authUser) {
+        console.log('🚨 User not authenticated, setting up post-auth flow for experience');
+        
+        const landmark = convertExperienceToLandmark(experience);
+        
+        // Persist the experience and set post-auth action
+        setPostAuthLandmark(landmark);
+        setPostAuthAction('smart-tour');
+        
+        // Open auth dialog
+        if (onAuthDialogOpen) {
+          onAuthDialogOpen();
+        }
+        return;
+      }
+
+      // User is authenticated, create payment intent
       const { data, error } = await supabase.functions.invoke('create-experience-payment', {
         body: { 
           experienceId: experience.id,
@@ -99,24 +116,7 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
         // Payment intent created successfully, now trigger tour generation
         toast.success('Payment created! Generating your tour...');
         
-        // Check if user is authenticated
-        if (!authUser) {
-          console.log('🚨 User not authenticated, setting up post-auth flow for experience');
-          
-          const landmark = convertExperienceToLandmark(experience);
-          
-          // Persist the experience and set post-auth action
-          setPostAuthLandmark(landmark);
-          setPostAuthAction('smart-tour');
-          
-          // Open auth dialog
-          if (onAuthDialogOpen) {
-            onAuthDialogOpen();
-          }
-          return;
-        }
-
-        // User is authenticated, proceed with tour generation
+        // Proceed with tour generation
         if (!onIntelligentTourOpen) {
           console.warn('onIntelligentTourOpen not provided to ExperienceCard');
           toast.error('Unable to start tour generation');
