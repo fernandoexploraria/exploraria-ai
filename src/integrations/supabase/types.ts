@@ -358,6 +358,71 @@ export type Database = {
         }
         Relationships: []
       }
+      payments: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          metadata: Json | null
+          platform_fee_amount: number
+          status: string
+          stripe_charge_id: string | null
+          stripe_customer_id: string | null
+          stripe_payment_intent_id: string
+          stripe_transfer_id: string | null
+          tour_guide_id: string
+          tour_guide_payout_amount: number
+          tour_id: string
+          tourist_user_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          id?: string
+          metadata?: Json | null
+          platform_fee_amount: number
+          status?: string
+          stripe_charge_id?: string | null
+          stripe_customer_id?: string | null
+          stripe_payment_intent_id: string
+          stripe_transfer_id?: string | null
+          tour_guide_id: string
+          tour_guide_payout_amount: number
+          tour_id: string
+          tourist_user_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          metadata?: Json | null
+          platform_fee_amount?: number
+          status?: string
+          stripe_charge_id?: string | null
+          stripe_customer_id?: string | null
+          stripe_payment_intent_id?: string
+          stripe_transfer_id?: string | null
+          tour_guide_id?: string
+          tour_guide_payout_amount?: number
+          tour_id?: string
+          tourist_user_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_tour_id_fkey"
+            columns: ["tour_id"]
+            isOneToOne: false
+            referencedRelation: "generated_tours"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       proximity_alerts: {
         Row: {
           created_at: string
