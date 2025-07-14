@@ -48,6 +48,16 @@ serve(async (req) => {
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
     
+    // Create Supabase client with service role for database operations
+    const supabaseService = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+
+    // Get origin for URLs
+    const origin = req.headers.get("origin") || "https://lovable.exploraria.ai";
+    
     // Check if customer already exists
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     let customerId;
@@ -56,13 +66,51 @@ serve(async (req) => {
       logStep("Found existing customer", { customerId });
     }
 
-    // Get experience details
-    const supabaseService = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } }
-    );
+    // Check for existing unpaid payment first
+    const { data: existingPayment, error: paymentError } = await supabaseService
+      .from("payments")
+      .select("stripe_payment_intent_id, stripe_customer_id")
+      .eq("tour_id", experienceId)
+      .eq("tourist_user_id", user.id)
+      .eq("status", "requires_payment_method")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
 
+    if (existingPayment && !paymentError) {
+      logStep("Found existing payment intent", { 
+        paymentIntentId: existingPayment.stripe_payment_intent_id 
+      });
+
+      // Use existing payment intent to create checkout session
+      const session = await stripe.checkout.sessions.create({
+        customer: existingPayment.stripe_customer_id,
+        payment_intent_data: {
+          payment_intent: existingPayment.stripe_payment_intent_id
+        },
+        mode: "payment",
+        success_url: `${origin}/?experience_checkout=success&experience_id=${experienceId}`,
+        cancel_url: `${origin}/?experience_checkout=cancelled`,
+        metadata: {
+          experience_id: experienceId,
+          user_id: user.id,
+          payment_intent_id: existingPayment.stripe_payment_intent_id
+        }
+      });
+
+      logStep("Checkout session created with existing payment intent", { 
+        sessionId: session.id, 
+        url: session.url 
+      });
+
+      return new Response(JSON.stringify({ url: session.url }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
+    logStep("No existing payment found, creating new checkout session");
+    // Get experience details for new checkout
     const { data: experience, error: experienceError } = await supabaseService
       .from("generated_tours")
       .select("*")
@@ -74,8 +122,7 @@ serve(async (req) => {
       throw new Error("Experience not found");
     }
 
-    const origin = req.headers.get("origin") || "https://lovable.exploraria.ai";
-    
+    // Create new checkout session for new payment
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
