@@ -84,12 +84,14 @@ export const CheckoutPage = () => {
 
     const initializeStripe = async () => {
       try {
-        // Use the test public key that matches the private key in secrets
-        const STRIPE_PUBLIC_KEY = 'pk_test_51QOmNQAb6xWQJT9kJYUQnKAGJwPNJNzJMDmRpZKYVOcOcCLDnOPqhCQGh1dFjHFQHjQFoOPGNyEjEocHOBLz3xhj00aKFYPWVj';
+        // Fetch the public key from the edge function
+        const { data: keyData, error: keyError } = await supabase.functions.invoke('get-stripe-public-key');
         
-        if (!STRIPE_PUBLIC_KEY) {
-          throw new Error('Stripe public key not configured');
+        if (keyError || !keyData?.publicKey) {
+          throw new Error('Failed to get Stripe public key');
         }
+        
+        const STRIPE_PUBLIC_KEY = keyData.publicKey;
 
         const stripeInstance = window.Stripe(STRIPE_PUBLIC_KEY);
         if (!stripeInstance) {
