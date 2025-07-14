@@ -54,7 +54,6 @@ interface ExperienceData {
   landmarks: Landmark[];
   systemPrompt: string;
   voiceId: string;
-  title: string;
   description: string;
   agentId?: string;
   agentName?: string;
@@ -109,7 +108,6 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
     landmarks: [],
     systemPrompt: '',
     voiceId: ELEVENLABS_VOICES[0].id,
-    title: '',
     description: '',
     agentId: undefined,
     agentName: '',
@@ -538,7 +536,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
       case 2: return experienceData.systemPrompt.length > 50;
       case 3: return !!experienceData.agentId && !!experienceData.agentName?.trim() && !!experienceData.voiceId;
       case 4: return true; // Knowledge base is optional for MVP
-      case 5: return experienceData.title.length > 0 && experienceData.description.length > 0;
+      case 5: return experienceData.description.length > 0;
       default: return false;
     }
   };
@@ -1057,26 +1055,17 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                       Add final details and review your experience before creating it.
                     </CardDescription>
                     
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Experience Title</label>
-                        <Input
-                          placeholder="e.g., Historic Downtown Walking Tour"
-                          value={experienceData.title}
-                          onChange={(e) => setExperienceData(prev => ({ ...prev, title: e.target.value }))}
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Experience Description</label>
-                        <Textarea
-                          placeholder="Describe what makes this experience special..."
-                          value={experienceData.description}
-                          onChange={(e) => setExperienceData(prev => ({ ...prev, description: e.target.value }))}
-                          rows={3}
-                        />
-                      </div>
-                    </div>
+                     <div className="space-y-4">
+                       <div>
+                         <label className="block text-sm font-medium mb-2">Experience Description</label>
+                         <Textarea
+                           placeholder="Describe what makes this experience special..."
+                           value={experienceData.description}
+                           onChange={(e) => setExperienceData(prev => ({ ...prev, description: e.target.value }))}
+                           rows={3}
+                         />
+                       </div>
+                     </div>
 
                     <Separator />
 
