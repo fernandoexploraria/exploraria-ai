@@ -51,31 +51,12 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
 
   const handlePurchaseExperience = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('create-experience-payment', {
-        body: { 
-          experienceId: experience.id,
-          price: 999 // $9.99 in cents
-        }
-      });
-
-      if (error) throw error;
-
-      if (data?.client_secret) {
-        // Redirect to a payment page with the client_secret
-        // For now, using a simple redirect approach
-        const successUrl = `${window.location.origin}/payment-success?experience=${experience.id}`;
-        const failureUrl = `${window.location.origin}/payment-failed?experience=${experience.id}`;
-        
-        // This is a simplified approach - in a full implementation, you'd want to 
-        // integrate Stripe Elements on a dedicated checkout page
-        window.location.href = `${successUrl}&payment_intent=${data.payment_intent_id}`;
-      } else if (data?.url) {
-        // Fallback to old checkout URL if available
-        window.open(data.url, '_blank');
-      }
+      // Navigate to checkout page with experience details
+      const checkoutUrl = `/checkout?experience=${experience.id}&title=${encodeURIComponent(experience.destination)}`;
+      window.location.href = checkoutUrl;
     } catch (error) {
-      console.error('Payment error:', error);
-      toast.error('Failed to create payment session');
+      console.error('Navigation error:', error);
+      toast.error('Failed to navigate to checkout');
     }
   };
   return <Card className="w-[280px] h-[380px] flex-shrink-0 overflow-hidden flex flex-col">
