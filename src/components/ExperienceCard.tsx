@@ -204,7 +204,7 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
           </CardDescription>
         </div>
         
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-1 flex-wrap">
           {experience.system_prompt && (
             <Button
               variant="outline"
@@ -220,28 +220,27 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
             variant="outline" 
             size="sm" 
             onClick={handlePurchaseExperience}
-            className="bg-gradient-to-r from-green-400/80 to-emerald-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-center flex-shrink-0 lg:h-10 lg:text-sm lg:py-2 border-green-300 hover:from-green-300/80 hover:to-emerald-300/80"
+            className="bg-gradient-to-r from-green-400/80 to-emerald-400/80 backdrop-blur-sm shadow-lg text-xs px-1 py-1 h-8 justify-center flex-shrink-0 lg:h-10 lg:text-sm lg:py-2 border-green-300 hover:from-green-300/80 hover:to-emerald-300/80"
           >
             <CreditCard className="h-3 w-3 lg:h-4 lg:w-4" />
-            <span className="ml-1 hidden sm:inline">$9.99</span>
+            <span className="ml-1 hidden lg:inline text-xs">$9.99</span>
           </Button>
           <Button 
             variant="outline" 
             size="sm" 
             onClick={handleCheckoutExperience}
-            className="bg-gradient-to-r from-orange-400/80 to-red-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-center flex-shrink-0 lg:h-10 lg:text-sm lg:py-2 border-orange-300 hover:from-orange-300/80 hover:to-red-300/80"
+            className="bg-gradient-to-r from-orange-400/80 to-red-400/80 backdrop-blur-sm shadow-lg text-xs px-1 py-1 h-8 justify-center flex-shrink-0 lg:h-10 lg:text-sm lg:py-2 border-orange-300 hover:from-orange-300/80 hover:to-red-300/80"
           >
             <ShoppingCart className="h-3 w-3 lg:h-4 lg:w-4" />
-            <span className="ml-1 hidden sm:inline">Checkout</span>
           </Button>
           {onSelect && (
             <Button 
               variant="outline" 
               size="sm" 
               onClick={() => onSelect(experience)} 
-              className="bg-gradient-to-r from-purple-400/80 to-pink-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start flex-1 lg:h-10 lg:text-sm lg:py-2 border-purple-300 hover:from-purple-300/80 hover:to-pink-300/80"
+              className="bg-gradient-to-r from-purple-400/80 to-pink-400/80 backdrop-blur-sm shadow-lg text-xs px-1 py-1 h-8 justify-center flex-shrink-0 lg:h-10 lg:text-sm lg:py-2 border-purple-300 hover:from-purple-300/80 hover:to-pink-300/80"
             >
-              Generate Experience
+              <span className="text-xs hidden sm:inline">Generate</span>
             </Button>
           )}
         </div>
