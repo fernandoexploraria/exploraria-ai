@@ -109,7 +109,7 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
             className="bg-gradient-to-r from-green-400/80 to-emerald-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-center flex-shrink-0 lg:h-10 lg:text-sm lg:py-2 border-green-300 hover:from-green-300/80 hover:to-emerald-300/80"
           >
             <CreditCard className="h-3 w-3 lg:h-4 lg:w-4" />
-            <span className="ml-1 hidden sm:inline">$9.99 | ID: {experience.product_id ? experience.product_id.slice(-4) : 'none'}</span>
+            <span className="ml-1 hidden sm:inline">$9.99</span>
           </Button>
           {onSelect && (
             <Button 
