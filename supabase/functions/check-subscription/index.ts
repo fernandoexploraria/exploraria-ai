@@ -24,7 +24,9 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
+    console.log("Available env vars:", Object.keys(Deno.env.toObject()));
     const stripeKey = Deno.env.get("STRIPE_PRIVATE_KEY_TEST");
+    console.log("Stripe key exists:", !!stripeKey);
     if (!stripeKey) throw new Error("STRIPE_PRIVATE_KEY_TEST is not set");
     logStep("Stripe key verified");
 
