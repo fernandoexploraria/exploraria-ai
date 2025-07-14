@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
     }
 
     const requestBody = await req.json();
-    const { action, agentId } = requestBody;
+    const { action, agentId, newName } = requestBody;
     
     // COMPREHENSIVE DEBUGGING - Force redeployment
     console.log('=== ELEVENLABS AGENTS API DEBUG v2.1 ===');
@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
             }
           );
         }
-        return await duplicateAgent(apiKey, agentId);
+        return await duplicateAgent(apiKey, agentId, newName);
       
       case 'rename_agent':
         console.log('Executing rename_agent case');
@@ -276,7 +276,7 @@ async function getAgent(apiKey: string, agentId: string) {
   }
 }
 
-async function duplicateAgent(apiKey: string, sourceAgentId: string) {
+async function duplicateAgent(apiKey: string, sourceAgentId: string, newName?: string) {
   try {
     console.log(`Starting agent duplication for agent: ${sourceAgentId}`);
     
@@ -287,7 +287,7 @@ async function duplicateAgent(apiKey: string, sourceAgentId: string) {
         'xi-api-key': apiKey,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({})
+      body: JSON.stringify(newName ? { name: newName } : {})
     });
 
     console.log(`Duplicate response status: ${duplicateResponse.status}`);

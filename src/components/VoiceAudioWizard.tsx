@@ -54,7 +54,8 @@ export const VoiceAudioWizard: React.FC<VoiceAudioWizardProps> = ({
       const { data, error } = await supabase.functions.invoke('elevenlabs-agents-api', {
         body: { 
           action: 'duplicate_agent',
-          agentId: 'agent_01jzydkppmepzbwhyvtwvbyvwf'
+          agentId: 'agent_01jzydkppmepzbwhyvtwvbyvwf',
+          newName: experienceData.destination.description
         }
       });
 
