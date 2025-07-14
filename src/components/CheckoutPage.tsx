@@ -61,7 +61,7 @@ export const CheckoutPage = () => {
   };
 
   useEffect(() => {
-    if (!clientSecret) return;
+    if (!clientSecret || !experienceData) return;
 
     const loadStripe = async () => {
       try {
@@ -84,7 +84,7 @@ export const CheckoutPage = () => {
 
     const initializeStripe = async () => {
       try {
-        // Use the test public key from Stripe dashboard
+        // Use the test public key that matches the private key in secrets
         const STRIPE_PUBLIC_KEY = 'pk_test_51QOmNQAb6xWQJT9kJYUQnKAGJwPNJNzJMDmRpZKYVOcOcCLDnOPqhCQGh1dFjHFQHjQFoOPGNyEjEocHOBLz3xhj00aKFYPWVj';
         
         if (!STRIPE_PUBLIC_KEY) {
@@ -101,16 +101,18 @@ export const CheckoutPage = () => {
         const elementsInstance = stripeInstance.elements({ clientSecret });
         setElements(elementsInstance);
 
-        // Wait for the next tick to ensure DOM is ready
-        setTimeout(() => {
+        // Wait for DOM to be ready and mount payment element
+        const mountPaymentElement = () => {
+          const elementContainer = document.getElementById('payment-element');
+          
+          if (!elementContainer) {
+            console.error('Payment element container not found, retrying...');
+            setTimeout(mountPaymentElement, 100);
+            return;
+          }
+
           try {
             const paymentElement = elementsInstance.create('payment');
-            const elementContainer = document.getElementById('payment-element');
-            
-            if (!elementContainer) {
-              throw new Error('Payment element container not found');
-            }
-
             paymentElement.mount('#payment-element');
             setIsLoading(false);
           } catch (mountError) {
@@ -118,7 +120,10 @@ export const CheckoutPage = () => {
             setError('Failed to load payment form. Please refresh and try again.');
             setIsLoading(false);
           }
-        }, 100);
+        };
+
+        // Start trying to mount after a small delay
+        setTimeout(mountPaymentElement, 200);
         
       } catch (error) {
         console.error('Error initializing Stripe:', error);
@@ -128,7 +133,7 @@ export const CheckoutPage = () => {
     };
 
     loadStripe();
-  }, [clientSecret]);
+  }, [clientSecret, experienceData]);
 
   const handlePayment = async () => {
     if (!stripe || !elements) return;
