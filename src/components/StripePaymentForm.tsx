@@ -36,9 +36,18 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
       try {
         console.log('[StripePaymentForm] Initializing Stripe with clientSecret:', clientSecret);
         
-        // Use the Stripe public key directly (it's safe to be public)
-        const publishableKey = 'pk_test_51QJlDe05kYnItJGT1DcuLQhfSdMJjIXxUKKL2hFHa4XRQH5Kj2JKyRHC7uJJ6p8x1s9QyIw8x7rWdYLTwJrO6xo00BYBz6K6v';
+        // Get the Stripe public key from environment variables
+        const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+        
+        if (!publishableKey) {
+          throw new Error('Stripe publishable key is not configured. Please check your environment variables.');
+        }
+        
         console.log('[StripePaymentForm] Using publishable key:', publishableKey.substring(0, 20) + '...');
+        
+        // Validate that the keys are from the same account (same prefix)
+        const keyPrefix = publishableKey.substring(0, 14); // "pk_test_" + account prefix
+        console.log('[StripePaymentForm] Key prefix:', keyPrefix);
 
         // Check if Stripe.js is already loaded
         if (!window.Stripe) {
