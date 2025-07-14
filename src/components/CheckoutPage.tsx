@@ -7,8 +7,8 @@ import { ArrowLeft, CreditCard, Lock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-// Load Stripe with the publishable key - using test key for now
-const stripePromise = loadStripe('pk_test_51QhNVJ06vGnCvEUqGDKaJkKlI8p6KxJQkJ8TKtT6tpwQJBV7b7WPUxBEgTvPXGNBLSEzJJJJBJL8a6RDyqPQYfFt00OOXLKMfm');
+// Load Stripe with the publishable key from environment
+const stripePromise = loadStripe(process.env.STRIPE_PUBLISHABLE_KEY || 'pk_test_your_publishable_key_here');
 
 interface CheckoutPageProps {}
 
@@ -73,6 +73,21 @@ const CheckoutPage: React.FC<CheckoutPageProps> = () => {
       throw new Error('Stripe failed to load');
     }
 
+    // Wait for the DOM element to exist
+    const checkElement = () => {
+      return new Promise<void>((resolve) => {
+        const checkInterval = setInterval(() => {
+          const element = document.getElementById('payment-element');
+          if (element) {
+            clearInterval(checkInterval);
+            resolve();
+          }
+        }, 100);
+      });
+    };
+
+    await checkElement();
+
     const elements = stripe.elements({ 
       clientSecret,
       appearance: {
@@ -98,7 +113,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!elements || !clientSecret) {
+    if (!elements || !clientSecret || !paymentElement) {
       setMessage('Payment system not ready. Please try again.');
       return;
     }
@@ -113,15 +128,21 @@ const CheckoutPage: React.FC<CheckoutPageProps> = () => {
       return;
     }
 
-    const { error } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: `${window.location.origin}/payment-success?experience=${experienceId}`,
-      },
-    });
+    try {
+      const { error } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/payment-success?experience=${experienceId}`,
+        },
+      });
 
-    if (error) {
-      setMessage(error.message || 'Payment failed. Please try again.');
+      if (error) {
+        setMessage(error.message || 'Payment failed. Please try again.');
+        setIsProcessing(false);
+      }
+    } catch (err) {
+      console.error('Payment confirmation error:', err);
+      setMessage('Payment failed. Please try again.');
       setIsProcessing(false);
     }
     // If no error, the user will be redirected to the return_url
