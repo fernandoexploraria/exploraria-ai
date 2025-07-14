@@ -159,14 +159,15 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="min-h-[200px] flex items-center justify-center">
-            {isLoading ? (
-              <div className="flex items-center space-x-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Loading payment form...</span>
+          <div className="min-h-[200px] flex items-center justify-center relative">
+            <div ref={paymentElementRef} className="w-full" />
+            {isLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/80">
+                <div className="flex items-center space-x-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Loading payment form...</span>
+                </div>
               </div>
-            ) : (
-              <div ref={paymentElementRef} className="w-full" />
             )}
           </div>
 
