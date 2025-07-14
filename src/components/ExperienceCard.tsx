@@ -60,8 +60,17 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
 
       if (error) throw error;
 
-      if (data?.url) {
-        // Open Stripe checkout in a new tab
+      if (data?.client_secret) {
+        // Redirect to a payment page with the client_secret
+        // For now, using a simple redirect approach
+        const successUrl = `${window.location.origin}/payment-success?experience=${experience.id}`;
+        const failureUrl = `${window.location.origin}/payment-failed?experience=${experience.id}`;
+        
+        // This is a simplified approach - in a full implementation, you'd want to 
+        // integrate Stripe Elements on a dedicated checkout page
+        window.location.href = `${successUrl}&payment_intent=${data.payment_intent_id}`;
+      } else if (data?.url) {
+        // Fallback to old checkout URL if available
         window.open(data.url, '_blank');
       }
     } catch (error) {
