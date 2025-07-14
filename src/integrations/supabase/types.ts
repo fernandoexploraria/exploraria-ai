@@ -164,6 +164,7 @@ export type Database = {
           id: string
           photo: Json | null
           places_api_calls: number | null
+          product_id: string | null
           success_rate: number | null
           system_prompt: string
           total_landmarks: number
@@ -189,6 +190,7 @@ export type Database = {
           id?: string
           photo?: Json | null
           places_api_calls?: number | null
+          product_id?: string | null
           success_rate?: number | null
           system_prompt: string
           total_landmarks?: number
@@ -214,6 +216,7 @@ export type Database = {
           id?: string
           photo?: Json | null
           places_api_calls?: number | null
+          product_id?: string | null
           success_rate?: number | null
           system_prompt?: string
           total_landmarks?: number

@@ -1,9 +1,11 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MapPin, Volume2 } from 'lucide-react';
+import { MapPin, Volume2, CreditCard } from 'lucide-react';
 import { Experience } from '@/hooks/useExperiences';
 import { useTTSContext } from '@/contexts/TTSContext';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 interface ExperienceCardProps {
   experience: Experience;
   onSelect?: (experience: Experience) => void;
@@ -46,6 +48,27 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
     const overviewPrompt = generateOverviewPrompt(experience.destination, experience.system_prompt);
     await speak(overviewPrompt, false, experience.id);
   };
+
+  const handlePurchaseExperience = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('create-experience-payment', {
+        body: { 
+          experienceId: experience.id,
+          price: 999 // $9.99 in cents
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        // Open Stripe checkout in a new tab
+        window.open(data.url, '_blank');
+      }
+    } catch (error) {
+      console.error('Payment error:', error);
+      toast.error('Failed to create payment session');
+    }
+  };
   return <Card className="w-[280px] h-[380px] flex-shrink-0 overflow-hidden flex flex-col">
       {photoUrl && <div className="h-[160px] w-full overflow-hidden flex-shrink-0">
           <img src={photoUrl} alt={experience.destination} className="w-full h-full object-cover" onError={e => {
@@ -67,7 +90,7 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
           </CardDescription>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {experience.system_prompt && (
             <Button
               variant="outline"
@@ -79,6 +102,15 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
               <Volume2 className={`h-3 w-3 lg:h-4 lg:w-4 ${isCurrentlyPlaying ? 'animate-pulse' : ''}`} />
             </Button>
           )}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handlePurchaseExperience}
+            className="bg-gradient-to-r from-green-400/80 to-emerald-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-center flex-shrink-0 lg:h-10 lg:text-sm lg:py-2 border-green-300 hover:from-green-300/80 hover:to-emerald-300/80"
+          >
+            <CreditCard className="h-3 w-3 lg:h-4 lg:w-4" />
+            <span className="ml-1 hidden sm:inline">$9.99</span>
+          </Button>
           {onSelect && (
             <Button 
               variant="outline" 
