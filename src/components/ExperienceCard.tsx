@@ -113,31 +113,14 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
       if (error) throw error;
 
       if (data?.client_secret) {
-        // Payment intent created successfully, now trigger tour generation
-        toast.success('Payment created! Generating your tour...');
+        console.log('✅ Payment intent created successfully for experience');
         
-        // Proceed with tour generation
-        if (!onIntelligentTourOpen) {
-          console.warn('onIntelligentTourOpen not provided to ExperienceCard');
-          toast.error('Unable to start tour generation');
-          return;
-        }
-
-        const landmark = convertExperienceToLandmark(experience);
-        if (!landmark) {
-          console.error('Failed to convert experience to landmark');
-          toast.error('Unable to process experience');
-          return;
-        }
-
-        // Store landmark as pending destination for IntelligentTourDialog
-        (window as any).pendingLandmarkDestination = landmark;
-
-        // Open intelligent tour dialog
-        onIntelligentTourOpen();
-      } else if (data?.url) {
-        // Fallback to old checkout URL if available
-        window.open(data.url, '_blank');
+        // Redirect to checkout page with payment details
+        const checkoutUrl = `/checkout?client_secret=${data.client_secret}&experience=${experience.id}`;
+        window.location.href = checkoutUrl;
+      } else {
+        console.error('No client_secret received from payment creation');
+        toast.error('Failed to create payment. Please try again.');
       }
     } catch (error) {
       console.error('Payment error:', error);

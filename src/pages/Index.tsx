@@ -73,6 +73,20 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
       });
     }
   }, [onRegisterPostAuthActions]);
+
+  // Listen for tour generation event from PaymentSuccess page
+  useEffect(() => {
+    const handleOpenIntelligentTour = () => {
+      console.log('🎯 Opening Intelligent Tour from payment success');
+      handleIntelligentTourOpen();
+    };
+
+    window.addEventListener('openIntelligentTour', handleOpenIntelligentTour);
+    
+    return () => {
+      window.removeEventListener('openIntelligentTour', handleOpenIntelligentTour);
+    };
+  }, []);
   
   // Combine static landmarks with smart tour landmarks
   const allLandmarks: Landmark[] = useMemo(() => {

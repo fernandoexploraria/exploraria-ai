@@ -1,0 +1,199 @@
+import { useEffect, useState } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, CreditCard, Loader2 } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
+import { supabase } from "@/integrations/supabase/client";
+
+declare global {
+  interface Window {
+    Stripe: any;
+  }
+}
+
+export const CheckoutPage = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [stripe, setStripe] = useState<any>(null);
+  const [elements, setElements] = useState<any>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [experienceData, setExperienceData] = useState<any>(null);
+
+  const clientSecret = searchParams.get("client_secret");
+  const experienceId = searchParams.get("experience");
+
+  useEffect(() => {
+    // Check if user is authenticated
+    if (!user) {
+      navigate("/");
+      return;
+    }
+
+    // Validate required parameters
+    if (!clientSecret || !experienceId) {
+      setError("Missing payment information. Please start the purchase process again.");
+      setIsLoading(false);
+      return;
+    }
+
+    // Fetch experience data
+    fetchExperienceData();
+  }, [user, clientSecret, experienceId]);
+
+  const fetchExperienceData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('generated_tours')
+        .select('*')
+        .eq('id', experienceId)
+        .single();
+
+      if (error) throw error;
+      setExperienceData(data);
+    } catch (error) {
+      console.error('Error fetching experience data:', error);
+      setError('Failed to load experience details');
+    }
+  };
+
+  useEffect(() => {
+    if (!clientSecret) return;
+
+    // Load Stripe.js
+    const loadStripe = async () => {
+      if (!window.Stripe) {
+        const script = document.createElement('script');
+        script.src = 'https://js.stripe.com/v3/';
+        script.onload = initializeStripe;
+        document.head.appendChild(script);
+      } else {
+        initializeStripe();
+      }
+    };
+
+    const initializeStripe = () => {
+      // This is a placeholder - you need to replace with your actual Stripe publishable key
+      const STRIPE_PUBLIC_KEY = 'pk_test_51QOmNQAb6xWQJT9kJYUQnKAGJwPNJNzJMDmRpZKYVOcOcCLDnOPqhCQGh1dFjHFQHjQFoOPGNyEjEocHOBLz3xhj00aKFYPWVj';
+      const stripeInstance = window.Stripe(STRIPE_PUBLIC_KEY);
+      setStripe(stripeInstance);
+
+      const elementsInstance = stripeInstance.elements({ clientSecret });
+      setElements(elementsInstance);
+
+      // Create and mount payment element
+      const paymentElement = elementsInstance.create('payment');
+      paymentElement.mount('#payment-element');
+      
+      setIsLoading(false);
+    };
+
+    loadStripe();
+  }, [clientSecret]);
+
+  const handlePayment = async () => {
+    if (!stripe || !elements) return;
+
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      const { error } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/payment-success?experience=${experienceId}`,
+        },
+      });
+
+      if (error) {
+        setError(error.message);
+        setIsProcessing(false);
+      }
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.');
+      setIsProcessing(false);
+    }
+  };
+
+  if (!user) {
+    return null;
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="w-full max-w-md text-center">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-destructive">Payment Error</CardTitle>
+            <CardDescription>{error}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => navigate("/")} className="w-full">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Experiences
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="text-xl font-bold flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Complete Your Purchase
+          </CardTitle>
+          {experienceData && (
+            <CardDescription>
+              Experience: {experienceData.destination}
+            </CardDescription>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <span className="ml-2">Loading payment form...</span>
+            </div>
+          ) : (
+            <>
+              <div id="payment-element" className="min-h-[200px]"></div>
+              
+              <div className="space-y-4">
+                <Button
+                  onClick={handlePayment}
+                  disabled={isProcessing || isLoading}
+                  className="w-full"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    'Complete Payment'
+                  )}
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  onClick={() => navigate("/")}
+                  className="w-full"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back to Experiences
+                </Button>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
