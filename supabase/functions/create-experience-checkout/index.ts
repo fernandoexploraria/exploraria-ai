@@ -66,10 +66,10 @@ serve(async (req) => {
       logStep("Found existing customer", { customerId });
     }
 
-    // Check for existing unpaid payment first
+    // Check for existing unpaid payment first - if found, we'll just create a new checkout
     const { data: existingPayment, error: paymentError } = await supabaseService
       .from("payments")
-      .select("stripe_payment_intent_id, stripe_customer_id")
+      .select("stripe_payment_intent_id, stripe_customer_id, tour_id")
       .eq("tour_id", experienceId)
       .eq("tourist_user_id", user.id)
       .eq("status", "requires_payment_method")
@@ -78,38 +78,12 @@ serve(async (req) => {
       .single();
 
     if (existingPayment && !paymentError) {
-      logStep("Found existing payment intent", { 
+      logStep("Found existing payment, will create checkout session", { 
         paymentIntentId: existingPayment.stripe_payment_intent_id 
       });
-
-      // Use existing payment intent to create checkout session
-      const session = await stripe.checkout.sessions.create({
-        customer: existingPayment.stripe_customer_id,
-        payment_intent_data: {
-          payment_intent: existingPayment.stripe_payment_intent_id
-        },
-        mode: "payment",
-        success_url: `${origin}/?experience_checkout=success&experience_id=${experienceId}`,
-        cancel_url: `${origin}/?experience_checkout=cancelled`,
-        metadata: {
-          experience_id: experienceId,
-          user_id: user.id,
-          payment_intent_id: existingPayment.stripe_payment_intent_id
-        }
-      });
-
-      logStep("Checkout session created with existing payment intent", { 
-        sessionId: session.id, 
-        url: session.url 
-      });
-
-      return new Response(JSON.stringify({ url: session.url }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
+    } else {
+      logStep("No existing payment found, creating new checkout session");
     }
-
-    logStep("No existing payment found, creating new checkout session");
     // Get experience details for new checkout
     const { data: experience, error: experienceError } = await supabaseService
       .from("generated_tours")
