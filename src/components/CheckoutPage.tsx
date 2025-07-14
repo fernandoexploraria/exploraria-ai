@@ -63,32 +63,68 @@ export const CheckoutPage = () => {
   useEffect(() => {
     if (!clientSecret) return;
 
-    // Load Stripe.js
     const loadStripe = async () => {
-      if (!window.Stripe) {
-        const script = document.createElement('script');
-        script.src = 'https://js.stripe.com/v3/';
-        script.onload = initializeStripe;
-        document.head.appendChild(script);
-      } else {
-        initializeStripe();
+      try {
+        // Load Stripe.js if not already loaded
+        if (!window.Stripe) {
+          const script = document.createElement('script');
+          script.src = 'https://js.stripe.com/v3/';
+          script.onload = initializeStripe;
+          script.onerror = () => setError('Failed to load Stripe. Please refresh and try again.');
+          document.head.appendChild(script);
+        } else {
+          initializeStripe();
+        }
+      } catch (error) {
+        console.error('Error loading Stripe:', error);
+        setError('Failed to initialize payment system');
+        setIsLoading(false);
       }
     };
 
-    const initializeStripe = () => {
-      // This is a placeholder - you need to replace with your actual Stripe publishable key
-      const STRIPE_PUBLIC_KEY = 'pk_test_51QOmNQAb6xWQJT9kJYUQnKAGJwPNJNzJMDmRpZKYVOcOcCLDnOPqhCQGh1dFjHFQHjQFoOPGNyEjEocHOBLz3xhj00aKFYPWVj';
-      const stripeInstance = window.Stripe(STRIPE_PUBLIC_KEY);
-      setStripe(stripeInstance);
+    const initializeStripe = async () => {
+      try {
+        // Use the test public key from Stripe dashboard
+        const STRIPE_PUBLIC_KEY = 'pk_test_51QOmNQAb6xWQJT9kJYUQnKAGJwPNJNzJMDmRpZKYVOcOcCLDnOPqhCQGh1dFjHFQHjQFoOPGNyEjEocHOBLz3xhj00aKFYPWVj';
+        
+        if (!STRIPE_PUBLIC_KEY) {
+          throw new Error('Stripe public key not configured');
+        }
 
-      const elementsInstance = stripeInstance.elements({ clientSecret });
-      setElements(elementsInstance);
+        const stripeInstance = window.Stripe(STRIPE_PUBLIC_KEY);
+        if (!stripeInstance) {
+          throw new Error('Failed to initialize Stripe');
+        }
 
-      // Create and mount payment element
-      const paymentElement = elementsInstance.create('payment');
-      paymentElement.mount('#payment-element');
-      
-      setIsLoading(false);
+        setStripe(stripeInstance);
+
+        const elementsInstance = stripeInstance.elements({ clientSecret });
+        setElements(elementsInstance);
+
+        // Wait for the next tick to ensure DOM is ready
+        setTimeout(() => {
+          try {
+            const paymentElement = elementsInstance.create('payment');
+            const elementContainer = document.getElementById('payment-element');
+            
+            if (!elementContainer) {
+              throw new Error('Payment element container not found');
+            }
+
+            paymentElement.mount('#payment-element');
+            setIsLoading(false);
+          } catch (mountError) {
+            console.error('Error mounting payment element:', mountError);
+            setError('Failed to load payment form. Please refresh and try again.');
+            setIsLoading(false);
+          }
+        }, 100);
+        
+      } catch (error) {
+        console.error('Error initializing Stripe:', error);
+        setError('Failed to initialize payment system');
+        setIsLoading(false);
+      }
     };
 
     loadStripe();
