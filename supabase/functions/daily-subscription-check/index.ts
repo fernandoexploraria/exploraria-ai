@@ -24,8 +24,8 @@ serve(async (req) => {
   try {
     logStep("Daily subscription check started");
 
-    const stripeKey = Deno.env.get("STRIPE_PRIVATE_KEY_TEST");
-    if (!stripeKey) throw new Error("STRIPE_PRIVATE_KEY_TEST is not set");
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
 
     // Use the service role key to perform writes in Supabase
     const supabaseClient = createClient(

@@ -84,7 +84,6 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
   };
 
   const handlePurchaseExperience = async () => {
-    console.log('🚀 handlePurchaseExperience called for experience:', experience.id);
     try {
       // Check authentication first
       if (!authUser) {
@@ -104,13 +103,6 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
       }
 
       // User is authenticated, create payment intent
-      console.log('📞 About to call create-experience-payment function with:', {
-        experienceId: experience.id,
-        price: 999,
-        hasAccountId: !!experience.account_id,
-        accountId: experience.account_id
-      });
-      
       const { data, error } = await supabase.functions.invoke('create-experience-payment', {
         body: { 
           experienceId: experience.id,
@@ -118,19 +110,34 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
         }
       });
 
-      console.log('📞 create-experience-payment function response:', { data, error });
-      
       if (error) throw error;
 
       if (data?.client_secret) {
-        console.log('✅ Payment intent created successfully for experience');
+        // Payment intent created successfully, now trigger tour generation
+        toast.success('Payment created! Generating your tour...');
         
-        // Redirect to checkout page with payment details
-        const checkoutUrl = `/checkout?client_secret=${data.client_secret}&experience=${experience.id}`;
-        window.location.href = checkoutUrl;
-      } else {
-        console.error('No client_secret received from payment creation');
-        toast.error('Failed to create payment. Please try again.');
+        // Proceed with tour generation
+        if (!onIntelligentTourOpen) {
+          console.warn('onIntelligentTourOpen not provided to ExperienceCard');
+          toast.error('Unable to start tour generation');
+          return;
+        }
+
+        const landmark = convertExperienceToLandmark(experience);
+        if (!landmark) {
+          console.error('Failed to convert experience to landmark');
+          toast.error('Unable to process experience');
+          return;
+        }
+
+        // Store landmark as pending destination for IntelligentTourDialog
+        (window as any).pendingLandmarkDestination = landmark;
+
+        // Open intelligent tour dialog
+        onIntelligentTourOpen();
+      } else if (data?.url) {
+        // Fallback to old checkout URL if available
+        window.open(data.url, '_blank');
       }
     } catch (error) {
       console.error('Payment error:', error);

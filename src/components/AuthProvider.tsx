@@ -74,11 +74,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
 
                     if (data?.client_secret) {
                       console.log('✅ Post-auth payment created successfully');
+                      // Store the landmark for the dialog to use
+                      (window as any).pendingLandmarkDestination = pendingLandmark;
                       clearPostAuthLandmark();
                       
-                      // Redirect to checkout page
-                      const checkoutUrl = `/checkout?client_secret=${data.client_secret}&experience=${pendingLandmark.tourId}`;
-                      window.location.href = checkoutUrl;
+                      // Trigger the tour generation
+                      if (onPostAuthAction) {
+                        onPostAuthAction(pendingAction);
+                      }
                     }
                   } catch (error) {
                     console.error('Post-auth payment error:', error);

@@ -10,7 +10,6 @@ import { PostAuthAction } from "@/utils/authActions";
 import Index from "./pages/Index";
 import CuratorPortal from "./pages/CuratorPortal";
 import ElevenLabsPlayground from "./pages/ElevenLabsPlayground";
-import { CheckoutPage } from "./components/CheckoutPage";
 import { PaymentSuccess } from "./components/PaymentSuccess";
 import { PaymentFailure } from "./components/PaymentFailure";
 import { useState } from "react";
@@ -65,10 +64,6 @@ const App = () => {
                 <Route 
                   path="/elevenlabs-playground" 
                   element={<ElevenLabsPlayground />} 
-                />
-                <Route 
-                  path="/checkout" 
-                  element={<CheckoutPage />} 
                 />
                 <Route 
                   path="/payment-success" 
