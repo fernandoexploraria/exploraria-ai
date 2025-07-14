@@ -32,6 +32,7 @@ interface TopControlsProps {
   onAuthDialogOpen?: () => void;
   onTestProximityCard?: () => void;
   showPortalAccess?: boolean;
+  onPaymentModalOpen?: (experience: any, clientSecret: string) => void;
 }
 
 const TopControls: React.FC<TopControlsProps> = ({
@@ -46,6 +47,7 @@ const TopControls: React.FC<TopControlsProps> = ({
   onAuthDialogOpen,
   onTestProximityCard,
   showPortalAccess = false,
+  onPaymentModalOpen,
 }) => {
   const { user: authUser } = useAuth();
   const isMobile = useIsMobile();
@@ -328,6 +330,7 @@ const TopControls: React.FC<TopControlsProps> = ({
         onOpenChange={setIsExperiencesDrawerOpen}
         onIntelligentTourOpen={onIntelligentTourOpen}
         onAuthDialogOpen={() => setIsAuthDialogOpen(true)}
+        onPaymentModalOpen={onPaymentModalOpen}
       />
     </>
   );

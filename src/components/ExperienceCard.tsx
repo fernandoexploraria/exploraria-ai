@@ -14,6 +14,7 @@ interface ExperienceCardProps {
   onSelect?: (experience: Experience) => void;
   onIntelligentTourOpen?: () => void;
   onAuthDialogOpen?: () => void;
+  onPaymentModalOpen?: (experience: Experience, clientSecret: string) => void;
 }
 
 // Helper function to generate overview prompt from system_prompt
@@ -28,7 +29,8 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
   experience,
   onSelect,
   onIntelligentTourOpen,
-  onAuthDialogOpen
+  onAuthDialogOpen,
+  onPaymentModalOpen
 }) => {
   const { speak, stop, isPlaying, currentPlayingId } = useTTSContext();
   const { user: authUser } = useAuth();
@@ -113,28 +115,16 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
       if (error) throw error;
 
       if (data?.client_secret) {
-        // Payment intent created successfully, now trigger tour generation
-        toast.success('Payment created! Generating your tour...');
+        // Payment intent created successfully, open payment modal
+        toast.success('Payment intent created! Complete your payment...');
         
-        // Proceed with tour generation
-        if (!onIntelligentTourOpen) {
-          console.warn('onIntelligentTourOpen not provided to ExperienceCard');
-          toast.error('Unable to start tour generation');
-          return;
+        // Open payment modal with the client secret
+        if (onPaymentModalOpen) {
+          onPaymentModalOpen(experience, data.client_secret);
+        } else {
+          console.warn('onPaymentModalOpen not provided to ExperienceCard');
+          toast.error('Unable to open payment form');
         }
-
-        const landmark = convertExperienceToLandmark(experience);
-        if (!landmark) {
-          console.error('Failed to convert experience to landmark');
-          toast.error('Unable to process experience');
-          return;
-        }
-
-        // Store landmark as pending destination for IntelligentTourDialog
-        (window as any).pendingLandmarkDestination = landmark;
-
-        // Open intelligent tour dialog
-        onIntelligentTourOpen();
       } else if (data?.url) {
         // Fallback to old checkout URL if available
         window.open(data.url, '_blank');

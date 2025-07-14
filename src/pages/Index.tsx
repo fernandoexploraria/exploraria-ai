@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import SplashScreen from '@/components/SplashScreen';
 import MainLayout from '@/components/MainLayout';
 import DebugWindow from '@/components/DebugWindow';
+import { PaymentModal } from '@/components/PaymentModal';
 import { landmarks as staticLandmarks, Landmark } from '@/data/landmarks';
 import { useAuth } from '@/components/AuthProvider';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
@@ -11,6 +12,7 @@ import { useDialogStates } from '@/hooks/useDialogStates';
 import { useProximityNotifications } from '@/hooks/useProximityNotifications';
 import { useDebugWindow } from '@/hooks/useDebugWindow';
 import { useConnectionMonitor } from '@/hooks/useConnectionMonitor';
+import { usePaymentFlow } from '@/hooks/usePaymentFlow';
 import { performComprehensiveTourReset } from '@/utils/tourResetUtils';
 import { useToast } from '@/hooks/use-toast';
 
@@ -55,6 +57,40 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
     setIsIntelligentTourOpen,
     resetAllDialogStates,
   } = useDialogStates();
+
+  // Enhanced handler for Intelligent Tour with comprehensive reset
+  const handleIntelligentTourOpen = useCallback(() => {
+    console.log('🎯 Opening Intelligent Tour dialog - performing comprehensive reset');
+    
+    // Perform comprehensive reset before opening dialog
+    performComprehensiveTourReset(
+      {
+        setIsIntelligentTourOpen,
+        setIsNewTourAssistantOpen,
+        setIsInteractionHistoryOpen,
+        setSelectedLandmark,
+      },
+      {
+        setSmartTourLandmarks,
+        setVoiceTourData,
+      }
+    );
+    
+    // Wait for cleanup to complete before opening dialog
+    setTimeout(() => {
+      setIsIntelligentTourOpen(true);
+    }, 200);
+  }, [setIsIntelligentTourOpen, setIsNewTourAssistantOpen, setIsInteractionHistoryOpen, setSelectedLandmark, setSmartTourLandmarks, setVoiceTourData]);
+
+  // Initialize payment flow
+  const {
+    isPaymentModalOpen,
+    currentExperience,
+    clientSecret,
+    openPaymentModal,
+    closePaymentModal,
+    handlePaymentSuccess
+  } = usePaymentFlow(handleIntelligentTourOpen);
 
   // Initialize proximity notifications
   useProximityNotifications();
@@ -183,29 +219,6 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
     setIsIntelligentTourOpen(false);
   };
 
-  // Enhanced handler for Intelligent Tour with comprehensive reset
-  const handleIntelligentTourOpen = () => {
-    console.log('🎯 Opening Intelligent Tour dialog - performing comprehensive reset');
-    
-    // Perform comprehensive reset before opening dialog
-    performComprehensiveTourReset(
-      {
-        setIsIntelligentTourOpen,
-        setIsNewTourAssistantOpen,
-        setIsInteractionHistoryOpen,
-        setSelectedLandmark,
-      },
-      {
-        setSmartTourLandmarks,
-        setVoiceTourData,
-      }
-    );
-    
-    // Wait for cleanup to complete before opening dialog
-    setTimeout(() => {
-      setIsIntelligentTourOpen(true);
-    }, 200);
-  };
 
   // Handler for auth required from IntelligentTourDialog
   const handleIntelligentTourAuthRequired = () => {
@@ -285,6 +298,14 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
         onTourReadyForVoice={handleTourReadyForVoice}
         voiceTourData={voiceTourData}
         tourKey={tourKey}
+        onPaymentModalOpen={openPaymentModal}
+      />
+      <PaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={closePaymentModal}
+        experience={currentExperience}
+        clientSecret={clientSecret}
+        onPaymentSuccess={handlePaymentSuccess}
       />
       <DebugWindow 
         isVisible={isDebugVisible}
