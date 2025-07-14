@@ -84,6 +84,7 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
   };
 
   const handlePurchaseExperience = async () => {
+    console.log('🚀 handlePurchaseExperience called for experience:', experience.id);
     try {
       // Check authentication first
       if (!authUser) {
@@ -103,6 +104,13 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
       }
 
       // User is authenticated, create payment intent
+      console.log('📞 About to call create-experience-payment function with:', {
+        experienceId: experience.id,
+        price: 999,
+        hasAccountId: !!experience.account_id,
+        accountId: experience.account_id
+      });
+      
       const { data, error } = await supabase.functions.invoke('create-experience-payment', {
         body: { 
           experienceId: experience.id,
@@ -110,6 +118,8 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
         }
       });
 
+      console.log('📞 create-experience-payment function response:', { data, error });
+      
       if (error) throw error;
 
       if (data?.client_secret) {
