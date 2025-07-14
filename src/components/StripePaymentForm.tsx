@@ -34,14 +34,15 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
   useEffect(() => {
     const initializeStripe = async () => {
       try {
+        console.log('[StripePaymentForm] Initializing Stripe with clientSecret:', clientSecret);
+        
         // Use the Stripe public key directly (it's safe to be public)
         const publishableKey = 'pk_test_51QJlDe05kYnItJGT1DcuLQhfSdMJjIXxUKKL2hFHa4XRQH5Kj2JKyRHC7uJJ6p8x1s9QyIw8x7rWdYLTwJrO6xo00BYBz6K6v';
-        if (!publishableKey) {
-          throw new Error('Stripe publishable key not configured.');
-        }
+        console.log('[StripePaymentForm] Using publishable key:', publishableKey.substring(0, 20) + '...');
 
         // Check if Stripe.js is already loaded
         if (!window.Stripe) {
+          console.log('[StripePaymentForm] Loading Stripe.js script...');
           // Load Stripe.js dynamically
           const script = document.createElement('script');
           script.src = 'https://js.stripe.com/v3/';
@@ -49,39 +50,61 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
           document.head.appendChild(script);
           
           await new Promise((resolve, reject) => {
-            script.onload = resolve;
-            script.onerror = reject;
+            script.onload = () => {
+              console.log('[StripePaymentForm] Stripe.js loaded successfully');
+              resolve(true);
+            };
+            script.onerror = () => {
+              console.error('[StripePaymentForm] Failed to load Stripe.js');
+              reject(new Error('Failed to load Stripe.js'));
+            };
           });
+        } else {
+          console.log('[StripePaymentForm] Stripe.js already loaded');
         }
 
         // Initialize Stripe with publishable key
+        console.log('[StripePaymentForm] Initializing Stripe instance...');
         const stripeInstance = window.Stripe(publishableKey);
         setStripe(stripeInstance);
+        console.log('[StripePaymentForm] Stripe instance created');
 
         // Initialize Elements with client secret
+        console.log('[StripePaymentForm] Creating Elements instance...');
         const elementsInstance = stripeInstance.elements({ clientSecret });
         setElements(elementsInstance);
+        console.log('[StripePaymentForm] Elements instance created');
 
         // Wait for the DOM element to be ready
         if (paymentElementRef.current) {
+          console.log('[StripePaymentForm] DOM element found, creating payment element...');
           // Create and mount Payment Element
           const paymentElement = elementsInstance.create('payment');
+          console.log('[StripePaymentForm] Payment element created, mounting...');
           paymentElement.mount(paymentElementRef.current);
+          console.log('[StripePaymentForm] Payment element mounted successfully');
 
           setIsLoading(false);
           setErrorMessage('');
         } else {
+          console.error('[StripePaymentForm] Payment element container not found');
           throw new Error('Payment element container not found');
         }
       } catch (error) {
-        console.error('Error initializing Stripe:', error);
+        console.error('[StripePaymentForm] Error initializing Stripe:', error);
         setErrorMessage(error instanceof Error ? error.message : 'Failed to load payment form. Please try again.');
         setIsLoading(false);
       }
     };
 
     if (clientSecret && paymentElementRef.current) {
+      console.log('[StripePaymentForm] Starting initialization with clientSecret and DOM element ready');
       initializeStripe();
+    } else {
+      console.log('[StripePaymentForm] Waiting for clientSecret or DOM element', { 
+        clientSecret: !!clientSecret, 
+        domElement: !!paymentElementRef.current 
+      });
     }
   }, [clientSecret]);
 
