@@ -147,7 +147,6 @@ export type Database = {
       }
       generated_tours: {
         Row: {
-          account_id: string | null
           agentid: string | null
           coordinate_quality_high: number | null
           coordinate_quality_low: number | null
@@ -165,7 +164,6 @@ export type Database = {
           id: string
           photo: Json | null
           places_api_calls: number | null
-          product_id: string | null
           success_rate: number | null
           system_prompt: string
           total_landmarks: number
@@ -174,7 +172,6 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          account_id?: string | null
           agentid?: string | null
           coordinate_quality_high?: number | null
           coordinate_quality_low?: number | null
@@ -192,7 +189,6 @@ export type Database = {
           id?: string
           photo?: Json | null
           places_api_calls?: number | null
-          product_id?: string | null
           success_rate?: number | null
           system_prompt: string
           total_landmarks?: number
@@ -201,7 +197,6 @@ export type Database = {
           user_id: string
         }
         Update: {
-          account_id?: string | null
           agentid?: string | null
           coordinate_quality_high?: number | null
           coordinate_quality_low?: number | null
@@ -219,7 +214,6 @@ export type Database = {
           id?: string
           photo?: Json | null
           places_api_calls?: number | null
-          product_id?: string | null
           success_rate?: number | null
           system_prompt?: string
           total_landmarks?: number
@@ -357,71 +351,6 @@ export type Database = {
           user_satisfaction_status?: string | null
         }
         Relationships: []
-      }
-      payments: {
-        Row: {
-          amount: number
-          created_at: string
-          currency: string
-          id: string
-          metadata: Json | null
-          platform_fee_amount: number
-          status: string
-          stripe_charge_id: string | null
-          stripe_customer_id: string | null
-          stripe_payment_intent_id: string
-          stripe_transfer_id: string | null
-          tour_guide_id: string
-          tour_guide_payout_amount: number
-          tour_id: string
-          tourist_user_id: string | null
-          updated_at: string
-        }
-        Insert: {
-          amount: number
-          created_at?: string
-          currency?: string
-          id?: string
-          metadata?: Json | null
-          platform_fee_amount: number
-          status?: string
-          stripe_charge_id?: string | null
-          stripe_customer_id?: string | null
-          stripe_payment_intent_id: string
-          stripe_transfer_id?: string | null
-          tour_guide_id: string
-          tour_guide_payout_amount: number
-          tour_id: string
-          tourist_user_id?: string | null
-          updated_at?: string
-        }
-        Update: {
-          amount?: number
-          created_at?: string
-          currency?: string
-          id?: string
-          metadata?: Json | null
-          platform_fee_amount?: number
-          status?: string
-          stripe_charge_id?: string | null
-          stripe_customer_id?: string | null
-          stripe_payment_intent_id?: string
-          stripe_transfer_id?: string | null
-          tour_guide_id?: string
-          tour_guide_payout_amount?: number
-          tour_id?: string
-          tourist_user_id?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payments_tour_id_fkey"
-            columns: ["tour_id"]
-            isOneToOne: false
-            referencedRelation: "generated_tours"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       proximity_alerts: {
         Row: {
