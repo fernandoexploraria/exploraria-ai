@@ -6,9 +6,14 @@ import { Experience } from '@/hooks/useExperiences';
 import { useTTSContext } from '@/contexts/TTSContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useAuth } from '@/components/AuthProvider';
+import { setPostAuthAction, setPostAuthLandmark } from '@/utils/authActions';
+
 interface ExperienceCardProps {
   experience: Experience;
   onSelect?: (experience: Experience) => void;
+  onIntelligentTourOpen?: () => void;
+  onAuthDialogOpen?: () => void;
 }
 
 // Helper function to generate overview prompt from system_prompt
@@ -21,9 +26,12 @@ Please create a compelling overview that captures the essence of this experience
 };
 const ExperienceCard: React.FC<ExperienceCardProps> = ({
   experience,
-  onSelect
+  onSelect,
+  onIntelligentTourOpen,
+  onAuthDialogOpen
 }) => {
   const { speak, stop, isPlaying, currentPlayingId } = useTTSContext();
+  const { user: authUser } = useAuth();
   const isCurrentlyPlaying = isPlaying && currentPlayingId === experience.id;
   const getPhotoUrl = (photo: any): string | null => {
     if (!photo) return null;
@@ -49,8 +57,35 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
     await speak(overviewPrompt, false, experience.id);
   };
 
+  const convertExperienceToLandmark = (experience: Experience) => {
+    const details = experience.destination_details;
+    if (!details) {
+      console.error('Experience missing destination_details:', experience);
+      return {
+        id: experience.id,
+        name: experience.destination,
+        description: experience.description,
+        coordinates: [0, 0], // Will be updated later
+        experience: true
+      };
+    }
+    return {
+      id: experience.id,
+      name: details.name || experience.destination,
+      description: details.editorialSummary || experience.description,
+      coordinates: [details.location.longitude, details.location.latitude],
+      placeId: details.placeId,
+      formattedAddress: details.address,
+      types: details.types || details.destination_types || ['tourist_attraction'],
+      rating: details.rating,
+      tourId: experience.id,
+      experience: true
+    };
+  };
+
   const handlePurchaseExperience = async () => {
     try {
+      // First, create the payment intent
       const { data, error } = await supabase.functions.invoke('create-experience-payment', {
         body: { 
           experienceId: experience.id,
@@ -61,14 +96,45 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
       if (error) throw error;
 
       if (data?.client_secret) {
-        // Redirect to a payment page with the client_secret
-        // For now, using a simple redirect approach
-        const successUrl = `${window.location.origin}/payment-success?experience=${experience.id}`;
-        const failureUrl = `${window.location.origin}/payment-failed?experience=${experience.id}`;
+        // Payment intent created successfully, now trigger tour generation
+        toast.success('Payment created! Generating your tour...');
         
-        // This is a simplified approach - in a full implementation, you'd want to 
-        // integrate Stripe Elements on a dedicated checkout page
-        window.location.href = `${successUrl}&payment_intent=${data.payment_intent_id}`;
+        // Check if user is authenticated
+        if (!authUser) {
+          console.log('🚨 User not authenticated, setting up post-auth flow for experience');
+          
+          const landmark = convertExperienceToLandmark(experience);
+          
+          // Persist the experience and set post-auth action
+          setPostAuthLandmark(landmark);
+          setPostAuthAction('smart-tour');
+          
+          // Open auth dialog
+          if (onAuthDialogOpen) {
+            onAuthDialogOpen();
+          }
+          return;
+        }
+
+        // User is authenticated, proceed with tour generation
+        if (!onIntelligentTourOpen) {
+          console.warn('onIntelligentTourOpen not provided to ExperienceCard');
+          toast.error('Unable to start tour generation');
+          return;
+        }
+
+        const landmark = convertExperienceToLandmark(experience);
+        if (!landmark) {
+          console.error('Failed to convert experience to landmark');
+          toast.error('Unable to process experience');
+          return;
+        }
+
+        // Store landmark as pending destination for IntelligentTourDialog
+        (window as any).pendingLandmarkDestination = landmark;
+
+        // Open intelligent tour dialog
+        onIntelligentTourOpen();
       } else if (data?.url) {
         // Fallback to old checkout URL if available
         window.open(data.url, '_blank');
