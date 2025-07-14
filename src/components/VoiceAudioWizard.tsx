@@ -108,6 +108,11 @@ export const VoiceAudioWizard: React.FC<VoiceAudioWizardProps> = ({
 
       if (data.success) {
         console.log('Agent renamed successfully to:', data.name);
+        // Update the experience data to use the destination name for the agent
+        setExperienceData(prev => ({ 
+          ...prev, 
+          agentName: experienceData.destination.description 
+        }));
         // Stay on step 1 - let user manually proceed by clicking Accept
         // DO NOT auto-advance to step 2
       }
