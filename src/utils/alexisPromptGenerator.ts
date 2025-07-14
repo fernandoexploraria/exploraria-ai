@@ -39,7 +39,8 @@ interface LandmarkHighlight {
 export function generateAlexisPrompt(
   destination: Destination, 
   landmarks: Landmark[], 
-  landmarkHighlights?: LandmarkHighlight[]
+  landmarkHighlights?: LandmarkHighlight[],
+  agentName: string = 'Alexis'
 ): string {
   // If landmarkHighlights are not provided, generate them from landmarks
   const highlights = landmarkHighlights || landmarks.map((landmark, idx) => ({
@@ -48,7 +49,7 @@ export function generateAlexisPrompt(
     highlight: `A notable ${landmark.types[0] || 'location'} worth exploring during your visit.`
   }));
 
-  return `You are Alexis, an **enthusiastic and incredibly knowledgeable expert tour guide**. Your current focus is leading a delightful walking tour of **${destination.name}** and its immediate surroundings.
+  return `You are ${agentName}, an **enthusiastic and incredibly knowledgeable expert tour guide**. Your current focus is leading a delightful walking tour of **${destination.name}** and its immediate surroundings.
 
 **Your Core Mission:**
 1. **Engage and Inform:** Provide captivating facts, rich historical context, local anecdotes, practical tips.

@@ -150,7 +150,7 @@ export const ExperienceCreationWizard: React.FC<ExperienceCreationWizardProps> =
       coordinates: landmark.coordinates
     }));
 
-    return generateAlexisPrompt(destination, landmarks);
+    return generateAlexisPrompt(destination, landmarks, undefined, experienceData.agentName || 'Alexis');
   };
 
   // Auto-generate prompt when moving to prompt step
@@ -746,19 +746,57 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                   </div>
                 )}
 
-                 {currentStep === 2 && (
-                   <div className="space-y-4">
-                      <PromptSectionViewer 
-                        prompt={experienceData.systemPrompt} 
-                        onAiRefine={() => setIsAiChatOpen(true)}
-                        onSection2Refine={() => setIsSection2ChatOpen(true)}
-                      />
-                     
-                     <p className="text-xs text-muted-foreground mt-4">
-                       This prompt defines how Alexis, your AI tour guide, will interact with users. It includes your destination details, landmark information, and function calling capabilities.
-                     </p>
-                   </div>
-                 )}
+                  {currentStep === 2 && (
+                    <div className="space-y-6">
+                      {/* Agent Name Input - First thing in Step 3 */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center space-x-2">
+                            <Bot className="h-5 w-5" />
+                            <span>Agent Name</span>
+                          </CardTitle>
+                          <CardDescription>
+                            Give your AI tour guide a name that visitors will recognize
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block text-sm font-medium mb-2">Agent Name</label>
+                              <Input
+                                placeholder="e.g., Sofia, Marco, Alex..."
+                                value={experienceData.agentName || ''}
+                                onChange={(e) => {
+                                  const newName = e.target.value;
+                                  setExperienceData(prev => ({ ...prev, agentName: newName }));
+                                  // Regenerate system prompt with new name
+                                  if (experienceData.destination && newName.trim()) {
+                                    const generatedPrompt = generateSystemPrompt();
+                                    setExperienceData(current => ({ ...current, systemPrompt: generatedPrompt }));
+                                  }
+                                }}
+                              />
+                              <p className="text-xs text-muted-foreground mt-2">
+                                This name will be used throughout the system prompt and first message
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <div className="space-y-4">
+                       <PromptSectionViewer 
+                         prompt={experienceData.systemPrompt} 
+                         onAiRefine={() => setIsAiChatOpen(true)}
+                         onSection2Refine={() => setIsSection2ChatOpen(true)}
+                       />
+                      
+                      <p className="text-xs text-muted-foreground mt-4">
+                        This prompt defines how {experienceData.agentName || 'your AI tour guide'} will interact with users. It includes your destination details, landmark information, and function calling capabilities.
+                      </p>
+                      </div>
+                    </div>
+                  )}
 
                 {currentStep === 3 && (
                   <VoiceAudioWizard 

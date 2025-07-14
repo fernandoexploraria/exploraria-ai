@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bot, Copy, Edit, Mic, Play, ArrowRight, Check, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,7 @@ interface VoiceAudioWizardProps {
 
 const SUB_STEPS = [
   { id: 'create-agent', title: 'Create Agent', description: 'Duplicate master agent for your experience' },
-  { id: 'set-name', title: 'Set Agent Name', description: 'Provide a name for your AI guide' },
+  { id: 'set-message', title: 'Set First Message', description: 'Configure the agent\'s greeting message' },
   { id: 'select-voice', title: 'Select Voice', description: 'Choose the voice for your agent' },
 ];
 
@@ -39,6 +39,13 @@ export const VoiceAudioWizard: React.FC<VoiceAudioWizardProps> = ({
   const [loading, setLoading] = useState(false);
   const [voiceSelectorOpen, setVoiceSelectorOpen] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState<Voice | null>(null);
+
+  // Auto-trigger first message update when agent is created and we have a name
+  useEffect(() => {
+    if (experienceData.agentId && experienceData.agentName?.trim() && currentSubStep === 1) {
+      updateFirstMessage();
+    }
+  }, [experienceData.agentId, experienceData.agentName, currentSubStep]);
 
   // Step 1: Create Agent (Duplicate agent_01jzydkppmepzbwhyvtwvbyvwf)
   const createAgent = async () => {
@@ -60,10 +67,14 @@ export const VoiceAudioWizard: React.FC<VoiceAudioWizardProps> = ({
           description: `Successfully duplicated agent with ID: ${data.agent_id}`,
         });
         
-        // Auto-advance to next step and trigger automatic rename
+        // Auto-advance to next step and trigger automatic message setup
         setTimeout(async () => {
           setCurrentSubStep(1);
           await autoRenameAgent(data.agent_id);
+          // Auto-trigger first message update
+          if (experienceData.agentName?.trim()) {
+            await updateFirstMessage();
+          }
         }, 500);
       } else {
         throw new Error(data.error || 'Failed to create agent');
@@ -106,7 +117,7 @@ export const VoiceAudioWizard: React.FC<VoiceAudioWizardProps> = ({
     }
   };
 
-  // Step 3: Set First Message
+  // Step 3: Set First Message (Automated from VoiceAudioWizard when agent is created)
   const updateFirstMessage = async () => {
     if (!experienceData.agentId || !experienceData.agentName?.trim()) {
       return;
@@ -127,22 +138,14 @@ export const VoiceAudioWizard: React.FC<VoiceAudioWizardProps> = ({
       if (error) throw error;
 
       if (data.success) {
-        toast({
-          title: "First Message Set",
-          description: `Updated first message for ${experienceData.agentName}`,
-        });
-        // Don't auto-advance, let user manually proceed to voice selection
-        setCurrentSubStep(2);
+        console.log('First message updated automatically');
+        // Auto-advance to voice selection after a brief delay
+        setTimeout(() => setCurrentSubStep(2), 1000);
       } else {
         throw new Error(data.error || 'Failed to update first message');
       }
     } catch (error) {
       console.error('Error updating first message:', error);
-      toast({
-        title: "Update Failed",
-        description: "Could not set the agent's first message",
-        variant: "destructive"
-      });
     } finally {
       setLoading(false);
     }
@@ -196,7 +199,7 @@ export const VoiceAudioWizard: React.FC<VoiceAudioWizardProps> = ({
   const isStepComplete = (stepIndex: number): boolean => {
     switch (stepIndex) {
       case 0: return !!experienceData.agentId;
-      case 1: return !!experienceData.agentName?.trim();
+      case 1: return !!experienceData.agentName?.trim(); // Still check for agent name from Step 3
       case 2: return !!selectedVoice || !!experienceData.voiceId;
       default: return false;
     }
@@ -299,49 +302,50 @@ export const VoiceAudioWizard: React.FC<VoiceAudioWizardProps> = ({
           </Card>
         )}
 
-        {/* Step 1: Set Agent Name */}
+        {/* Step 1: Set First Message (Automated) */}
         {currentSubStep === 1 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Edit className="h-5 w-5" />
-                <span>Agent Name</span>
+                <span>Set First Message</span>
               </CardTitle>
               <CardDescription>
-                Give your AI tour guide a name that visitors will recognize
+                Configuring your agent's greeting message with the name from Step 3
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Agent Name</label>
-                  <Input
-                    placeholder="e.g., Sofia, Marco, Alex..."
-                    value={experienceData.agentName || ''}
-                    onChange={(e) => setExperienceData(prev => ({ ...prev, agentName: e.target.value }))}
-                  />
-                  <p className="text-xs text-muted-foreground mt-2">
-                    This name will be used in the first message: "Hey there, I'm [Name], your tour guide."
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="text-sm font-medium mb-2">First Message Preview</p>
+                  <p className="text-sm text-muted-foreground">
+                    "Hey there, I'm {experienceData.agentName || '[Agent Name]'}, your tour guide."
                   </p>
                 </div>
-
-                <Button 
-                  onClick={updateFirstMessage}
-                  disabled={loading || !experienceData.agentName?.trim()}
-                  className="w-full"
-                >
+                
+                <div className="flex items-center justify-center space-x-2 py-4">
                   {loading ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Setting First Message...
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      <span className="text-sm text-muted-foreground">Setting up first message...</span>
                     </>
                   ) : (
                     <>
-                      <Check className="mr-2 h-4 w-4" />
-                      Accept
+                      <Check className="h-4 w-4 text-primary" />
+                      <span className="text-sm text-primary font-medium">First message configured</span>
                     </>
                   )}
-                </Button>
+                </div>
+
+                {!loading && (
+                  <Button 
+                    onClick={() => setCurrentSubStep(2)}
+                    className="w-full"
+                  >
+                    Continue to Voice Selection
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
