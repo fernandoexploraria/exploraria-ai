@@ -43,7 +43,6 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
         // Check if Stripe.js is already loaded
         if (!window.Stripe) {
           console.log('[StripePaymentForm] Loading Stripe.js script...');
-          // Load Stripe.js dynamically
           const script = document.createElement('script');
           script.src = 'https://js.stripe.com/v3/';
           script.async = true;
@@ -75,21 +74,15 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
         setElements(elementsInstance);
         console.log('[StripePaymentForm] Elements instance created');
 
-        // Wait for the DOM element to be ready
-        if (paymentElementRef.current) {
-          console.log('[StripePaymentForm] DOM element found, creating payment element...');
-          // Create and mount Payment Element
-          const paymentElement = elementsInstance.create('payment');
-          console.log('[StripePaymentForm] Payment element created, mounting...');
-          paymentElement.mount(paymentElementRef.current);
-          console.log('[StripePaymentForm] Payment element mounted successfully');
+        // Create and mount Payment Element
+        console.log('[StripePaymentForm] Creating payment element...');
+        const paymentElement = elementsInstance.create('payment');
+        console.log('[StripePaymentForm] Payment element created, mounting...');
+        paymentElement.mount(paymentElementRef.current);
+        console.log('[StripePaymentForm] Payment element mounted successfully');
 
-          setIsLoading(false);
-          setErrorMessage('');
-        } else {
-          console.error('[StripePaymentForm] Payment element container not found');
-          throw new Error('Payment element container not found');
-        }
+        setIsLoading(false);
+        setErrorMessage('');
       } catch (error) {
         console.error('[StripePaymentForm] Error initializing Stripe:', error);
         setErrorMessage(error instanceof Error ? error.message : 'Failed to load payment form. Please try again.');
@@ -97,14 +90,21 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
       }
     };
 
-    if (clientSecret && paymentElementRef.current) {
-      console.log('[StripePaymentForm] Starting initialization with clientSecret and DOM element ready');
-      initializeStripe();
+    if (clientSecret) {
+      console.log('[StripePaymentForm] clientSecret available, checking DOM element...');
+      // Wait a bit for the DOM element to be ready
+      const checkElement = () => {
+        if (paymentElementRef.current) {
+          console.log('[StripePaymentForm] DOM element found, starting initialization');
+          initializeStripe();
+        } else {
+          console.log('[StripePaymentForm] DOM element not ready, retrying in 100ms...');
+          setTimeout(checkElement, 100);
+        }
+      };
+      checkElement();
     } else {
-      console.log('[StripePaymentForm] Waiting for clientSecret or DOM element', { 
-        clientSecret: !!clientSecret, 
-        domElement: !!paymentElementRef.current 
-      });
+      console.log('[StripePaymentForm] Waiting for clientSecret...');
     }
   }, [clientSecret]);
 
