@@ -35,9 +35,9 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
     const initializeStripe = async () => {
       try {
         // Get Stripe publishable key from environment
-        const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_TEST;
+        const publishableKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY_TEST;
         if (!publishableKey) {
-          throw new Error('Stripe publishable key not configured. Please add VITE_STRIPE_PUBLISHABLE_KEY_TEST to your environment variables.');
+          throw new Error('Stripe publishable key not configured. Please add VITE_STRIPE_PUBLIC_KEY_TEST to your environment variables.');
         }
 
         // Check if Stripe.js is already loaded
