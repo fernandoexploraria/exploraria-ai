@@ -1080,29 +1080,33 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
 
                     <Separator />
 
-                    <div className="space-y-4">
-                      <h4 className="font-medium">Experience Summary</h4>
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Destination:</span>
-                          <p className="font-medium">{experienceData.destination?.description}</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Landmarks:</span>
-                          <p className="font-medium">{experienceData.landmarks.length} selected</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Voice:</span>
-                          <p className="font-medium">
-                            {ELEVENLABS_VOICES.find(v => v.id === experienceData.voiceId)?.name}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">System Prompt:</span>
-                          <p className="font-medium">{experienceData.systemPrompt.length} characters</p>
-                        </div>
-                      </div>
-                    </div>
+                     <div className="space-y-4">
+                       <h4 className="font-medium">Experience Summary</h4>
+                       <div className="grid grid-cols-2 gap-4 text-sm">
+                         <div>
+                           <span className="text-muted-foreground">Destination:</span>
+                           <p className="font-medium">{experienceData.destination?.description}</p>
+                         </div>
+                         <div>
+                           <span className="text-muted-foreground">Landmarks:</span>
+                           <p className="font-medium">{experienceData.landmarks.length} selected</p>
+                         </div>
+                         <div>
+                           <span className="text-muted-foreground">Voice:</span>
+                           <p className="font-medium">
+                             {ELEVENLABS_VOICES.find(v => v.id === experienceData.voiceId)?.name}
+                           </p>
+                         </div>
+                         <div>
+                           <span className="text-muted-foreground">Knowledge Bases:</span>
+                           <p className="font-medium">{uploadedKnowledgeBases.length} associated</p>
+                         </div>
+                         <div>
+                           <span className="text-muted-foreground">System Prompt:</span>
+                           <p className="font-medium">{experienceData.systemPrompt.length} characters</p>
+                         </div>
+                       </div>
+                     </div>
                   </div>
                 )}
               </CardContent>
