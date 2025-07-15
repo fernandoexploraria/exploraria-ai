@@ -151,6 +151,7 @@ serve(async (req) => {
         internal_tour_guide_id: experience.user_id,
         internal_tourist_id: tourist.id,
         stripe_product_id: productId,
+        tour_destination: experience.destination,
       },
     });
 
