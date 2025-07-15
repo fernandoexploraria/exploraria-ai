@@ -119,7 +119,7 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({
               <EmbeddedPaymentForm
                 onSuccess={handlePaymentSuccess}
                 onError={handlePaymentError}
-                amount={4999} // $49.99 in cents
+                amount={999} // $9.99 in cents
                 experienceTitle={experience.destination}
               />
             </Elements>

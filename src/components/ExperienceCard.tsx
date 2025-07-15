@@ -113,7 +113,7 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
       const { data, error } = await supabase.functions.invoke('create-experience-payment', {
         body: { 
           experienceId: experience.id,
-          price: 4999 // $49.99 in cents
+          price: 999 // $9.99 in cents
         }
       });
 
