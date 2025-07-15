@@ -165,6 +165,45 @@ serve(async (req) => {
         break;
       }
 
+      case "charge.succeeded": {
+        logStep("Processing charge.succeeded");
+        const charge = event.data.object as Stripe.Charge;
+        
+        // Get PaymentIntent ID from charge to find the payment record
+        const paymentIntentId = typeof charge.payment_intent === 'string' 
+          ? charge.payment_intent 
+          : charge.payment_intent?.id;
+        
+        // Extract IDs directly from the charge object
+        const stripeChargeId = charge.id;
+        const stripeTransferId = charge.transfer?.id || charge.transfers?.data?.[0]?.id;
+        
+        logStep("Extracted IDs from charge.succeeded", { 
+          paymentIntentId, 
+          stripeChargeId, 
+          stripeTransferId 
+        });
+        
+        // Update only the IDs (don't change status as it's already set by payment_intent.succeeded)
+        if (paymentIntentId) {
+          const { error } = await supabaseClient
+            .from("payments")
+            .update({
+              stripe_charge_id: stripeChargeId,
+              stripe_transfer_id: stripeTransferId,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("stripe_payment_intent_id", paymentIntentId);
+          
+          if (!error) {
+            logStep("Charge and Transfer IDs updated", { paymentIntentId, stripeChargeId, stripeTransferId });
+          } else {
+            logStep("ERROR: Failed to update charge and transfer IDs", { error });
+          }
+        }
+        break;
+      }
+
       case "payment_intent.payment_failed": {
         logStep("Processing payment_intent.payment_failed");
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
