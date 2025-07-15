@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/components/AuthProvider";
 import { TTSProvider } from "@/contexts/TTSContext";
+import { StripeProvider } from "@/contexts/StripeProvider";
 import { PostAuthAction } from "@/utils/authActions";
 import Index from "./pages/Index";
 import CuratorPortal from "./pages/CuratorPortal";
@@ -42,41 +43,43 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <TTSProvider isVoiceAgentActive={isVoiceAgentActive}>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AuthProvider onPostAuthAction={handlePostAuthAction}>
-              <Routes>
-                <Route 
-                  path="/" 
-                  element={
-                    <Index 
-                      onRegisterPostAuthActions={setPostAuthActions}
-                      onVoiceAgentStateChange={setIsVoiceAgentActive}
-                    />
-                  }
-                />
-                <Route 
-                  path="/curator-portal" 
-                  element={<CuratorPortal />} 
-                />
-                <Route 
-                  path="/elevenlabs-playground" 
-                  element={<ElevenLabsPlayground />} 
-                />
-                <Route 
-                  path="/payment-success" 
-                  element={<PaymentSuccess />} 
-                />
-                <Route 
-                  path="/payment-failed" 
-                  element={<PaymentFailure />} 
-                />
-              </Routes>
-            </AuthProvider>
-          </BrowserRouter>
-        </TTSProvider>
+        <StripeProvider>
+          <TTSProvider isVoiceAgentActive={isVoiceAgentActive}>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AuthProvider onPostAuthAction={handlePostAuthAction}>
+                <Routes>
+                  <Route 
+                    path="/" 
+                    element={
+                      <Index 
+                        onRegisterPostAuthActions={setPostAuthActions}
+                        onVoiceAgentStateChange={setIsVoiceAgentActive}
+                      />
+                    }
+                  />
+                  <Route 
+                    path="/curator-portal" 
+                    element={<CuratorPortal />} 
+                  />
+                  <Route 
+                    path="/elevenlabs-playground" 
+                    element={<ElevenLabsPlayground />} 
+                  />
+                  <Route 
+                    path="/payment-success" 
+                    element={<PaymentSuccess />} 
+                  />
+                  <Route 
+                    path="/payment-failed" 
+                    element={<PaymentFailure />} 
+                  />
+                </Routes>
+              </AuthProvider>
+            </BrowserRouter>
+          </TTSProvider>
+        </StripeProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MapPin, Volume2, CreditCard } from 'lucide-react';
@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/components/AuthProvider';
 import { setPostAuthAction, setPostAuthLandmark } from '@/utils/authActions';
+import { PaymentDialog } from '@/components/payment/PaymentDialog';
 
 interface ExperienceCardProps {
   experience: Experience;
@@ -24,6 +25,7 @@ ${systemPrompt}
 
 Please create a compelling overview that captures the essence of this experience.`;
 };
+
 const ExperienceCard: React.FC<ExperienceCardProps> = ({
   experience,
   onSelect,
@@ -32,7 +34,11 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
 }) => {
   const { speak, stop, isPlaying, currentPlayingId } = useTTSContext();
   const { user: authUser } = useAuth();
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  
   const isCurrentlyPlaying = isPlaying && currentPlayingId === experience.id;
+  
   const getPhotoUrl = (photo: any): string | null => {
     if (!photo) return null;
     if (typeof photo === 'string') return photo;
@@ -40,6 +46,7 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
     if (typeof photo === 'object' && photo.url) return photo.url;
     return null;
   };
+  
   const photoUrl = getPhotoUrl(experience.photo);
 
   const handleExperienceTTS = async () => {
@@ -106,98 +113,123 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
       const { data, error } = await supabase.functions.invoke('create-experience-payment', {
         body: { 
           experienceId: experience.id,
-          price: 999 // $9.99 in cents
+          price: 4999 // $49.99 in cents
         }
       });
 
       if (error) throw error;
 
       if (data?.client_secret) {
-        // Payment intent created successfully, now trigger tour generation
-        toast.success('Payment created! Generating your tour...');
-        
-        // Proceed with tour generation
-        if (!onIntelligentTourOpen) {
-          console.warn('onIntelligentTourOpen not provided to ExperienceCard');
-          toast.error('Unable to start tour generation');
-          return;
-        }
-
-        const landmark = convertExperienceToLandmark(experience);
-        if (!landmark) {
-          console.error('Failed to convert experience to landmark');
-          toast.error('Unable to process experience');
-          return;
-        }
-
-        // Store landmark as pending destination for IntelligentTourDialog
-        (window as any).pendingLandmarkDestination = landmark;
-
-        // Open intelligent tour dialog
-        onIntelligentTourOpen();
-      } else if (data?.url) {
-        // Fallback to old checkout URL if available
-        window.open(data.url, '_blank');
+        // Store client secret and open payment dialog
+        setClientSecret(data.client_secret);
+        setIsPaymentDialogOpen(true);
+      } else {
+        toast.error('Failed to create payment session');
       }
     } catch (error) {
       console.error('Payment error:', error);
       toast.error('Failed to create payment session');
     }
   };
-  return <Card className="w-[280px] h-[380px] flex-shrink-0 overflow-hidden flex flex-col">
-      {photoUrl && <div className="h-[160px] w-full overflow-hidden flex-shrink-0">
-          <img src={photoUrl} alt={experience.destination} className="w-full h-full object-cover" onError={e => {
-        e.currentTarget.style.display = 'none';
-      }} />
-        </div>}
-      
-      <CardHeader className="pb-2 flex-shrink-0">
-        <CardTitle className="text-lg line-clamp-2 flex items-center gap-2 h-[56px]">
-          <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
-          <span className="line-clamp-2">{experience.destination}</span>
-        </CardTitle>
-      </CardHeader>
-      
-      <CardContent className="flex-1 flex flex-col p-6 pt-0">
-        <div className="flex-1 mb-4">
-          <CardDescription className="text-sm h-[72px] overflow-y-auto">
-            {experience.description || 'Discover amazing places and experiences in this curated tour.'}
-          </CardDescription>
-        </div>
+
+  const handlePaymentSuccess = () => {
+    // Proceed with tour generation after successful payment
+    if (!onIntelligentTourOpen) {
+      console.warn('onIntelligentTourOpen not provided to ExperienceCard');
+      toast.error('Unable to start tour generation');
+      return;
+    }
+
+    const landmark = convertExperienceToLandmark(experience);
+    if (!landmark) {
+      console.error('Failed to convert experience to landmark');
+      toast.error('Unable to process experience');
+      return;
+    }
+
+    // Store landmark as pending destination for IntelligentTourDialog
+    (window as any).pendingLandmarkDestination = landmark;
+
+    // Open intelligent tour dialog
+    onIntelligentTourOpen();
+    
+    toast.success('Payment successful! Starting your tour...');
+  };
+
+  return (
+    <>
+      <Card className="w-[280px] h-[380px] flex-shrink-0 overflow-hidden flex flex-col">
+        {photoUrl && (
+          <div className="h-[160px] w-full overflow-hidden flex-shrink-0">
+            <img 
+              src={photoUrl} 
+              alt={experience.destination} 
+              className="w-full h-full object-cover" 
+              onError={e => {
+                e.currentTarget.style.display = 'none';
+              }} 
+            />
+          </div>
+        )}
         
-        <div className="flex gap-2 flex-wrap">
-          {experience.system_prompt && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExperienceTTS}
-              className="bg-gradient-to-r from-blue-400/80 to-cyan-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-center border-blue-300 hover:from-blue-300/80 hover:to-cyan-300/80 lg:h-10 lg:text-sm lg:py-2 flex-shrink-0"
-              disabled={isPlaying && !isCurrentlyPlaying}
-            >
-              <Volume2 className={`h-3 w-3 lg:h-4 lg:w-4 ${isCurrentlyPlaying ? 'animate-pulse' : ''}`} />
-            </Button>
-          )}
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handlePurchaseExperience}
-            className="bg-gradient-to-r from-green-400/80 to-emerald-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-center flex-shrink-0 lg:h-10 lg:text-sm lg:py-2 border-green-300 hover:from-green-300/80 hover:to-emerald-300/80"
-          >
-            <CreditCard className="h-3 w-3 lg:h-4 lg:w-4" />
-            <span className="ml-1 hidden sm:inline">$9.99</span>
-          </Button>
-          {onSelect && (
+        <CardHeader className="pb-2 flex-shrink-0">
+          <CardTitle className="text-lg line-clamp-2 flex items-center gap-2 h-[56px]">
+            <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
+            <span className="line-clamp-2">{experience.destination}</span>
+          </CardTitle>
+        </CardHeader>
+        
+        <CardContent className="flex-1 flex flex-col p-6 pt-0">
+          <div className="flex-1 mb-4">
+            <CardDescription className="text-sm h-[72px] overflow-y-auto">
+              {experience.description || 'Discover amazing places and experiences in this curated tour.'}
+            </CardDescription>
+          </div>
+          
+          <div className="flex gap-2 flex-wrap">
+            {experience.system_prompt && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExperienceTTS}
+                className="bg-gradient-to-r from-blue-400/80 to-cyan-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-center border-blue-300 hover:from-blue-300/80 hover:to-cyan-300/80 lg:h-10 lg:text-sm lg:py-2 flex-shrink-0"
+                disabled={isPlaying && !isCurrentlyPlaying}
+              >
+                <Volume2 className={`h-3 w-3 lg:h-4 lg:w-4 ${isCurrentlyPlaying ? 'animate-pulse' : ''}`} />
+              </Button>
+            )}
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={() => onSelect(experience)} 
-              className="bg-gradient-to-r from-purple-400/80 to-pink-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start flex-1 lg:h-10 lg:text-sm lg:py-2 border-purple-300 hover:from-purple-300/80 hover:to-pink-300/80"
+              onClick={handlePurchaseExperience}
+              className="bg-gradient-to-r from-green-400/80 to-emerald-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-center flex-shrink-0 lg:h-10 lg:text-sm lg:py-2 border-green-300 hover:from-green-300/80 hover:to-emerald-300/80"
             >
-              Generate Experience
+              <CreditCard className="h-3 w-3 lg:h-4 lg:w-4" />
+              <span className="ml-1 hidden sm:inline">$49.99</span>
             </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>;
+            {onSelect && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => onSelect(experience)} 
+                className="bg-gradient-to-r from-purple-400/80 to-pink-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start flex-1 lg:h-10 lg:text-sm lg:py-2 border-purple-300 hover:from-purple-300/80 hover:to-pink-300/80"
+              >
+                Generate Experience
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <PaymentDialog
+        open={isPaymentDialogOpen}
+        onOpenChange={setIsPaymentDialogOpen}
+        experience={experience}
+        clientSecret={clientSecret}
+        onPaymentSuccess={handlePaymentSuccess}
+      />
+    </>
+  );
 };
+
 export default ExperienceCard;
