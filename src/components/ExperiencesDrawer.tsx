@@ -11,14 +11,12 @@ interface ExperiencesDrawerProps {
   onOpenChange: (open: boolean) => void;
   onIntelligentTourOpen?: () => void;
   onAuthDialogOpen?: () => void;
-  onPaymentModalOpen?: (experience: any, clientSecret: string) => void;
 }
 const ExperiencesDrawer: React.FC<ExperiencesDrawerProps> = ({
   open,
   onOpenChange,
   onIntelligentTourOpen,
-  onAuthDialogOpen,
-  onPaymentModalOpen
+  onAuthDialogOpen
 }) => {
   const { user: authUser } = useAuth();
   const {
@@ -156,7 +154,6 @@ const ExperiencesDrawer: React.FC<ExperiencesDrawerProps> = ({
                       onSelect={handleExperienceSelect}
                       onIntelligentTourOpen={onIntelligentTourOpen}
                       onAuthDialogOpen={onAuthDialogOpen}
-                      onPaymentModalOpen={onPaymentModalOpen}
                     />
                   </CarouselItem>)}
               </CarouselContent>

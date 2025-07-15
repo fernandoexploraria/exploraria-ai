@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MapPin, Volume2, CreditCard, ShoppingCart } from 'lucide-react';
+import { MapPin, Volume2, CreditCard } from 'lucide-react';
 import { Experience } from '@/hooks/useExperiences';
 import { useTTSContext } from '@/contexts/TTSContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,7 +14,6 @@ interface ExperienceCardProps {
   onSelect?: (experience: Experience) => void;
   onIntelligentTourOpen?: () => void;
   onAuthDialogOpen?: () => void;
-  onPaymentModalOpen?: (experience: Experience, clientSecret: string) => void;
 }
 
 // Helper function to generate overview prompt from system_prompt
@@ -29,8 +28,7 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
   experience,
   onSelect,
   onIntelligentTourOpen,
-  onAuthDialogOpen,
-  onPaymentModalOpen
+  onAuthDialogOpen
 }) => {
   const { speak, stop, isPlaying, currentPlayingId } = useTTSContext();
   const { user: authUser } = useAuth();
@@ -115,16 +113,28 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
       if (error) throw error;
 
       if (data?.client_secret) {
-        // Payment intent created successfully, open payment modal
-        toast.success('Payment intent created! Complete your payment...');
+        // Payment intent created successfully, now trigger tour generation
+        toast.success('Payment created! Generating your tour...');
         
-        // Open payment modal with the client secret
-        if (onPaymentModalOpen) {
-          onPaymentModalOpen(experience, data.client_secret);
-        } else {
-          console.warn('onPaymentModalOpen not provided to ExperienceCard');
-          toast.error('Unable to open payment form');
+        // Proceed with tour generation
+        if (!onIntelligentTourOpen) {
+          console.warn('onIntelligentTourOpen not provided to ExperienceCard');
+          toast.error('Unable to start tour generation');
+          return;
         }
+
+        const landmark = convertExperienceToLandmark(experience);
+        if (!landmark) {
+          console.error('Failed to convert experience to landmark');
+          toast.error('Unable to process experience');
+          return;
+        }
+
+        // Store landmark as pending destination for IntelligentTourDialog
+        (window as any).pendingLandmarkDestination = landmark;
+
+        // Open intelligent tour dialog
+        onIntelligentTourOpen();
       } else if (data?.url) {
         // Fallback to old checkout URL if available
         window.open(data.url, '_blank');
@@ -132,45 +142,6 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
     } catch (error) {
       console.error('Payment error:', error);
       toast.error('Failed to create payment session');
-    }
-  };
-
-  const handleCheckoutExperience = async () => {
-    try {
-      // Check authentication first
-      if (!authUser) {
-        console.log('🚨 User not authenticated, setting up post-auth flow for checkout');
-        
-        const landmark = convertExperienceToLandmark(experience);
-        
-        // Persist the experience and set post-auth action
-        setPostAuthLandmark(landmark);
-        setPostAuthAction('smart-tour');
-        
-        // Open auth dialog
-        if (onAuthDialogOpen) {
-          onAuthDialogOpen();
-        }
-        return;
-      }
-
-      // User is authenticated, create checkout session
-      const { data, error } = await supabase.functions.invoke('create-experience-checkout', {
-        body: { 
-          experienceId: experience.id,
-          price: 999 // $9.99 in cents
-        }
-      });
-
-      if (error) throw error;
-
-      if (data?.url) {
-        // Open Stripe checkout in a new tab
-        window.open(data.url, '_blank');
-      }
-    } catch (error) {
-      console.error('Checkout error:', error);
-      toast.error('Failed to create checkout session');
     }
   };
   return <Card className="w-[280px] h-[380px] flex-shrink-0 overflow-hidden flex flex-col">
@@ -194,7 +165,7 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
           </CardDescription>
         </div>
         
-        <div className="flex gap-1 flex-wrap">
+        <div className="flex gap-2 flex-wrap">
           {experience.system_prompt && (
             <Button
               variant="outline"
@@ -210,27 +181,19 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
             variant="outline" 
             size="sm" 
             onClick={handlePurchaseExperience}
-            className="bg-gradient-to-r from-green-400/80 to-emerald-400/80 backdrop-blur-sm shadow-lg text-xs px-1 py-1 h-8 justify-center flex-shrink-0 lg:h-10 lg:text-sm lg:py-2 border-green-300 hover:from-green-300/80 hover:to-emerald-300/80"
+            className="bg-gradient-to-r from-green-400/80 to-emerald-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-center flex-shrink-0 lg:h-10 lg:text-sm lg:py-2 border-green-300 hover:from-green-300/80 hover:to-emerald-300/80"
           >
             <CreditCard className="h-3 w-3 lg:h-4 lg:w-4" />
-            <span className="ml-1 hidden lg:inline text-xs">$9.99</span>
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleCheckoutExperience}
-            className="bg-gradient-to-r from-orange-400/80 to-red-400/80 backdrop-blur-sm shadow-lg text-xs px-1 py-1 h-8 justify-center flex-shrink-0 lg:h-10 lg:text-sm lg:py-2 border-orange-300 hover:from-orange-300/80 hover:to-red-300/80"
-          >
-            <ShoppingCart className="h-3 w-3 lg:h-4 lg:w-4" />
+            <span className="ml-1 hidden sm:inline">$9.99</span>
           </Button>
           {onSelect && (
             <Button 
               variant="outline" 
               size="sm" 
               onClick={() => onSelect(experience)} 
-              className="bg-gradient-to-r from-purple-400/80 to-pink-400/80 backdrop-blur-sm shadow-lg text-xs px-1 py-1 h-8 justify-center flex-shrink-0 lg:h-10 lg:text-sm lg:py-2 border-purple-300 hover:from-purple-300/80 hover:to-pink-300/80"
+              className="bg-gradient-to-r from-purple-400/80 to-pink-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start flex-1 lg:h-10 lg:text-sm lg:py-2 border-purple-300 hover:from-purple-300/80 hover:to-pink-300/80"
             >
-              <span className="text-xs hidden sm:inline">Generate</span>
+              Generate Experience
             </Button>
           )}
         </div>

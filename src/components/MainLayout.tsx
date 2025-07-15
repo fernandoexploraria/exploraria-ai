@@ -42,7 +42,6 @@ interface MainLayoutProps {
   tourKey?: string;
   onVoiceAgentStateChange?: (isActive: boolean) => void;
   showPortalAccess?: boolean;
-  onPaymentModalOpen?: (experience: any, clientSecret: string) => void;
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({
@@ -71,7 +70,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   tourKey,
   onVoiceAgentStateChange,
   showPortalAccess = false,
-  onPaymentModalOpen,
 }) => {
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
   const { userLocation } = useLocationTracking();
@@ -283,7 +281,6 @@ const MemoizedProximityCard = React.memo<{
         onIntelligentTourOpen={handleIntelligentTourOpen}
         onTestProximityCard={handleTestProximityCard}
         showPortalAccess={showPortalAccess}
-        onPaymentModalOpen={onPaymentModalOpen}
       />
 
       <UserControls

@@ -3,7 +3,6 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, ArrowLeft } from "lucide-react";
-import { toast } from "sonner";
 
 export const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
@@ -14,16 +13,13 @@ export const PaymentSuccess = () => {
   }>({});
 
   useEffect(() => {
-    const experienceId = searchParams.get("experience") || searchParams.get("experience_id");
+    const experienceId = searchParams.get("experience");
     const paymentIntentId = searchParams.get("payment_intent");
     
     setPaymentDetails({
       experienceId: experienceId || undefined,
       paymentIntentId: paymentIntentId || undefined,
     });
-
-    // Show success toast and inform user about tour generation
-    toast.success('Payment successful! Your tour will be generated automatically when you return to the main page.');
   }, [searchParams]);
 
   return (
