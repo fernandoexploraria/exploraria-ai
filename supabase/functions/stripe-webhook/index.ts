@@ -76,27 +76,11 @@ serve(async (req) => {
           break;
         }
 
-        // Extract charge and transfer IDs if available
-        let stripeChargeId = null;
-        let stripeTransferId = null;
-
-        if (paymentIntent.charges?.data?.length > 0) {
-          const charge = paymentIntent.charges.data[0];
-          stripeChargeId = charge.id;
-          
-          // Get transfer ID from charge if available
-          if (charge.transfer) {
-            stripeTransferId = charge.transfer;
-          }
-        }
-
-        // Update payment record
+        // Update payment record (IDs will be captured in charge.succeeded event)
         const { error: updateError } = await supabaseClient
           .from("payments")
           .update({
             status: "succeeded",
-            stripe_charge_id: stripeChargeId,
-            stripe_transfer_id: stripeTransferId,
             updated_at: new Date().toISOString(),
           })
           .eq("stripe_payment_intent_id", paymentIntent.id);
@@ -107,20 +91,87 @@ serve(async (req) => {
           logStep("Payment status updated to succeeded", { paymentId: payment.id });
         }
 
-        // Mark the experience as purchased/booked (you may want to add a 'purchased' field to generated_tours)
-        const { error: tourUpdateError } = await supabaseClient
-          .from("generated_tours")
-          .update({ 
-            updated_at: new Date().toISOString()
-            // Add purchased: true or booking_count: booking_count + 1 if needed
-          })
-          .eq("id", payment.tour_id);
+        logStep("Payment processing completed successfully");
+        break;
+      }
 
-        if (tourUpdateError) {
-          logStep("ERROR: Failed to update tour status", { error: tourUpdateError });
+      case "charge.succeeded": {
+        logStep("Processing charge.succeeded - Extracting Charge & Transfer IDs");
+        const charge = event.data.object as Stripe.Charge;
+
+        // 1. Get the PaymentIntent ID associated with this charge
+        const paymentIntentId = typeof charge.payment_intent === 'string'
+          ? charge.payment_intent
+          : charge.payment_intent?.id;
+
+        // 2. Get the Charge ID
+        const stripeChargeId = charge.id;
+
+        // 3. Get the Transfer ID (for Destination Charges)
+        let stripeTransferId: string | null = null;
+        if (charge.transfer) {
+          stripeTransferId = typeof charge.transfer === 'string'
+            ? charge.transfer
+            : charge.transfer.id;
+          logStep("Transfer ID found in charge.transfer field", { transferId: stripeTransferId });
+        } else if (charge.transfers?.data?.length > 0) {
+          stripeTransferId = charge.transfers.data[0].id;
+          logStep("Transfer ID found in charge.transfers.data", { transferId: stripeTransferId });
         }
 
-        logStep("Payment processing completed successfully");
+        logStep("Extracted IDs from charge.succeeded", {
+          paymentIntentId: paymentIntentId,
+          chargeId: stripeChargeId,
+          transferId: stripeTransferId,
+        });
+
+        // 4. Update the corresponding payment record in your database
+        if (paymentIntentId) {
+          const { data: payment, error: fetchError } = await supabaseClient
+            .from("payments")
+            .select("*")
+            .eq("stripe_payment_intent_id", paymentIntentId)
+            .single();
+
+          if (fetchError || !payment) {
+            logStep("ERROR: Payment record not found for charge.succeeded", { paymentIntentId: paymentIntentId, error: fetchError?.message });
+            break;
+          }
+
+          // Update payment record with charge and transfer IDs
+          const { error: updateError } = await supabaseClient
+            .from("payments")
+            .update({
+              status: "succeeded",
+              stripe_charge_id: stripeChargeId,
+              stripe_transfer_id: stripeTransferId,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("stripe_payment_intent_id", paymentIntentId);
+
+          if (updateError) {
+            logStep("ERROR: Failed to update payment with Charge/Transfer IDs", { error: updateError });
+          } else {
+            logStep("Payment record updated with Charge/Transfer IDs", { paymentId: payment.id });
+
+            // 5. CRITICAL BUSINESS LOGIC FOR FULFILLMENT:
+            // Mark the tour as fully booked/purchased
+            const { error: tourUpdateError } = await supabaseClient
+              .from("generated_tours")
+              .update({
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", payment.tour_id);
+
+            if (tourUpdateError) {
+              logStep("ERROR: Failed to update generated_tour status", { error: tourUpdateError });
+            } else {
+              logStep("Generated tour status updated", { tourId: payment.tour_id });
+            }
+          }
+        } else {
+          logStep("WARNING: charge.succeeded received but no associated PaymentIntent ID found", { chargeId: stripeChargeId });
+        }
         break;
       }
 
@@ -147,52 +198,54 @@ serve(async (req) => {
       case "charge.refunded": {
         logStep("Processing charge.refunded");
         const charge = event.data.object as Stripe.Charge;
-        
-        const { error: updateError } = await supabaseClient
-          .from("payments")
-          .update({
-            status: "refunded",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("stripe_charge_id", charge.id);
+        const paymentIntentId = typeof charge.payment_intent === 'string'
+          ? charge.payment_intent
+          : charge.payment_intent?.id;
 
-        if (updateError) {
-          logStep("ERROR: Failed to update refund status", { error: updateError });
-        } else {
-          logStep("Payment status updated to refunded", { chargeId: charge.id });
+        if (paymentIntentId) {
+          const { error: updateError } = await supabaseClient
+            .from("payments")
+            .update({
+              status: "refunded",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("stripe_payment_intent_id", paymentIntentId);
+
+          if (updateError) {
+            logStep("ERROR: Failed to update refund status", { error: updateError });
+          } else {
+            logStep("Payment status updated to refunded", { chargeId: charge.id });
+          }
         }
-
-        // Note: In a real implementation, you would need to handle the refund 
-        // from the tour guide's account. This might involve:
-        // 1. Creating a transfer reversal if possible
-        // 2. Tracking a negative balance for the guide
-        // 3. Deducting from future payouts
-        logStep("WARNING: Tour guide refund handling not implemented");
+        logStep("WARNING: Tour guide refund handling not fully implemented");
         break;
       }
 
       case "charge.dispute.created": {
         logStep("Processing charge.dispute.created");
         const dispute = event.data.object as Stripe.Dispute;
-        
-        const { error: updateError } = await supabaseClient
-          .from("payments")
-          .update({
-            status: "disputed",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("stripe_charge_id", dispute.charge);
+        const paymentIntentId = typeof dispute.payment_intent === 'string'
+          ? dispute.payment_intent
+          : dispute.payment_intent?.id;
 
-        if (updateError) {
-          logStep("ERROR: Failed to update dispute status", { error: updateError });
-        } else {
-          logStep("Payment status updated to disputed", { 
-            chargeId: dispute.charge,
-            disputeId: dispute.id 
-          });
+        if (paymentIntentId) {
+          const { error: updateError } = await supabaseClient
+            .from("payments")
+            .update({
+              status: "disputed",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("stripe_payment_intent_id", paymentIntentId);
+
+          if (updateError) {
+            logStep("ERROR: Failed to update dispute status", { error: updateError });
+          } else {
+            logStep("Payment status updated to disputed", {
+              chargeId: dispute.charge,
+              disputeId: dispute.id,
+            });
+          }
         }
-
-        // In a real implementation, you would alert your operations team
         logStep("ALERT: Dispute created - operations team should be notified");
         break;
       }
