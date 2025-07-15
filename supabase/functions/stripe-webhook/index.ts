@@ -63,39 +63,11 @@ serve(async (req) => {
         logStep("Processing payment_intent.succeeded");
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         
-        // Update payment status in database
-        const { data: payment, error: fetchError } = await supabaseClient
-          .from("payments")
-          .select("*")
-          .eq("stripe_payment_intent_id", paymentIntent.id)
-          .single();
-
-        if (fetchError || !payment) {
-          logStep("ERROR: Payment record not found", { paymentIntentId: paymentIntent.id });
-          break;
-        }
-
-        // Extract charge and transfer IDs if available
-        let stripeChargeId = null;
-        let stripeTransferId = null;
-
-        if (paymentIntent.charges?.data?.length > 0) {
-          const charge = paymentIntent.charges.data[0];
-          stripeChargeId = charge.id;
-          
-          // Get transfer ID from charge if available
-          if (charge.transfer) {
-            stripeTransferId = charge.transfer;
-          }
-        }
-
-        // Update payment record
+        // Quick status update - charge and transfer IDs will be handled by charge.succeeded
         const { error: updateError } = await supabaseClient
           .from("payments")
           .update({
             status: "succeeded",
-            stripe_charge_id: stripeChargeId,
-            stripe_transfer_id: stripeTransferId,
             updated_at: new Date().toISOString(),
           })
           .eq("stripe_payment_intent_id", paymentIntent.id);
@@ -103,23 +75,88 @@ serve(async (req) => {
         if (updateError) {
           logStep("ERROR: Failed to update payment status", { error: updateError });
         } else {
-          logStep("Payment status updated to succeeded", { paymentId: payment.id });
+          logStep("PaymentIntent status updated to succeeded", { paymentIntentId: paymentIntent.id });
+        }
+        break;
+      }
+
+      case "charge.succeeded": {
+        logStep("Processing charge.succeeded");
+        const charge = event.data.object as Stripe.Charge;
+
+        // Extract PaymentIntent ID from the charge
+        const paymentIntentId = typeof charge.payment_intent === 'string'
+          ? charge.payment_intent
+          : charge.payment_intent?.id;
+
+        // Extract Charge ID (this is the event's object ID)
+        const stripeChargeId = charge.id;
+
+        // Extract Transfer ID for Destination Charges
+        let stripeTransferId = null;
+        if (charge.transfer) {
+          // 'transfer' field is typically populated for single transfers
+          stripeTransferId = typeof charge.transfer === 'string'
+            ? charge.transfer
+            : charge.transfer.id;
+          logStep("Transfer ID found in charge.transfer field", { transferId: stripeTransferId });
+        } else if (charge.transfers?.data?.length > 0) {
+          // Fallback to 'transfers.data' array if 'transfer' is not directly populated
+          stripeTransferId = charge.transfers.data[0].id;
+          logStep("Transfer ID found in charge.transfers.data", { transferId: stripeTransferId });
         }
 
-        // Mark the experience as purchased/booked (you may want to add a 'purchased' field to generated_tours)
-        const { error: tourUpdateError } = await supabaseClient
-          .from("generated_tours")
-          .update({ 
-            updated_at: new Date().toISOString()
-            // Add purchased: true or booking_count: booking_count + 1 if needed
-          })
-          .eq("id", payment.tour_id);
+        logStep("Extracted IDs from charge.succeeded", {
+          paymentIntentId: paymentIntentId,
+          chargeId: stripeChargeId,
+          transferId: stripeTransferId,
+        });
 
-        if (tourUpdateError) {
-          logStep("ERROR: Failed to update tour status", { error: tourUpdateError });
+        if (paymentIntentId) {
+          // Update the payment record with the charge and transfer IDs
+          const { error: updateError } = await supabaseClient
+            .from("payments")
+            .update({
+              status: "succeeded", // Ensure status is succeeded (redundant but safe)
+              stripe_charge_id: stripeChargeId,
+              stripe_transfer_id: stripeTransferId,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("stripe_payment_intent_id", paymentIntentId);
+
+          if (updateError) {
+            logStep("ERROR: Failed to update payment with charge/transfer IDs", { error: updateError });
+          } else {
+            logStep("Payment record updated with Charge and Transfer IDs", { paymentIntentId });
+            
+            // This is the ideal place for full order fulfillment
+            // Get the payment record to access tour_id for marking as booked
+            const { data: payment, error: fetchError } = await supabaseClient
+              .from("payments")
+              .select("tour_id")
+              .eq("stripe_payment_intent_id", paymentIntentId)
+              .single();
+
+            if (payment && !fetchError) {
+              // Mark the experience as purchased/booked
+              const { error: tourUpdateError } = await supabaseClient
+                .from("generated_tours")
+                .update({ 
+                  updated_at: new Date().toISOString()
+                  // Add purchased: true or booking_count: booking_count + 1 if needed
+                })
+                .eq("id", payment.tour_id);
+
+              if (tourUpdateError) {
+                logStep("ERROR: Failed to update tour status", { error: tourUpdateError });
+              } else {
+                logStep("Tour booking completed successfully", { tourId: payment.tour_id });
+              }
+            }
+          }
+        } else {
+          logStep("WARNING: Charge succeeded but no associated PaymentIntent ID found", { chargeId: stripeChargeId });
         }
-
-        logStep("Payment processing completed successfully");
         break;
       }
 
