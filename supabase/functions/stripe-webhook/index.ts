@@ -35,7 +35,7 @@ serve(async (req) => {
     });
 
     // Verify webhook signature
-    const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+    const webhookSecret = Deno.env.get("STRIPE_WEBHOOK");
     if (!webhookSecret) {
       logStep("ERROR: No webhook secret configured");
       return new Response("Webhook secret not configured", { status: 400 });
