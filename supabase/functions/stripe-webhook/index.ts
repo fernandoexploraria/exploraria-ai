@@ -14,15 +14,28 @@ const logStep = (step: string, details?: any) => {
 };
 
 serve(async (req) => {
+  // Always log webhook requests for debugging
+  logStep("Webhook endpoint hit", { 
+    method: req.method, 
+    url: req.url,
+    headers: Object.fromEntries(req.headers.entries())
+  });
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    logStep("Webhook received");
+    logStep("Processing webhook request");
 
     const body = await req.text();
     const signature = req.headers.get("stripe-signature");
+    
+    logStep("Request details", {
+      bodyLength: body.length,
+      hasSignature: !!signature,
+      signatureStart: signature?.substring(0, 20) + "..."
+    });
 
     if (!signature) {
       logStep("ERROR: No Stripe signature found");
