@@ -7,6 +7,8 @@ import DebugWindow from '@/components/DebugWindow';
 import { landmarks as staticLandmarks, Landmark } from '@/data/landmarks';
 import { useAuth } from '@/components/AuthProvider';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
+import { PaymentDialog } from '@/components/payment/PaymentDialog';
+import { Experience } from '@/hooks/useExperiences';
 import { useDialogStates } from '@/hooks/useDialogStates';
 import { useProximityNotifications } from '@/hooks/useProximityNotifications';
 import { useDebugWindow } from '@/hooks/useDebugWindow';
@@ -29,6 +31,11 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
     agentId?: string;
   } | null>(null);
   const [tourKey, setTourKey] = useState<string>('initial');
+  
+  // Payment dialog state for experiences
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [selectedExperience, setSelectedExperience] = useState<Experience | null>(null);
   
   // Secret portal access state
   const [clickCount, setClickCount] = useState(0);
@@ -68,7 +75,20 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
       onRegisterPostAuthActions({
         onSmartTour: () => {
           console.log('🎯 Executing post-auth smart tour action');
-          handleIntelligentTourOpen();
+          // Check if this is an experience payment flow
+          const pendingPayment = (window as any).pendingExperiencePayment;
+          if (pendingPayment) {
+            console.log('🎯 Post-auth experience payment flow detected');
+            // This will trigger the payment dialog for the experience
+            setClientSecret(pendingPayment.clientSecret);
+            setSelectedExperience(pendingPayment.experience);
+            setIsPaymentDialogOpen(true);
+            // Clear the pending payment
+            delete (window as any).pendingExperiencePayment;
+          } else {
+            // Regular smart tour flow
+            handleIntelligentTourOpen();
+          }
         },
         onIntelligentTour: () => {
           console.log('🎯 Executing post-auth intelligent tour action');
@@ -261,6 +281,37 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
     return <div className="w-screen h-screen flex items-center justify-center">Loading map...</div>;
   }
 
+  const handleExperiencePaymentSuccess = () => {
+    // Proceed with tour generation after successful payment
+    if (!selectedExperience) {
+      console.error('No experience selected for payment success');
+      return;
+    }
+
+    // Convert experience to landmark format
+    const landmark = {
+      id: selectedExperience.id,
+      name: selectedExperience.destination,
+      coordinates: selectedExperience.destination_details?.coordinates || [0, 0],
+      description: selectedExperience.description || '',
+      types: selectedExperience.destination_details?.types || ['tourist_attraction'],
+      rating: selectedExperience.destination_details?.rating,
+      tourId: selectedExperience.id,
+      experience: true
+    };
+
+    // Store landmark as pending destination for IntelligentTourDialog
+    (window as any).pendingLandmarkDestination = landmark;
+
+    // Open intelligent tour dialog
+    handleIntelligentTourOpen();
+    
+    toast({
+      title: "Payment successful!",
+      description: "Starting your tour...",
+    });
+  };
+
   return (
     <>
       <MainLayout
@@ -293,6 +344,13 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
       <DebugWindow 
         isVisible={isDebugVisible}
         onClose={toggleDebug}
+      />
+      <PaymentDialog
+        open={isPaymentDialogOpen}
+        onOpenChange={setIsPaymentDialogOpen}
+        experience={selectedExperience}
+        clientSecret={clientSecret}
+        onPaymentSuccess={handleExperiencePaymentSuccess}
       />
     </>
   );

@@ -74,11 +74,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
 
                     if (data?.client_secret) {
                       console.log('✅ Post-auth payment created successfully');
-                      // Store the landmark for the dialog to use
-                      (window as any).pendingLandmarkDestination = pendingLandmark;
+                      
+                      // Store the client secret and experience for payment dialog
+                      (window as any).pendingExperiencePayment = {
+                        clientSecret: data.client_secret,
+                        experience: {
+                          id: pendingLandmark.tourId,
+                          destination: pendingLandmark.name,
+                          destination_details: pendingLandmark
+                        }
+                      };
+                      
                       clearPostAuthLandmark();
                       
-                      // Trigger the tour generation
+                      // Trigger the payment dialog instead of direct tour generation
                       if (onPostAuthAction) {
                         onPostAuthAction(pendingAction);
                       }
