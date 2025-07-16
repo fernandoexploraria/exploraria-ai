@@ -113,6 +113,9 @@ export const useTourStats = () => {
       channelRef.current = null;
     }
 
+    // Load initial data first
+    fetchTourStats();
+
     // Create new subscription
     const channelName = `tour-stats-${user.id}-${Date.now()}`;
     console.log('📡 Tour Stats: Creating subscription for user:', user.id);
@@ -153,13 +156,17 @@ export const useTourStats = () => {
       .subscribe((status) => {
         console.log('📡 Tour Stats: Subscription status:', status);
         if (status === 'SUBSCRIBED') {
-          console.log('✅ Tour Stats: Subscription successful');
-          // Load initial data after successful subscription
-          fetchTourStats();
+          console.log('✅ Tour Stats: Real-time subscription successful');
         } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Tour Stats: Channel subscription error');
+          console.error('❌ Tour Stats: Channel subscription error - falling back to manual refresh');
+          // Don't break the app, just log the error
+          // The initial data was already loaded above
         } else if (status === 'TIMED_OUT') {
-          console.error('⏰ Tour Stats: Channel subscription timed out');
+          console.error('⏰ Tour Stats: Channel subscription timed out - falling back to manual refresh');
+          // Don't break the app, just log the error
+          // The initial data was already loaded above
+        } else if (status === 'CLOSED') {
+          console.log('📡 Tour Stats: Channel subscription closed');
         }
       });
 
