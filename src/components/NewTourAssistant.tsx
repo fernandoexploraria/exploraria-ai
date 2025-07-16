@@ -353,12 +353,10 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
   const getButtonLabel = () => {
     const effectiveAgentId = getEffectiveAgentId();
     const agentIdDebug = effectiveAgentId ? `[${effectiveAgentId.slice(-4)}]` : '';
-    const destDebug = destination ? `D:${destination.slice(0, 3)}` : 'D:---';
-    const promptDebug = systemPrompt ? `P:${systemPrompt.slice(0, 3)}` : 'P:---';
     
     switch (assistantState) {
       case 'not-started':
-        return `Call Tour Guide ${agentIdDebug} ${destDebug} ${promptDebug}`;
+        return `Call Tour Guide ${agentIdDebug}`;
       case 'started':
         return 'Talk to interrupt';
       case 'listening':
@@ -368,7 +366,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       case 'playback':
         return 'Talk to interrupt';
       default:
-        return `Call Tour Guide ${agentIdDebug} ${destDebug} ${promptDebug}`;
+        return `Call Tour Guide ${agentIdDebug}`;
     }
   };
 
