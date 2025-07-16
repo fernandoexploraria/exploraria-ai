@@ -139,6 +139,9 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
         setPostAuthLandmark(landmark);
         setPostAuthAction('smart-tour');
         
+        // Close drawer before opening auth dialog
+        onDrawerClose?.();
+        
         // Open auth dialog
         if (onAuthDialogOpen) {
           onAuthDialogOpen();
@@ -208,6 +211,7 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
     // Open intelligent tour dialog
     onIntelligentTourOpen();
     
+    // Only show payment success toast for new payments, not for already-paid experiences
     if (paymentIntentId) {
       toast.success('Payment successful! Starting your tour...');
     }
