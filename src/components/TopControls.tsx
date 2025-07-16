@@ -33,6 +33,13 @@ interface TopControlsProps {
   onTestProximityCard?: () => void;
   showPortalAccess?: boolean;
   currentAgentId?: string;
+  currentTour?: {
+    id: string;
+    destination: string;
+    description: string;
+    system_prompt: string;
+    experience: boolean;
+  };
 }
 
 const TopControls: React.FC<TopControlsProps> = ({
@@ -48,6 +55,7 @@ const TopControls: React.FC<TopControlsProps> = ({
   onTestProximityCard,
   showPortalAccess = false,
   currentAgentId,
+  currentTour,
 }) => {
   const { user: authUser } = useAuth();
   const isMobile = useIsMobile();
@@ -241,11 +249,19 @@ const TopControls: React.FC<TopControlsProps> = ({
                 >
                   <Sparkles className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
                   Tour Guide
-                  <span className="ml-auto text-xs">
+                  <span className="ml-auto text-xs font-mono">
                     {currentAgentId ? (
-                      <span className="text-green-400 font-mono font-bold">{currentAgentId.slice(-4)}</span>
+                      <span className="text-green-400 font-bold">{currentAgentId.slice(-4)}</span>
                     ) : (
                       <span className="text-muted-foreground">null</span>
+                    )}
+                    {currentTour && (
+                      <>
+                        <span className="text-muted-foreground mx-1">|</span>
+                        <span className="text-blue-400">{currentTour.destination.slice(0, 3)}</span>
+                        <span className="text-muted-foreground mx-1">|</span>
+                        <span className="text-yellow-400">{currentTour.system_prompt.slice(0, 3)}</span>
+                      </>
                     )}
                   </span>
                 </Button>
