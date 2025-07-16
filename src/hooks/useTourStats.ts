@@ -108,12 +108,13 @@ export const useTourStats = () => {
 
     // Clean up existing subscription
     if (channelRef.current) {
+      console.log('🧹 Tour Stats: Cleaning up existing channel');
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
     }
 
     // Create new subscription
-    const channelName = `tour-stats-${user.id}`;
+    const channelName = `tour-stats-${user.id}-${Date.now()}`;
     console.log('📡 Tour Stats: Creating subscription for user:', user.id);
     
     const channel = supabase
@@ -166,11 +167,12 @@ export const useTourStats = () => {
 
     return () => {
       if (channelRef.current) {
+        console.log('🧹 Tour Stats: Cleaning up channel on unmount');
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
     };
-  }, [user?.id, fetchTourStats]);
+  }, [user?.id]); // Removed fetchTourStats from dependencies to avoid circular dependency
 
   // Force refresh function
   const forceRefresh = useCallback(async () => {
