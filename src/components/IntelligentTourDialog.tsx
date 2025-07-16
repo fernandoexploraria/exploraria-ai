@@ -779,6 +779,34 @@ You will receive occasional, non-interrupting system updates about **new** nearb
       // Call onTourGenerated with enhanced landmarks INCLUDING tour_id
       onTourGenerated(validLandmarks);
 
+      // Increment tour counter based on tour type
+      try {
+        if (tourType === 'experience') {
+          const { data: experienceCount, error: experienceError } = await supabase.rpc('increment_experience_count', {
+            p_user_id: user.id
+          });
+          
+          if (experienceError) {
+            console.error('Failed to increment experience count:', experienceError);
+          } else {
+            console.log('Experience count incremented successfully:', experienceCount);
+          }
+        } else {
+          const { data: tourCount, error: tourError } = await supabase.rpc('increment_tour_count', {
+            p_user_id: user.id
+          });
+          
+          if (tourError) {
+            console.error('Failed to increment tour count:', tourError);
+          } else {
+            console.log('Tour count incremented successfully:', tourCount);
+          }
+        }
+      } catch (error) {
+        console.error('Error incrementing tour counter:', error);
+        // Don't throw error - counter increment failure shouldn't break tour generation
+      }
+
       // Wait for markers to load completely before finishing
       await finishMarkerLoading();
       

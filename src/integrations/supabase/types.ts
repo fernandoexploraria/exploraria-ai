@@ -667,6 +667,7 @@ export type Database = {
       user_tour_stats: {
         Row: {
           created_at: string
+          experience_count: number
           id: string
           tour_count: number
           updated_at: string
@@ -674,6 +675,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          experience_count?: number
           id?: string
           tour_count?: number
           updated_at?: string
@@ -681,6 +683,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          experience_count?: number
           id?: string
           tour_count?: number
           updated_at?: string
@@ -732,6 +735,10 @@ export type Database = {
       hnswhandler: {
         Args: { "": unknown }
         Returns: unknown
+      }
+      increment_experience_count: {
+        Args: { p_user_id: string }
+        Returns: number
       }
       increment_tour_count: {
         Args: { p_user_id: string }
