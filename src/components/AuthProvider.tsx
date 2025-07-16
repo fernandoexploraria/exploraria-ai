@@ -57,9 +57,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
               if (pendingLandmark && pendingLandmark.tourId) {
                 console.log('🎯 Restoring landmark for post-auth experience tour:', pendingLandmark.name);
                 
-                // This is an experience-based tour, create payment intent
+                // This is an experience-based tour, check if already paid
                 setTimeout(async () => {
                   try {
+                    // Check if user has already paid for this experience
+                    const { data: existingPayment, error: paymentError } = await supabase
+                      .from('payments')
+                      .select('id')
+                      .eq('tour_id', pendingLandmark.tourId)
+                      .eq('tourist_user_id', session.user.id)
+                      .eq('status', 'succeeded')
+                      .maybeSingle();
+                    
+                    if (paymentError) {
+                      console.error('Error checking existing payment:', paymentError);
+                      return;
+                    }
+                    
+                    if (existingPayment) {
+                      console.log('✅ User has already paid for this experience, starting tour directly');
+                      
+                      // User has already paid, go directly to tour generation
+                      (window as any).pendingLandmarkDestination = pendingLandmark;
+                      clearPostAuthLandmark();
+                      
+                      // Trigger intelligent tour directly
+                      if (onPostAuthAction) {
+                        onPostAuthAction('intelligent-tour');
+                      }
+                      return;
+                    }
+                    
+                    // User hasn't paid yet, create payment intent
                     const { data, error } = await supabase.functions.invoke('create-experience-payment', {
                       body: { 
                         experienceId: pendingLandmark.tourId,

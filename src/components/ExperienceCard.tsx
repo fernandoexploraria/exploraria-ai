@@ -36,8 +36,23 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
   const { user: authUser } = useAuth();
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [hasAlreadyPaid, setHasAlreadyPaid] = useState<boolean | null>(null);
   
   const isCurrentlyPlaying = isPlaying && currentPlayingId === experience.id;
+  
+  // Check payment status when user or experience changes
+  React.useEffect(() => {
+    const checkPaymentStatus = async () => {
+      if (authUser) {
+        const alreadyPaid = await checkExistingPayment();
+        setHasAlreadyPaid(alreadyPaid);
+      } else {
+        setHasAlreadyPaid(false);
+      }
+    };
+    
+    checkPaymentStatus();
+  }, [authUser, experience.id]);
   
   const getPhotoUrl = (photo: any): string | null => {
     if (!photo) return null;
@@ -90,6 +105,26 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
     };
   };
 
+  const checkExistingPayment = async () => {
+    if (!authUser) return false;
+    
+    try {
+      const { data, error } = await supabase
+        .from('payments')
+        .select('id')
+        .eq('tour_id', experience.id)
+        .eq('tourist_user_id', authUser.id)
+        .eq('status', 'succeeded')
+        .maybeSingle();
+      
+      if (error) throw error;
+      return !!data;
+    } catch (error) {
+      console.error('Error checking existing payment:', error);
+      return false;
+    }
+  };
+
   const handlePurchaseExperience = async () => {
     try {
       // Check authentication first
@@ -109,7 +144,16 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
         return;
       }
 
-      // User is authenticated, create payment intent
+      // Check if user has already paid for this experience
+      const alreadyPaid = await checkExistingPayment();
+      if (alreadyPaid) {
+        // Skip payment, go directly to tour generation
+        toast.success('Starting your purchased tour...');
+        handlePaymentSuccess();
+        return;
+      }
+
+      // User is authenticated and hasn't paid yet, create payment intent
       const { data, error } = await supabase.functions.invoke('create-experience-payment', {
         body: { 
           experienceId: experience.id,
@@ -208,10 +252,16 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
               variant="outline" 
               size="sm" 
               onClick={handlePurchaseExperience}
-              className="bg-gradient-to-r from-green-400/80 to-emerald-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-center flex-shrink-0 lg:h-10 lg:text-sm lg:py-2 border-green-300 hover:from-green-300/80 hover:to-emerald-300/80"
+              className={`backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-center flex-shrink-0 lg:h-10 lg:text-sm lg:py-2 ${
+                hasAlreadyPaid 
+                  ? 'bg-gradient-to-r from-blue-400/80 to-purple-400/80 border-blue-300 hover:from-blue-300/80 hover:to-purple-300/80'
+                  : 'bg-gradient-to-r from-green-400/80 to-emerald-400/80 border-green-300 hover:from-green-300/80 hover:to-emerald-300/80'
+              }`}
             >
               <CreditCard className="h-3 w-3 lg:h-4 lg:w-4" />
-              <span className="ml-1 hidden sm:inline">$9.99</span>
+              <span className="ml-1 hidden sm:inline">
+                {hasAlreadyPaid ? 'Start Tour' : '$9.99'}
+              </span>
             </Button>
             {onSelect && (
               <Button 
