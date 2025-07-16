@@ -143,7 +143,7 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
           {getStatusIcon(proximityConnectionStatus.status)}
           <span className="text-xs">Proximity</span>
         </Badge>
-        {(tourConnectionStatus.status === 'failed' || proximityConnectionStatus.status === 'failed') && (
+        {(tourConnectionStatus.status === 'disconnected' || proximityConnectionStatus.status === 'disconnected') && (
           <Button
             size="sm"
             variant="outline"
@@ -159,10 +159,10 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
 
   if (!showDetails) {
     // Show only if there are connection issues
-    const hasIssues = tourConnectionStatus.status === 'failed' || 
-                     proximityConnectionStatus.status === 'failed' ||
-                     tourConnectionStatus.status === 'polling' ||
-                     proximityConnectionStatus.status === 'polling';
+    const hasIssues = tourConnectionStatus.status === 'disconnected' || 
+                     proximityConnectionStatus.status === 'disconnected' ||
+                     tourConnectionStatus.status === 'connecting' ||
+                     proximityConnectionStatus.status === 'connecting';
     
     if (!hasIssues) return null;
   }
@@ -187,7 +187,7 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
               <Badge variant={getStatusVariant(tourConnectionStatus.status) as any}>
                 {getStatusText(tourConnectionStatus.status)}
               </Badge>
-              {tourConnectionStatus.status === 'failed' && (
+              {tourConnectionStatus.status === 'disconnected' && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -210,7 +210,7 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
               <Badge variant={getStatusVariant(proximityConnectionStatus.status) as any}>
                 {getStatusText(proximityConnectionStatus.status)}
               </Badge>
-              {proximityConnectionStatus.status === 'failed' && (
+              {proximityConnectionStatus.status === 'disconnected' && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -235,12 +235,12 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
                 <span>{formatLastUpdate(proximityConnectionStatus.lastDataUpdate)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Tour Stats Failures:</span>
-                <span>{tourConnectionStatus.consecutiveFailures}</span>
+                <span>Tour Stats Status:</span>
+                <span>{getStatusText(tourConnectionStatus.status)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Proximity Failures:</span>
-                <span>{proximityConnectionStatus.consecutiveFailures}</span>
+                <span>Proximity Status:</span>
+                <span>{getStatusText(proximityConnectionStatus.status)}</span>
               </div>
             </div>
           )}

@@ -24,18 +24,16 @@ export const useConnectionMonitor = () => {
   const lastToastRef = useRef<number>(0);
   const TOAST_COOLDOWN = 30000; // 30 seconds between connection issue toasts
 
-  // Health check function
+  // Simplified health check function
   const performHealthCheck = () => {
     const now = Date.now();
     const issues: string[] = [];
     
     console.log('🏥 Connection Health Check:', { tourStatus, proximityStatus });
 
-    // Check tour stats connection
-    if (tourStatus.status === 'failed') {
-      issues.push(`Tour Stats: Failed (${tourStatus.consecutiveFailures} consecutive failures)`);
-    } else if (tourStatus.status === 'polling') {
-      issues.push('Tour Stats: Using polling fallback (real-time unavailable)');
+    // Basic connection checks for tour stats
+    if (tourStatus.status === 'disconnected') {
+      issues.push('Tour Stats: Disconnected');
     } else if (tourStatus.status === 'connecting') {
       const connectingTime = tourStatus.lastConnectionTime ? now - tourStatus.lastConnectionTime : 0;
       if (connectingTime > 30000) { // 30 seconds
@@ -43,25 +41,14 @@ export const useConnectionMonitor = () => {
       }
     }
 
-    // Check proximity alerts connection
-    if (proximityStatus.status === 'failed') {
-      issues.push(`Proximity Alerts: Failed (${proximityStatus.consecutiveFailures} consecutive failures)`);
-    } else if (proximityStatus.status === 'polling') {
-      issues.push('Proximity Alerts: Using polling fallback (real-time unavailable)');
+    // Basic connection checks for proximity alerts
+    if (proximityStatus.status === 'disconnected') {
+      issues.push('Proximity Alerts: Disconnected');
     } else if (proximityStatus.status === 'connecting') {
       const connectingTime = proximityStatus.lastConnectionTime ? now - proximityStatus.lastConnectionTime : 0;
       if (connectingTime > 30000) { // 30 seconds
         issues.push('Proximity Alerts: Connection taking too long');
       }
-    }
-
-    // Check for stale data
-    const STALE_DATA_THRESHOLD = 300000; // 5 minutes
-    if (tourStatus.lastDataUpdate && now - tourStatus.lastDataUpdate > STALE_DATA_THRESHOLD) {
-      issues.push('Tour Stats: Data may be stale (no updates for 5+ minutes)');
-    }
-    if (proximityStatus.lastDataUpdate && now - proximityStatus.lastDataUpdate > STALE_DATA_THRESHOLD) {
-      issues.push('Proximity Alerts: Data may be stale (no updates for 5+ minutes)');
     }
 
     const isHealthy = issues.length === 0;
@@ -75,7 +62,7 @@ export const useConnectionMonitor = () => {
     // Show toast notification for new critical issues (with cooldown)
     if (!isHealthy && now - lastToastRef.current > TOAST_COOLDOWN) {
       const criticalIssues = issues.filter(issue => 
-        issue.includes('Failed') || issue.includes('taking too long')
+        issue.includes('taking too long')
       );
       
       if (criticalIssues.length > 0) {
@@ -116,9 +103,7 @@ export const useConnectionMonitor = () => {
     performHealthCheck();
   }, [
     tourStatus.status,
-    tourStatus.consecutiveFailures,
-    proximityStatus.status,
-    proximityStatus.consecutiveFailures
+    proximityStatus.status
   ]);
 
   return {
