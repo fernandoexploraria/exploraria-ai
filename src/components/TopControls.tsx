@@ -24,7 +24,7 @@ interface TopControlsProps {
   allLandmarks: Landmark[];
   onSelectLandmark: (landmark: Landmark) => void;
   onVoiceSearchOpen: () => void;
-  onVoiceAssistantOpen: () => void;
+  onVoiceAssistantOpen: (agentId?: string) => void;
   onLogoClick: () => void;
   user: any;
   smartTourLandmarks: Landmark[];
@@ -237,12 +237,16 @@ const TopControls: React.FC<TopControlsProps> = ({
                   variant="outline"
                   size="sm"
                   className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
-                  onClick={onVoiceAssistantOpen}
+                  onClick={() => onVoiceAssistantOpen(currentAgentId || undefined)}
                 >
                   <Sparkles className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
                   Tour Guide
-                  <span className="ml-auto text-muted-foreground text-xs">
-                    {currentAgentId ? currentAgentId.slice(-4) : 'null'}
+                  <span className="ml-auto text-xs">
+                    {currentAgentId ? (
+                      <span className="text-green-400 font-mono font-bold">{currentAgentId.slice(-4)}</span>
+                    ) : (
+                      <span className="text-muted-foreground">null</span>
+                    )}
                   </span>
                 </Button>
               )}
