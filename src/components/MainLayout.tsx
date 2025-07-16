@@ -281,6 +281,7 @@ const MemoizedProximityCard = React.memo<{
         onIntelligentTourOpen={handleIntelligentTourOpen}
         onTestProximityCard={handleTestProximityCard}
         showPortalAccess={showPortalAccess}
+        agentId={voiceTourData?.agentId}
       />
 
       <UserControls

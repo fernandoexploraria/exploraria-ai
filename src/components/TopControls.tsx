@@ -32,6 +32,7 @@ interface TopControlsProps {
   onAuthDialogOpen?: () => void;
   onTestProximityCard?: () => void;
   showPortalAccess?: boolean;
+  agentId?: string;
 }
 
 const TopControls: React.FC<TopControlsProps> = ({
@@ -46,6 +47,7 @@ const TopControls: React.FC<TopControlsProps> = ({
   onAuthDialogOpen,
   onTestProximityCard,
   showPortalAccess = false,
+  agentId,
 }) => {
   const { user: authUser } = useAuth();
   const isMobile = useIsMobile();
@@ -55,10 +57,18 @@ const TopControls: React.FC<TopControlsProps> = ({
   const [isIntelligentTourOpen, setIsIntelligentTourOpen] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [isExperiencesDrawerOpen, setIsExperiencesDrawerOpen] = useState(false);
+  const [agent_id, setAgent_id] = useState<string | null>(null);
   const { toast } = useToast();
   const { isDemoMode, toggleDemoMode } = useDemoMode();
   
   const { connectionHealth } = useConnectionMonitor();
+
+  // Update agent_id state when prop changes
+  React.useEffect(() => {
+    if (agentId) {
+      setAgent_id(agentId);
+    }
+  }, [agentId]);
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
@@ -239,6 +249,11 @@ const TopControls: React.FC<TopControlsProps> = ({
                 >
                   <Sparkles className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
                   Tour Guide
+                  {agent_id && (
+                    <span className="ml-2 text-green-500 font-mono text-xs">
+                      {agent_id.slice(-3)}
+                    </span>
+                  )}
                 </Button>
               )}
               
