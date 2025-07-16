@@ -15,6 +15,7 @@ import { useDebugWindow } from '@/hooks/useDebugWindow';
 import { useConnectionMonitor } from '@/hooks/useConnectionMonitor';
 import { performComprehensiveTourReset } from '@/utils/tourResetUtils';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface IndexProps {
   onRegisterPostAuthActions?: (actions: { onSmartTour?: () => void; onIntelligentTour?: () => void }) => void;
@@ -281,7 +282,13 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
     return <div className="w-screen h-screen flex items-center justify-center">Loading map...</div>;
   }
 
-  const handleExperiencePaymentSuccess = () => {
+  const handleExperiencePaymentSuccess = async (paymentIntentId?: string) => {
+    // Verify payment status before proceeding with tour generation
+    if (paymentIntentId) {
+      const { data: payment } = await supabase.from('payments').select('status').eq('stripe_payment_intent_id', paymentIntentId).eq('status', 'succeeded').maybeSingle();
+      if (!payment) { toast({ title: "Payment verification failed", description: "Please try again." }); return; }
+    }
+
     // Proceed with tour generation after successful payment
     if (!selectedExperience) {
       console.error('No experience selected for payment success');

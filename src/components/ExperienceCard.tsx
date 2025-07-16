@@ -132,7 +132,13 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
     }
   };
 
-  const handlePaymentSuccess = () => {
+  const handlePaymentSuccess = async (paymentIntentId?: string) => {
+    // Verify payment status before proceeding with tour generation
+    if (paymentIntentId) {
+      const { data: payment } = await supabase.from('payments').select('status').eq('stripe_payment_intent_id', paymentIntentId).eq('status', 'succeeded').maybeSingle();
+      if (!payment) { toast.error('Payment verification failed. Please try again.'); return; }
+    }
+
     // Proceed with tour generation after successful payment
     if (!onIntelligentTourOpen) {
       console.warn('onIntelligentTourOpen not provided to ExperienceCard');
