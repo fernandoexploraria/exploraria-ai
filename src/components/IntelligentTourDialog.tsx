@@ -15,6 +15,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useMarkerLoadingState } from '@/hooks/useMarkerLoadingState';
 import { resetIntelligentTourDialogState } from '@/utils/tourResetUtils';
 import { fetchExperienceLandmarks } from '@/utils/experienceUtils';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useTourStats } from '@/hooks/useTourStats';
 
 interface IntelligentTourDialogProps {
   open: boolean;
@@ -73,6 +75,8 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   
   const { toast } = useToast();
   const { isMarkersLoading, markersLoaded, startMarkerLoading, finishMarkerLoading, resetMarkerState } = useMarkerLoadingState(750);
+  const { subscriptionData } = useSubscription();
+  const { tourStats } = useTourStats();
 
   // Enhanced reset and cleanup when dialog opens using utility
   React.useEffect(() => {
@@ -454,6 +458,24 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
     }
 
     console.log('🗃️ Generating tour in database for user:', user.id);
+
+    // Check subscription limits for regular tours only (not experience tours)
+    if (tourType === 'regular') {
+      const FREE_TOUR_LIMIT = 3;
+      const toursUsed = tourStats?.tour_count || 0;
+      const isSubscribed = subscriptionData?.subscribed || false;
+      
+      console.log('Subscription check:', { toursUsed, isSubscribed, FREE_TOUR_LIMIT, tourType });
+      
+      if (!isSubscribed && toursUsed >= FREE_TOUR_LIMIT) {
+        toast({
+          title: "Free Tour Limit Reached",
+          description: "You've reached your free tour limit. Please subscribe to generate more tours.",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
 
     try {
       // Import the landmark highlights utility
