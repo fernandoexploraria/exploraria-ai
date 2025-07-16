@@ -241,6 +241,9 @@ const TopControls: React.FC<TopControlsProps> = ({
                 >
                   <Sparkles className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
                   Tour Guide
+                  <span className="ml-auto text-muted-foreground text-xs">
+                    {currentAgentId ? currentAgentId.slice(-4) : 'null'}
+                  </span>
                 </Button>
               )}
               
@@ -263,11 +266,6 @@ const TopControls: React.FC<TopControlsProps> = ({
               {!isDemoMode && (
                 <>
                   <ConnectionStatus showDetails className="w-full" />
-                  
-                  {/* Agent ID Display */}
-                  <div className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 flex items-center justify-center w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 rounded-md border border-border">
-                    <span className="text-muted-foreground">Agent: {currentAgentId ? currentAgentId.slice(-4) : 'null'}</span>
-                  </div>
                   
                   <Button
                     variant="outline"
