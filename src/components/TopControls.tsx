@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube, MapPin, ToggleLeft, ToggleRight, Compass } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerTrigger, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
@@ -24,7 +24,7 @@ interface TopControlsProps {
   allLandmarks: Landmark[];
   onSelectLandmark: (landmark: Landmark) => void;
   onVoiceSearchOpen: () => void;
-  onVoiceAssistantOpen: (agentId?: string) => void;
+  onVoiceAssistantOpen: () => void;
   onLogoClick: () => void;
   user: any;
   smartTourLandmarks: Landmark[];
@@ -32,7 +32,6 @@ interface TopControlsProps {
   onAuthDialogOpen?: () => void;
   onTestProximityCard?: () => void;
   showPortalAccess?: boolean;
-  currentAgentId?: string;
 }
 
 const TopControls: React.FC<TopControlsProps> = ({
@@ -47,7 +46,6 @@ const TopControls: React.FC<TopControlsProps> = ({
   onAuthDialogOpen,
   onTestProximityCard,
   showPortalAccess = false,
-  currentAgentId,
 }) => {
   const { user: authUser } = useAuth();
   const isMobile = useIsMobile();
@@ -57,18 +55,10 @@ const TopControls: React.FC<TopControlsProps> = ({
   const [isIntelligentTourOpen, setIsIntelligentTourOpen] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [isExperiencesDrawerOpen, setIsExperiencesDrawerOpen] = useState(false);
-  const [persistedAgentId, setPersistedAgentId] = useState<string | null>(null);
   const { toast } = useToast();
   const { isDemoMode, toggleDemoMode } = useDemoMode();
   
   const { connectionHealth } = useConnectionMonitor();
-
-  // Store the agent ID when it's first received
-  useEffect(() => {
-    if (currentAgentId && !persistedAgentId) {
-      setPersistedAgentId(currentAgentId);
-    }
-  }, [currentAgentId, persistedAgentId]);
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
@@ -245,28 +235,10 @@ const TopControls: React.FC<TopControlsProps> = ({
                   variant="outline"
                   size="sm"
                   className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
-                  onClick={() => onVoiceAssistantOpen(currentAgentId || undefined)}
+                  onClick={onVoiceAssistantOpen}
                 >
                   <Sparkles className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
                   Tour Guide
-                  <span className="ml-auto text-xs flex flex-col items-end">
-                    <div className="flex items-center gap-1">
-                      <span className="text-muted-foreground">prop:</span>
-                      {currentAgentId ? (
-                        <span className="text-green-400 font-mono font-bold">{currentAgentId.slice(-4)}</span>
-                      ) : (
-                        <span className="text-muted-foreground">null</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-muted-foreground">state:</span>
-                      {persistedAgentId ? (
-                        <span className="text-blue-400 font-mono font-bold">{persistedAgentId.slice(-4)}</span>
-                      ) : (
-                        <span className="text-muted-foreground">null</span>
-                      )}
-                    </div>
-                  </span>
                 </Button>
               )}
               
