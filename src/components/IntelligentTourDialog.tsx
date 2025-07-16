@@ -24,6 +24,7 @@ interface IntelligentTourDialogProps {
   onTourGenerated: (landmarks: any[]) => void;
   onAuthRequired: () => void;
   onTourReadyForVoice?: (tourData: { destination: string; systemPrompt: string; landmarks: any[]; agentId?: string }) => void;
+  onTourDataReceived?: (tourData: { agentId: string; destination: string; systemPrompt: string }) => void;
 }
 
 interface AutocompleteResult {
@@ -55,7 +56,8 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   onOpenChange,
   onTourGenerated,
   onAuthRequired,
-  onTourReadyForVoice
+  onTourReadyForVoice,
+  onTourDataReceived
 }) => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
@@ -856,6 +858,16 @@ You will receive occasional, non-interrupting system updates about **new** nearb
           systemPrompt: systemPrompt,
           landmarks: validLandmarks,
           agentId: tourType === 'experience' ? sourceAgentId : undefined
+        });
+      }
+
+      // Call the new tour data callback for persistent state (only for Experience tours)
+      if (onTourDataReceived && tourType === 'experience' && sourceAgentId) {
+        console.log('🎯 Calling onTourDataReceived with persistent tour data');
+        onTourDataReceived({
+          agentId: sourceAgentId,
+          destination: destination.name,
+          systemPrompt: systemPrompt
         });
       }
 
