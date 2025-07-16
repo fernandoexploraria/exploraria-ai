@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube, MapPin, ToggleLeft, ToggleRight, Compass } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerTrigger, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
@@ -57,10 +57,18 @@ const TopControls: React.FC<TopControlsProps> = ({
   const [isIntelligentTourOpen, setIsIntelligentTourOpen] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [isExperiencesDrawerOpen, setIsExperiencesDrawerOpen] = useState(false);
+  const [persistedAgentId, setPersistedAgentId] = useState<string | null>(null);
   const { toast } = useToast();
   const { isDemoMode, toggleDemoMode } = useDemoMode();
   
   const { connectionHealth } = useConnectionMonitor();
+
+  // Store the agent ID when it's first received
+  useEffect(() => {
+    if (currentAgentId && !persistedAgentId) {
+      setPersistedAgentId(currentAgentId);
+    }
+  }, [currentAgentId, persistedAgentId]);
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
@@ -241,12 +249,23 @@ const TopControls: React.FC<TopControlsProps> = ({
                 >
                   <Sparkles className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
                   Tour Guide
-                  <span className="ml-auto text-xs">
-                    {currentAgentId ? (
-                      <span className="text-green-400 font-mono font-bold">{currentAgentId.slice(-4)}</span>
-                    ) : (
-                      <span className="text-muted-foreground">null</span>
-                    )}
+                  <span className="ml-auto text-xs flex flex-col items-end">
+                    <div className="flex items-center gap-1">
+                      <span className="text-muted-foreground">prop:</span>
+                      {currentAgentId ? (
+                        <span className="text-green-400 font-mono font-bold">{currentAgentId.slice(-4)}</span>
+                      ) : (
+                        <span className="text-muted-foreground">null</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-muted-foreground">state:</span>
+                      {persistedAgentId ? (
+                        <span className="text-blue-400 font-mono font-bold">{persistedAgentId.slice(-4)}</span>
+                      ) : (
+                        <span className="text-muted-foreground">null</span>
+                      )}
+                    </div>
                   </span>
                 </Button>
               )}
