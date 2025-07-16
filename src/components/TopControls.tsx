@@ -32,6 +32,7 @@ interface TopControlsProps {
   onAuthDialogOpen?: () => void;
   onTestProximityCard?: () => void;
   showPortalAccess?: boolean;
+  currentAgentId?: string;
 }
 
 const TopControls: React.FC<TopControlsProps> = ({
@@ -46,13 +47,8 @@ const TopControls: React.FC<TopControlsProps> = ({
   onAuthDialogOpen,
   onTestProximityCard,
   showPortalAccess = false,
+  currentAgentId,
 }) => {
-  // Persistent state for tour data
-  const [persistedTourData, setPersistedTourData] = useState<{
-    agentId: string;
-    destination: string;
-    systemPrompt: string;
-  } | null>(null);
   const { user: authUser } = useAuth();
   const isMobile = useIsMobile();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -108,14 +104,12 @@ const TopControls: React.FC<TopControlsProps> = ({
   const handleSmartTourClick = () => {
     console.log('🎯 Smart Tour clicked from TopControls, user:', authUser?.id);
     
-    // Clear persisted tour data when starting a new Smart Tour
-    setPersistedTourData(null);
-    
     if (!authUser) {
       console.log('🚨 User not authenticated, opening auth dialog with smart-tour action');
       setIsAuthDialogOpen(true);
     } else {
       console.log('✅ User authenticated, opening smart tour dialog');
+      // Note: Reset logic is now handled by onIntelligentTourOpen from parent
       onIntelligentTourOpen();
     }
   };
@@ -141,30 +135,6 @@ const TopControls: React.FC<TopControlsProps> = ({
       title: "Tour Generated!",
       description: `${landmarks.length} amazing places added to your map`,
     });
-  };
-
-  const handleTourDataReceived = (tourData: { agentId: string; destination: string; systemPrompt: string }) => {
-    console.log('🎯 TopControls received tour data:', tourData);
-    // Don't set immediately, let it be captured when voice assistant opens
-  };
-
-  const handleVoiceAssistantClick = () => {
-    // Get current tour data when opening voice assistant
-    const currentTourData = (window as any).voiceTourData;
-    const agentId = persistedTourData?.agentId || currentTourData?.agentId;
-    
-    // If we have tour data and it's an Experience (has agentId), persist it
-    if (currentTourData?.agentId && currentTourData?.destination && currentTourData?.systemPrompt) {
-      console.log('🎯 Capturing tour data when opening voice assistant:', currentTourData);
-      setPersistedTourData({
-        agentId: currentTourData.agentId,
-        destination: currentTourData.destination,
-        systemPrompt: currentTourData.systemPrompt
-      });
-    }
-    
-    console.log('🎯 Opening voice assistant with agentId:', agentId);
-    onVoiceAssistantOpen(agentId);
   };
 
   const handleAuthRequired = () => {
@@ -267,23 +237,15 @@ const TopControls: React.FC<TopControlsProps> = ({
                   variant="outline"
                   size="sm"
                   className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2"
-                  onClick={handleVoiceAssistantClick}
+                  onClick={() => onVoiceAssistantOpen(currentAgentId || undefined)}
                 >
                   <Sparkles className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
                   Tour Guide
-                  <span className="ml-auto text-xs font-mono">
-                    {persistedTourData?.agentId ? (
-                      <span className="text-green-400 font-bold">{persistedTourData.agentId.slice(-4)}</span>
+                  <span className="ml-auto text-xs">
+                    {currentAgentId ? (
+                      <span className="text-green-400 font-mono font-bold">{currentAgentId.slice(-4)}</span>
                     ) : (
                       <span className="text-muted-foreground">null</span>
-                    )}
-                    {persistedTourData && (
-                      <>
-                        <span className="text-muted-foreground mx-1">|</span>
-                        <span className="text-blue-400">{persistedTourData.destination.slice(0, 3)}</span>
-                        <span className="text-muted-foreground mx-1">|</span>
-                        <span className="text-yellow-400">{persistedTourData.systemPrompt.slice(0, 3)}</span>
-                      </>
                     )}
                   </span>
                 </Button>
@@ -362,7 +324,6 @@ const TopControls: React.FC<TopControlsProps> = ({
         onOpenChange={setIsIntelligentTourOpen}
         onTourGenerated={handleTourGenerated}
         onAuthRequired={handleAuthRequired}
-        onTourDataReceived={handleTourDataReceived}
       />
 
       <AuthDialog

@@ -24,7 +24,7 @@ interface MainLayoutProps {
   user: User | null;
   onSelectLandmark: (landmark: Landmark) => void;
   onVoiceSearchOpen: () => void;
-  onVoiceAssistantOpen: (agentId?: string) => void;
+  onVoiceAssistantOpen: () => void;
   onLogoClick: () => void;
   onSignOut: () => Promise<void>;
   onAuthDialogOpen: () => void;
@@ -281,6 +281,7 @@ const MemoizedProximityCard = React.memo<{
         onIntelligentTourOpen={handleIntelligentTourOpen}
         onTestProximityCard={handleTestProximityCard}
         showPortalAccess={showPortalAccess}
+        currentAgentId={voiceTourData?.agentId}
       />
 
       <UserControls
