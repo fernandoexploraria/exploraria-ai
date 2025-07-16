@@ -862,14 +862,7 @@ You will receive occasional, non-interrupting system updates about **new** nearb
       }
 
       // Call the new tour data callback for persistent state (only for Experience tours)
-      if (onTourDataReceived && tourType === 'experience' && sourceAgentId) {
-        console.log('🎯 Calling onTourDataReceived with persistent tour data');
-        onTourDataReceived({
-          agentId: sourceAgentId,
-          destination: destination.name,
-          systemPrompt: systemPrompt
-        });
-      }
+      // Note: We removed the immediate callback here and will capture data when voice assistant opens instead
 
     } catch (error) {
       console.error('Database error:', error);

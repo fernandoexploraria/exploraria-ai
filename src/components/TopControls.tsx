@@ -145,11 +145,24 @@ const TopControls: React.FC<TopControlsProps> = ({
 
   const handleTourDataReceived = (tourData: { agentId: string; destination: string; systemPrompt: string }) => {
     console.log('🎯 TopControls received tour data:', tourData);
-    setPersistedTourData(tourData);
+    // Don't set immediately, let it be captured when voice assistant opens
   };
 
   const handleVoiceAssistantClick = () => {
-    const agentId = persistedTourData?.agentId;
+    // Get current tour data when opening voice assistant
+    const currentTourData = (window as any).voiceTourData;
+    const agentId = persistedTourData?.agentId || currentTourData?.agentId;
+    
+    // If we have tour data and it's an Experience (has agentId), persist it
+    if (currentTourData?.agentId && currentTourData?.destination && currentTourData?.systemPrompt) {
+      console.log('🎯 Capturing tour data when opening voice assistant:', currentTourData);
+      setPersistedTourData({
+        agentId: currentTourData.agentId,
+        destination: currentTourData.destination,
+        systemPrompt: currentTourData.systemPrompt
+      });
+    }
+    
     console.log('🎯 Opening voice assistant with agentId:', agentId);
     onVoiceAssistantOpen(agentId);
   };
