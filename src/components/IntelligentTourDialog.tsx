@@ -473,6 +473,12 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
           description: "You've reached your free tour limit. Please subscribe to generate more tours.",
           variant: "destructive"
         });
+        
+        // Dispatch event to highlight subscribe button
+        window.dispatchEvent(new CustomEvent('subscription-limit-reached'));
+        
+        // Close the dialog
+        handleClose();
         return;
       }
     }

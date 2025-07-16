@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Lock, CreditCard, X, AlertTriangle } from 'lucide-react';
 import { useTourStats } from '@/hooks/useTourStats';
@@ -8,6 +8,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 const FreeTourCounter: React.FC = () => {
   const { tourStats, isLoading: tourLoading } = useTourStats();
   const { subscriptionData, isLoading: subLoading, createCheckout, openCustomerPortal } = useSubscription();
+  const [isHighlighted, setIsHighlighted] = useState(false);
   
   const FREE_TOUR_LIMIT = 3;
   const toursUsed = tourStats?.tour_count || 0;
@@ -19,6 +20,24 @@ const FreeTourCounter: React.FC = () => {
 
   // Wait for both loading states to complete to prevent flickering
   const isLoading = tourLoading || subLoading;
+
+  // Listen for subscription limit reached event
+  useEffect(() => {
+    const handleSubscriptionLimitReached = () => {
+      setIsHighlighted(true);
+      
+      // Remove highlight after 8 seconds
+      setTimeout(() => {
+        setIsHighlighted(false);
+      }, 8000);
+    };
+
+    window.addEventListener('subscription-limit-reached', handleSubscriptionLimitReached);
+    
+    return () => {
+      window.removeEventListener('subscription-limit-reached', handleSubscriptionLimitReached);
+    };
+  }, []);
 
   const handleSubscribeClick = async () => {
     try {
@@ -91,7 +110,9 @@ const FreeTourCounter: React.FC = () => {
           <Button
             variant="outline"
             size="sm"
-            className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left"
+            className={`bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left transition-all duration-500 ${
+              isHighlighted ? 'ring-2 ring-primary animate-pulse bg-primary/10' : ''
+            }`}
             onClick={handleSubscribeClick}
           >
             <CreditCard className="mr-1 h-3 w-3" />
@@ -100,7 +121,9 @@ const FreeTourCounter: React.FC = () => {
           
           <Button
             variant="outline"
-            className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left"
+            className={`bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left transition-all duration-500 ${
+              isHighlighted ? 'ring-2 ring-primary animate-pulse bg-primary/10' : ''
+            }`}
             onClick={handleSubscribeClick}
           >
             <CreditCard className="mr-2 h-4 w-4" />
