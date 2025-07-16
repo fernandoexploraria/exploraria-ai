@@ -294,28 +294,11 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
 
     try {
       setConnectionError(null);
-      
-      // Smart agent ID selection with Experience tour protection
-      let effectiveAgentId: string;
-      
-      if (voiceTourData?.agentId) {
-        // Experience tour with valid agentId
-        effectiveAgentId = voiceTourData.agentId;
-        console.log('Using Experience tour agent:', effectiveAgentId);
-      } else if (voiceTourData && !voiceTourData.agentId) {
-        // Experience tour but missing agentId - this is the bug case
-        console.error('Experience tour missing agentId - preventing fallback to wrong agent');
-        throw new Error('Experience tour configuration incomplete. Please try refreshing the page.');
-      } else {
-        // Standard Smart/Top100 tour - use default agent
-        effectiveAgentId = elevenLabsConfig.agentId;
-        console.log('Using standard tour agent:', effectiveAgentId);
-      }
-      
+      // Use custom agentId from voiceTourData if available, otherwise fall back to hardcoded config
+      const effectiveAgentId = voiceTourData?.agentId || elevenLabsConfig.agentId;
       console.log('Starting ElevenLabs conversation with agent:', effectiveAgentId, {
         isCustomAgent: !!voiceTourData?.agentId,
-        tourType: voiceTourData?.agentId ? 'experience' : 'standard',
-        hasVoiceTourData: !!voiceTourData
+        tourType: voiceTourData?.agentId ? 'experience' : 'standard'
       });
       
       const dynamicVariables = prepareDynamicVariables();
