@@ -344,11 +344,19 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
     onOpenChange(false);
   };
 
+  // Get the effective agent ID that will be used for the call
+  const getEffectiveAgentId = () => {
+    return voiceTourData?.agentId || elevenLabsConfig?.agentId;
+  };
+
   // Get button label based on state
   const getButtonLabel = () => {
+    const effectiveAgentId = getEffectiveAgentId();
+    const agentIdDebug = effectiveAgentId ? `[${effectiveAgentId.slice(-4)}]` : '';
+    
     switch (assistantState) {
       case 'not-started':
-        return 'Call Tour Guide';
+        return `Call Tour Guide ${agentIdDebug}`;
       case 'started':
         return 'Talk to interrupt';
       case 'listening':
@@ -358,7 +366,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       case 'playback':
         return 'Talk to interrupt';
       default:
-        return 'Call Tour Guide';
+        return `Call Tour Guide ${agentIdDebug}`;
     }
   };
 
