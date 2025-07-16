@@ -81,10 +81,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
                       (window as any).pendingLandmarkDestination = pendingLandmark;
                       clearPostAuthLandmark();
                       
-                      // Trigger intelligent tour directly
-                      if (onPostAuthAction) {
-                        onPostAuthAction('intelligent-tour');
-                      }
+                      // Close drawer before triggering intelligent tour
+                      setTimeout(() => {
+                        if (onPostAuthAction) {
+                          onPostAuthAction('intelligent-tour');
+                        }
+                      }, 100);
                       return;
                     }
                     

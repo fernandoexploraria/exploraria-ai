@@ -15,6 +15,7 @@ interface ExperienceCardProps {
   onSelect?: (experience: Experience) => void;
   onIntelligentTourOpen?: () => void;
   onAuthDialogOpen?: () => void;
+  onDrawerClose?: () => void;
 }
 
 // Helper function to generate overview prompt from system_prompt
@@ -30,7 +31,8 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
   experience,
   onSelect,
   onIntelligentTourOpen,
-  onAuthDialogOpen
+  onAuthDialogOpen,
+  onDrawerClose
 }) => {
   const { speak, stop, isPlaying, currentPlayingId } = useTTSContext();
   const { user: authUser } = useAuth();
@@ -200,10 +202,15 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
     // Store landmark as pending destination for IntelligentTourDialog
     (window as any).pendingLandmarkDestination = landmark;
 
+    // Close drawer before opening intelligent tour dialog
+    onDrawerClose?.();
+
     // Open intelligent tour dialog
     onIntelligentTourOpen();
     
-    toast.success('Payment successful! Starting your tour...');
+    if (paymentIntentId) {
+      toast.success('Payment successful! Starting your tour...');
+    }
   };
 
   return (
