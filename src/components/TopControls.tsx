@@ -32,6 +32,7 @@ interface TopControlsProps {
   onAuthDialogOpen?: () => void;
   onTestProximityCard?: () => void;
   showPortalAccess?: boolean;
+  currentAgentId?: string;
 }
 
 const TopControls: React.FC<TopControlsProps> = ({
@@ -46,6 +47,7 @@ const TopControls: React.FC<TopControlsProps> = ({
   onAuthDialogOpen,
   onTestProximityCard,
   showPortalAccess = false,
+  currentAgentId,
 }) => {
   const { user: authUser } = useAuth();
   const isMobile = useIsMobile();
@@ -261,6 +263,11 @@ const TopControls: React.FC<TopControlsProps> = ({
               {!isDemoMode && (
                 <>
                   <ConnectionStatus showDetails className="w-full" />
+                  
+                  {/* Agent ID Display */}
+                  <div className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 flex items-center justify-center w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 rounded-md border border-border">
+                    <span className="text-muted-foreground">Agent: {currentAgentId ? currentAgentId.slice(-4) : 'null'}</span>
+                  </div>
                   
                   <Button
                     variant="outline"
