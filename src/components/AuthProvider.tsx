@@ -51,13 +51,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
             console.log('Executing pending post-auth action:', pendingAction);
             clearPostAuthAction();
             
-            // If it's a smart-tour action, also handle landmark restoration and payment
+            // If it's a smart-tour action, check if it's an experience-based tour or simple Smart Tour
             if (pendingAction === 'smart-tour') {
               const pendingLandmark = getPostAuthLandmark();
               if (pendingLandmark && pendingLandmark.tourId) {
-                console.log('🎯 Restoring landmark for post-auth tour:', pendingLandmark.name);
+                console.log('🎯 Restoring landmark for post-auth experience tour:', pendingLandmark.name);
                 
-                // Create payment intent for the experience first
+                // This is an experience-based tour, create payment intent
                 setTimeout(async () => {
                   try {
                     const { data, error } = await supabase.functions.invoke('create-experience-payment', {
@@ -87,6 +87,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
                     console.error('Post-auth payment error:', error);
                   }
                 }, 1000);
+                return;
+              } else {
+                // This is a simple Smart Tour (subscription-based), no payment needed
+                console.log('🎯 Simple Smart Tour post-auth, no payment required');
+                setTimeout(() => {
+                  if (onPostAuthAction) {
+                    onPostAuthAction(pendingAction);
+                  }
+                }, 500);
                 return;
               }
             }
