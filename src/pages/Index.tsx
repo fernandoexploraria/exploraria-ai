@@ -263,14 +263,11 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
     }, 200);
   };
 
-  // Enhanced handler to clear voice data when assistant closes
+  // Handler for tour assistant dialog open/close
   const handleNewTourAssistantOpenChange = (open: boolean) => {
     setIsNewTourAssistantOpen(open);
-    if (!open) {
-      console.log('🎙️ Voice assistant closed - clearing tour data');
-      // Clear voice tour data when assistant closes
-      setTimeout(() => setVoiceTourData(null), 100);
-    }
+    // Note: We no longer clear voiceTourData here to preserve Experience tour agentId
+    // voiceTourData is cleared during tour generation/reset in handleIntelligentTourOpen
   };
 
   if (showSplash) {
