@@ -225,70 +225,82 @@ const createProximitySettingsSubscription = (userId: string, loadProximitySettin
   console.log('📡 Creating new proximity settings subscription for user:', userId);
   updateConnectionStatus('connecting');
   
-  const channelName = `proximity-settings-${userId}`;
+  // Clean up existing channel first
+  if (globalProximityState.channel) {
+    console.log('🧹 Cleaning up existing proximity settings channel before creating new one');
+    supabase.removeChannel(globalProximityState.channel);
+    globalProximityState.channel = null;
+    globalProximityState.isSubscribed = false;
+  }
   
-  const channel = supabase
-    .channel(channelName)
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'proximity_settings',
-        filter: `user_id=eq.${userId}`
-      },
-      (payload) => {
-        console.log('🔄 Real-time proximity settings update received:', payload);
-        if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
-          const settings: ProximitySettings = {
-            id: payload.new.id,
-            user_id: payload.new.user_id,
-            notification_distance: payload.new.notification_distance,
-            outer_distance: payload.new.outer_distance,
-            card_distance: payload.new.card_distance,
-            created_at: payload.new.created_at,
-            updated_at: payload.new.updated_at,
-          };
-          console.log('🔄 Parsed settings from real-time update:', settings);
-          notifySubscribers(settings);
-        } else if (payload.eventType === 'DELETE') {
-          console.log('🗑️ Settings deleted via real-time update');
-          notifySubscribers(null);
-        }
-      }
-    )
-    .subscribe((status) => {
-      console.log('📡 Proximity settings subscription status:', status);
-      if (status === 'SUBSCRIBED') {
-        globalProximityState.isSubscribed = true;
-        // Phase 1: Reset retry count on successful connection
-        globalProximityState.retryCount = 0;
-        if (globalProximityState.retryTimeout) {
-          clearTimeout(globalProximityState.retryTimeout);
-          globalProximityState.retryTimeout = null;
-        }
-        // Phase 2: Update connection status and stop any polling
-        updateConnectionStatus('connected', true);
-        stopPollingFallback();
-        console.log('✅ Proximity settings subscription successful, retry count reset');
-        // Load initial data after successful subscription
-        loadProximitySettingsFunc();
-      } else if (status === 'CHANNEL_ERROR') {
-        console.error('❌ Proximity settings channel subscription error');
-        globalProximityState.isSubscribed = false;
-        updateConnectionStatus('failed');
-        // Phase 1: Trigger reconnection on channel error
-        reconnectWithBackoff(userId, loadProximitySettingsFunc);
-      } else if (status === 'TIMED_OUT') {
-        console.error('⏰ Proximity settings channel subscription timed out');
-        globalProximityState.isSubscribed = false;
-        updateConnectionStatus('failed');
-        // Phase 1: Trigger reconnection on timeout
-        reconnectWithBackoff(userId, loadProximitySettingsFunc);
-      }
-    });
-
+  const channelName = `proximity-settings-${userId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  const channel = supabase.channel(channelName);
+  
+  // Store the channel reference immediately to prevent multiple subscriptions
   globalProximityState.channel = channel;
+  
+  // Configure the channel with event handlers
+  channel.on(
+    'postgres_changes',
+    {
+      event: '*',
+      schema: 'public',
+      table: 'proximity_settings',
+      filter: `user_id=eq.${userId}`
+    },
+    (payload) => {
+      console.log('🔄 Real-time proximity settings update received:', payload);
+      if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+        const settings: ProximitySettings = {
+          id: payload.new.id,
+          user_id: payload.new.user_id,
+          notification_distance: payload.new.notification_distance,
+          outer_distance: payload.new.outer_distance,
+          card_distance: payload.new.card_distance,
+          created_at: payload.new.created_at,
+          updated_at: payload.new.updated_at,
+        };
+        console.log('🔄 Parsed settings from real-time update:', settings);
+        notifySubscribers(settings);
+      } else if (payload.eventType === 'DELETE') {
+        console.log('🗑️ Settings deleted via real-time update');
+        notifySubscribers(null);
+      }
+    }
+  );
+
+  // Subscribe to the channel
+  channel.subscribe((status) => {
+    console.log('📡 Proximity settings subscription status:', status);
+    if (status === 'SUBSCRIBED') {
+      globalProximityState.isSubscribed = true;
+      // Phase 1: Reset retry count on successful connection
+      globalProximityState.retryCount = 0;
+      if (globalProximityState.retryTimeout) {
+        clearTimeout(globalProximityState.retryTimeout);
+        globalProximityState.retryTimeout = null;
+      }
+      // Phase 2: Update connection status and stop any polling
+      updateConnectionStatus('connected', true);
+      stopPollingFallback();
+      console.log('✅ Proximity settings subscription successful, retry count reset');
+      // Load initial data after successful subscription
+      loadProximitySettingsFunc();
+    } else if (status === 'CHANNEL_ERROR') {
+      console.error('❌ Proximity settings channel subscription error');
+      globalProximityState.isSubscribed = false;
+      updateConnectionStatus('failed');
+      // Phase 1: Trigger reconnection on channel error
+      reconnectWithBackoff(userId, loadProximitySettingsFunc);
+    } else if (status === 'TIMED_OUT') {
+      console.error('⏰ Proximity settings channel subscription timed out');
+      globalProximityState.isSubscribed = false;
+      updateConnectionStatus('failed');
+      // Phase 1: Trigger reconnection on timeout
+      reconnectWithBackoff(userId, loadProximitySettingsFunc);
+    }
+  });
 };
 
 // Convert TopLandmark to Landmark format

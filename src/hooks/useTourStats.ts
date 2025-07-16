@@ -116,61 +116,65 @@ export const useTourStats = () => {
     // Load initial data first
     fetchTourStats();
 
-    // Create new subscription
-    const channelName = `tour-stats-${user.id}-${Date.now()}`;
+    // Create new subscription with unique channel name
+    const channelName = `tour-stats-${user.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     console.log('📡 Tour Stats: Creating subscription for user:', user.id);
     
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'user_tour_stats',
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          console.log('🔄 Tour Stats: Real-time update received:', payload);
-          if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
-            const stats: TourStats = {
-              id: payload.new.id,
-              user_id: payload.new.user_id,
-              tour_count: payload.new.tour_count,
-              experience_count: payload.new.experience_count,
-              created_at: payload.new.created_at,
-              updated_at: payload.new.updated_at,
-            };
-            console.log('🔄 Tour Stats: Parsed stats from real-time update:', stats);
-            if (isMountedRef.current) {
-              setTourStats(stats);
-            }
-          } else if (payload.eventType === 'DELETE') {
-            console.log('🗑️ Tour Stats: Stats deleted via real-time update');
-            if (isMountedRef.current) {
-              setTourStats(null);
-            }
+    const channel = supabase.channel(channelName);
+    
+    // Store the channel reference immediately to prevent multiple subscriptions
+    channelRef.current = channel;
+    
+    // Configure the channel with event handlers
+    channel.on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'user_tour_stats',
+        filter: `user_id=eq.${user.id}`
+      },
+      (payload) => {
+        console.log('🔄 Tour Stats: Real-time update received:', payload);
+        if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+          const stats: TourStats = {
+            id: payload.new.id,
+            user_id: payload.new.user_id,
+            tour_count: payload.new.tour_count,
+            experience_count: payload.new.experience_count,
+            created_at: payload.new.created_at,
+            updated_at: payload.new.updated_at,
+          };
+          console.log('🔄 Tour Stats: Parsed stats from real-time update:', stats);
+          if (isMountedRef.current) {
+            setTourStats(stats);
+          }
+        } else if (payload.eventType === 'DELETE') {
+          console.log('🗑️ Tour Stats: Stats deleted via real-time update');
+          if (isMountedRef.current) {
+            setTourStats(null);
           }
         }
-      )
-      .subscribe((status) => {
-        console.log('📡 Tour Stats: Subscription status:', status);
-        if (status === 'SUBSCRIBED') {
-          console.log('✅ Tour Stats: Real-time subscription successful');
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Tour Stats: Channel subscription error - falling back to manual refresh');
-          // Don't break the app, just log the error
-          // The initial data was already loaded above
-        } else if (status === 'TIMED_OUT') {
-          console.error('⏰ Tour Stats: Channel subscription timed out - falling back to manual refresh');
-          // Don't break the app, just log the error
-          // The initial data was already loaded above
-        } else if (status === 'CLOSED') {
-          console.log('📡 Tour Stats: Channel subscription closed');
-        }
-      });
+      }
+    );
 
-    channelRef.current = channel;
+    // Subscribe to the channel
+    channel.subscribe((status) => {
+      console.log('📡 Tour Stats: Subscription status:', status);
+      if (status === 'SUBSCRIBED') {
+        console.log('✅ Tour Stats: Real-time subscription successful');
+      } else if (status === 'CHANNEL_ERROR') {
+        console.error('❌ Tour Stats: Channel subscription error - falling back to manual refresh');
+        // Don't break the app, just log the error
+        // The initial data was already loaded above
+      } else if (status === 'TIMED_OUT') {
+        console.error('⏰ Tour Stats: Channel subscription timed out - falling back to manual refresh');
+        // Don't break the app, just log the error
+        // The initial data was already loaded above
+      } else if (status === 'CLOSED') {
+        console.log('📡 Tour Stats: Channel subscription closed');
+      }
+    });
 
     return () => {
       if (channelRef.current) {
@@ -179,7 +183,7 @@ export const useTourStats = () => {
         channelRef.current = null;
       }
     };
-  }, [user?.id]); // Removed fetchTourStats from dependencies to avoid circular dependency
+  }, [user?.id, fetchTourStats]);
 
   // Force refresh function
   const forceRefresh = useCallback(async () => {
