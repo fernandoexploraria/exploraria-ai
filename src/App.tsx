@@ -20,6 +20,7 @@ const queryClient = new QueryClient();
 const App = () => {
   const [postAuthActions, setPostAuthActions] = useState<{
     onSmartTour?: () => void;
+    onIntelligentTour?: () => void;
   }>({});
   const [isVoiceAgentActive, setIsVoiceAgentActive] = useState(false);
 
@@ -30,6 +31,11 @@ const App = () => {
       case 'smart-tour':
         if (postAuthActions.onSmartTour) {
           postAuthActions.onSmartTour();
+        }
+        break;
+      case 'intelligent-tour':
+        if (postAuthActions.onIntelligentTour) {
+          postAuthActions.onIntelligentTour();
         }
         break;
       default:

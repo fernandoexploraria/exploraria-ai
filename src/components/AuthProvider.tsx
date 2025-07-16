@@ -100,6 +100,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
               }
             }
             
+            // Handle intelligent-tour action for Top 100 landmarks
+            if (pendingAction === 'intelligent-tour') {
+              const pendingLandmark = getPostAuthLandmark();
+              if (pendingLandmark) {
+                console.log('🎯 Restoring Top 100 landmark for Intelligent Tour:', pendingLandmark.name);
+                // Set the landmark context for the Intelligent Tour dialog
+                (window as any).pendingLandmarkDestination = pendingLandmark;
+                clearPostAuthLandmark();
+                
+                setTimeout(() => {
+                  if (onPostAuthAction) {
+                    onPostAuthAction(pendingAction);
+                  }
+                }, 500);
+                return;
+              }
+            }
+            
             // For other actions or if no payment needed, proceed normally
             setTimeout(() => {
               if (onPostAuthAction) {

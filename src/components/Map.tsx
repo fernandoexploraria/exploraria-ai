@@ -122,7 +122,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
       // User not authenticated - persist landmark and trigger auth
       console.log('🚨 User not authenticated, persisting landmark and triggering auth');
       setPostAuthLandmark(landmark);
-      setPostAuthAction('smart-tour');
+      setPostAuthAction('intelligent-tour');
       
       // Trigger auth dialog via parent component
       if (onAuthDialogOpen) {

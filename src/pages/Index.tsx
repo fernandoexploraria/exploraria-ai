@@ -15,7 +15,7 @@ import { performComprehensiveTourReset } from '@/utils/tourResetUtils';
 import { useToast } from '@/hooks/use-toast';
 
 interface IndexProps {
-  onRegisterPostAuthActions?: (actions: { onSmartTour?: () => void }) => void;
+  onRegisterPostAuthActions?: (actions: { onSmartTour?: () => void; onIntelligentTour?: () => void }) => void;
   onVoiceAgentStateChange?: (isActive: boolean) => void;
 }
 
@@ -68,6 +68,10 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
       onRegisterPostAuthActions({
         onSmartTour: () => {
           console.log('🎯 Executing post-auth smart tour action');
+          handleIntelligentTourOpen();
+        },
+        onIntelligentTour: () => {
+          console.log('🎯 Executing post-auth intelligent tour action');
           handleIntelligentTourOpen();
         }
       });
