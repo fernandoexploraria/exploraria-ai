@@ -151,7 +151,6 @@ const ExperiencesDrawer: React.FC<ExperiencesDrawerProps> = ({
                 {experiences.map(experience => <CarouselItem key={experience.id} className="pl-2 md:pl-4 basis-auto">
                 <ExperienceCard 
                   experience={experience} 
-                  onSelect={handleExperienceSelect}
                   onIntelligentTourOpen={onIntelligentTourOpen}
                   onAuthDialogOpen={onAuthDialogOpen}
                   onDrawerClose={() => onOpenChange(false)}

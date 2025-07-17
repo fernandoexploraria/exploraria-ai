@@ -12,7 +12,6 @@ import { PaymentDialog } from '@/components/payment/PaymentDialog';
 
 interface ExperienceCardProps {
   experience: Experience;
-  onSelect?: (experience: Experience) => void;
   onIntelligentTourOpen?: () => void;
   onAuthDialogOpen?: () => void;
   onDrawerClose?: () => void;
@@ -29,7 +28,6 @@ Please create a compelling overview that captures the essence of this experience
 
 const ExperienceCard: React.FC<ExperienceCardProps> = ({
   experience,
-  onSelect,
   onIntelligentTourOpen,
   onAuthDialogOpen,
   onDrawerClose
@@ -274,16 +272,6 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
                 {hasAlreadyPaid ? 'Start Tour' : '$9.99'}
               </span>
             </Button>
-            {onSelect && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => onSelect(experience)} 
-                className="bg-gradient-to-r from-purple-400/80 to-pink-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start flex-1 lg:h-10 lg:text-sm lg:py-2 border-purple-300 hover:from-purple-300/80 hover:to-pink-300/80"
-              >
-                Generate Experience
-              </Button>
-            )}
           </div>
         </CardContent>
       </Card>
