@@ -18,23 +18,35 @@ serve(async (req) => {
   }
 
   try {
-    logStep("Function started");
-
+    logStep("Function started - checking environment");
+    
+    // Check all environment variables
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const stripeKey = Deno.env.get("STRIPE_PRIVATE_KEY_TEST");
+    
+    logStep("Environment check", { 
+      hasSupabaseUrl: !!supabaseUrl, 
+      hasSupabaseAnonKey: !!supabaseAnonKey, 
+      hasStripeKey: !!stripeKey 
+    });
+    
+    if (!supabaseUrl) throw new Error("SUPABASE_URL is not set");
+    if (!supabaseAnonKey) throw new Error("SUPABASE_ANON_KEY is not set");
     if (!stripeKey) throw new Error("STRIPE_PRIVATE_KEY_TEST is not set");
-    logStep("Stripe key verified");
+    
+    logStep("All environment variables verified");
 
     // Create Supabase client for authentication
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-    );
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
     logStep("Authorization header found");
 
     const token = authHeader.replace("Bearer ", "");
+    logStep("Attempting to get user with token");
+    
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
     if (userError) throw new Error(`Authentication error: ${userError.message}`);
     const user = userData.user;
