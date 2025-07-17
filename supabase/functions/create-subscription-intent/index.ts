@@ -7,54 +7,50 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Helper logging function for debugging
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[CREATE-SUBSCRIPTION-INTENT] ${step}${detailsStr}`);
 };
 
 serve(async (req) => {
-  console.log("🚀 [CREATE-SUBSCRIPTION-INTENT] Function invoked at:", new Date().toISOString());
-  console.log("🚀 [CREATE-SUBSCRIPTION-INTENT] Request method:", req.method);
-  
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    console.log("🚀 [CREATE-SUBSCRIPTION-INTENT] Handling OPTIONS request");
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    logStep("Function started - checking environment");
+    logStep("Function started");
     
     // Check all environment variables
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const stripeKey = Deno.env.get("STRIPE_PRIVATE_KEY_TEST");
-    
-    logStep("Environment check", { 
-      hasSupabaseUrl: !!supabaseUrl, 
-      hasSupabaseAnonKey: !!supabaseAnonKey, 
-      hasStripeKey: !!stripeKey 
-    });
+    const priceId = Deno.env.get("STRIPE_PRICE_ID");
     
     if (!supabaseUrl) throw new Error("SUPABASE_URL is not set");
-    if (!supabaseAnonKey) throw new Error("SUPABASE_ANON_KEY is not set");
     if (!stripeKey) throw new Error("STRIPE_PRIVATE_KEY_TEST is not set");
+    if (!priceId) throw new Error("STRIPE_PRICE_ID is not set");
     
-    logStep("All environment variables verified");
+    logStep("Environment variables verified");
 
-    // Create Supabase client for authentication
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+    // Create Supabase client with service role for secure operations
+    const supabaseClient = createClient(
+      supabaseUrl, 
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
     logStep("Authorization header found");
 
     const token = authHeader.replace("Bearer ", "");
-    logStep("Attempting to get user with token");
-    
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
+    if (userError || !userData.user) {
+      throw new Error("Invalid user authentication");
+    }
+    
     const user = userData.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
@@ -76,25 +72,27 @@ serve(async (req) => {
       logStep("Found existing customer", { customerId });
     }
 
-    // Get the price ID from secrets
-    const priceId = Deno.env.get("STRIPE_PRICE_ID");
-    if (!priceId) throw new Error("STRIPE_PRICE_ID is not set");
-    logStep("Price ID retrieved", { priceId: priceId.substring(0, 10) + "..." });
+    // Define the Oaxaca tour constants as in experience payment
+    const oaxacaTourId = "e3abf32b-21e6-4c59-95c7-9ac085881ef0";
+    const oaxacaTourGuideId = "169e45ac-7691-402a-a497-d6e83e4fe377";
+    const oaxacaProductId = "prod_SgD3DLtGshrg83";
+
+    logStep("Using Oaxaca tour reference for subscription payment", { 
+      tourId: oaxacaTourId, 
+      guideId: oaxacaTourGuideId 
+    });
 
     // Create subscription with incomplete payment behavior
     const subscription = await stripe.subscriptions.create({
       customer: customerId,
-      items: [
-        {
-          price: priceId,
-        },
-      ],
+      items: [{ price: priceId }],
       payment_behavior: "default_incomplete",
       payment_settings: { save_default_payment_method: "on_subscription" },
       expand: ["latest_invoice.payment_intent"],
       metadata: {
         user_id: user.id,
         user_email: user.email,
+        reference_tour_id: oaxacaTourId
       },
     });
 
@@ -111,38 +109,32 @@ serve(async (req) => {
 
     logStep("Client secret extracted", { clientSecret: clientSecret.substring(0, 20) + "..." });
 
-    // Insert PaymentIntent record into payments table immediately
-    const supabaseService = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } }
-    );
-
-    const { error: insertError } = await supabaseService.from("payments").insert({
+    // Insert payment record using same pattern as experience payment
+    const { error: paymentInsertError } = await supabaseClient.from("payments").insert({
       stripe_payment_intent_id: paymentIntent.id,
-      stripe_customer_id: customerId,
-      amount: invoice.amount_total,
-      currency: "usd",
-      status: "requires_payment_method",
-      tour_guide_id: "subscription", // Placeholder for subscription payments
-      tour_id: "00000000-0000-0000-0000-000000000000", // Placeholder UUID for subscription
-      platform_fee_amount: 0, // No platform fee for subscriptions
-      tour_guide_payout_amount: 0, // No payout for subscriptions
+      tour_id: oaxacaTourId, // Use real tour ID
+      tour_guide_id: oaxacaTourGuideId, // Use real tour guide ID
       tourist_user_id: user.id,
+      amount: invoice.amount_total / 100, // Convert cents to dollars
+      currency: "usd",
+      platform_fee_amount: 0, // No fees for subscriptions
+      tour_guide_payout_amount: 0, // No payouts for subscriptions
+      status: paymentIntent.status,
+      stripe_customer_id: customerId,
       metadata: {
         subscription_id: subscription.id,
         price_id: priceId,
-        customer_id: customerId,
+        product_id: oaxacaProductId,
         payment_type: "subscription"
       }
     });
 
-    if (insertError) {
-      logStep("Error inserting payment record", { error: insertError });
-      // Don't fail the entire flow for this, just log the error
-    } else {
-      logStep("Payment record inserted successfully", { paymentIntentId: paymentIntent.id });
+    if (paymentInsertError) {
+      logStep("Error storing payment", { error: paymentInsertError });
+      throw new Error("Failed to store payment information");
     }
+
+    logStep("Payment record inserted successfully", { paymentIntentId: paymentIntent.id });
 
     return new Response(JSON.stringify({ 
       client_secret: clientSecret,
@@ -153,19 +145,10 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR in create-subscription-intent", { message: errorMessage });
-    
-    // Also log to console for debugging when BigQuery logs are unavailable
-    console.error("DETAILED ERROR:", {
-      message: errorMessage,
-      stack: error instanceof Error ? error.stack : undefined,
-      timestamp: new Date().toISOString()
-    });
-    
+    logStep("ERROR", { message: error instanceof Error ? error.message : String(error) });
+    console.error("Payment creation error:", error);
     return new Response(JSON.stringify({ 
-      error: errorMessage,
-      timestamp: new Date().toISOString()
+      error: error instanceof Error ? error.message : String(error) 
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
