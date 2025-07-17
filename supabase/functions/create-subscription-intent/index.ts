@@ -13,8 +13,11 @@ const logStep = (step: string, details?: any) => {
 };
 
 serve(async (req) => {
+  // Log every incoming request for debugging
   console.log("🚀 [CREATE-SUBSCRIPTION-INTENT] Function invoked at:", new Date().toISOString());
   console.log("🚀 [CREATE-SUBSCRIPTION-INTENT] Request method:", req.method);
+  console.log("🚀 [CREATE-SUBSCRIPTION-INTENT] Request headers:", Object.fromEntries([...req.headers.entries()].filter(([key]) => !key.toLowerCase().includes('authorization'))));
+  
   
   if (req.method === "OPTIONS") {
     console.log("🚀 [CREATE-SUBSCRIPTION-INTENT] Handling OPTIONS request");
