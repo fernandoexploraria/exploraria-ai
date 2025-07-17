@@ -13,6 +13,7 @@ interface EmbeddedPaymentFormProps {
   onError: (error: string) => void;
   amount: number;
   experienceTitle: string;
+  isMobile?: boolean;
 }
 
 export const EmbeddedPaymentForm: React.FC<EmbeddedPaymentFormProps> = ({
@@ -20,6 +21,7 @@ export const EmbeddedPaymentForm: React.FC<EmbeddedPaymentFormProps> = ({
   onError,
   amount,
   experienceTitle,
+  isMobile = false,
 }) => {
   const stripe = useStripe();
   const elements = useElements();
@@ -60,37 +62,40 @@ export const EmbeddedPaymentForm: React.FC<EmbeddedPaymentFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className={`space-y-4 ${isMobile ? 'sm:space-y-6' : 'space-y-6'}`}>
       <div className="space-y-2">
-        <h3 className="text-lg font-semibold text-foreground">
+        <h3 className={`font-semibold text-foreground ${isMobile ? 'text-base' : 'text-lg'}`}>
           Complete Your Purchase
         </h3>
-        <p className="text-sm text-muted-foreground">
+        <p className={`text-muted-foreground ${isMobile ? 'text-xs' : 'text-sm'}`}>
           {experienceTitle}
         </p>
-        <p className="text-lg font-bold text-foreground">
+        <p className={`font-bold text-foreground ${isMobile ? 'text-base' : 'text-lg'}`}>
           ${formatAmount(amount)} USD
         </p>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         <PaymentElement
           options={{
-            layout: "tabs",
+            layout: isMobile ? "accordion" : "tabs",
+            paymentMethodOrder: isMobile ? ["card"] : undefined,
           }}
         />
       </div>
 
       {errorMessage && (
         <Alert variant="destructive">
-          <AlertDescription>{errorMessage}</AlertDescription>
+          <AlertDescription className={isMobile ? 'text-xs' : 'text-sm'}>
+            {errorMessage}
+          </AlertDescription>
         </Alert>
       )}
 
       <Button
         type="submit"
         disabled={!stripe || !elements || isLoading}
-        className="w-full"
+        className={`w-full ${isMobile ? 'h-10 text-sm' : 'h-11'}`}
       >
         {isLoading ? (
           <>
