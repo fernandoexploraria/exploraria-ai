@@ -140,11 +140,12 @@ serve(async (req) => {
       tour_guide_payout_amount: 0, // No payouts for subscriptions
       status: paymentIntent.status,
       stripe_customer_id: customerId,
+      payment_type: "subscription", // NEW: Dedicated field
+      stripe_subscription_id: subscription.id, // NEW: Dedicated field
       metadata: {
-        subscription_id: subscription.id,
         price_id: priceId,
-        product_id: oaxacaProductId,
-        payment_type: "subscription"
+        product_id: oaxacaProductId
+        // Removed subscription_id and payment_type from metadata since they have dedicated fields
       }
     });
 
