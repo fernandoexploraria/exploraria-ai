@@ -126,7 +126,18 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR in create-subscription-intent", { message: errorMessage });
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    
+    // Also log to console for debugging when BigQuery logs are unavailable
+    console.error("DETAILED ERROR:", {
+      message: errorMessage,
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString()
+    });
+    
+    return new Response(JSON.stringify({ 
+      error: errorMessage,
+      timestamp: new Date().toISOString()
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });
