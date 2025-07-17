@@ -365,11 +365,13 @@ export type Database = {
           currency: string
           id: string
           metadata: Json | null
+          payment_type: string | null
           platform_fee_amount: number
           status: string
           stripe_charge_id: string | null
           stripe_customer_id: string | null
           stripe_payment_intent_id: string
+          stripe_subscription_id: string | null
           stripe_transfer_id: string | null
           tour_guide_id: string | null
           tour_guide_payout_amount: number
@@ -383,11 +385,13 @@ export type Database = {
           currency?: string
           id?: string
           metadata?: Json | null
+          payment_type?: string | null
           platform_fee_amount: number
           status?: string
           stripe_charge_id?: string | null
           stripe_customer_id?: string | null
           stripe_payment_intent_id: string
+          stripe_subscription_id?: string | null
           stripe_transfer_id?: string | null
           tour_guide_id?: string | null
           tour_guide_payout_amount: number
@@ -401,11 +405,13 @@ export type Database = {
           currency?: string
           id?: string
           metadata?: Json | null
+          payment_type?: string | null
           platform_fee_amount?: number
           status?: string
           stripe_charge_id?: string | null
           stripe_customer_id?: string | null
           stripe_payment_intent_id?: string
+          stripe_subscription_id?: string | null
           stripe_transfer_id?: string | null
           tour_guide_id?: string | null
           tour_guide_payout_amount?: number
