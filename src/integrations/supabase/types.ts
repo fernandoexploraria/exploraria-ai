@@ -371,9 +371,9 @@ export type Database = {
           stripe_customer_id: string | null
           stripe_payment_intent_id: string
           stripe_transfer_id: string | null
-          tour_guide_id: string
+          tour_guide_id: string | null
           tour_guide_payout_amount: number
-          tour_id: string
+          tour_id: string | null
           tourist_user_id: string | null
           updated_at: string
         }
@@ -389,9 +389,9 @@ export type Database = {
           stripe_customer_id?: string | null
           stripe_payment_intent_id: string
           stripe_transfer_id?: string | null
-          tour_guide_id: string
+          tour_guide_id?: string | null
           tour_guide_payout_amount: number
-          tour_id: string
+          tour_id?: string | null
           tourist_user_id?: string | null
           updated_at?: string
         }
@@ -407,21 +407,13 @@ export type Database = {
           stripe_customer_id?: string | null
           stripe_payment_intent_id?: string
           stripe_transfer_id?: string | null
-          tour_guide_id?: string
+          tour_guide_id?: string | null
           tour_guide_payout_amount?: number
-          tour_id?: string
+          tour_id?: string | null
           tourist_user_id?: string | null
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "payments_tour_id_fkey"
-            columns: ["tour_id"]
-            isOneToOne: false
-            referencedRelation: "generated_tours"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       proximity_alerts: {
         Row: {
