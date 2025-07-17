@@ -40,7 +40,7 @@ export const EmbeddedPaymentForm: React.FC<EmbeddedPaymentFormProps> = ({
     setIsLoading(true);
     setErrorMessage("");
 
-    const { error } = await stripe.confirmPayment({
+    const { error, paymentIntent } = await stripe.confirmPayment({
       elements,
       confirmParams: {
         return_url: `${window.location.origin}/payment-success`,
@@ -52,10 +52,48 @@ export const EmbeddedPaymentForm: React.FC<EmbeddedPaymentFormProps> = ({
       setErrorMessage(error.message || "An unexpected error occurred.");
       setIsLoading(false);
       onError(error.message || "Payment failed");
+    } else if (paymentIntent) {
+      // Check the payment intent status
+      if (paymentIntent.status === 'succeeded') {
+        setIsLoading(false);
+        onSuccess();
+      } else if (paymentIntent.status === 'processing') {
+        // Payment is still processing, wait a bit and check again
+        setTimeout(async () => {
+          try {
+            const { paymentIntent: updatedPI } = await stripe.retrievePaymentIntent(paymentIntent.client_secret);
+            if (updatedPI && updatedPI.status === 'succeeded') {
+              setIsLoading(false);
+              onSuccess();
+            } else if (updatedPI && (updatedPI.status === 'canceled' || updatedPI.status === 'requires_payment_method')) {
+              setErrorMessage("Payment failed. Please try again.");
+              setIsLoading(false);
+              onError("Payment failed");
+            } else {
+              // Still processing or other status, give it more time
+              setErrorMessage("Payment is still processing. Please wait...");
+            }
+          } catch (retrieveError) {
+            console.error('Error retrieving payment intent:', retrieveError);
+            setErrorMessage("Unable to verify payment status. Please check your payment method.");
+            setIsLoading(false);
+            onError("Payment verification failed");
+          }
+        }, 2000);
+      } else if (paymentIntent.status === 'requires_action') {
+        setErrorMessage("Payment requires additional authentication. Please try again.");
+        setIsLoading(false);
+        onError("Payment requires action");
+      } else {
+        setErrorMessage(`Payment ${paymentIntent.status}. Please try again.`);
+        setIsLoading(false);
+        onError(`Payment ${paymentIntent.status}`);
+      }
     } else {
-      // Payment succeeded
+      // No error and no payment intent - something went wrong
+      setErrorMessage("Payment confirmation failed. Please try again.");
       setIsLoading(false);
-      onSuccess();
+      onError("Payment confirmation failed");
     }
   };
 
