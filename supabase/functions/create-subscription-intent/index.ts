@@ -27,7 +27,7 @@ serve(async (req) => {
     // Check all environment variables
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
-    const stripeKey = Deno.env.get("STRIPE_PRIVATE_KEY_TEST");
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     
     logStep("Environment check", { 
       hasSupabaseUrl: !!supabaseUrl, 
@@ -37,7 +37,7 @@ serve(async (req) => {
     
     if (!supabaseUrl) throw new Error("SUPABASE_URL is not set");
     if (!supabaseAnonKey) throw new Error("SUPABASE_ANON_KEY is not set");
-    if (!stripeKey) throw new Error("STRIPE_PRIVATE_KEY_TEST is not set");
+    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
     
     logStep("All environment variables verified");
 
@@ -111,6 +111,19 @@ serve(async (req) => {
 
     logStep("Client secret extracted", { clientSecret: clientSecret.substring(0, 20) + "..." });
 
+    // Validate invoice amount
+    if (!invoice.amount_total) {
+      throw new Error("Invoice amount is missing");
+    }
+    const amount = invoice.amount_total / 100;  // Convert from cents to dollars
+    if (isNaN(amount) || amount <= 0) {
+      throw new Error(`Invalid invoice amount: ${amount}`);
+    }
+    logStep("Invoice amount validated", { 
+      raw_amount: invoice.amount_total,
+      calculated_amount: amount
+    });
+
     // Insert PaymentIntent record into payments table immediately
     const supabaseService = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -121,7 +134,7 @@ serve(async (req) => {
     const { error: insertError } = await supabaseService.from("payments").insert({
       stripe_payment_intent_id: paymentIntent.id,
       stripe_customer_id: customerId,
-      amount: invoice.amount_total / 100, // Convert from cents to dollars
+      amount: amount, // Use the validated amount
       currency: "usd",
       status: "requires_payment_method",
       tour_guide_id: "169e45ac-7691-402a-a497-d6e83e4fe377", // Oaxaca tour guide ID
