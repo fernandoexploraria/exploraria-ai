@@ -128,7 +128,7 @@ serve(async (req) => {
       amount: amount / 100, // Convert from cents to dollars
       currency: "usd",
       status: "requires_payment_method",
-      tour_guide_id: "subscription", // Placeholder for subscription payments
+      tour_guide_id: "00000000-0000-0000-0000-000000000000", // Placeholder UUID for subscription payments
       tour_id: "00000000-0000-0000-0000-000000000000", // Placeholder UUID for subscription
       platform_fee_amount: 0, // No platform fee for subscriptions
       tour_guide_payout_amount: 0, // No payout for subscriptions
