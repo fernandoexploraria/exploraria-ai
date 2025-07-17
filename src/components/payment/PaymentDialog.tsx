@@ -34,6 +34,7 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState<string>("");
   const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -64,16 +65,29 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({
 
   // Handle viewport changes for mobile keyboard
   useEffect(() => {
+    const initialHeight = window.innerHeight;
+    
     const handleResize = () => {
-      setViewportHeight(window.innerHeight);
+      const currentHeight = window.innerHeight;
+      setViewportHeight(currentHeight);
+      
+      // Detect keyboard on mobile - if height reduces significantly, keyboard is likely visible
+      const heightDifference = initialHeight - currentHeight;
+      const isKeyboard = heightDifference > 150; // Threshold for keyboard detection
+      setIsKeyboardVisible(isKeyboard);
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Calculate dynamic height based on viewport
-  const dynamicHeight = isMobile ? Math.min(viewportHeight * 0.9, 700) : 600;
+  // Calculate dynamic height based on viewport and keyboard state
+  const dynamicHeight = isMobile 
+    ? (isKeyboardVisible 
+        ? Math.min(viewportHeight * 0.7, 500) // More aggressive height reduction when keyboard is visible
+        : Math.min(viewportHeight * 0.9, 700)
+      )
+    : 600;
 
   const handlePaymentSuccess = () => {
     setPaymentStatus('success');
@@ -127,7 +141,7 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({
         </DialogHeader>
         
         <ScrollArea className="flex-1 -mx-1 px-1">
-          <div className="space-y-4 pb-4">
+          <div className={`space-y-${isMobile ? '3' : '4'} pb-20`}>
             {paymentStatus === 'success' && (
               <Alert className="border-green-200 bg-green-50">
                 <CheckCircle className="h-4 w-4 text-green-600" />
@@ -154,6 +168,7 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({
                   amount={999} // $9.99 in cents
                   experienceTitle={experience.destination}
                   isMobile={isMobile}
+                  isKeyboardVisible={isKeyboardVisible}
                 />
               </Elements>
             )}

@@ -14,6 +14,7 @@ interface EmbeddedPaymentFormProps {
   amount: number;
   experienceTitle: string;
   isMobile?: boolean;
+  isKeyboardVisible?: boolean;
 }
 
 export const EmbeddedPaymentForm: React.FC<EmbeddedPaymentFormProps> = ({
@@ -22,6 +23,7 @@ export const EmbeddedPaymentForm: React.FC<EmbeddedPaymentFormProps> = ({
   amount,
   experienceTitle,
   isMobile = false,
+  isKeyboardVisible = false,
 }) => {
   const stripe = useStripe();
   const elements = useElements();
@@ -62,23 +64,33 @@ export const EmbeddedPaymentForm: React.FC<EmbeddedPaymentFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className={`space-y-${isMobile ? '4' : '6'}`}>
+    <form onSubmit={handleSubmit} className={`space-y-${isMobile ? '3' : '6'}`}>
       <div className={`space-y-${isMobile ? '1' : '2'}`}>
-        <h3 className={`${isMobile ? 'text-base' : 'text-lg'} font-semibold text-foreground`}>
+        <h3 className={`${isMobile ? 'text-sm' : 'text-lg'} font-semibold text-foreground`}>
           Complete Your Purchase
         </h3>
         <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-muted-foreground`}>
           {experienceTitle}
         </p>
-        <p className={`${isMobile ? 'text-base' : 'text-lg'} font-bold text-foreground`}>
+        <p className={`${isMobile ? 'text-sm' : 'text-lg'} font-bold text-foreground`}>
           ${formatAmount(amount)} USD
         </p>
       </div>
 
-      <div className={`space-y-${isMobile ? '3' : '4'}`}>
+      <div className={`space-y-${isMobile ? '2' : '4'}`}>
         <PaymentElement
           options={{
             layout: isMobile ? "accordion" : "tabs",
+            paymentMethodOrder: isMobile ? ['card'] : undefined,
+            fields: {
+              billingDetails: isMobile ? 'never' : 'auto',
+            },
+            ...(isMobile && {
+              disableLink: true,
+              terms: {
+                card: 'never',
+              },
+            }),
           }}
         />
       </div>
@@ -94,7 +106,7 @@ export const EmbeddedPaymentForm: React.FC<EmbeddedPaymentFormProps> = ({
       <Button
         type="submit"
         disabled={!stripe || !elements || isLoading}
-        className={`w-full ${isMobile ? 'h-12 text-sm' : 'h-10'}`}
+        className={`w-full ${isMobile ? 'h-10 text-sm' : 'h-10'} ${isKeyboardVisible ? 'sticky bottom-4' : ''}`}
       >
         {isLoading ? (
           <>
