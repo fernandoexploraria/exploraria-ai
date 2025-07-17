@@ -13,6 +13,7 @@ interface EmbeddedPaymentFormProps {
   onError: (error: string) => void;
   amount: number;
   experienceTitle: string;
+  isMobile?: boolean;
 }
 
 export const EmbeddedPaymentForm: React.FC<EmbeddedPaymentFormProps> = ({
@@ -20,6 +21,7 @@ export const EmbeddedPaymentForm: React.FC<EmbeddedPaymentFormProps> = ({
   onError,
   amount,
   experienceTitle,
+  isMobile = false,
 }) => {
   const stripe = useStripe();
   const elements = useElements();
@@ -60,37 +62,39 @@ export const EmbeddedPaymentForm: React.FC<EmbeddedPaymentFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-2">
-        <h3 className="text-lg font-semibold text-foreground">
+    <form onSubmit={handleSubmit} className={`space-y-${isMobile ? '4' : '6'}`}>
+      <div className={`space-y-${isMobile ? '1' : '2'}`}>
+        <h3 className={`${isMobile ? 'text-base' : 'text-lg'} font-semibold text-foreground`}>
           Complete Your Purchase
         </h3>
-        <p className="text-sm text-muted-foreground">
+        <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-muted-foreground`}>
           {experienceTitle}
         </p>
-        <p className="text-lg font-bold text-foreground">
+        <p className={`${isMobile ? 'text-base' : 'text-lg'} font-bold text-foreground`}>
           ${formatAmount(amount)} USD
         </p>
       </div>
 
-      <div className="space-y-4">
+      <div className={`space-y-${isMobile ? '3' : '4'}`}>
         <PaymentElement
           options={{
-            layout: "tabs",
+            layout: isMobile ? "accordion" : "tabs",
           }}
         />
       </div>
 
       {errorMessage && (
         <Alert variant="destructive">
-          <AlertDescription>{errorMessage}</AlertDescription>
+          <AlertDescription className={isMobile ? 'text-xs' : 'text-sm'}>
+            {errorMessage}
+          </AlertDescription>
         </Alert>
       )}
 
       <Button
         type="submit"
         disabled={!stripe || !elements || isLoading}
-        className="w-full"
+        className={`w-full ${isMobile ? 'h-12 text-sm' : 'h-10'}`}
       >
         {isLoading ? (
           <>
