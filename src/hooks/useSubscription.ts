@@ -68,6 +68,29 @@ export const useSubscription = () => {
     }
   };
 
+  const createSubscriptionIntent = async () => {
+    if (!user || !session) {
+      throw new Error('User not authenticated');
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('create-subscription-intent', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      return data;
+    } catch (err) {
+      console.error('Error creating subscription intent:', err);
+      throw err;
+    }
+  };
+
   const openCustomerPortal = async () => {
     if (!user || !session) {
       throw new Error('User not authenticated');
@@ -102,6 +125,7 @@ export const useSubscription = () => {
     error,
     checkSubscription,
     createCheckout,
+    createSubscriptionIntent,
     openCustomerPortal,
   };
 };

@@ -250,6 +250,160 @@ serve(async (req) => {
         break;
       }
 
+      // Subscription event handlers
+      case "customer.subscription.created": {
+        logStep("Processing customer.subscription.created");
+        const subscription = event.data.object as Stripe.Subscription;
+        const customerId = subscription.customer as string;
+        
+        // Get customer email
+        const customer = await stripe.customers.retrieve(customerId);
+        const customerEmail = (customer as Stripe.Customer).email;
+        
+        if (customerEmail) {
+          logStep("Subscription created for customer", { 
+            subscriptionId: subscription.id, 
+            email: customerEmail,
+            status: subscription.status 
+          });
+        }
+        break;
+      }
+
+      case "customer.subscription.updated": {
+        logStep("Processing customer.subscription.updated");
+        const subscription = event.data.object as Stripe.Subscription;
+        const customerId = subscription.customer as string;
+        
+        // Get customer email
+        const customer = await stripe.customers.retrieve(customerId);
+        const customerEmail = (customer as Stripe.Customer).email;
+        
+        if (customerEmail) {
+          // Update subscriber record
+          const subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
+          const isActive = subscription.status === "active";
+          
+          const { error: updateError } = await supabaseClient
+            .from("subscribers")
+            .upsert({
+              email: customerEmail,
+              stripe_customer_id: customerId,
+              subscribed: isActive,
+              subscription_tier: "Premium",
+              subscription_end: subscriptionEnd,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'email' });
+
+          if (updateError) {
+            logStep("ERROR: Failed to update subscriber", { error: updateError });
+          } else {
+            logStep("Subscriber updated", { 
+              email: customerEmail,
+              subscribed: isActive,
+              subscriptionEnd 
+            });
+          }
+        }
+        break;
+      }
+
+      case "customer.subscription.deleted": {
+        logStep("Processing customer.subscription.deleted");
+        const subscription = event.data.object as Stripe.Subscription;
+        const customerId = subscription.customer as string;
+        
+        // Get customer email
+        const customer = await stripe.customers.retrieve(customerId);
+        const customerEmail = (customer as Stripe.Customer).email;
+        
+        if (customerEmail) {
+          const { error: updateError } = await supabaseClient
+            .from("subscribers")
+            .upsert({
+              email: customerEmail,
+              stripe_customer_id: customerId,
+              subscribed: false,
+              subscription_tier: null,
+              subscription_end: null,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'email' });
+
+          if (updateError) {
+            logStep("ERROR: Failed to update subscriber on deletion", { error: updateError });
+          } else {
+            logStep("Subscriber marked as unsubscribed", { email: customerEmail });
+          }
+        }
+        break;
+      }
+
+      case "invoice.paid": {
+        logStep("Processing invoice.paid");
+        const invoice = event.data.object as Stripe.Invoice;
+        
+        // Only process subscription invoices
+        if (invoice.subscription) {
+          const subscriptionId = invoice.subscription as string;
+          const customerId = invoice.customer as string;
+          
+          // Get customer email
+          const customer = await stripe.customers.retrieve(customerId);
+          const customerEmail = (customer as Stripe.Customer).email;
+          
+          if (customerEmail) {
+            // Get subscription details
+            const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+            const subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
+            
+            const { error: updateError } = await supabaseClient
+              .from("subscribers")
+              .upsert({
+                email: customerEmail,
+                stripe_customer_id: customerId,
+                subscribed: true,
+                subscription_tier: "Premium",
+                subscription_end: subscriptionEnd,
+                updated_at: new Date().toISOString(),
+              }, { onConflict: 'email' });
+
+            if (updateError) {
+              logStep("ERROR: Failed to update subscriber on invoice paid", { error: updateError });
+            } else {
+              logStep("Subscriber activated on invoice payment", { 
+                email: customerEmail,
+                subscriptionEnd 
+              });
+            }
+          }
+        }
+        break;
+      }
+
+      case "invoice.payment_failed": {
+        logStep("Processing invoice.payment_failed");
+        const invoice = event.data.object as Stripe.Invoice;
+        
+        // Only process subscription invoices
+        if (invoice.subscription) {
+          const customerId = invoice.customer as string;
+          
+          // Get customer email
+          const customer = await stripe.customers.retrieve(customerId);
+          const customerEmail = (customer as Stripe.Customer).email;
+          
+          if (customerEmail) {
+            logStep("Subscription payment failed", { 
+              email: customerEmail,
+              invoiceId: invoice.id 
+            });
+            // Note: We don't immediately deactivate on payment failure
+            // Stripe will retry and eventually cancel if needed
+          }
+        }
+        break;
+      }
+
       default:
         logStep("Unhandled event type", { eventType: event.type });
     }

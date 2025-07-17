@@ -4,11 +4,16 @@ import { Button } from '@/components/ui/button';
 import { Sparkles, Lock, CreditCard, X, AlertTriangle } from 'lucide-react';
 import { useTourStats } from '@/hooks/useTourStats';
 import { useSubscription } from '@/hooks/useSubscription';
+import { SubscriptionDialog } from '@/components/subscription/SubscriptionDialog';
 
 const FreeTourCounter: React.FC = () => {
   const { tourStats, isLoading: tourLoading } = useTourStats();
-  const { subscriptionData, isLoading: subLoading, createCheckout, openCustomerPortal } = useSubscription();
+  const { subscriptionData, isLoading: subLoading, createCheckout, createSubscriptionIntent, openCustomerPortal, checkSubscription } = useSubscription();
   const [isHighlighted, setIsHighlighted] = useState(false);
+  const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
+  const [subscriptionClientSecret, setSubscriptionClientSecret] = useState<string | null>(null);
+  const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
+  const [useEmbeddedFlow, setUseEmbeddedFlow] = useState(false); // Feature flag for embedded flow
   
   const FREE_TOUR_LIMIT = 3;
   const toursUsed = tourStats?.tour_count || 0;
@@ -41,10 +46,29 @@ const FreeTourCounter: React.FC = () => {
 
   const handleSubscribeClick = async () => {
     try {
-      await createCheckout();
+      if (useEmbeddedFlow) {
+        // Use embedded subscription flow
+        const { client_secret, subscription_id } = await createSubscriptionIntent();
+        setSubscriptionClientSecret(client_secret);
+        setSubscriptionId(subscription_id);
+        setSubscriptionDialogOpen(true);
+      } else {
+        // Use hosted checkout flow (existing)
+        await createCheckout();
+      }
     } catch (error) {
-      console.error('Error creating checkout:', error);
+      console.error('Error creating subscription:', error);
     }
+  };
+
+  const handleSubscriptionSuccess = async () => {
+    // Refresh subscription data
+    await checkSubscription();
+    // Close dialog
+    setSubscriptionDialogOpen(false);
+    // Reset state
+    setSubscriptionClientSecret(null);
+    setSubscriptionId(null);
   };
 
   const handleManageClick = async () => {
@@ -65,144 +89,155 @@ const FreeTourCounter: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      {/* Tour Counter - Only show if not subscribed */}
-      {!isSubscribed && (
-        <>
-          {/* Mobile/Tablet Layout */}
-          <Button
-            variant="outline"
-            size="sm"
-            className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left"
-          >
-            {hasReachedLimit ? (
+    <>
+      <div className="flex flex-col gap-2">
+        {/* Tour Counter - Only show if not subscribed */}
+        {!isSubscribed && (
+          <>
+            {/* Mobile/Tablet Layout */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left"
+            >
+              {hasReachedLimit ? (
+                <>
+                  <Lock className="mr-1 h-3 w-3" />
+                  <span>Free tours used ({toursUsed}/{FREE_TOUR_LIMIT})</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-1 h-3 w-3" />
+                  <span>{toursRemaining} free tours left</span>
+                </>
+              )}
+            </Button>
+            
+            {/* Desktop Layout */}
+            <Button
+              variant="outline"
+              className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left"
+            >
+              {hasReachedLimit ? (
+                <>
+                  <Lock className="mr-2 h-4 w-4" />
+                  <span>Free tours used ({toursUsed}/{FREE_TOUR_LIMIT})</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  <span>{toursRemaining} free tours left</span>
+                </>
+              )}
+            </Button>
+
+            {/* Subscribe Buttons */}
+            <Button
+              variant="outline"
+              size="sm"
+              className={`bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left transition-all duration-500 ${
+                isHighlighted ? 'ring-2 ring-primary animate-pulse bg-primary/10' : ''
+              }`}
+              onClick={handleSubscribeClick}
+            >
+              <CreditCard className="mr-1 h-3 w-3" />
+              Subscribe
+            </Button>
+            
+            <Button
+              variant="outline"
+              className={`bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left transition-all duration-500 ${
+                isHighlighted ? 'ring-2 ring-primary animate-pulse bg-primary/10' : ''
+              }`}
+              onClick={handleSubscribeClick}
+            >
+              <CreditCard className="mr-2 h-4 w-4" />
+              Subscribe for $9.99/month
+            </Button>
+          </>
+        )}
+
+        {/* Subscription Management - Only show if subscribed */}
+        {isSubscribed && (
+          <>
+            {/* Cancelled Subscription Warning */}
+            {isCancelled && subscriptionEnd && (
               <>
-                <Lock className="mr-1 h-3 w-3" />
-                <span>Free tours used ({toursUsed}/{FREE_TOUR_LIMIT})</span>
-              </>
-            ) : (
-              <>
-                <Sparkles className="mr-1 h-3 w-3" />
-                <span>{toursRemaining} free tours left</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-orange-50/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left text-orange-700 border-orange-200"
+                >
+                  <AlertTriangle className="mr-1 h-3 w-3" />
+                  <span>Expires {formatDate(subscriptionEnd)}</span>
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  className="bg-orange-50/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left text-orange-700 border-orange-200"
+                >
+                  <AlertTriangle className="mr-2 h-4 w-4" />
+                  <span>Subscription expires {formatDate(subscriptionEnd)}</span>
+                </Button>
               </>
             )}
-          </Button>
-          
-          {/* Desktop Layout */}
-          <Button
-            variant="outline"
-            className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left"
-          >
-            {hasReachedLimit ? (
+
+            {/* Manage Subscription Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left"
+              onClick={handleManageClick}
+            >
+              <CreditCard className="mr-1 h-3 w-3" />
+              Manage
+            </Button>
+            
+            <Button
+              variant="outline"
+              className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left"
+              onClick={handleManageClick}
+            >
+              <CreditCard className="mr-2 h-4 w-4" />
+              Manage Subscription
+            </Button>
+
+            {/* Cancel Subscription Button - Only show if not already cancelled */}
+            {!isCancelled && (
               <>
-                <Lock className="mr-2 h-4 w-4" />
-                <span>Free tours used ({toursUsed}/{FREE_TOUR_LIMIT})</span>
-              </>
-            ) : (
-              <>
-                <Sparkles className="mr-2 h-4 w-4" />
-                <span>{toursRemaining} free tours left</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left text-red-600 hover:text-red-700"
+                  onClick={handleManageClick}
+                >
+                  <X className="mr-1 h-3 w-3" />
+                  Cancel
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left text-red-600 hover:text-red-700"
+                  onClick={handleManageClick}
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Cancel Subscription
+                </Button>
               </>
             )}
-          </Button>
+          </>
+        )}
+      </div>
 
-          {/* Subscribe Buttons */}
-          <Button
-            variant="outline"
-            size="sm"
-            className={`bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left transition-all duration-500 ${
-              isHighlighted ? 'ring-2 ring-primary animate-pulse bg-primary/10' : ''
-            }`}
-            onClick={handleSubscribeClick}
-          >
-            <CreditCard className="mr-1 h-3 w-3" />
-            Subscribe
-          </Button>
-          
-          <Button
-            variant="outline"
-            className={`bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left transition-all duration-500 ${
-              isHighlighted ? 'ring-2 ring-primary animate-pulse bg-primary/10' : ''
-            }`}
-            onClick={handleSubscribeClick}
-          >
-            <CreditCard className="mr-2 h-4 w-4" />
-            Subscribe for $9.99/month
-          </Button>
-        </>
-      )}
-
-      {/* Subscription Management - Only show if subscribed */}
-      {isSubscribed && (
-        <>
-          {/* Cancelled Subscription Warning */}
-          {isCancelled && subscriptionEnd && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-orange-50/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left text-orange-700 border-orange-200"
-              >
-                <AlertTriangle className="mr-1 h-3 w-3" />
-                <span>Expires {formatDate(subscriptionEnd)}</span>
-              </Button>
-              
-              <Button
-                variant="outline"
-                className="bg-orange-50/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left text-orange-700 border-orange-200"
-              >
-                <AlertTriangle className="mr-2 h-4 w-4" />
-                <span>Subscription expires {formatDate(subscriptionEnd)}</span>
-              </Button>
-            </>
-          )}
-
-          {/* Manage Subscription Button */}
-          <Button
-            variant="outline"
-            size="sm"
-            className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left"
-            onClick={handleManageClick}
-          >
-            <CreditCard className="mr-1 h-3 w-3" />
-            Manage
-          </Button>
-          
-          <Button
-            variant="outline"
-            className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left"
-            onClick={handleManageClick}
-          >
-            <CreditCard className="mr-2 h-4 w-4" />
-            Manage Subscription
-          </Button>
-
-          {/* Cancel Subscription Button - Only show if not already cancelled */}
-          {!isCancelled && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left text-red-600 hover:text-red-700"
-                onClick={handleManageClick}
-              >
-                <X className="mr-1 h-3 w-3" />
-                Cancel
-              </Button>
-              
-              <Button
-                variant="outline"
-                className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left text-red-600 hover:text-red-700"
-                onClick={handleManageClick}
-              >
-                <X className="mr-2 h-4 w-4" />
-                Cancel Subscription
-              </Button>
-            </>
-          )}
-        </>
-      )}
-    </div>
+      {/* Subscription Dialog */}
+      <SubscriptionDialog
+        open={subscriptionDialogOpen}
+        onOpenChange={setSubscriptionDialogOpen}
+        clientSecret={subscriptionClientSecret}
+        subscriptionId={subscriptionId}
+        onSubscriptionSuccess={handleSubscriptionSuccess}
+      />
+    </>
   );
 };
 
