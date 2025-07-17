@@ -13,11 +13,8 @@ const logStep = (step: string, details?: any) => {
 };
 
 serve(async (req) => {
-  // Log every incoming request for debugging
   console.log("🚀 [CREATE-SUBSCRIPTION-INTENT] Function invoked at:", new Date().toISOString());
   console.log("🚀 [CREATE-SUBSCRIPTION-INTENT] Request method:", req.method);
-  console.log("🚀 [CREATE-SUBSCRIPTION-INTENT] Request headers:", Object.fromEntries([...req.headers.entries()].filter(([key]) => !key.toLowerCase().includes('authorization'))));
-  
   
   if (req.method === "OPTIONS") {
     console.log("🚀 [CREATE-SUBSCRIPTION-INTENT] Handling OPTIONS request");
@@ -121,17 +118,13 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    // Get the price to determine amount since invoice.amount_total might be null
-    const price = await stripe.prices.retrieve(priceId);
-    const amount = price.unit_amount || 999; // Fallback to $9.99 if no amount found
-    
     const { error: insertError } = await supabaseService.from("payments").insert({
       stripe_payment_intent_id: paymentIntent.id,
       stripe_customer_id: customerId,
-      amount: amount / 100, // Convert from cents to dollars
+      amount: invoice.amount_total,
       currency: "usd",
       status: "requires_payment_method",
-      tour_guide_id: "00000000-0000-0000-0000-000000000000", // Placeholder UUID for subscription payments
+      tour_guide_id: "subscription", // Placeholder for subscription payments
       tour_id: "00000000-0000-0000-0000-000000000000", // Placeholder UUID for subscription
       platform_fee_amount: 0, // No platform fee for subscriptions
       tour_guide_payout_amount: 0, // No payout for subscriptions

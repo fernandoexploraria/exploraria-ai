@@ -45,26 +45,19 @@ const FreeTourCounter: React.FC = () => {
   }, []);
 
   const handleSubscribeClick = async () => {
-    console.log("Subscribe button clicked");
     try {
-      console.log("Using embedded flow:", useEmbeddedFlow);
       if (useEmbeddedFlow) {
         // Use embedded subscription flow
-        console.log("Creating subscription intent...");
-        const response = await createSubscriptionIntent();
-        console.log("Subscription intent response:", response);
-        setSubscriptionClientSecret(response.client_secret);
-        setSubscriptionId(response.subscription_id);
-        console.log("Setting dialog open");
+        const { client_secret, subscription_id } = await createSubscriptionIntent();
+        setSubscriptionClientSecret(client_secret);
+        setSubscriptionId(subscription_id);
         setSubscriptionDialogOpen(true);
       } else {
         // Use hosted checkout flow (existing)
-        console.log("Creating checkout...");
         await createCheckout();
       }
     } catch (error) {
       console.error('Error creating subscription:', error);
-      alert(`Subscription error: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
