@@ -111,6 +111,39 @@ serve(async (req) => {
 
     logStep("Client secret extracted", { clientSecret: clientSecret.substring(0, 20) + "..." });
 
+    // Insert PaymentIntent record into payments table immediately
+    const supabaseService = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+
+    const { error: insertError } = await supabaseService.from("payments").insert({
+      stripe_payment_intent_id: paymentIntent.id,
+      stripe_customer_id: customerId,
+      amount: invoice.amount_total,
+      currency: "usd",
+      status: "requires_payment_method",
+      tour_guide_id: "subscription", // Placeholder for subscription payments
+      tour_id: "00000000-0000-0000-0000-000000000000", // Placeholder UUID for subscription
+      platform_fee_amount: 0, // No platform fee for subscriptions
+      tour_guide_payout_amount: 0, // No payout for subscriptions
+      tourist_user_id: user.id,
+      metadata: {
+        subscription_id: subscription.id,
+        price_id: priceId,
+        customer_id: customerId,
+        payment_type: "subscription"
+      }
+    });
+
+    if (insertError) {
+      logStep("Error inserting payment record", { error: insertError });
+      // Don't fail the entire flow for this, just log the error
+    } else {
+      logStep("Payment record inserted successfully", { paymentIntentId: paymentIntent.id });
+    }
+
     return new Response(JSON.stringify({ 
       client_secret: clientSecret,
       subscription_id: subscription.id

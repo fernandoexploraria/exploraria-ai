@@ -261,11 +261,32 @@ serve(async (req) => {
         const customerEmail = (customer as Stripe.Customer).email;
         
         if (customerEmail) {
-          logStep("Subscription created for customer", { 
-            subscriptionId: subscription.id, 
-            email: customerEmail,
-            status: subscription.status 
-          });
+          // Update subscriber record with subscription ID
+          const subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
+          const isActive = subscription.status === "active";
+          
+          const { error: updateError } = await supabaseClient
+            .from("subscribers")
+            .upsert({
+              email: customerEmail,
+              stripe_customer_id: customerId,
+              stripe_subscription_id: subscription.id,
+              subscribed: isActive,
+              subscription_tier: "Premium",
+              subscription_end: subscriptionEnd,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'email' });
+
+          if (updateError) {
+            logStep("ERROR: Failed to update subscriber on creation", { error: updateError });
+          } else {
+            logStep("Subscriber updated on creation", { 
+              email: customerEmail,
+              subscriptionId: subscription.id,
+              subscribed: isActive,
+              subscriptionEnd 
+            });
+          }
         }
         break;
       }
@@ -289,6 +310,7 @@ serve(async (req) => {
             .upsert({
               email: customerEmail,
               stripe_customer_id: customerId,
+              stripe_subscription_id: subscription.id,
               subscribed: isActive,
               subscription_tier: "Premium",
               subscription_end: subscriptionEnd,
@@ -323,6 +345,7 @@ serve(async (req) => {
             .upsert({
               email: customerEmail,
               stripe_customer_id: customerId,
+              stripe_subscription_id: subscription.id,
               subscribed: false,
               subscription_tier: null,
               subscription_end: null,
@@ -361,6 +384,7 @@ serve(async (req) => {
               .upsert({
                 email: customerEmail,
                 stripe_customer_id: customerId,
+                stripe_subscription_id: subscriptionId,
                 subscribed: true,
                 subscription_tier: "Premium",
                 subscription_end: subscriptionEnd,
