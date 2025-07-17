@@ -33,6 +33,7 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({
   const [stripe, setStripe] = useState<any>(null);
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState<string>("");
+  const [resetKey, setResetKey] = useState<number>(0);
   const isMobile = useIsMobile();
   const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
 
@@ -71,6 +72,22 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Reset payment state when dialog opens
+  useEffect(() => {
+    if (open) {
+      setPaymentStatus('idle');
+      setStatusMessage('');
+    }
+  }, [open]);
+
+  const handleOpenChange = (newOpen: boolean) => {
+    // If closing the dialog with an error, increment resetKey to force remount
+    if (!newOpen && paymentStatus === 'error') {
+      setResetKey(prev => prev + 1);
+    }
+    onOpenChange(newOpen);
+  };
+
   const handlePaymentSuccess = () => {
     setPaymentStatus('success');
     setStatusMessage("Payment successful! Redirecting to your tour...");
@@ -106,7 +123,7 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({
     Math.min(viewportHeight * 0.9, 700);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent 
         className={`
           max-w-md sm:max-w-lg p-4 sm:p-6 flex flex-col
@@ -142,7 +159,7 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({
             )}
             
             {paymentStatus === 'idle' && (
-              <Elements stripe={stripe} options={options}>
+              <Elements key={resetKey} stripe={stripe} options={options}>
                 <EmbeddedPaymentForm
                   onSuccess={handlePaymentSuccess}
                   onError={handlePaymentError}
