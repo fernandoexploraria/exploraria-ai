@@ -118,10 +118,14 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
+    // Get the price to determine amount since invoice.amount_total might be null
+    const price = await stripe.prices.retrieve(priceId);
+    const amount = price.unit_amount || 999; // Fallback to $9.99 if no amount found
+    
     const { error: insertError } = await supabaseService.from("payments").insert({
       stripe_payment_intent_id: paymentIntent.id,
       stripe_customer_id: customerId,
-      amount: invoice.amount_total,
+      amount: amount / 100, // Convert from cents to dollars
       currency: "usd",
       status: "requires_payment_method",
       tour_guide_id: "subscription", // Placeholder for subscription payments
