@@ -133,7 +133,6 @@ serve(async (req) => {
     // Insert payment record using same pattern as experience payment
     const { error: paymentInsertError } = await supabaseClient.from("payments").insert({
       stripe_payment_intent_id: paymentIntent.id,
-      tour_id: oaxacaTourId, // Use real tour ID
       tourist_user_id: user.id,
       amount: amount, // Use validated amount
       currency: "usd",
