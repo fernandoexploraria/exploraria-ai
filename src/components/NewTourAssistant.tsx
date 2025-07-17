@@ -351,12 +351,9 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
 
   // Get button label based on state
   const getButtonLabel = () => {
-    const effectiveAgentId = getEffectiveAgentId();
-    const agentIdDebug = effectiveAgentId ? `[${effectiveAgentId.slice(-4)}]` : '';
-    
     switch (assistantState) {
       case 'not-started':
-        return `Call Tour Guide ${agentIdDebug}`;
+        return 'Call Tour Guide';
       case 'started':
         return 'Talk to interrupt';
       case 'listening':
@@ -366,7 +363,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
       case 'playback':
         return 'Talk to interrupt';
       default:
-        return `Call Tour Guide ${agentIdDebug}`;
+        return 'Call Tour Guide';
     }
   };
 
