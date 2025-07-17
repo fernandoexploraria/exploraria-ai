@@ -27,7 +27,7 @@ serve(async (req) => {
     // Check all environment variables
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    const stripeKey = Deno.env.get("STRIPE_PRIVATE_KEY_TEST");
     
     logStep("Environment check", { 
       hasSupabaseUrl: !!supabaseUrl, 
@@ -37,7 +37,7 @@ serve(async (req) => {
     
     if (!supabaseUrl) throw new Error("SUPABASE_URL is not set");
     if (!supabaseAnonKey) throw new Error("SUPABASE_ANON_KEY is not set");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
+    if (!stripeKey) throw new Error("STRIPE_PRIVATE_KEY_TEST is not set");
     
     logStep("All environment variables verified");
 
