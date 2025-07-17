@@ -13,7 +13,11 @@ const logStep = (step: string, details?: any) => {
 };
 
 serve(async (req) => {
+  console.log("🚀 [CREATE-SUBSCRIPTION-INTENT] Function invoked at:", new Date().toISOString());
+  console.log("🚀 [CREATE-SUBSCRIPTION-INTENT] Request method:", req.method);
+  
   if (req.method === "OPTIONS") {
+    console.log("🚀 [CREATE-SUBSCRIPTION-INTENT] Handling OPTIONS request");
     return new Response(null, { headers: corsHeaders });
   }
 
