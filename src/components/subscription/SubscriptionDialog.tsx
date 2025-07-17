@@ -32,6 +32,7 @@ export const SubscriptionDialog: React.FC<SubscriptionDialogProps> = ({
   const [stripe, setStripe] = useState<any>(null);
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState<string>("");
+  const [resetKey, setResetKey] = useState<number>(0);
   const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
   const isMobile = useIsMobile();
 
@@ -71,8 +72,24 @@ export const SubscriptionDialog: React.FC<SubscriptionDialogProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Reset payment state when dialog opens
+  useEffect(() => {
+    if (open) {
+      setPaymentStatus('idle');
+      setStatusMessage('');
+    }
+  }, [open]);
+
   // Calculate dynamic height based on viewport
   const dynamicHeight = isMobile ? Math.min(viewportHeight * 0.9, 700) : 600;
+
+  const handleOpenChange = (newOpen: boolean) => {
+    // If closing the dialog with an error, increment resetKey to force remount
+    if (!newOpen && paymentStatus === 'error') {
+      setResetKey(prev => prev + 1);
+    }
+    onOpenChange(newOpen);
+  };
 
   const handleSubscriptionSuccess = () => {
     setPaymentStatus('success');
@@ -105,7 +122,7 @@ export const SubscriptionDialog: React.FC<SubscriptionDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent 
         className={`
           max-w-md sm:max-w-lg 
@@ -146,7 +163,7 @@ export const SubscriptionDialog: React.FC<SubscriptionDialogProps> = ({
             )}
             
             {paymentStatus === 'idle' && (
-              <Elements stripe={stripe} options={options}>
+              <Elements key={resetKey} stripe={stripe} options={options}>
                 <SubscriptionPaymentForm
                   onSuccess={handleSubscriptionSuccess}
                   onError={handlePaymentError}
