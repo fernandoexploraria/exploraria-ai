@@ -109,13 +109,34 @@ serve(async (req) => {
 
     logStep("Client secret extracted", { clientSecret: clientSecret.substring(0, 20) + "..." });
 
+    // Validate and determine the payment amount
+    let amount;
+    if (invoice.amount_total && invoice.amount_total > 0) {
+      amount = invoice.amount_total / 100; // Convert cents to dollars
+      logStep("Using invoice amount", { invoiceAmount: invoice.amount_total, convertedAmount: amount });
+    } else {
+      // Fallback to price amount
+      const price = await stripe.prices.retrieve(priceId);
+      if (price.unit_amount && price.unit_amount > 0) {
+        amount = price.unit_amount / 100; // Convert cents to dollars
+        logStep("Using price amount as fallback", { priceAmount: price.unit_amount, convertedAmount: amount });
+      } else {
+        throw new Error("Unable to determine payment amount from invoice or price");
+      }
+    }
+
+    // Validate final amount
+    if (!amount || amount <= 0) {
+      throw new Error("Invalid payment amount calculated");
+    }
+
     // Insert payment record using same pattern as experience payment
     const { error: paymentInsertError } = await supabaseClient.from("payments").insert({
       stripe_payment_intent_id: paymentIntent.id,
       tour_id: oaxacaTourId, // Use real tour ID
       tour_guide_id: oaxacaTourGuideId, // Use real tour guide ID
       tourist_user_id: user.id,
-      amount: invoice.amount_total / 100, // Convert cents to dollars
+      amount: amount, // Use validated amount
       currency: "usd",
       platform_fee_amount: 0, // No fees for subscriptions
       tour_guide_payout_amount: 0, // No payouts for subscriptions
