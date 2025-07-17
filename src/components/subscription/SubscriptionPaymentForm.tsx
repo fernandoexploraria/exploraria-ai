@@ -12,12 +12,14 @@ interface SubscriptionPaymentFormProps {
   onSuccess: () => void;
   onError: (error: string) => void;
   subscriptionId: string;
+  isMobile?: boolean;
 }
 
 export const SubscriptionPaymentForm: React.FC<SubscriptionPaymentFormProps> = ({
   onSuccess,
   onError,
   subscriptionId,
+  isMobile = false,
 }) => {
   const stripe = useStripe();
   const elements = useElements();
@@ -54,48 +56,50 @@ export const SubscriptionPaymentForm: React.FC<SubscriptionPaymentFormProps> = (
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-2">
-        <h3 className="text-lg font-semibold text-foreground">
+    <form onSubmit={handleSubmit} className={`space-y-${isMobile ? '4' : '6'}`}>
+      <div className={`space-y-${isMobile ? '1' : '2'}`}>
+        <h3 className={`${isMobile ? 'text-base' : 'text-lg'} font-semibold text-foreground`}>
           Start Your Premium Subscription
         </h3>
-        <p className="text-sm text-muted-foreground">
+        <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-muted-foreground`}>
           Get unlimited Smart Tours and advanced features for just $9.99/month
         </p>
-        <div className="bg-muted/50 p-3 rounded-lg">
-          <p className="text-sm font-medium text-foreground mb-1">
+        <div className={`bg-muted/50 ${isMobile ? 'p-2' : 'p-3'} rounded-lg`}>
+          <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium text-foreground mb-1`}>
             What's included:
           </p>
-          <ul className="text-xs text-muted-foreground space-y-1">
+          <ul className={`${isMobile ? 'text-xs' : 'text-xs'} text-muted-foreground space-y-1`}>
             <li>• Unlimited Smart Tours</li>
             <li>• Premium destinations</li>
             <li>• Advanced tour customization</li>
             <li>• Priority support</li>
           </ul>
         </div>
-        <p className="text-lg font-bold text-foreground">
+        <p className={`${isMobile ? 'text-base' : 'text-lg'} font-bold text-foreground`}>
           $9.99/month
         </p>
       </div>
 
-      <div className="space-y-4">
+      <div className={`space-y-${isMobile ? '3' : '4'}`}>
         <PaymentElement
           options={{
-            layout: "tabs",
+            layout: isMobile ? "accordion" : "tabs",
           }}
         />
       </div>
 
       {errorMessage && (
         <Alert variant="destructive">
-          <AlertDescription>{errorMessage}</AlertDescription>
+          <AlertDescription className={isMobile ? 'text-xs' : 'text-sm'}>
+            {errorMessage}
+          </AlertDescription>
         </Alert>
       )}
 
       <Button
         type="submit"
         disabled={!stripe || !elements || isLoading}
-        className="w-full"
+        className={`w-full ${isMobile ? 'h-12 text-sm' : 'h-10'}`}
       >
         {isLoading ? (
           <>
@@ -105,12 +109,12 @@ export const SubscriptionPaymentForm: React.FC<SubscriptionPaymentFormProps> = (
         ) : (
           <>
             <CreditCard className="w-4 h-4 mr-2" />
-            Start Subscription - $9.99/month
+            {isMobile ? 'Start Subscription' : 'Start Subscription - $9.99/month'}
           </>
         )}
       </Button>
       
-      <p className="text-xs text-muted-foreground text-center">
+      <p className={`${isMobile ? 'text-xs' : 'text-xs'} text-muted-foreground text-center`}>
         You can cancel anytime from your account settings
       </p>
     </form>
