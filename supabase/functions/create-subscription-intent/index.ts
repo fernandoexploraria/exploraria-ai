@@ -121,11 +121,11 @@ serve(async (req) => {
     const { error: insertError } = await supabaseService.from("payments").insert({
       stripe_payment_intent_id: paymentIntent.id,
       stripe_customer_id: customerId,
-      amount: invoice.amount_total,
+      amount: invoice.amount_total / 100, // Convert from cents to dollars
       currency: "usd",
       status: "requires_payment_method",
-      tour_guide_id: "subscription", // Placeholder for subscription payments
-      tour_id: "00000000-0000-0000-0000-000000000000", // Placeholder UUID for subscription
+      tour_guide_id: "169e45ac-7691-402a-a497-d6e83e4fe377", // Oaxaca tour guide ID
+      tour_id: "e3abf32b-21e6-4c59-95c7-9ac085881ef0", // Oaxaca tour ID
       platform_fee_amount: 0, // No platform fee for subscriptions
       tour_guide_payout_amount: 0, // No payout for subscriptions
       tourist_user_id: user.id,
