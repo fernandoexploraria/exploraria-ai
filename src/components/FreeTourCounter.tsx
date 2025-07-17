@@ -13,7 +13,7 @@ const FreeTourCounter: React.FC = () => {
   const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
   const [subscriptionClientSecret, setSubscriptionClientSecret] = useState<string | null>(null);
   const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
-  const [useEmbeddedFlow, setUseEmbeddedFlow] = useState(false); // Feature flag for embedded flow
+  const [useEmbeddedFlow, setUseEmbeddedFlow] = useState(true); // Feature flag for embedded flow
   
   const FREE_TOUR_LIMIT = 3;
   const toursUsed = tourStats?.tour_count || 0;
