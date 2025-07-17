@@ -53,6 +53,12 @@ verify_jwt = false
 [functions.create-subscription-intent]
 verify_jwt = true
 
+[functions.check-subscription]
+verify_jwt = true
+
+[functions.customer-portal]
+verify_jwt = true
+
 [storage]
 enabled = true
 port = 54325
