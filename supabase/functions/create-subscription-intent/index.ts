@@ -76,21 +76,17 @@ serve(async (req) => {
       logStep("Found existing customer", { customerId });
     }
 
+    // Get the price ID from secrets
+    const priceId = Deno.env.get("STRIPE_PRICE_ID");
+    if (!priceId) throw new Error("STRIPE_PRICE_ID is not set");
+    logStep("Price ID retrieved", { priceId: priceId.substring(0, 10) + "..." });
+
     // Create subscription with incomplete payment behavior
     const subscription = await stripe.subscriptions.create({
       customer: customerId,
       items: [
         {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: "Premium Subscription",
-            },
-            unit_amount: 999, // $9.99
-            recurring: {
-              interval: "month",
-            },
-          },
+          price: priceId,
         },
       ],
       payment_behavior: "default_incomplete",
