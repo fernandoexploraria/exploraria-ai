@@ -86,7 +86,7 @@ export const useSubscription = () => {
 
       return data;
     } catch (err) {
-      console.error('Error creating subscription intent:', err);
+      console.error('Error creating subscription intent:', { err, details: err instanceof Error ? err.message : String(err) });
       throw err;
     }
   };
