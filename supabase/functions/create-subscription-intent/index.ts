@@ -111,19 +111,6 @@ serve(async (req) => {
 
     logStep("Client secret extracted", { clientSecret: clientSecret.substring(0, 20) + "..." });
 
-    // Validate invoice amount
-    if (!invoice.amount_total) {
-      throw new Error("Invoice amount is missing");
-    }
-    const amount = invoice.amount_total / 100;  // Convert from cents to dollars
-    if (isNaN(amount) || amount <= 0) {
-      throw new Error(`Invalid invoice amount: ${amount}`);
-    }
-    logStep("Invoice amount validated", { 
-      raw_amount: invoice.amount_total,
-      calculated_amount: amount
-    });
-
     // Insert PaymentIntent record into payments table immediately
     const supabaseService = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -134,11 +121,11 @@ serve(async (req) => {
     const { error: insertError } = await supabaseService.from("payments").insert({
       stripe_payment_intent_id: paymentIntent.id,
       stripe_customer_id: customerId,
-      amount: amount, // Use the validated amount
+      amount: invoice.amount_total,
       currency: "usd",
       status: "requires_payment_method",
-      tour_guide_id: "169e45ac-7691-402a-a497-d6e83e4fe377", // Oaxaca tour guide ID
-      tour_id: "e3abf32b-21e6-4c59-95c7-9ac085881ef0", // Oaxaca tour ID
+      tour_guide_id: "subscription", // Placeholder for subscription payments
+      tour_id: "00000000-0000-0000-0000-000000000000", // Placeholder UUID for subscription
       platform_fee_amount: 0, // No platform fee for subscriptions
       tour_guide_payout_amount: 0, // No payout for subscriptions
       tourist_user_id: user.id,
