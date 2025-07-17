@@ -50,6 +50,9 @@ verify_jwt = false
 [functions.stripe-webhook]
 verify_jwt = false
 
+[functions.create-subscription-intent]
+verify_jwt = true
+
 [storage]
 enabled = true
 port = 54325
