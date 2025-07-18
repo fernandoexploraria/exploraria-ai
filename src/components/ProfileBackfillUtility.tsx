@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Users, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useDemoMode } from '@/hooks/useDemoMode';
 import { useToast } from '@/hooks/use-toast';
 
 interface ProfileStats {
@@ -15,16 +14,10 @@ interface ProfileStats {
 }
 
 export const ProfileBackfillUtility = () => {
-  const { isDemoMode } = useDemoMode();
   const { toast } = useToast();
   const [stats, setStats] = useState<ProfileStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
-
-  // Don't render if demo mode is on
-  if (isDemoMode) {
-    return null;
-  }
 
   const fetchStats = async () => {
     setLoading(true);

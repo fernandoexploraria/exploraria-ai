@@ -7,6 +7,7 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 import { useAuth } from '@/components/AuthProvider';
 import { Link } from 'react-router-dom';
 import { ProfileBackfillUtility } from '@/components/ProfileBackfillUtility';
+import { useDemoMode } from '@/hooks/useDemoMode';
 
 interface UserControlsProps {
   user: SupabaseUser | null;
@@ -16,6 +17,7 @@ interface UserControlsProps {
 
 const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDialogOpen }) => {
   const { profile } = useAuth();
+  const { isDemoMode } = useDemoMode();
   
   const handleSignOut = async () => {
     console.log('Sign out button clicked');
@@ -84,7 +86,7 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
       </div>
       
       {/* Profile Backfill Utility - only when demo mode is off */}
-      {user && (
+      {user && !isDemoMode && (
         <div className="absolute top-[70px] right-[45px] z-20">
           <ProfileBackfillUtility />
         </div>
