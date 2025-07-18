@@ -88,8 +88,8 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
         )}
       </div>
       
-      {/* Profile Backfill Utility - only when demo mode is off */}
-      {user && !isDemoMode && (
+      {/* Profile Backfill Utility - available to all authenticated users */}
+      {user && (
         <div className="absolute top-[70px] right-[45px] z-20">
           <ProfileBackfillUtility />
         </div>
