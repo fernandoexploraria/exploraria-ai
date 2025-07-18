@@ -386,6 +386,7 @@ serve(async (req) => {
                 stripe_customer_id: customerId,
                 stripe_subscription_id: subscriptionId,
                 subscribed: true,
+                stripe_status: "active",
                 subscription_tier: "Premium",
                 subscription_end: subscriptionEnd,
                 updated_at: new Date().toISOString(),
