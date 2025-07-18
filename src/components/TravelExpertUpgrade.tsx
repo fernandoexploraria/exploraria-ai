@@ -33,13 +33,13 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
     bio: profile?.bio || '',
   });
 
-  // Track session and determine display mode
+  // Determine card visibility based on user profile data
   useEffect(() => {
     if (!user || !profile) return;
 
-    const trackSession = async () => {
+    const checkCardVisibility = async () => {
       try {
-        // Get current profile data with new fields
+        // Get current profile data with session tracking fields
         const { data: currentProfile, error: fetchError } = await supabase
           .from('profiles')
           .select('session_count, first_login_at, upgrade_card_dismissed_at')
@@ -47,21 +47,8 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
           .single();
 
         if (fetchError) {
-          console.error('Error fetching profile:', fetchError);
-          throw fetchError;
-        }
-
-        // Update session count and first_login_at if needed
-        const { error } = await supabase
-          .from('profiles')
-          .update({
-            session_count: (currentProfile?.session_count || 0) + 1,
-            first_login_at: currentProfile?.first_login_at || new Date().toISOString()
-          })
-          .eq('id', user.id);
-
-        if (error) {
-          console.error('Error updating session count:', error);
+          console.error('Error fetching profile for card visibility:', fetchError);
+          return;
         }
 
         // Determine if we should show full card
@@ -72,22 +59,26 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
         const sessionCount = currentProfile?.session_count || 0;
         const wasDismissed = currentProfile?.upgrade_card_dismissed_at;
         
+        console.log('📊 Card visibility check:', {
+          daysSinceSignup,
+          sessionCount,
+          wasDismissed: !!wasDismissed
+        });
+        
         // Show full card if: within first 7 days OR first 3 sessions AND not dismissed
         const shouldShow = !wasDismissed && (daysSinceSignup <= 7 || sessionCount <= 3);
         setShouldShowFullCard(shouldShow);
         
       } catch (error) {
-        console.error('Error tracking session:', error);
+        console.error('Error checking card visibility:', error);
         // Fallback to localStorage for session tracking
-        const localSessions = parseInt(localStorage.getItem('travelExpertSessions') || '0') + 1;
-        localStorage.setItem('travelExpertSessions', localSessions.toString());
-        
+        const localSessions = parseInt(localStorage.getItem('travelExpertSessions') || '0');
         const dismissed = localStorage.getItem('travelExpertDismissed');
         setShouldShowFullCard(!dismissed && localSessions <= 3);
       }
     };
 
-    trackSession();
+    checkCardVisibility();
   }, [user, profile]);
 
   // Add click-outside detection

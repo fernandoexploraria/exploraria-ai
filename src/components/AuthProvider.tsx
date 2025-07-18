@@ -48,6 +48,59 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Track browser sessions using localStorage + sessionStorage
+  const trackUserSession = async (userId: string) => {
+    try {
+      console.log('🔄 Tracking user session for:', userId);
+      
+      // Check if this is a new browser session
+      const currentSessionId = sessionStorage.getItem('current_session_id');
+      const storedSessionId = localStorage.getItem('last_session_id');
+      
+      console.log('📊 Session IDs:', { currentSessionId, storedSessionId });
+      
+      if (!currentSessionId || currentSessionId !== storedSessionId) {
+        // This is a new browser session
+        const newSessionId = `session_${Date.now()}`;
+        sessionStorage.setItem('current_session_id', newSessionId);
+        localStorage.setItem('last_session_id', newSessionId);
+        
+        console.log('✨ New browser session detected, updating database');
+        
+        // Get current profile data
+        const { data: currentProfile, error: fetchError } = await supabase
+          .from('profiles')
+          .select('session_count, first_login_at')
+          .eq('id', userId)
+          .single();
+
+        if (fetchError) {
+          console.error('Error fetching profile for session tracking:', fetchError);
+          return;
+        }
+
+        // Update session count and first_login_at if needed
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            session_count: (currentProfile?.session_count || 0) + 1,
+            first_login_at: currentProfile?.first_login_at || new Date().toISOString()
+          })
+          .eq('id', userId);
+
+        if (error) {
+          console.error('Error updating session count:', error);
+        } else {
+          console.log('✅ Session count updated to:', (currentProfile?.session_count || 0) + 1);
+        }
+      } else {
+        console.log('🔄 Same browser session, no database update needed');
+      }
+    } catch (error) {
+      console.error('Error in session tracking:', error);
+    }
+  };
+
   // Fetch user profile when user changes
   const fetchProfile = async (userId: string) => {
     try {
@@ -76,9 +129,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Fetch profile when user signs in
+        // Fetch profile and track session when user signs in
         if (session?.user) {
           fetchProfile(session.user.id);
+          
+          // Track session only for authenticated users
+          // Use setTimeout to avoid blocking the auth state change
+          setTimeout(() => {
+            trackUserSession(session.user.id);
+          }, 0);
         } else {
           setProfile(null);
         }
@@ -220,6 +279,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
       // Fetch profile for existing session
       if (session?.user) {
         fetchProfile(session.user.id);
+        // Track session for existing authenticated users
+        setTimeout(() => {
+          trackUserSession(session.user.id);
+        }, 0);
       }
       
       setLoading(false);
