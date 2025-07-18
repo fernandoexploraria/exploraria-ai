@@ -11,6 +11,8 @@ interface ProfileStats {
   existingProfiles: number;
   missingProfiles: number;
   missingUsers: Array<{ id: string; email: string }>;
+  profilesMissingFields: number;
+  missingFieldsProfiles: Array<{ id: string }>;
 }
 
 export const ProfileBackfillUtility = () => {
@@ -18,6 +20,7 @@ export const ProfileBackfillUtility = () => {
   const [stats, setStats] = useState<ProfileStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
   const fetchStats = async () => {
     setLoading(true);
@@ -73,6 +76,36 @@ export const ProfileBackfillUtility = () => {
     }
   };
 
+  const updateExistingProfiles = async () => {
+    setUpdating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('backfill-profiles', {
+        method: 'PUT',
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Success",
+        description: `Updated ${data.updated} profiles with tracking fields`,
+      });
+
+      // Refresh stats
+      await fetchStats();
+    } catch (error) {
+      console.error('Error updating profiles:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update profile tracking fields",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
@@ -116,13 +149,23 @@ export const ProfileBackfillUtility = () => {
               </div>
             </div>
 
-            <div className="text-center">
-              <Badge 
-                variant={stats.missingProfiles > 0 ? "destructive" : "default"}
-                className="text-sm"
-              >
-                {stats.missingProfiles} Missing Profiles
-              </Badge>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="text-center">
+                <Badge 
+                  variant={stats.missingProfiles > 0 ? "destructive" : "default"}
+                  className="text-sm"
+                >
+                  {stats.missingProfiles} Missing
+                </Badge>
+              </div>
+              <div className="text-center">
+                <Badge 
+                  variant={stats.profilesMissingFields > 0 ? "secondary" : "default"}
+                  className="text-sm"
+                >
+                  {stats.profilesMissingFields} Missing Fields
+                </Badge>
+              </div>
             </div>
 
             {stats.missingProfiles > 0 && (
@@ -139,7 +182,7 @@ export const ProfileBackfillUtility = () => {
                 </div>
                 <Button
                   onClick={createMissingProfiles}
-                  disabled={creating}
+                  disabled={creating || updating}
                   className="w-full"
                 >
                   {creating ? (
@@ -157,10 +200,36 @@ export const ProfileBackfillUtility = () => {
               </div>
             )}
 
-            {stats.missingProfiles === 0 && (
+            {stats.profilesMissingFields > 0 && (
+              <div className="space-y-2">
+                <div className="text-sm text-muted-foreground">
+                  {stats.profilesMissingFields} profiles need tracking field updates
+                </div>
+                <Button
+                  onClick={updateExistingProfiles}
+                  disabled={creating || updating}
+                  variant="outline"
+                  className="w-full"
+                >
+                  {updating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="w-4 h-4 mr-2" />
+                      Update Tracking Fields
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {stats.missingProfiles === 0 && stats.profilesMissingFields === 0 && (
               <div className="flex items-center gap-2 text-green-600 text-sm">
                 <CheckCircle className="w-4 h-4" />
-                All users have profiles
+                All profiles are up to date
               </div>
             )}
           </div>
