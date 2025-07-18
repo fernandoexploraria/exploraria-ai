@@ -3,11 +3,96 @@ import React from 'react';
 import { HelpCircle, MapPin, DollarSign, Users, Check, Star } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { TravelExpertUpgrade } from '@/components/TravelExpertUpgrade';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { useAuth } from '@/components/AuthProvider';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 export const TravelExpertHelp: React.FC = () => {
+  const { user, profile, upgradeToTravelExpert, updateProfile } = useAuth();
+  const { toast } = useToast();
   const [isUpgradeDialogOpen, setIsUpgradeDialogOpen] = React.useState(false);
+  const [isUpgrading, setIsUpgrading] = React.useState(false);
+  const [formData, setFormData] = React.useState({
+    full_name: profile?.full_name || '',
+    bio: profile?.bio || '',
+  });
+
+  const handleUpgrade = async () => {
+    if (!user) return;
+
+    setIsUpgrading(true);
+    
+    try {
+      // Update profile information first
+      if (formData.full_name || formData.bio) {
+        const { error: profileError } = await updateProfile({
+          full_name: formData.full_name,
+          bio: formData.bio,
+        });
+
+        if (profileError) {
+          throw profileError;
+        }
+      }
+
+      // Upgrade role to travel_expert
+      const { error: upgradeError } = await upgradeToTravelExpert();
+      
+      if (upgradeError) {
+        throw upgradeError;
+      }
+
+      // Initialize Stripe Connect onboarding
+      try {
+        const { data, error } = await supabase.functions.invoke('create-onboarding-link', {
+          body: {}
+        });
+
+        if (error) {
+          console.error('Error creating onboarding link:', error);
+          // Don't throw - the upgrade was successful, just Stripe onboarding failed
+          toast({
+            title: "Upgraded to Travel Expert!",
+            description: "You can set up payments later from the curator portal.",
+          });
+        } else if (data?.url) {
+          // Open Stripe Connect onboarding in new tab
+          window.open(data.url, '_blank');
+          
+          toast({
+            title: "Upgraded to Travel Expert!",
+            description: "Complete your Stripe setup to start earning from your experiences.",
+          });
+        }
+      } catch (stripeError) {
+        console.error('Stripe onboarding error:', stripeError);
+        toast({
+          title: "Upgraded to Travel Expert!",
+          description: "You can set up payments later from the curator portal.",
+        });
+      }
+
+      setIsUpgradeDialogOpen(false);
+      
+    } catch (error) {
+      console.error('Error upgrading to travel expert:', error);
+      toast({
+        title: "Upgrade Failed",
+        description: "There was an error upgrading your account. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpgrading(false);
+    }
+  };
+
+  if (profile?.role === 'travel_expert') {
+    return null; // Don't show anything for travel experts
+  }
 
   return (
     <>
@@ -100,13 +185,37 @@ export const TravelExpertHelp: React.FC = () => {
           <DialogHeader>
             <DialogTitle>Become a Travel Expert</DialogTitle>
             <DialogDescription>
-              Upgrade your account to start creating and monetizing travel experiences
+              Help us personalize your experience as a Travel Expert
             </DialogDescription>
           </DialogHeader>
-          <TravelExpertUpgrade 
-            displayMode="badge" 
-            onUpgradeComplete={() => setIsUpgradeDialogOpen(false)} 
-          />
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="full_name">Full Name</Label>
+              <Input
+                id="full_name"
+                placeholder="Your full name"
+                value={formData.full_name}
+                onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bio">Bio (Optional)</Label>
+              <Textarea
+                id="bio"
+                placeholder="Tell us about your travel expertise and local knowledge..."
+                value={formData.bio}
+                onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
+                rows={3}
+              />
+            </div>
+            <Button
+              onClick={handleUpgrade}
+              disabled={isUpgrading || !formData.full_name}
+              className="w-full"
+            >
+              {isUpgrading ? "Upgrading..." : "Complete Upgrade"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </>
