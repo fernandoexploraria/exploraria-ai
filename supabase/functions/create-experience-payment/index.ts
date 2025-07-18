@@ -171,6 +171,7 @@ serve(async (req) => {
         tour_guide_payout_amount: tourGuideTransferCents / 100,
         status: paymentIntent.status,
         stripe_customer_id: stripeCustomerId,
+        payment_type: "experience", // Dedicated field for experience payments
         metadata: {
           product_id: productId,
           destination: experience.destination,
