@@ -13,6 +13,26 @@ const logStep = (step: string, details?: any) => {
   console.log(`[STRIPE-WEBHOOK] ${step}${detailsStr}`);
 };
 
+// Helper function to determine subscription tier based on price
+const getSubscriptionTier = async (stripe: Stripe, subscription: Stripe.Subscription): Promise<string> => {
+  try {
+    const priceId = subscription.items.data[0].price.id;
+    const price = await stripe.prices.retrieve(priceId);
+    const amount = price.unit_amount || 0;
+    
+    if (amount <= 999) {
+      return "Basic";
+    } else if (amount <= 1999) {
+      return "Premium";
+    } else {
+      return "Enterprise";
+    }
+  } catch (error) {
+    logStep("ERROR: Failed to determine subscription tier", { error: error.message });
+    return "Premium"; // Default fallback
+  }
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -264,6 +284,7 @@ serve(async (req) => {
           // Update subscriber record with subscription ID
           const subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
           const isActive = subscription.status === "active";
+          const subscriptionTier = await getSubscriptionTier(stripe, subscription);
           
           const { error: updateError } = await supabaseClient
             .from("subscribers")
@@ -272,7 +293,7 @@ serve(async (req) => {
               stripe_customer_id: customerId,
               stripe_subscription_id: subscription.id,
               subscribed: isActive,
-              subscription_tier: "Premium",
+              subscription_tier: subscriptionTier,
               subscription_end: subscriptionEnd,
               stripe_cancel_at_period_end: false,
               stripe_status: subscription.status,
@@ -286,7 +307,8 @@ serve(async (req) => {
               email: customerEmail,
               subscriptionId: subscription.id,
               subscribed: isActive,
-              subscriptionEnd 
+              subscriptionEnd,
+              subscriptionTier 
             });
           }
         }
@@ -307,6 +329,7 @@ serve(async (req) => {
           const subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
           const isActive = subscription.status === "active";
           const cancelAtPeriodEnd = subscription.cancel_at_period_end || false;
+          const subscriptionTier = await getSubscriptionTier(stripe, subscription);
           
           const { error: updateError } = await supabaseClient
             .from("subscribers")
@@ -315,7 +338,7 @@ serve(async (req) => {
               stripe_customer_id: customerId,
               stripe_subscription_id: subscription.id,
               subscribed: isActive, // Keep subscribed true even if cancel_at_period_end is true
-              subscription_tier: "Premium",
+              subscription_tier: subscriptionTier,
               subscription_end: subscriptionEnd,
               stripe_cancel_at_period_end: cancelAtPeriodEnd,
               stripe_status: subscription.status,
@@ -329,7 +352,8 @@ serve(async (req) => {
               email: customerEmail,
               subscribed: isActive,
               subscriptionEnd,
-              cancelAtPeriodEnd 
+              cancelAtPeriodEnd,
+              subscriptionTier 
             });
           }
         }
@@ -386,6 +410,7 @@ serve(async (req) => {
             // Get subscription details
             const subscription = await stripe.subscriptions.retrieve(subscriptionId);
             const subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
+            const subscriptionTier = await getSubscriptionTier(stripe, subscription);
             
             const { error: updateError } = await supabaseClient
               .from("subscribers")
@@ -395,7 +420,7 @@ serve(async (req) => {
                 stripe_subscription_id: subscriptionId,
                 subscribed: true,
                 stripe_status: "active",
-                subscription_tier: "Premium",
+                subscription_tier: subscriptionTier,
                 subscription_end: subscriptionEnd,
                 stripe_cancel_at_period_end: subscription.cancel_at_period_end || false,
                 updated_at: new Date().toISOString(),
@@ -406,7 +431,8 @@ serve(async (req) => {
             } else {
               logStep("Subscriber activated on invoice payment", { 
                 email: customerEmail,
-                subscriptionEnd 
+                subscriptionEnd,
+                subscriptionTier 
               });
             }
           }
