@@ -83,8 +83,8 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
         )}
       </div>
       
-      {/* Profile Backfill Utility - only for travel experts when demo mode is off */}
-      {user && profile?.role === 'travel_expert' && (
+      {/* Profile Backfill Utility - only when demo mode is off */}
+      {user && (
         <div className="absolute top-[70px] right-[45px] z-20">
           <ProfileBackfillUtility />
         </div>
