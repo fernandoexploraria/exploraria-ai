@@ -143,9 +143,7 @@ serve(async (req) => {
       payment_type: "subscription", // NEW: Dedicated field
       stripe_subscription_id: subscription.id, // NEW: Dedicated field
       metadata: {
-        price_id: priceId,
-        product_id: oaxacaProductId
-        // Removed subscription_id and payment_type from metadata since they have dedicated fields
+        price_id: priceId
       }
     });
 
