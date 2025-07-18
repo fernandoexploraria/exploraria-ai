@@ -8,6 +8,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { Link } from 'react-router-dom';
 import { ProfileBackfillUtility } from '@/components/ProfileBackfillUtility';
 import { TravelExpertUpgrade } from '@/components/TravelExpertUpgrade';
+import { TravelExpertHelp } from '@/components/TravelExpertHelp';
 import { useDemoMode } from '@/hooks/useDemoMode';
 
 interface UserControlsProps {
@@ -52,7 +53,10 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
                 </Button>
               </Link>
             ) : (
-              <TravelExpertUpgrade displayMode="badge" />
+              <div className="flex items-center gap-1">
+                <TravelExpertUpgrade displayMode="badge" />
+                <TravelExpertHelp />
+              </div>
             )}
             
             {/* User Profile */}
