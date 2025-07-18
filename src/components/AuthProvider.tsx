@@ -4,12 +4,26 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { PostAuthAction, getPostAuthAction, clearPostAuthAction, getPostAuthLandmark, clearPostAuthLandmark } from '@/utils/authActions';
 
+interface UserProfile {
+  id: string;
+  email: string;
+  role: 'tourist' | 'travel_expert';
+  full_name?: string;
+  bio?: string;
+  avatar_url?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
+  profile: UserProfile | null;
   signUp: (email: string, password: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  updateProfile: (updates: Partial<UserProfile>) => Promise<{ error: any }>;
+  upgradeToTravelExpert: () => Promise<{ error: any }>;
   loading: boolean;
 }
 
@@ -31,7 +45,28 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuthAction }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Fetch user profile when user changes
+  const fetchProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+        return;
+      }
+
+      setProfile(data);
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    }
+  };
 
   useEffect(() => {
     // Set up auth state listener
@@ -40,6 +75,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
         console.log('Auth state changed:', event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
+        
+        // Fetch profile when user signs in
+        if (session?.user) {
+          fetchProfile(session.user.id);
+        } else {
+          setProfile(null);
+        }
+        
         setLoading(false);
         
         // Handle post-auth actions for successful sign-ins
@@ -173,6 +216,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      
+      // Fetch profile for existing session
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      }
+      
       setLoading(false);
     });
 
@@ -202,14 +251,66 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    setProfile(null);
+  };
+
+  const updateProfile = async (updates: Partial<UserProfile>) => {
+    if (!user) return { error: 'No user logged in' };
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', user.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating profile:', error);
+        return { error };
+      }
+
+      setProfile(data);
+      return { error: null };
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      return { error };
+    }
+  };
+
+  const upgradeToTravelExpert = async () => {
+    if (!user) return { error: 'No user logged in' };
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ role: 'travel_expert' })
+        .eq('id', user.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error upgrading to travel expert:', error);
+        return { error };
+      }
+
+      setProfile(data);
+      return { error: null };
+    } catch (error) {
+      console.error('Error upgrading to travel expert:', error);
+      return { error };
+    }
   };
 
   const value = {
     user,
     session,
+    profile,
     signUp,
     signIn,
     signOut,
+    updateProfile,
+    upgradeToTravelExpert,
     loading
   };
 

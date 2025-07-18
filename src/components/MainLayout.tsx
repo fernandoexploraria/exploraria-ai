@@ -8,9 +8,11 @@ import FloatingTourGuideFAB from '@/components/FloatingTourGuideFAB';
 import ProximityControlPanel from '@/components/ProximityControlPanel';
 import FloatingProximityCard from '@/components/FloatingProximityCard';
 import DebugWindow from '@/components/DebugWindow';
+import { TravelExpertUpgrade } from '@/components/TravelExpertUpgrade';
 import { useDebugWindow } from '@/hooks/useDebugWindow';
 import { useProximityNotifications } from '@/hooks/useProximityNotifications';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
+import { useAuth } from '@/components/AuthProvider';
 import { Landmark } from '@/data/landmarks';
 import { User } from '@supabase/supabase-js';
 
@@ -74,6 +76,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
   const { userLocation } = useLocationTracking();
   const { activeCards, closeProximityCard, showRouteToService, isActiveInstance } = useProximityNotifications();
+  const { profile } = useAuth();
   
   // Instance tracking for debugging
   const instanceIdRef = useRef(`layout-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
@@ -357,6 +360,16 @@ const MemoizedProximityCard = React.memo<{
         isVisible={isDebugVisible}
         onClose={toggleDebug}
       />
+
+      {/* Travel Expert Upgrade Component - shows only to logged in tourists */}
+      {user && profile?.role === 'tourist' && (
+        <div className="fixed bottom-24 left-4 w-80 z-30 max-w-[calc(100vw-2rem)]">
+          <TravelExpertUpgrade onUpgradeComplete={() => {
+            // Refresh the page to update the navigation
+            window.location.reload();
+          }} />
+        </div>
+      )}
     </div>
   );
 };

@@ -5,33 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Plus, ArrowLeft, BookOpen, Users, TrendingUp, Zap } from 'lucide-react';
 import { ExperienceCreationWizard } from '@/components/ExperienceCreationWizard';
 import { Link } from 'react-router-dom';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 
 const CuratorPortal: React.FC = () => {
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const [showCreateExperience, setShowCreateExperience] = useState(false);
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Experience Curator Portal</CardTitle>
-            <CardDescription>
-              Please sign in to access the curator portal
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Link to="/">
-              <Button variant="outline" className="w-full">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Main App
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   if (showCreateExperience) {
     return (
@@ -46,27 +24,30 @@ const CuratorPortal: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Link to="/">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Main App
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Experience Curator Portal</h1>
-              <p className="text-sm text-muted-foreground">Welcome, {user.email}</p>
+    <ProtectedRoute requiredRole="travel_expert">
+      <div className="min-h-screen bg-background">
+        {/* Header */}
+        <header className="border-b border-border bg-card">
+          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Link to="/">
+                <Button variant="ghost" size="sm">
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Main App
+                </Button>
+              </Link>
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">Experience Curator Portal</h1>
+                <p className="text-sm text-muted-foreground">
+                  Welcome, {profile?.full_name || user?.email}
+                </p>
+              </div>
             </div>
+            <Button variant="outline" onClick={signOut}>
+              Sign Out
+            </Button>
           </div>
-          <Button variant="outline" onClick={signOut}>
-            Sign Out
-          </Button>
-        </div>
-      </header>
+        </header>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 space-y-8">
@@ -177,7 +158,8 @@ const CuratorPortal: React.FC = () => {
         </Card>
       </main>
     </div>
-  );
+  </ProtectedRoute>
+);
 };
 
 export default CuratorPortal;

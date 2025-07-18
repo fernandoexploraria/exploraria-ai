@@ -421,6 +421,39 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id: string
+          role?: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       proximity_alerts: {
         Row: {
           created_at: string
@@ -710,6 +743,10 @@ export type Database = {
       cleanup_all_data: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      custom_access_token_hook: {
+        Args: { event: Json }
+        Returns: Json
       }
       halfvec_avg: {
         Args: { "": number[] }

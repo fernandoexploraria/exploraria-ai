@@ -2,8 +2,10 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { User, LogOut } from 'lucide-react';
+import { User, LogOut, Star } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
+import { useAuth } from '@/components/AuthProvider';
+import { Link } from 'react-router-dom';
 
 interface UserControlsProps {
   user: SupabaseUser | null;
@@ -12,6 +14,8 @@ interface UserControlsProps {
 }
 
 const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDialogOpen }) => {
+  const { profile } = useAuth();
+  
   const handleSignOut = async () => {
     console.log('Sign out button clicked');
     try {
@@ -29,23 +33,40 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
   return (
     <div className="absolute top-[10px] right-[45px] z-20 flex items-start gap-2">
       {user ? (
-        <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm rounded-md px-3 py-2 shadow-lg border border-input h-10">
-          <Avatar className="w-6 h-6">
-            <AvatarFallback className="text-xs">
-              {user.email?.charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <span className="text-sm font-medium text-foreground max-w-[100px] truncate">
-            {user.email}
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleSignOut}
-            className="h-6 w-6 p-0 hover:bg-accent hover:text-accent-foreground relative z-30 ml-1"
-          >
-            <LogOut className="w-3 h-3" />
-          </Button>
+        <div className="flex items-center gap-2">
+          {/* Travel Expert Portal Link */}
+          {profile?.role === 'travel_expert' && (
+            <Link to="/curator-portal">
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-primary/10 backdrop-blur-sm shadow-lg border border-primary/20 text-primary hover:bg-primary/20 hover:text-primary h-10"
+              >
+                <Star className="w-4 h-4 mr-2" />
+                Curator Portal
+              </Button>
+            </Link>
+          )}
+          
+          {/* User Profile */}
+          <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm rounded-md px-3 py-2 shadow-lg border border-input h-10">
+            <Avatar className="w-6 h-6">
+              <AvatarFallback className="text-xs">
+                {(profile?.full_name || user.email)?.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <span className="text-sm font-medium text-foreground max-w-[100px] truncate">
+              {profile?.full_name || user.email}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSignOut}
+              className="h-6 w-6 p-0 hover:bg-accent hover:text-accent-foreground relative z-30 ml-1"
+            >
+              <LogOut className="w-3 h-3" />
+            </Button>
+          </div>
         </div>
       ) : (
         <Button
