@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,8 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [shouldShowFullCard, setShouldShowFullCard] = useState(false);
+  const [isCardVisible, setIsCardVisible] = useState(true);
+  const cardRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState({
     full_name: profile?.full_name || '',
     bio: profile?.bio || '',
@@ -87,27 +90,68 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
     trackSession();
   }, [user, profile]);
 
-  const handleDismiss = async () => {
+  // Add click-outside detection
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (cardRef.current && !cardRef.current.contains(event.target as Node)) {
+        console.log('🎯 Travel Expert Card: Click detected outside card, dismissing');
+        handleDismiss();
+      }
+    };
+
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        console.log('🎯 Travel Expert Card: Escape key pressed, dismissing');
+        handleDismiss();
+      }
+    };
+
+    // Only add listeners when full card is visible
+    if (shouldShowFullCard && isCardVisible) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleEscapeKey);
+      
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener('keydown', handleEscapeKey);
+      };
+    }
+  }, [shouldShowFullCard, isCardVisible]);
+
+  const handleDismiss = async (event?: React.MouseEvent) => {
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+    
+    console.log('🎯 Travel Expert Card: Dismissing card');
+    
     if (!user) return;
 
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ upgrade_card_dismissed_at: new Date().toISOString() })
-        .eq('id', user.id);
+    // Animate out first
+    setIsCardVisible(false);
+    
+    // Wait for animation to complete before updating database
+    setTimeout(async () => {
+      try {
+        const { error } = await supabase
+          .from('profiles')
+          .update({ upgrade_card_dismissed_at: new Date().toISOString() })
+          .eq('id', user.id);
 
-      if (error) {
+        if (error) {
+          console.error('Error dismissing card:', error);
+          // Fallback to localStorage
+          localStorage.setItem('travelExpertDismissed', 'true');
+        }
+        
+        setShouldShowFullCard(false);
+      } catch (error) {
         console.error('Error dismissing card:', error);
-        // Fallback to localStorage
         localStorage.setItem('travelExpertDismissed', 'true');
+        setShouldShowFullCard(false);
       }
-      
-      setShouldShowFullCard(false);
-    } catch (error) {
-      console.error('Error dismissing card:', error);
-      localStorage.setItem('travelExpertDismissed', 'true');
-      setShouldShowFullCard(false);
-    }
+    }, 300); // Match animation duration
   };
 
   const handleUpgrade = async () => {
@@ -243,122 +287,137 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
     );
   }
 
-  // Full card mode - prominent display
-  return (
-    <Card className="bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/10 relative">
-      {/* Dismiss button */}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="absolute top-2 right-2 h-8 w-8 p-0 hover:bg-muted/50 z-10"
-        onClick={handleDismiss}
-      >
-        <X className="h-4 w-4" />
-      </Button>
-      
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Star className="h-5 w-5 text-primary" />
-          Become a Travel Expert
-        </CardTitle>
-        <CardDescription>
-          Share your local knowledge and create AI-powered guided experiences
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Benefits */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex items-start gap-3">
-            <div className="p-1.5 bg-primary/20 rounded-full mt-1">
-              <MapPin className="h-3 w-3 text-primary" />
-            </div>
-            <div>
-              <h4 className="font-medium text-sm">Create Experiences</h4>
-              <p className="text-xs text-muted-foreground">
-                Build AI-powered tours of your favorite places
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="p-1.5 bg-primary/20 rounded-full mt-1">
-              <DollarSign className="h-3 w-3 text-primary" />
-            </div>
-            <div>
-              <h4 className="font-medium text-sm">Earn Revenue</h4>
-              <p className="text-xs text-muted-foreground">
-                Monetize your expertise with every experience
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="p-1.5 bg-primary/20 rounded-full mt-1">
-              <Users className="h-3 w-3 text-primary" />
-            </div>
-            <div>
-              <h4 className="font-medium text-sm">Build Community</h4>
-              <p className="text-xs text-muted-foreground">
-                Connect with travelers and share your passion
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="p-1.5 bg-primary/20 rounded-full mt-1">
-              <Check className="h-3 w-3 text-primary" />
-            </div>
-            <div>
-              <h4 className="font-medium text-sm">Full Access</h4>
-              <p className="text-xs text-muted-foreground">
-                Access all tourist features plus curator tools
-              </p>
-            </div>
-          </div>
-        </div>
+  // Don't render if card was dismissed with animation
+  if (!shouldShowFullCard) {
+    return null;
+  }
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="w-full" size="lg">
-              <Star className="mr-2 h-4 w-4" />
-              Upgrade to Travel Expert
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Become a Travel Expert</DialogTitle>
-              <DialogDescription>
-                Help us personalize your experience as a Travel Expert
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="full_name">Full Name</Label>
-                <Input
-                  id="full_name"
-                  placeholder="Your full name"
-                  value={formData.full_name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
-                />
+  // Full card mode - prominent display with enhanced UX
+  return (
+    <div
+      ref={cardRef}
+      className={`transform transition-all duration-300 ease-in-out ${
+        isCardVisible 
+          ? 'translate-y-0 opacity-100 scale-100' 
+          : 'translate-y-2 opacity-0 scale-95'
+      }`}
+    >
+      <Card className="bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/10 relative shadow-lg hover:shadow-xl transition-shadow duration-200">
+        {/* Enhanced dismiss button with better visibility */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="absolute top-3 right-3 h-9 w-9 p-0 hover:bg-destructive/10 hover:text-destructive z-20 rounded-full bg-background/80 backdrop-blur-sm shadow-sm border border-border/50"
+          onClick={handleDismiss}
+          aria-label="Close travel expert upgrade card"
+        >
+          <X className="h-5 w-5" />
+        </Button>
+        
+        <CardHeader className="pr-12">
+          <CardTitle className="flex items-center gap-2">
+            <Star className="h-5 w-5 text-primary" />
+            Become a Travel Expert
+          </CardTitle>
+          <CardDescription>
+            Share your local knowledge and create AI-powered guided experiences
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Benefits */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-start gap-3">
+              <div className="p-1.5 bg-primary/20 rounded-full mt-1">
+                <MapPin className="h-3 w-3 text-primary" />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="bio">Bio (Optional)</Label>
-                <Textarea
-                  id="bio"
-                  placeholder="Tell us about your travel expertise and local knowledge..."
-                  value={formData.bio}
-                  onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
-                  rows={3}
-                />
+              <div>
+                <h4 className="font-medium text-sm">Create Experiences</h4>
+                <p className="text-xs text-muted-foreground">
+                  Build AI-powered tours of your favorite places
+                </p>
               </div>
-              <Button
-                onClick={handleUpgrade}
-                disabled={isUpgrading || !formData.full_name}
-                className="w-full"
-              >
-                {isUpgrading ? "Upgrading..." : "Complete Upgrade"}
-              </Button>
             </div>
-          </DialogContent>
-        </Dialog>
-      </CardContent>
-    </Card>
+            <div className="flex items-start gap-3">
+              <div className="p-1.5 bg-primary/20 rounded-full mt-1">
+                <DollarSign className="h-3 w-3 text-primary" />
+              </div>
+              <div>
+                <h4 className="font-medium text-sm">Earn Revenue</h4>
+                <p className="text-xs text-muted-foreground">
+                  Monetize your expertise with every experience
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="p-1.5 bg-primary/20 rounded-full mt-1">
+                <Users className="h-3 w-3 text-primary" />
+              </div>
+              <div>
+                <h4 className="font-medium text-sm">Build Community</h4>
+                <p className="text-xs text-muted-foreground">
+                  Connect with travelers and share your passion
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="p-1.5 bg-primary/20 rounded-full mt-1">
+                <Check className="h-3 w-3 text-primary" />
+              </div>
+              <div>
+                <h4 className="font-medium text-sm">Full Access</h4>
+                <p className="text-xs text-muted-foreground">
+                  Access all tourist features plus curator tools
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="w-full" size="lg">
+                <Star className="mr-2 h-4 w-4" />
+                Upgrade to Travel Expert
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Become a Travel Expert</DialogTitle>
+                <DialogDescription>
+                  Help us personalize your experience as a Travel Expert
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="full_name">Full Name</Label>
+                  <Input
+                    id="full_name"
+                    placeholder="Your full name"
+                    value={formData.full_name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bio">Bio (Optional)</Label>
+                  <Textarea
+                    id="bio"
+                    placeholder="Tell us about your travel expertise and local knowledge..."
+                    value={formData.bio}
+                    onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
+                    rows={3}
+                  />
+                </div>
+                <Button
+                  onClick={handleUpgrade}
+                  disabled={isUpgrading || !formData.full_name}
+                  className="w-full"
+                >
+                  {isUpgrading ? "Upgrading..." : "Complete Upgrade"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
