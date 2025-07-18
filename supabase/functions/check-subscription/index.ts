@@ -60,6 +60,7 @@ serve(async (req) => {
         subscribed: false,
         subscription_tier: null,
         subscription_end: null,
+        stripe_status: null,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'email' });
       return new Response(JSON.stringify({ subscribed: false }), {
@@ -113,6 +114,7 @@ serve(async (req) => {
       subscribed: hasActiveSub,
       subscription_tier: subscriptionTier,
       subscription_end: subscriptionEnd,
+      stripe_status: hasActiveSub ? "active" : null,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'email' });
 
