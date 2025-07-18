@@ -74,54 +74,62 @@ serve(async (req) => {
 
     const subscriptions = await stripe.subscriptions.list({
       customer: customerId,
-      status: "active",
       limit: 1,
     });
-    const hasActiveSub = subscriptions.data.length > 0;
+    
     let subscriptionTier = null;
     let subscriptionEnd = null;
     let cancelAtPeriodEnd = false;
+    let stripeStatus = null;
+    let isActive = false;
 
-    if (hasActiveSub) {
+    if (subscriptions.data.length > 0) {
       const subscription = subscriptions.data[0];
+      stripeStatus = subscription.status;
+      isActive = subscription.status === "active";
       subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
       cancelAtPeriodEnd = subscription.cancel_at_period_end || false;
-      logStep("Active subscription found", { 
+      
+      logStep("Subscription found", { 
         subscriptionId: subscription.id, 
+        status: subscription.status,
         endDate: subscriptionEnd,
         cancelAtPeriodEnd 
       });
       
-      const priceId = subscription.items.data[0].price.id;
-      const price = await stripe.prices.retrieve(priceId);
-      const amount = price.unit_amount || 0;
-      if (amount <= 999) {
-        subscriptionTier = "Basic";
-      } else if (amount <= 1999) {
-        subscriptionTier = "Premium";
-      } else {
-        subscriptionTier = "Enterprise";
+      // Only determine tier for active subscriptions
+      if (isActive) {
+        const priceId = subscription.items.data[0].price.id;
+        const price = await stripe.prices.retrieve(priceId);
+        const amount = price.unit_amount || 0;
+        if (amount <= 999) {
+          subscriptionTier = "Basic";
+        } else if (amount <= 1999) {
+          subscriptionTier = "Premium";
+        } else {
+          subscriptionTier = "Enterprise";
+        }
+        logStep("Determined subscription tier", { priceId, amount, subscriptionTier });
       }
-      logStep("Determined subscription tier", { priceId, amount, subscriptionTier });
     } else {
-      logStep("No active subscription found");
+      logStep("No subscription found");
     }
 
     await supabaseClient.from("subscribers").upsert({
       email: user.email,
       user_id: user.id,
       stripe_customer_id: customerId,
-      subscribed: hasActiveSub,
+      subscribed: isActive,
       subscription_tier: subscriptionTier,
       subscription_end: subscriptionEnd,
-      stripe_status: hasActiveSub ? "active" : null,
+      stripe_status: stripeStatus,
       stripe_cancel_at_period_end: cancelAtPeriodEnd,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'email' });
 
-    logStep("Updated database with subscription info", { subscribed: hasActiveSub, subscriptionTier, cancelAtPeriodEnd });
+    logStep("Updated database with subscription info", { subscribed: isActive, subscriptionTier, stripeStatus, cancelAtPeriodEnd });
     return new Response(JSON.stringify({
-      subscribed: hasActiveSub,
+      subscribed: isActive,
       subscription_tier: subscriptionTier,
       subscription_end: subscriptionEnd,
       cancel_at_period_end: cancelAtPeriodEnd
