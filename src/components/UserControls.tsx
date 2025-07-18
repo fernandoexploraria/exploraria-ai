@@ -48,7 +48,7 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
                   className="bg-primary/10 backdrop-blur-sm shadow-lg border border-primary/20 text-primary hover:bg-primary/20 hover:text-primary h-10"
                 >
                   <Star className="w-4 h-4 mr-2" />
-                  Curator Portal
+                  Travel Expert
                 </Button>
               </Link>
             ) : (
