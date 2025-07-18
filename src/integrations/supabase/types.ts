@@ -575,7 +575,9 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          stripe_cancel_at_period_end: boolean
           stripe_customer_id: string | null
+          stripe_status: string | null
           stripe_subscription_id: string | null
           subscribed: boolean
           subscription_end: string | null
@@ -587,7 +589,9 @@ export type Database = {
           created_at?: string
           email: string
           id?: string
+          stripe_cancel_at_period_end?: boolean
           stripe_customer_id?: string | null
+          stripe_status?: string | null
           stripe_subscription_id?: string | null
           subscribed?: boolean
           subscription_end?: string | null
@@ -599,7 +603,9 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          stripe_cancel_at_period_end?: boolean
           stripe_customer_id?: string | null
+          stripe_status?: string | null
           stripe_subscription_id?: string | null
           subscribed?: boolean
           subscription_end?: string | null
