@@ -8,7 +8,7 @@ import { SubscriptionDialog } from '@/components/subscription/SubscriptionDialog
 
 const FreeTourCounter: React.FC = () => {
   const { tourStats, isLoading: tourLoading } = useTourStats();
-  const { subscriptionData, isLoading: subLoading, createCheckout, createSubscriptionIntent, openCustomerPortal, checkSubscription } = useSubscription();
+  const { subscriptionData, isLoading: subLoading, createCheckout, createSubscriptionIntent, openCustomerPortal, checkSubscription, cancelSubscriptionAtPeriodEnd } = useSubscription();
   const [isHighlighted, setIsHighlighted] = useState(false);
   const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
   const [subscriptionClientSecret, setSubscriptionClientSecret] = useState<string | null>(null);
@@ -76,6 +76,19 @@ const FreeTourCounter: React.FC = () => {
       await openCustomerPortal();
     } catch (error) {
       console.error('Error opening customer portal:', error);
+    }
+  };
+
+  const handleCancelClick = async () => {
+    if (!confirm("Are you sure you want to cancel your subscription? You will retain access until the end of your current billing period.")) {
+      return;
+    }
+
+    try {
+      await cancelSubscriptionAtPeriodEnd();
+    } catch (error) {
+      console.error('Error cancelling subscription:', error);
+      alert('Failed to cancel subscription. Please try again.');
     }
   };
 
@@ -209,7 +222,7 @@ const FreeTourCounter: React.FC = () => {
                   variant="outline"
                   size="sm"
                   className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left text-red-600 hover:text-red-700"
-                  onClick={handleManageClick}
+                  onClick={handleCancelClick}
                 >
                   <X className="mr-1 h-3 w-3" />
                   Cancel
@@ -218,7 +231,7 @@ const FreeTourCounter: React.FC = () => {
                 <Button
                   variant="outline"
                   className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left text-red-600 hover:text-red-700"
-                  onClick={handleManageClick}
+                  onClick={handleCancelClick}
                 >
                   <X className="mr-2 h-4 w-4" />
                   Cancel Subscription

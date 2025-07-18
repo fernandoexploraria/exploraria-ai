@@ -274,6 +274,8 @@ serve(async (req) => {
               subscribed: isActive,
               subscription_tier: "Premium",
               subscription_end: subscriptionEnd,
+              stripe_cancel_at_period_end: false,
+              stripe_status: subscription.status,
               updated_at: new Date().toISOString(),
             }, { onConflict: 'email' });
 
@@ -304,6 +306,7 @@ serve(async (req) => {
           // Update subscriber record
           const subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
           const isActive = subscription.status === "active";
+          const cancelAtPeriodEnd = subscription.cancel_at_period_end || false;
           
           const { error: updateError } = await supabaseClient
             .from("subscribers")
@@ -311,9 +314,11 @@ serve(async (req) => {
               email: customerEmail,
               stripe_customer_id: customerId,
               stripe_subscription_id: subscription.id,
-              subscribed: isActive,
+              subscribed: isActive, // Keep subscribed true even if cancel_at_period_end is true
               subscription_tier: "Premium",
               subscription_end: subscriptionEnd,
+              stripe_cancel_at_period_end: cancelAtPeriodEnd,
+              stripe_status: subscription.status,
               updated_at: new Date().toISOString(),
             }, { onConflict: 'email' });
 
@@ -323,7 +328,8 @@ serve(async (req) => {
             logStep("Subscriber updated", { 
               email: customerEmail,
               subscribed: isActive,
-              subscriptionEnd 
+              subscriptionEnd,
+              cancelAtPeriodEnd 
             });
           }
         }
@@ -346,9 +352,11 @@ serve(async (req) => {
               email: customerEmail,
               stripe_customer_id: customerId,
               stripe_subscription_id: subscription.id,
-              subscribed: false,
+              subscribed: false, // Revoke access
               subscription_tier: null,
               subscription_end: null,
+              stripe_cancel_at_period_end: false,
+              stripe_status: "canceled",
               updated_at: new Date().toISOString(),
             }, { onConflict: 'email' });
 
@@ -389,6 +397,7 @@ serve(async (req) => {
                 stripe_status: "active",
                 subscription_tier: "Premium",
                 subscription_end: subscriptionEnd,
+                stripe_cancel_at_period_end: subscription.cancel_at_period_end || false,
                 updated_at: new Date().toISOString(),
               }, { onConflict: 'email' });
 

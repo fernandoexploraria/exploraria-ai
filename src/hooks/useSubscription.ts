@@ -115,6 +115,32 @@ export const useSubscription = () => {
     }
   };
 
+  const cancelSubscriptionAtPeriodEnd = async () => {
+    if (!user || !session) {
+      throw new Error('User not authenticated');
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('cancel-subscription-at-period-end', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Refresh subscription data after cancellation
+      await checkSubscription();
+      
+      return data;
+    } catch (err) {
+      console.error('Error cancelling subscription:', err);
+      throw err;
+    }
+  };
+
   useEffect(() => {
     checkSubscription();
   }, [user, session]);
@@ -127,5 +153,6 @@ export const useSubscription = () => {
     createCheckout,
     createSubscriptionIntent,
     openCustomerPortal,
+    cancelSubscriptionAtPeriodEnd,
   };
 };
