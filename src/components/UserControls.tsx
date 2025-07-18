@@ -7,6 +7,7 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 import { useAuth } from '@/components/AuthProvider';
 import { Link } from 'react-router-dom';
 import { ProfileBackfillUtility } from '@/components/ProfileBackfillUtility';
+import { TravelExpertUpgrade } from '@/components/TravelExpertUpgrade';
 import { useDemoMode } from '@/hooks/useDemoMode';
 
 interface UserControlsProps {
@@ -38,8 +39,8 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
       <div className="absolute top-[10px] right-[45px] z-20 flex items-start gap-2">
         {user ? (
           <div className="flex items-center gap-2">
-            {/* Travel Expert Portal Link */}
-            {profile?.role === 'travel_expert' && (
+            {/* Travel Expert Portal Link or Upgrade Badge */}
+            {profile?.role === 'travel_expert' ? (
               <Link to="/curator-portal">
                 <Button
                   variant="outline"
@@ -50,6 +51,8 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
                   Curator Portal
                 </Button>
               </Link>
+            ) : (
+              <TravelExpertUpgrade displayMode="badge" />
             )}
             
             {/* User Profile */}

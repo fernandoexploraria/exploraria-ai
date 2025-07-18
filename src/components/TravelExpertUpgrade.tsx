@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,23 +6,109 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Star, MapPin, DollarSign, Users, ArrowRight, Check } from 'lucide-react';
+import { Star, MapPin, DollarSign, Users, ArrowRight, Check, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface TravelExpertUpgradeProps {
   onUpgradeComplete?: () => void;
+  displayMode?: 'full' | 'badge';
 }
 
-export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({ onUpgradeComplete }) => {
+export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({ 
+  onUpgradeComplete, 
+  displayMode = 'full' 
+}) => {
   const { user, profile, upgradeToTravelExpert, updateProfile } = useAuth();
   const { toast } = useToast();
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [shouldShowFullCard, setShouldShowFullCard] = useState(false);
   const [formData, setFormData] = useState({
     full_name: profile?.full_name || '',
     bio: profile?.bio || '',
   });
+
+  // Track session and determine display mode
+  useEffect(() => {
+    if (!user || !profile) return;
+
+    const trackSession = async () => {
+      try {
+        // Get current profile data with new fields
+        const { data: currentProfile, error: fetchError } = await supabase
+          .from('profiles')
+          .select('session_count, first_login_at, upgrade_card_dismissed_at')
+          .eq('id', user.id)
+          .single();
+
+        if (fetchError) {
+          console.error('Error fetching profile:', fetchError);
+          throw fetchError;
+        }
+
+        // Update session count and first_login_at if needed
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            session_count: (currentProfile?.session_count || 0) + 1,
+            first_login_at: currentProfile?.first_login_at || new Date().toISOString()
+          })
+          .eq('id', user.id);
+
+        if (error) {
+          console.error('Error updating session count:', error);
+        }
+
+        // Determine if we should show full card
+        const daysSinceSignup = currentProfile?.first_login_at 
+          ? (Date.now() - new Date(currentProfile.first_login_at).getTime()) / (1000 * 60 * 60 * 24)
+          : 0;
+        
+        const sessionCount = currentProfile?.session_count || 0;
+        const wasDismissed = currentProfile?.upgrade_card_dismissed_at;
+        
+        // Show full card if: within first 7 days OR first 3 sessions AND not dismissed
+        const shouldShow = !wasDismissed && (daysSinceSignup <= 7 || sessionCount <= 3);
+        setShouldShowFullCard(shouldShow);
+        
+      } catch (error) {
+        console.error('Error tracking session:', error);
+        // Fallback to localStorage for session tracking
+        const localSessions = parseInt(localStorage.getItem('travelExpertSessions') || '0') + 1;
+        localStorage.setItem('travelExpertSessions', localSessions.toString());
+        
+        const dismissed = localStorage.getItem('travelExpertDismissed');
+        setShouldShowFullCard(!dismissed && localSessions <= 3);
+      }
+    };
+
+    trackSession();
+  }, [user, profile]);
+
+  const handleDismiss = async () => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ upgrade_card_dismissed_at: new Date().toISOString() })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error dismissing card:', error);
+        // Fallback to localStorage
+        localStorage.setItem('travelExpertDismissed', 'true');
+      }
+      
+      setShouldShowFullCard(false);
+    } catch (error) {
+      console.error('Error dismissing card:', error);
+      localStorage.setItem('travelExpertDismissed', 'true');
+      setShouldShowFullCard(false);
+    }
+  };
 
   const handleUpgrade = async () => {
     if (!user) return;
@@ -95,33 +181,81 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({ onUpgr
   };
 
   if (profile?.role === 'travel_expert') {
+    return null; // Don't show anything for travel experts
+  }
+
+  // Determine which display mode to use
+  const actualDisplayMode = displayMode === 'full' ? 'full' : 
+                          displayMode === 'badge' ? 'badge' : 
+                          shouldShowFullCard ? 'full' : 'badge';
+
+  // Badge mode - compact display
+  if (actualDisplayMode === 'badge') {
     return (
-      <Card className="bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20">
-        <CardContent className="p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-primary/20 rounded-full">
-              <Star className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-primary">Travel Expert</h3>
-              <p className="text-sm text-muted-foreground">
-                You're already a Travel Expert! Access your dashboard to manage experiences.
-              </p>
-            </div>
-          </div>
-          <Button asChild className="w-full">
-            <a href="/curator-portal">
-              <ArrowRight className="mr-2 h-4 w-4" />
-              Go to Curator Portal
-            </a>
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogTrigger asChild>
+          <Button 
+            variant="outline" 
+            size="sm"
+            className="bg-gradient-to-r from-primary/10 to-secondary/10 backdrop-blur-sm border-primary/20 text-primary hover:from-primary/20 hover:to-secondary/20"
+          >
+            <Star className="mr-2 h-4 w-4" />
+            Upgrade
           </Button>
-        </CardContent>
-      </Card>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Become a Travel Expert</DialogTitle>
+            <DialogDescription>
+              Help us personalize your experience as a Travel Expert
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="full_name">Full Name</Label>
+              <Input
+                id="full_name"
+                placeholder="Your full name"
+                value={formData.full_name}
+                onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bio">Bio (Optional)</Label>
+              <Textarea
+                id="bio"
+                placeholder="Tell us about your travel expertise and local knowledge..."
+                value={formData.bio}
+                onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
+                rows={3}
+              />
+            </div>
+            <Button
+              onClick={handleUpgrade}
+              disabled={isUpgrading || !formData.full_name}
+              className="w-full"
+            >
+              {isUpgrading ? "Upgrading..." : "Complete Upgrade"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     );
   }
 
+  // Full card mode - prominent display
   return (
-    <Card className="bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/10">
+    <Card className="bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/10 relative">
+      {/* Dismiss button */}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="absolute top-2 right-2 h-8 w-8 p-0 hover:bg-muted/50 z-10"
+        onClick={handleDismiss}
+      >
+        <X className="h-4 w-4" />
+      </Button>
+      
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Star className="h-5 w-5 text-primary" />

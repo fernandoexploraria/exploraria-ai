@@ -361,13 +361,16 @@ const MemoizedProximityCard = React.memo<{
         onClose={toggleDebug}
       />
 
-      {/* Travel Expert Upgrade Component - shows only to logged in tourists */}
+      {/* Travel Expert Upgrade Component - shows only to logged in tourists with smart display logic */}
       {user && profile?.role === 'tourist' && (
         <div className="fixed bottom-24 left-4 w-80 z-30 max-w-[calc(100vw-2rem)]">
-          <TravelExpertUpgrade onUpgradeComplete={() => {
-            // Refresh the page to update the navigation
-            window.location.reload();
-          }} />
+          <TravelExpertUpgrade 
+            displayMode="full" 
+            onUpgradeComplete={() => {
+              // Refresh the page to update the navigation
+              window.location.reload();
+            }} 
+          />
         </div>
       )}
     </div>

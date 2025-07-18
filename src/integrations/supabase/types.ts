@@ -427,30 +427,39 @@ export type Database = {
           bio: string | null
           created_at: string
           email: string
+          first_login_at: string | null
           full_name: string | null
           id: string
           role: string
+          session_count: number | null
           updated_at: string
+          upgrade_card_dismissed_at: string | null
         }
         Insert: {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
           email: string
+          first_login_at?: string | null
           full_name?: string | null
           id: string
           role?: string
+          session_count?: number | null
           updated_at?: string
+          upgrade_card_dismissed_at?: string | null
         }
         Update: {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
           email?: string
+          first_login_at?: string | null
           full_name?: string | null
           id?: string
           role?: string
+          session_count?: number | null
           updated_at?: string
+          upgrade_card_dismissed_at?: string | null
         }
         Relationships: []
       }
