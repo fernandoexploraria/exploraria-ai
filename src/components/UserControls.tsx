@@ -45,19 +45,21 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
             {/* Travel Expert Portal Link or Upgrade Badge */}
             {profile?.role === 'travel_expert' ? (
               <div className="relative">
-                <Link to="/curator-portal">
+                <Link to="/curator-portal" className="block">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="bg-primary/10 backdrop-blur-sm shadow-lg border border-primary/20 text-primary hover:bg-primary/20 hover:text-primary h-10 pr-8"
+                    className="bg-primary/10 backdrop-blur-sm shadow-lg border border-primary/20 text-primary hover:bg-primary/20 hover:text-primary h-10 flex items-center justify-between w-full min-w-[140px] px-3"
                   >
-                    {!isMobile && <Star className="w-4 h-4 mr-2" />}
-                    Travel Expert
+                    <div className="flex items-center gap-2">
+                      {!isMobile && <Star className="w-4 h-4" />}
+                      <span>Travel Expert</span>
+                    </div>
+                    <div className="flex items-center">
+                      <TravelExpertHelp />
+                    </div>
                   </Button>
                 </Link>
-                <div className="absolute top-1/2 right-2 -translate-y-1/2 z-30">
-                  <TravelExpertHelp />
-                </div>
               </div>
             ) : (
               <div className="relative">
