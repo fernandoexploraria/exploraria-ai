@@ -9,16 +9,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Star, MapPin, DollarSign, Users, ArrowRight, Check, X, HelpCircle, ArrowLeft, CreditCard, AlertCircle, ExternalLink } from 'lucide-react';
+import { Star, MapPin, DollarSign, Users, ArrowRight, Check, X, HelpCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { Progress } from '@/components/ui/progress';
 
 interface TravelExpertUpgradeProps {
   onUpgradeComplete?: () => void;
   displayMode?: 'full' | 'badge';
 }
-
-type WizardStep = 'profile' | 'stripe' | 'complete';
 
 export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({ 
   onUpgradeComplete, 
@@ -31,9 +28,6 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
   const [isHelpPopoverOpen, setIsHelpPopoverOpen] = useState(false);
   const [shouldShowFullCard, setShouldShowFullCard] = useState(false);
   const [isCardVisible, setIsCardVisible] = useState(true);
-  const [currentStep, setCurrentStep] = useState<WizardStep>('profile');
-  const [stripeOnboardingUrl, setStripeOnboardingUrl] = useState<string | null>(null);
-  const [isCreatingOnboardingLink, setIsCreatingOnboardingLink] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState({
     full_name: profile?.full_name || '',
@@ -152,20 +146,22 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
     }, 300); // Match animation duration
   };
 
-  const handleProfileSubmit = async () => {
-    if (!user || !formData.full_name) return;
+  const handleUpgrade = async () => {
+    if (!user) return;
 
     setIsUpgrading(true);
     
     try {
-      // Update profile information
-      const { error: profileError } = await updateProfile({
-        full_name: formData.full_name,
-        bio: formData.bio,
-      });
+      // Update profile information first
+      if (formData.full_name || formData.bio) {
+        const { error: profileError } = await updateProfile({
+          full_name: formData.full_name,
+          bio: formData.bio,
+        });
 
-      if (profileError) {
-        throw profileError;
+        if (profileError) {
+          throw profileError;
+        }
       }
 
       // Upgrade role to travel_expert
@@ -175,14 +171,45 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
         throw upgradeError;
       }
 
-      // Move to Stripe setup step
-      setCurrentStep('stripe');
+      // Initialize Stripe Connect onboarding
+      try {
+        const { data, error } = await supabase.functions.invoke('create-onboarding-link', {
+          body: {}
+        });
+
+        if (error) {
+          console.error('Error creating onboarding link:', error);
+          // Don't throw - the upgrade was successful, just Stripe onboarding failed
+          toast({
+            title: "Upgraded to Travel Expert!",
+            description: "You can set up payments later from the curator portal.",
+          });
+        } else if (data?.url) {
+          // Open Stripe Connect onboarding in new tab
+          window.open(data.url, '_blank');
+          
+          toast({
+            title: "Upgraded to Travel Expert!",
+            description: "Complete your Stripe setup to start earning from your experiences.",
+          });
+        }
+      } catch (stripeError) {
+        console.error('Stripe onboarding error:', stripeError);
+        toast({
+          title: "Upgraded to Travel Expert!",
+          description: "You can set up payments later from the curator portal.",
+        });
+      }
+
+      setIsDialogOpen(false);
+      setIsHelpPopoverOpen(false);
+      onUpgradeComplete?.();
       
     } catch (error) {
-      console.error('Error updating profile:', error);
+      console.error('Error upgrading to travel expert:', error);
       toast({
-        title: "Profile Update Failed",
-        description: "There was an error updating your profile. Please try again.",
+        title: "Upgrade Failed",
+        description: "There was an error upgrading your account. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -190,95 +217,10 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
     }
   };
 
-  const handleStripeOnboarding = async () => {
-    if (!user) return;
-
-    setIsCreatingOnboardingLink(true);
-    
-    try {
-      const { data, error } = await supabase.functions.invoke('create-onboarding-link', {
-        body: { userId: user.id }
-      });
-
-      if (error) {
-        console.error('Error creating onboarding link:', error);
-        toast({
-          title: "Stripe Setup Error",
-          description: "Failed to create Stripe onboarding link. Please try again.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (data?.onboarding_url) {
-        setStripeOnboardingUrl(data.onboarding_url);
-        
-        // Open Stripe Connect onboarding in new tab
-        const stripeWindow = window.open(data.onboarding_url, '_blank');
-        
-        if (!stripeWindow) {
-          toast({
-            title: "Pop-up Blocked",
-            description: "Please allow pop-ups for this site and click the link below.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Stripe Setup Opened",
-            description: "Complete your Stripe setup in the new tab, then return here.",
-          });
-          
-          // Move to completion step after a delay
-          setTimeout(() => {
-            setCurrentStep('complete');
-          }, 2000);
-        }
-      } else {
-        throw new Error('No onboarding URL returned');
-      }
-    } catch (error) {
-      console.error('Stripe onboarding error:', error);
-      toast({
-        title: "Stripe Setup Failed",
-        description: "There was an error setting up Stripe. You can complete this later from the curator portal.",
-        variant: "destructive",
-      });
-      
-      // Still move to complete step but with a warning
-      setCurrentStep('complete');
-    } finally {
-      setIsCreatingOnboardingLink(false);
-    }
-  };
-
-  const handleComplete = () => {
-    toast({
-      title: "Welcome, Travel Expert!",
-      description: "You can now create experiences and start earning from your expertise.",
-    });
-    
-    setIsDialogOpen(false);
-    setIsHelpPopoverOpen(false);
-    onUpgradeComplete?.();
-    
-    // Reset wizard state
-    setCurrentStep('profile');
-    setStripeOnboardingUrl(null);
-  };
-
   const handleHelpClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
     setIsHelpPopoverOpen(!isHelpPopoverOpen);
-  };
-
-  const getStepProgress = () => {
-    switch (currentStep) {
-      case 'profile': return 33;
-      case 'stripe': return 66;
-      case 'complete': return 100;
-      default: return 0;
-    }
   };
 
   if (profile?.role === 'travel_expert') {
@@ -315,180 +257,43 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
                 </PopoverTrigger>
               </Button>
             </DialogTrigger>
-            
-            {/* Multi-step Upgrade Dialog */}
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Star className="h-5 w-5 text-primary" />
-                  Become a Travel Expert
-                </DialogTitle>
+                <DialogTitle>Become a Travel Expert</DialogTitle>
                 <DialogDescription>
-                  {currentStep === 'profile' && "Let's set up your profile to get started"}
-                  {currentStep === 'stripe' && "Set up payments to start earning from your experiences"}
-                  {currentStep === 'complete' && "You're all set! Welcome to Travel Expert"}
+                  Help us personalize your experience as a Travel Expert
                 </DialogDescription>
               </DialogHeader>
-              
-              {/* Progress Bar */}
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>Step {currentStep === 'profile' ? '1' : currentStep === 'stripe' ? '2' : '3'} of 3</span>
-                  <span>{getStepProgress()}% complete</span>
-                </div>
-                <Progress value={getStepProgress()} className="h-2" />
-              </div>
-
-              {/* Step Content */}
               <div className="space-y-4">
-                {currentStep === 'profile' && (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="full_name">Full Name *</Label>
-                      <Input
-                        id="full_name"
-                        placeholder="Your full name"
-                        value={formData.full_name}
-                        onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="bio">Bio (Optional)</Label>
-                      <Textarea
-                        id="bio"
-                        placeholder="Tell us about your travel expertise and local knowledge..."
-                        value={formData.bio}
-                        onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
-                        rows={3}
-                      />
-                    </div>
-                    <Button
-                      onClick={handleProfileSubmit}
-                      disabled={isUpgrading || !formData.full_name}
-                      className="w-full"
-                    >
-                      {isUpgrading ? "Setting up..." : "Continue"}
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </>
-                )}
-
-                {currentStep === 'stripe' && (
-                  <>
-                    <div className="space-y-4">
-                      <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                        <CreditCard className="h-5 w-5 text-blue-600 mt-0.5" />
-                        <div>
-                          <h4 className="font-medium text-blue-900">Payment Setup Required</h4>
-                          <p className="text-sm text-blue-700 mt-1">
-                            To earn money from your experiences, you'll need to connect a Stripe account. 
-                            This is secure and takes just a few minutes.
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <h5 className="font-medium">What you'll need:</h5>
-                        <ul className="space-y-2 text-sm text-muted-foreground">
-                          <li className="flex items-center gap-2">
-                            <Check className="h-4 w-4 text-green-600" />
-                            Bank account information
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <Check className="h-4 w-4 text-green-600" />
-                            Government-issued ID
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <Check className="h-4 w-4 text-green-600" />
-                            Basic business information
-                          </li>
-                        </ul>
-                      </div>
-
-                      {stripeOnboardingUrl && (
-                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                          <div className="flex items-center gap-2 text-yellow-800">
-                            <AlertCircle className="h-4 w-4" />
-                            <span className="text-sm font-medium">Pop-up blocked?</span>
-                          </div>
-                          <p className="text-sm text-yellow-700 mt-1">
-                            <a 
-                              href={stripeOnboardingUrl} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="underline hover:no-underline inline-flex items-center gap-1"
-                            >
-                              Click here to open Stripe setup
-                              <ExternalLink className="h-3 w-3" />
-                            </a>
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => setCurrentStep('profile')}
-                        className="flex-1"
-                      >
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Back
-                      </Button>
-                      <Button
-                        onClick={handleStripeOnboarding}
-                        disabled={isCreatingOnboardingLink}
-                        className="flex-1"
-                      >
-                        {isCreatingOnboardingLink ? "Setting up..." : "Set up Stripe"}
-                        <CreditCard className="ml-2 h-4 w-4" />
-                      </Button>
-                    </div>
-                    
-                    <Button
-                      variant="ghost"
-                      onClick={() => setCurrentStep('complete')}
-                      className="w-full text-sm text-muted-foreground"
-                    >
-                      Skip for now (set up later in curator portal)
-                    </Button>
-                  </>
-                )}
-
-                {currentStep === 'complete' && (
-                  <>
-                    <div className="text-center space-y-4">
-                      <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                        <Check className="h-8 w-8 text-green-600" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-lg">Welcome, Travel Expert!</h3>
-                        <p className="text-muted-foreground">
-                          You can now create AI-powered experiences and start earning from your expertise.
-                        </p>
-                      </div>
-                      
-                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-left">
-                        <h4 className="font-medium text-blue-900 mb-2">Next steps:</h4>
-                        <ul className="space-y-1 text-sm text-blue-700">
-                          <li>• Visit the Curator Portal to create your first experience</li>
-                          <li>• Complete Stripe setup if you haven't already</li>
-                          <li>• Share your experiences with travelers</li>
-                        </ul>
-                      </div>
-                    </div>
-                    
-                    <Button onClick={handleComplete} className="w-full">
-                      Get Started
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </>
-                )}
+                <div className="space-y-2">
+                  <Label htmlFor="full_name">Full Name</Label>
+                  <Input
+                    id="full_name"
+                    placeholder="Your full name"
+                    value={formData.full_name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bio">Bio (Optional)</Label>
+                  <Textarea
+                    id="bio"
+                    placeholder="Tell us about your travel expertise and local knowledge..."
+                    value={formData.bio}
+                    onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
+                    rows={3}
+                  />
+                </div>
+                <Button
+                  onClick={handleUpgrade}
+                  disabled={isUpgrading || !formData.full_name}
+                  className="w-full"
+                >
+                  {isUpgrading ? "Upgrading..." : "Complete Upgrade"}
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
-          
-          {/* Help Popover */}
           <PopoverContent className="w-80" align="end">
             <div className="space-y-4">
               <div>
@@ -661,175 +466,40 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
                 Upgrade to Travel Expert
               </Button>
             </DialogTrigger>
-            
-            {/* Multi-step Upgrade Dialog - same content as badge mode */}
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Star className="h-5 w-5 text-primary" />
-                  Become a Travel Expert
-                </DialogTitle>
+                <DialogTitle>Become a Travel Expert</DialogTitle>
                 <DialogDescription>
-                  {currentStep === 'profile' && "Let's set up your profile to get started"}
-                  {currentStep === 'stripe' && "Set up payments to start earning from your experiences"}
-                  {currentStep === 'complete' && "You're all set! Welcome to Travel Expert"}
+                  Help us personalize your experience as a Travel Expert
                 </DialogDescription>
               </DialogHeader>
-              
-              {/* Progress Bar */}
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>Step {currentStep === 'profile' ? '1' : currentStep === 'stripe' ? '2' : '3'} of 3</span>
-                  <span>{getStepProgress()}% complete</span>
-                </div>
-                <Progress value={getStepProgress()} className="h-2" />
-              </div>
-
-              {/* Step Content - same as badge mode */}
               <div className="space-y-4">
-                {currentStep === 'profile' && (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="full_name">Full Name *</Label>
-                      <Input
-                        id="full_name"
-                        placeholder="Your full name"
-                        value={formData.full_name}
-                        onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="bio">Bio (Optional)</Label>
-                      <Textarea
-                        id="bio"
-                        placeholder="Tell us about your travel expertise and local knowledge..."
-                        value={formData.bio}
-                        onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
-                        rows={3}
-                      />
-                    </div>
-                    <Button
-                      onClick={handleProfileSubmit}
-                      disabled={isUpgrading || !formData.full_name}
-                      className="w-full"
-                    >
-                      {isUpgrading ? "Setting up..." : "Continue"}
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </>
-                )}
-
-                {currentStep === 'stripe' && (
-                  <>
-                    <div className="space-y-4">
-                      <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                        <CreditCard className="h-5 w-5 text-blue-600 mt-0.5" />
-                        <div>
-                          <h4 className="font-medium text-blue-900">Payment Setup Required</h4>
-                          <p className="text-sm text-blue-700 mt-1">
-                            To earn money from your experiences, you'll need to connect a Stripe account. 
-                            This is secure and takes just a few minutes.
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <h5 className="font-medium">What you'll need:</h5>
-                        <ul className="space-y-2 text-sm text-muted-foreground">
-                          <li className="flex items-center gap-2">
-                            <Check className="h-4 w-4 text-green-600" />
-                            Bank account information
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <Check className="h-4 w-4 text-green-600" />
-                            Government-issued ID
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <Check className="h-4 w-4 text-green-600" />
-                            Basic business information
-                          </li>
-                        </ul>
-                      </div>
-
-                      {stripeOnboardingUrl && (
-                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                          <div className="flex items-center gap-2 text-yellow-800">
-                            <AlertCircle className="h-4 w-4" />
-                            <span className="text-sm font-medium">Pop-up blocked?</span>
-                          </div>
-                          <p className="text-sm text-yellow-700 mt-1">
-                            <a 
-                              href={stripeOnboardingUrl} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="underline hover:no-underline inline-flex items-center gap-1"
-                            >
-                              Click here to open Stripe setup
-                              <ExternalLink className="h-3 w-3" />
-                            </a>
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => setCurrentStep('profile')}
-                        className="flex-1"
-                      >
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Back
-                      </Button>
-                      <Button
-                        onClick={handleStripeOnboarding}
-                        disabled={isCreatingOnboardingLink}
-                        className="flex-1"
-                      >
-                        {isCreatingOnboardingLink ? "Setting up..." : "Set up Stripe"}
-                        <CreditCard className="ml-2 h-4 w-4" />
-                      </Button>
-                    </div>
-                    
-                    <Button
-                      variant="ghost"
-                      onClick={() => setCurrentStep('complete')}
-                      className="w-full text-sm text-muted-foreground"
-                    >
-                      Skip for now (set up later in curator portal)
-                    </Button>
-                  </>
-                )}
-
-                {currentStep === 'complete' && (
-                  <>
-                    <div className="text-center space-y-4">
-                      <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                        <Check className="h-8 w-8 text-green-600" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-lg">Welcome, Travel Expert!</h3>
-                        <p className="text-muted-foreground">
-                          You can now create AI-powered experiences and start earning from your expertise.
-                        </p>
-                      </div>
-                      
-                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-left">
-                        <h4 className="font-medium text-blue-900 mb-2">Next steps:</h4>
-                        <ul className="space-y-1 text-sm text-blue-700">
-                          <li>• Visit the Curator Portal to create your first experience</li>
-                          <li>• Complete Stripe setup if you haven't already</li>
-                          <li>• Share your experiences with travelers</li>
-                        </ul>
-                      </div>
-                    </div>
-                    
-                    <Button onClick={handleComplete} className="w-full">
-                      Get Started
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </>
-                )}
+                <div className="space-y-2">
+                  <Label htmlFor="full_name">Full Name</Label>
+                  <Input
+                    id="full_name"
+                    placeholder="Your full name"
+                    value={formData.full_name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bio">Bio (Optional)</Label>
+                  <Textarea
+                    id="bio"
+                    placeholder="Tell us about your travel expertise and local knowledge..."
+                    value={formData.bio}
+                    onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
+                    rows={3}
+                  />
+                </div>
+                <Button
+                  onClick={handleUpgrade}
+                  disabled={isUpgrading || !formData.full_name}
+                  className="w-full"
+                >
+                  {isUpgrading ? "Upgrading..." : "Complete Upgrade"}
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
