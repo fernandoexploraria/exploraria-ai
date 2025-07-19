@@ -235,7 +235,7 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
             className="bg-gradient-to-r from-primary/10 to-secondary/10 backdrop-blur-sm border-primary/20 text-primary hover:from-primary/20 hover:to-secondary/20"
           >
             <Star className="mr-2 h-4 w-4" />
-            Travel Expert
+            THIS BUTTON
           </Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-md">
