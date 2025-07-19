@@ -231,21 +231,10 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
         <DialogTrigger asChild>
           <Button 
             variant="outline" 
-            className="relative flex items-center justify-between gap-3 px-4 py-2 min-w-[160px] bg-gradient-to-r from-primary/10 to-secondary/10 backdrop-blur-sm border-primary/20 text-primary hover:from-primary/20 hover:to-secondary/20"
+            size="sm"
+            className="bg-gradient-to-r from-primary/10 to-secondary/10 backdrop-blur-sm border-primary/20 text-primary hover:from-primary/20 hover:to-secondary/20"
           >
-            <span>THIS BUTTON</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="relative z-10 h-6 w-6 p-0 hover:bg-primary/20 rounded-full shrink-0"
-              onClick={(e) => {
-                e.stopPropagation();
-                // Add help functionality here
-                console.log('Help button clicked');
-              }}
-            >
-              ?
-            </Button>
+            THIS BUTTON
           </Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-md">
