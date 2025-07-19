@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
-import { toast } from '@/hooks/use-toast';
 
 export interface SubscriptionData {
   subscribed: boolean;
@@ -36,24 +35,10 @@ export const useSubscription = () => {
         throw error;
       }
 
-      // Show status transition in toast
-      const previousStatus = data.previous_stripe_status;
-      const newStatus = data.new_stripe_status;
-      
-      toast({
-        title: "Subscription status checked",
-        description: `Status: ${previousStatus || 'none'} → ${newStatus || 'none'}`,
-      });
-
       setSubscriptionData(data);
     } catch (err) {
       console.error('Error checking subscription:', err);
       setError(err instanceof Error ? err.message : 'Failed to check subscription');
-      toast({
-        title: "Error checking subscription",
-        description: err instanceof Error ? err.message : 'Failed to check subscription',
-        variant: "destructive",
-      });
     } finally {
       setIsLoading(false);
     }
