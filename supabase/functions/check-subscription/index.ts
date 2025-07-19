@@ -53,17 +53,37 @@ serve(async (req) => {
     
     if (customers.data.length === 0) {
       logStep("No customer found, updating unsubscribed state");
-      await supabaseClient.from("subscribers").upsert({
+      
+      // Check existing record to preserve webhook data
+      const { data: existingRecord } = await supabaseClient
+        .from("subscribers")
+        .select("stripe_status, subscription_end")
+        .eq("email", user.email)
+        .single();
+      
+      const previousStatus = existingRecord?.stripe_status || null;
+      const newStatus = existingRecord?.stripe_status === 'canceled' ? 'canceled' : null;
+      
+      const updateData = {
         email: user.email,
         user_id: user.id,
         stripe_customer_id: null,
         subscribed: false,
         subscription_tier: null,
-        subscription_end: null,
-        stripe_status: null,
+        subscription_end: existingRecord?.stripe_status === 'canceled' ? existingRecord.subscription_end : null,
+        stripe_status: newStatus,
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'email' });
-      return new Response(JSON.stringify({ subscribed: false }), {
+      };
+      
+      await supabaseClient.from("subscribers").upsert(updateData, { onConflict: 'email' });
+      
+      logStep("Updated database preserving webhook data", { previousStatus, newStatus });
+      
+      return new Response(JSON.stringify({ 
+        subscribed: false,
+        previous_stripe_status: previousStatus,
+        new_stripe_status: newStatus
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
@@ -112,8 +132,31 @@ serve(async (req) => {
         logStep("Determined subscription tier", { priceId, amount, subscriptionTier });
       }
     } else {
-      logStep("No subscription found");
+      logStep("No subscription found - checking for existing canceled status");
+      
+      // Check existing record to preserve webhook data when no subscription found
+      const { data: existingRecord } = await supabaseClient
+        .from("subscribers")
+        .select("stripe_status, subscription_end")
+        .eq("email", user.email)
+        .single();
+      
+      // If existing record shows canceled, preserve that status and end date
+      if (existingRecord?.stripe_status === 'canceled') {
+        stripeStatus = 'canceled';
+        subscriptionEnd = existingRecord.subscription_end;
+        logStep("Preserving canceled status from webhook", { stripeStatus, subscriptionEnd });
+      }
     }
+
+    // Get existing status before update for comparison
+    const { data: currentRecord } = await supabaseClient
+      .from("subscribers")
+      .select("stripe_status")
+      .eq("email", user.email)
+      .single();
+    
+    const previousStatus = currentRecord?.stripe_status || null;
 
     await supabaseClient.from("subscribers").upsert({
       email: user.email,
@@ -127,12 +170,14 @@ serve(async (req) => {
       updated_at: new Date().toISOString(),
     }, { onConflict: 'email' });
 
-    logStep("Updated database with subscription info", { subscribed: isActive, subscriptionTier, stripeStatus, cancelAtPeriodEnd });
+    logStep("Updated database with subscription info", { subscribed: isActive, subscriptionTier, stripeStatus, cancelAtPeriodEnd, previousStatus });
     return new Response(JSON.stringify({
       subscribed: isActive,
       subscription_tier: subscriptionTier,
       subscription_end: subscriptionEnd,
-      cancel_at_period_end: cancelAtPeriodEnd
+      cancel_at_period_end: cancelAtPeriodEnd,
+      previous_stripe_status: previousStatus,
+      new_stripe_status: stripeStatus
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
