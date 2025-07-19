@@ -72,6 +72,13 @@ serve(async (req) => {
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
+    // Get existing subscriber record to check for canceled status
+    const { data: existingSubscriber } = await supabaseClient
+      .from("subscribers")
+      .select("stripe_status, subscription_end")
+      .eq("email", user.email)
+      .single();
+
     const subscriptions = await stripe.subscriptions.list({
       customer: customerId,
       limit: 1,
@@ -112,7 +119,13 @@ serve(async (req) => {
         logStep("Determined subscription tier", { priceId, amount, subscriptionTier });
       }
     } else {
-      logStep("No subscription found");
+      logStep("No subscription found - checking for existing canceled status");
+      // If no subscription found but existing record has canceled status, preserve it
+      if (existingSubscriber?.stripe_status === 'canceled') {
+        stripeStatus = 'canceled';
+        subscriptionEnd = existingSubscriber.subscription_end;
+        logStep("Preserving canceled status from webhook", { stripeStatus, subscriptionEnd });
+      }
     }
 
     await supabaseClient.from("subscribers").upsert({
