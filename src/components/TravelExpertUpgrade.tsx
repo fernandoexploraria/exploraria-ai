@@ -244,7 +244,7 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
                 size="sm"
                 className="bg-gradient-to-r from-primary/10 to-secondary/10 backdrop-blur-sm border-primary/20 text-primary hover:from-primary/20 hover:to-secondary/20 relative pr-8"
               >
-                THIS BUTTON
+                Travel Expert
                 <PopoverTrigger asChild>
                   <Button
                     variant="ghost"
