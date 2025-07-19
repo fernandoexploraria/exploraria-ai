@@ -10,6 +10,7 @@ import { ProfileBackfillUtility } from '@/components/ProfileBackfillUtility';
 import { TravelExpertUpgrade } from '@/components/TravelExpertUpgrade';
 import { TravelExpertHelp } from '@/components/TravelExpertHelp';
 import { useDemoMode } from '@/hooks/useDemoMode';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface UserControlsProps {
   user: SupabaseUser | null;
@@ -20,6 +21,7 @@ interface UserControlsProps {
 const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDialogOpen }) => {
   const { profile } = useAuth();
   const { isDemoMode } = useDemoMode();
+  const isMobile = useIsMobile();
   
   const handleSignOut = async () => {
     console.log('Sign out button clicked');
@@ -66,9 +68,11 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
                   {(profile?.full_name || user.email)?.charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-sm font-medium text-foreground max-w-[100px] truncate">
-                {profile?.full_name || user.email}
-              </span>
+              {!isMobile && (
+                <span className="text-sm font-medium text-foreground max-w-[100px] truncate">
+                  {profile?.full_name || user.email}
+                </span>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
