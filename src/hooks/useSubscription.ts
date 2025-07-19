@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
+import { toast } from '@/hooks/use-toast';
 
 export interface SubscriptionData {
   subscribed: boolean;
@@ -17,6 +18,11 @@ export const useSubscription = () => {
   const { user, session } = useAuth();
 
   const checkSubscription = async () => {
+    toast({
+      title: "Checking subscription",
+      description: "Verifying your subscription status...",
+    });
+
     if (!user || !session) {
       setSubscriptionData(null);
       setIsLoading(false);
