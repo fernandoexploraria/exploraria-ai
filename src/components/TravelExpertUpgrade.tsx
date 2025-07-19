@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,9 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Star, MapPin, DollarSign, Users, ArrowRight, Check, X } from 'lucide-react';
+import { Star, MapPin, DollarSign, Users, ArrowRight, Check, X, HelpCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface TravelExpertUpgradeProps {
@@ -25,6 +25,7 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
   const { toast } = useToast();
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isHelpPopoverOpen, setIsHelpPopoverOpen] = useState(false);
   const [shouldShowFullCard, setShouldShowFullCard] = useState(false);
   const [isCardVisible, setIsCardVisible] = useState(true);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -201,6 +202,7 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
       }
 
       setIsDialogOpen(false);
+      setIsHelpPopoverOpen(false);
       onUpgradeComplete?.();
       
     } catch (error) {
@@ -215,6 +217,12 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
     }
   };
 
+  const handleHelpClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIsHelpPopoverOpen(!isHelpPopoverOpen);
+  };
+
   if (profile?.role === 'travel_expert') {
     return null; // Don't show anything for travel experts
   }
@@ -224,56 +232,145 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
                           displayMode === 'badge' ? 'badge' : 
                           shouldShowFullCard ? 'full' : 'badge';
 
-  // Badge mode - compact display
+  // Badge mode - compact display with embedded help
   if (actualDisplayMode === 'badge') {
     return (
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogTrigger asChild>
-          <Button 
-            variant="outline" 
-            size="sm"
-            className="bg-gradient-to-r from-primary/10 to-secondary/10 backdrop-blur-sm border-primary/20 text-primary hover:from-primary/20 hover:to-secondary/20"
-          >
-            THIS BUTTON
-          </Button>
-        </DialogTrigger>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Become a Travel Expert</DialogTitle>
-            <DialogDescription>
-              Help us personalize your experience as a Travel Expert
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="full_name">Full Name</Label>
-              <Input
-                id="full_name"
-                placeholder="Your full name"
-                value={formData.full_name}
-                onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
-              />
+      <div className="relative">
+        <Popover open={isHelpPopoverOpen} onOpenChange={setIsHelpPopoverOpen}>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="bg-gradient-to-r from-primary/10 to-secondary/10 backdrop-blur-sm border-primary/20 text-primary hover:from-primary/20 hover:to-secondary/20 relative pr-12"
+              >
+                THIS BUTTON
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0 hover:bg-accent hover:text-accent-foreground z-10"
+                    onClick={handleHelpClick}
+                  >
+                    <HelpCircle className="w-4 h-4" />
+                  </Button>
+                </PopoverTrigger>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Become a Travel Expert</DialogTitle>
+                <DialogDescription>
+                  Help us personalize your experience as a Travel Expert
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="full_name">Full Name</Label>
+                  <Input
+                    id="full_name"
+                    placeholder="Your full name"
+                    value={formData.full_name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bio">Bio (Optional)</Label>
+                  <Textarea
+                    id="bio"
+                    placeholder="Tell us about your travel expertise and local knowledge..."
+                    value={formData.bio}
+                    onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
+                    rows={3}
+                  />
+                </div>
+                <Button
+                  onClick={handleUpgrade}
+                  disabled={isUpgrading || !formData.full_name}
+                  className="w-full"
+                >
+                  {isUpgrading ? "Upgrading..." : "Complete Upgrade"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <PopoverContent className="w-80" align="end">
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-semibold text-sm flex items-center gap-2">
+                  <Star className="h-4 w-4 text-primary" />
+                  Travel Expert Benefits
+                </h4>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Share your local knowledge and create AI-powered guided experiences
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-1 gap-3">
+                <div className="flex items-start gap-2">
+                  <div className="p-1 bg-primary/20 rounded-full mt-0.5">
+                    <MapPin className="h-3 w-3 text-primary" />
+                  </div>
+                  <div>
+                    <h5 className="font-medium text-xs">Create Experiences</h5>
+                    <p className="text-xs text-muted-foreground">
+                      Build AI-powered tours of your favorite places
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-2">
+                  <div className="p-1 bg-primary/20 rounded-full mt-0.5">
+                    <DollarSign className="h-3 w-3 text-primary" />
+                  </div>
+                  <div>
+                    <h5 className="font-medium text-xs">Earn Revenue</h5>
+                    <p className="text-xs text-muted-foreground">
+                      Monetize your expertise with every experience
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-2">
+                  <div className="p-1 bg-primary/20 rounded-full mt-0.5">
+                    <Users className="h-3 w-3 text-primary" />
+                  </div>
+                  <div>
+                    <h5 className="font-medium text-xs">Build Community</h5>
+                    <p className="text-xs text-muted-foreground">
+                      Connect with travelers and share your passion
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-2">
+                  <div className="p-1 bg-primary/20 rounded-full mt-0.5">
+                    <Check className="h-3 w-3 text-primary" />
+                  </div>
+                  <div>
+                    <h5 className="font-medium text-xs">Full Access</h5>
+                    <p className="text-xs text-muted-foreground">
+                      Access all tourist features plus curator tools
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <Button 
+                onClick={() => {
+                  setIsHelpPopoverOpen(false);
+                  setIsDialogOpen(true);
+                }} 
+                className="w-full" 
+                size="sm"
+              >
+                <Star className="mr-2 h-3 w-3" />
+                Upgrade Now
+              </Button>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="bio">Bio (Optional)</Label>
-              <Textarea
-                id="bio"
-                placeholder="Tell us about your travel expertise and local knowledge..."
-                value={formData.bio}
-                onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
-                rows={3}
-              />
-            </div>
-            <Button
-              onClick={handleUpgrade}
-              disabled={isUpgrading || !formData.full_name}
-              className="w-full"
-            >
-              {isUpgrading ? "Upgrading..." : "Complete Upgrade"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </PopoverContent>
+        </Popover>
+      </div>
     );
   }
 
