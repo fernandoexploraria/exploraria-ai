@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -49,15 +48,11 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
                   <Button
                     variant="outline"
                     size="sm"
-                    className="bg-primary/10 backdrop-blur-sm shadow-lg border border-primary/20 text-primary hover:bg-primary/20 hover:text-primary h-10 flex items-center justify-between w-full min-w-[140px] px-3"
+                    className="bg-primary/10 backdrop-blur-sm shadow-lg border border-primary/20 text-primary hover:bg-primary/20 hover:text-primary h-10 flex items-center gap-3 px-3"
                   >
-                    <div className="flex items-center gap-2">
-                      {!isMobile && <Star className="w-4 h-4" />}
-                      <span>Travel Expert</span>
-                    </div>
-                    <div className="flex items-center">
-                      <TravelExpertHelp />
-                    </div>
+                    {!isMobile && <Star className="w-4 h-4" />}
+                    <span>Travel Expert</span>
+                    <TravelExpertHelp />
                   </Button>
                 </Link>
               </div>
