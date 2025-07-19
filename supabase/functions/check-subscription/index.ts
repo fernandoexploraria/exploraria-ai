@@ -123,7 +123,7 @@ serve(async (req) => {
       subscription_tier: subscriptionTier,
       subscription_end: subscriptionEnd,
       stripe_status: stripeStatus,
-      stripe_cancel_at_period_end: cancelAtPeriodEnd,
+      cancel_at_period_end: cancelAtPeriodEnd,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'email' });
 
