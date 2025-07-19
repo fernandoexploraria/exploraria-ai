@@ -13,6 +13,7 @@ import { useDialogStates } from '@/hooks/useDialogStates';
 import { useProximityNotifications } from '@/hooks/useProximityNotifications';
 import { useDebugWindow } from '@/hooks/useDebugWindow';
 import { useConnectionMonitor } from '@/hooks/useConnectionMonitor';
+import { useSplashControl } from '@/hooks/useSplashControl';
 import { performComprehensiveTourReset } from '@/utils/tourResetUtils';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,7 +24,7 @@ interface IndexProps {
 }
 
 const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentStateChange }) => {
-  const [showSplash, setShowSplash] = useState(true);
+  const { showSplash, dismissSplash, showSplashManually } = useSplashControl();
   const [smartTourLandmarks, setSmartTourLandmarks] = useState<Landmark[]>([]);
   const [voiceTourData, setVoiceTourData] = useState<{
     destination: string;
@@ -37,11 +38,6 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [selectedExperience, setSelectedExperience] = useState<Experience | null>(null);
-  
-  // Secret portal access state
-  const [clickCount, setClickCount] = useState(0);
-  const [lastClickTime, setLastClickTime] = useState(0);
-  const [showPortalAccess, setShowPortalAccess] = useState(false);
   
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -128,60 +124,11 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
     setIsInteractionHistoryOpen(true);
   };
 
-  const handleSplashDismiss = () => {
-    setShowSplash(false);
-  };
-
+  // Simplified logo click - just shows splash screen
   const handleLogoClick = () => {
-    const now = Date.now();
-    const timeDiff = now - lastClickTime;
-    
-    // Reset counter if more than 2 seconds have passed
-    if (timeDiff > 2000) {
-      setClickCount(1);
-      setLastClickTime(now);
-      setShowSplash(true);
-      return;
-    }
-    
-    const newClickCount = clickCount + 1;
-    setClickCount(newClickCount);
-    setLastClickTime(now);
-    
-    // Show visual feedback for clicks 2-4
-    if (newClickCount >= 2 && newClickCount < 5) {
-      setShowPortalAccess(true);
-      setTimeout(() => setShowPortalAccess(false), 200);
-    }
-    
-    // Portal access on 5th click
-    if (newClickCount === 5) {
-      toast({
-        title: "Portal Access Granted!",
-        description: "Welcome to the Curator Portal",
-      });
-      navigate('/curator-portal');
-      setClickCount(0);
-      setShowPortalAccess(false);
-      return;
-    }
-    
-    // Normal behavior for first click or incomplete sequence
-    if (newClickCount === 1) {
-      setShowSplash(true);
-    }
+    console.log('🎬 Logo clicked - showing splash screen');
+    showSplashManually();
   };
-
-  // Reset click counter after timeout
-  useEffect(() => {
-    if (clickCount > 0) {
-      const timeout = setTimeout(() => {
-        setClickCount(0);
-        setShowPortalAccess(false);
-      }, 2000);
-      return () => clearTimeout(timeout);
-    }
-  }, [clickCount]);
 
   const handleNewTourAssistantOpen = () => {
     if (!user) {
@@ -271,7 +218,7 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
   };
 
   if (showSplash) {
-    return <SplashScreen onDismiss={handleSplashDismiss} />;
+    return <SplashScreen onDismiss={dismissSplash} />;
   }
 
   // Don't render the map until we have a token
@@ -328,7 +275,6 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
         onVoiceSearchOpen={handleInteractionHistoryOpen}
         onVoiceAssistantOpen={handleVoiceAssistantOpen}
         onLogoClick={handleLogoClick}
-        showPortalAccess={showPortalAccess}
         onSignOut={signOut}
         onAuthDialogOpen={() => setIsAuthDialogOpen(true)}
         isVoiceSearchOpen={isInteractionHistoryOpen}

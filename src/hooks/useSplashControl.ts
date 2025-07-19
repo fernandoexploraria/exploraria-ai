@@ -1,0 +1,45 @@
+
+import { useState, useEffect } from 'react';
+
+export const useSplashControl = () => {
+  const [showSplash, setShowSplash] = useState(false);
+
+  useEffect(() => {
+    // Check if splash has been shown in this browser session
+    const splashShownThisSession = sessionStorage.getItem('splash-shown');
+    
+    // Check if this is a first-time visitor
+    const hasVisitedBefore = localStorage.getItem('has-visited');
+    
+    // Show splash if:
+    // 1. First time visitor (no localStorage entry), OR
+    // 2. New browser session (no sessionStorage entry)
+    if (!hasVisitedBefore || !splashShownThisSession) {
+      console.log('🎬 Showing splash screen - first visit or new session');
+      setShowSplash(true);
+      
+      // Mark as visited and session splash shown
+      localStorage.setItem('has-visited', 'true');
+      sessionStorage.setItem('splash-shown', 'true');
+    } else {
+      console.log('🎬 Skipping splash screen - already shown this session');
+      setShowSplash(false);
+    }
+  }, []);
+
+  const dismissSplash = () => {
+    console.log('🎬 Splash screen dismissed');
+    setShowSplash(false);
+  };
+
+  const showSplashManually = () => {
+    console.log('🎬 Showing splash screen manually');
+    setShowSplash(true);
+  };
+
+  return {
+    showSplash,
+    dismissSplash,
+    showSplashManually
+  };
+};

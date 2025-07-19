@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube, MapPin, ToggleLeft, ToggleRight, Compass } from 'lucide-react';
@@ -31,7 +32,6 @@ interface TopControlsProps {
   onIntelligentTourOpen: () => void;
   onAuthDialogOpen?: () => void;
   onTestProximityCard?: () => void;
-  showPortalAccess?: boolean;
   agentId?: string;
 }
 
@@ -46,7 +46,6 @@ const TopControls: React.FC<TopControlsProps> = ({
   onIntelligentTourOpen,
   onAuthDialogOpen,
   onTestProximityCard,
-  showPortalAccess = false,
   agentId,
 }) => {
   const { user: authUser } = useAuth();
@@ -167,9 +166,7 @@ const TopControls: React.FC<TopControlsProps> = ({
           <img 
             src="/lovable-uploads/ac9cbebd-b083-4d3d-a85e-782e03045422.png" 
             alt="Exploraria Logo" 
-            className={`h-16 w-auto bg-yellow-400 rounded-lg p-1 flex-shrink-0 lg:h-20 cursor-pointer hover:bg-yellow-300 transition-all duration-200 ${
-              showPortalAccess ? 'ring-2 ring-primary glow-pulse' : ''
-            }`}
+            className="h-16 w-auto bg-yellow-400 rounded-lg p-1 flex-shrink-0 lg:h-20 cursor-pointer hover:bg-yellow-300 transition-all duration-200"
             onClick={onLogoClick}
           />
           
