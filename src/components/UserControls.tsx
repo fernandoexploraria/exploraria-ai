@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -43,24 +44,20 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
           <div className="flex items-center gap-2">
             {/* Travel Expert Portal Link or Upgrade Badge */}
             {profile?.role === 'travel_expert' ? (
-              <div className="relative">
-                <Link to="/curator-portal" className="block">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="bg-primary/10 backdrop-blur-sm shadow-lg border border-primary/20 text-primary hover:bg-primary/20 hover:text-primary h-10 flex items-center gap-3 px-3"
-                  >
-                    <span>Travel Expert</span>
-                    <TravelExpertHelp />
-                  </Button>
-                </Link>
-              </div>
+              <Link to="/curator-portal">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-primary/10 backdrop-blur-sm shadow-lg border border-primary/20 text-primary hover:bg-primary/20 hover:text-primary h-10"
+                >
+                  <Star className="w-4 h-4 mr-2" />
+                  Travel Expert
+                </Button>
+              </Link>
             ) : (
-              <div className="relative">
+              <div className="flex items-center gap-1">
                 <TravelExpertUpgrade displayMode="badge" />
-                <div className="absolute top-0 right-0 z-30">
-                  <TravelExpertHelp />
-                </div>
+                <TravelExpertHelp />
               </div>
             )}
             
