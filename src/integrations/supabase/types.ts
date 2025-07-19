@@ -432,6 +432,10 @@ export type Database = {
           id: string
           role: string
           session_count: number | null
+          stripe_account_id: string | null
+          stripe_account_status: string
+          stripe_charges_enabled: boolean
+          stripe_payouts_enabled: boolean
           updated_at: string
           upgrade_card_dismissed_at: string | null
         }
@@ -445,6 +449,10 @@ export type Database = {
           id: string
           role?: string
           session_count?: number | null
+          stripe_account_id?: string | null
+          stripe_account_status?: string
+          stripe_charges_enabled?: boolean
+          stripe_payouts_enabled?: boolean
           updated_at?: string
           upgrade_card_dismissed_at?: string | null
         }
@@ -458,6 +466,10 @@ export type Database = {
           id?: string
           role?: string
           session_count?: number | null
+          stripe_account_id?: string | null
+          stripe_account_status?: string
+          stripe_charges_enabled?: boolean
+          stripe_payouts_enabled?: boolean
           updated_at?: string
           upgrade_card_dismissed_at?: string | null
         }

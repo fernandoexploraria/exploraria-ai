@@ -440,6 +440,50 @@ serve(async (req) => {
         break;
       }
 
+      case "account.updated": {
+        logStep("Processing account.updated - Updating Travel Expert onboarding status");
+        const account = event.data.object as Stripe.Account;
+
+        // Use metadata to find the internal user ID
+        const internalUserId = account.metadata?.internal_user_id;
+
+        if (!internalUserId) {
+          logStep("WARNING: account.updated webhook received without internal_user_id in metadata. Cannot link to profile.", { accountId: account.id });
+          break;
+        }
+
+        // Extract relevant status fields from the Stripe Account object
+        const stripeAccountStatus = account.details_submitted ?
+          (account.charges_enabled && account.payouts_enabled ? 'active' : 'pending_verification') :
+          'pending_info'; // User started but hasn't submitted all details
+
+        const stripePayoutsEnabled = account.payouts_enabled;
+        const stripeChargesEnabled = account.charges_enabled;
+
+        // Update the user's profile in the database
+        const { error: updateProfileError } = await supabaseClient
+          .from('profiles')
+          .update({
+            stripe_account_status: stripeAccountStatus,
+            stripe_payouts_enabled: stripePayoutsEnabled,
+            stripe_charges_enabled: stripeChargesEnabled,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', internalUserId);
+
+        if (updateProfileError) {
+          logStep("ERROR: Failed to update profile with Stripe account status", { userId: internalUserId, error: updateProfileError });
+        } else {
+          logStep("Travel Expert Stripe account status updated in profile", {
+            userId: internalUserId,
+            status: stripeAccountStatus,
+            payoutsEnabled: stripePayoutsEnabled,
+            chargesEnabled: stripeChargesEnabled
+          });
+        }
+        break;
+      }
+
       case "invoice.payment_failed": {
         logStep("Processing invoice.payment_failed");
         const invoice = event.data.object as Stripe.Invoice;
