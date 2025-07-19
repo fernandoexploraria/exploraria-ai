@@ -50,7 +50,6 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
                     size="sm"
                     className="bg-primary/10 backdrop-blur-sm shadow-lg border border-primary/20 text-primary hover:bg-primary/20 hover:text-primary h-10 flex items-center gap-3 px-3"
                   >
-                    {!isMobile && <Star className="w-4 h-4" />}
                     <span>Travel Expert</span>
                     <TravelExpertHelp />
                   </Button>
