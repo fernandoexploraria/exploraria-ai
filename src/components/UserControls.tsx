@@ -49,13 +49,13 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
                   <Button
                     variant="outline"
                     size="sm"
-                    className="bg-primary/10 backdrop-blur-sm shadow-lg border border-primary/20 text-primary hover:bg-primary/20 hover:text-primary h-10"
+                    className="bg-primary/10 backdrop-blur-sm shadow-lg border border-primary/20 text-primary hover:bg-primary/20 hover:text-primary h-10 pl-3"
                   >
                     {!isMobile && <Star className="w-4 h-4 mr-2" />}
                     Travel Expert
                   </Button>
                 </Link>
-                <div className="absolute top-0 right-0 z-30">
+                <div className="absolute top-1 right-0 z-30">
                   <TravelExpertHelp />
                 </div>
               </div>
