@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Star, MapPin, DollarSign, Users, ArrowRight, Check, X, HelpCircle } from 'lucide-react';
+import { Star, MapPin, DollarSign, Users, ArrowRight, Check, X, HelpCircle, ExternalLink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface TravelExpertUpgradeProps {
@@ -28,6 +28,7 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
   const [isHelpPopoverOpen, setIsHelpPopoverOpen] = useState(false);
   const [shouldShowFullCard, setShouldShowFullCard] = useState(false);
   const [isCardVisible, setIsCardVisible] = useState(true);
+  const [isRedirectingToStripe, setIsRedirectingToStripe] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState({
     full_name: profile?.full_name || '',
@@ -171,6 +172,9 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
         throw upgradeError;
       }
 
+      // Set redirecting state and show appropriate UI
+      setIsRedirectingToStripe(true);
+      
       // Initialize Stripe Connect onboarding
       try {
         const { data, error } = await supabase.functions.invoke('create-onboarding-link', {
@@ -179,35 +183,48 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
 
         if (error) {
           console.error('Error creating onboarding link:', error);
+          // Fallback: Complete upgrade without Stripe
           toast({
             title: "Upgraded to Travel Expert!",
             description: "You can set up payments later from the curator portal.",
           });
+          setIsDialogOpen(false);
+          onUpgradeComplete?.();
         } else if (data?.url) {
-          // Open Stripe Connect onboarding in new tab
-          window.open(data.url, '_blank');
+          // Store current state to resume after Stripe redirect
+          sessionStorage.setItem('stripe_onboarding_in_progress', 'true');
+          sessionStorage.setItem('upgrade_dialog_was_open', 'true');
           
+          // Show user they're being redirected
           toast({
-            title: "Upgraded to Travel Expert!",
-            description: "Complete your Stripe setup to start earning from your experiences.",
+            title: "Redirecting to Stripe...",
+            description: "Complete your setup to start earning from experiences.",
           });
+          
+          // Redirect in same tab after a brief delay for UX
+          setTimeout(() => {
+            window.location.href = data.url;
+          }, 1500);
+          
         } else {
+          // Fallback: Complete upgrade without Stripe
           toast({
             title: "Upgraded to Travel Expert!",
             description: "You can set up payments later from the curator portal.",
           });
+          setIsDialogOpen(false);
+          onUpgradeComplete?.();
         }
       } catch (stripeError) {
         console.error('Stripe onboarding error:', stripeError);
+        // Fallback: Complete upgrade without Stripe
         toast({
           title: "Upgraded to Travel Expert!",
           description: "You can set up payments later from the curator portal.",
         });
+        setIsDialogOpen(false);
+        onUpgradeComplete?.();
       }
-
-      setIsDialogOpen(false);
-      setIsHelpPopoverOpen(false);
-      onUpgradeComplete?.();
       
     } catch (error) {
       console.error('Error upgrading to travel expert:', error);
@@ -218,6 +235,7 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
       });
     } finally {
       setIsUpgrading(false);
+      setIsRedirectingToStripe(false);
     }
   };
 
@@ -276,6 +294,7 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
                     placeholder="Your full name"
                     value={formData.full_name}
                     onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
+                    disabled={isUpgrading}
                   />
                 </div>
                 <div className="space-y-2">
@@ -286,14 +305,37 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
                     value={formData.bio}
                     onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
                     rows={3}
+                    disabled={isUpgrading}
                   />
                 </div>
+                
+                {isRedirectingToStripe && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-blue-800">
+                      <ExternalLink className="h-4 w-4" />
+                      <span className="text-sm font-medium">Redirecting to Stripe...</span>
+                    </div>
+                    <p className="text-xs text-blue-600 mt-1">
+                      You'll be redirected to complete your payout setup. This may take a moment.
+                    </p>
+                  </div>
+                )}
+                
                 <Button
                   onClick={handleUpgrade}
                   disabled={isUpgrading || !formData.full_name}
                   className="w-full"
                 >
-                  {isUpgrading ? "Upgrading..." : "Complete Upgrade"}
+                  {isRedirectingToStripe ? (
+                    <>
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      Redirecting...
+                    </>
+                  ) : isUpgrading ? (
+                    "Upgrading..."
+                  ) : (
+                    "Complete Upgrade"
+                  )}
                 </Button>
               </div>
             </DialogContent>
@@ -485,6 +527,7 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
                     placeholder="Your full name"
                     value={formData.full_name}
                     onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
+                    disabled={isUpgrading}
                   />
                 </div>
                 <div className="space-y-2">
@@ -495,14 +538,37 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
                     value={formData.bio}
                     onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
                     rows={3}
+                    disabled={isUpgrading}
                   />
                 </div>
+                
+                {isRedirectingToStripe && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-blue-800">
+                      <ExternalLink className="h-4 w-4" />
+                      <span className="text-sm font-medium">Redirecting to Stripe...</span>
+                    </div>
+                    <p className="text-xs text-blue-600 mt-1">
+                      You'll be redirected to complete your payout setup. This may take a moment.
+                    </p>
+                  </div>
+                )}
+                
                 <Button
                   onClick={handleUpgrade}
                   disabled={isUpgrading || !formData.full_name}
                   className="w-full"
                 >
-                  {isUpgrading ? "Upgrading..." : "Complete Upgrade"}
+                  {isRedirectingToStripe ? (
+                    <>
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      Redirecting...
+                    </>
+                  ) : isUpgrading ? (
+                    "Upgrading..."
+                  ) : (
+                    "Complete Upgrade"
+                  )}
                 </Button>
               </div>
             </DialogContent>
