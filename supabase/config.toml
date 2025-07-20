@@ -62,6 +62,9 @@ verify_jwt = true
 [functions.backfill-profiles]
 verify_jwt = true
 
+[functions.create-onboarding-link]
+verify_jwt = true
+
 [storage]
 enabled = true
 port = 54325

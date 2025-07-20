@@ -179,7 +179,6 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
 
         if (error) {
           console.error('Error creating onboarding link:', error);
-          // Don't throw - the upgrade was successful, just Stripe onboarding failed
           toast({
             title: "Upgraded to Travel Expert!",
             description: "You can set up payments later from the curator portal.",
@@ -191,6 +190,11 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
           toast({
             title: "Upgraded to Travel Expert!",
             description: "Complete your Stripe setup to start earning from your experiences.",
+          });
+        } else {
+          toast({
+            title: "Upgraded to Travel Expert!",
+            description: "You can set up payments later from the curator portal.",
           });
         }
       } catch (stripeError) {
