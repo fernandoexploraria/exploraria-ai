@@ -11,6 +11,10 @@ interface UserProfile {
   full_name?: string;
   bio?: string;
   avatar_url?: string;
+  stripe_account_id?: string;
+  stripe_account_status?: string;
+  stripe_payouts_enabled?: boolean;
+  stripe_charges_enabled?: boolean;
   created_at: string;
   updated_at: string;
 }
