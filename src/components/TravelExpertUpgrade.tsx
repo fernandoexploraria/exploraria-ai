@@ -451,7 +451,7 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Become a Travel Expert</DialogTitle>
+                <DialogTitle>1 Become a Travel Expert</DialogTitle>
                 <DialogDescription>
                   Help us personalize your experience as a Travel Expert
                 </DialogDescription>
