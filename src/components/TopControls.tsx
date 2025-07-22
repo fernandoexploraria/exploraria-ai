@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube, MapPin, ToggleLeft, ToggleRight, Compass } from 'lucide-react';
@@ -194,25 +193,27 @@ const TopControls: React.FC<TopControlsProps> = ({
           
           {!isCollapsed && (
             <div className="flex flex-col gap-1 w-full animate-fade-in">
-              {/* Demo Mode Toggle - Always visible for easy access */}
-              <Button
-                variant={isDemoMode ? "default" : "outline"}
-                size="sm"
-                className={`backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 ${
-                  isDemoMode 
-                    ? 'bg-green-500/80 hover:bg-green-400/80 text-white border-green-400' 
-                    : 'bg-background/80 hover:bg-accent hover:text-accent-foreground'
-                }`}
-                onClick={toggleDemoMode}
-              >
-                {isDemoMode ? (
-                  <ToggleRight className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
-                ) : (
-                  <ToggleLeft className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
-                )}
-                <span className="lg:hidden">{isDemoMode ? 'Demo On' : 'Demo Off'}</span>
-                <span className="hidden lg:inline">{isDemoMode ? 'Demo Mode On' : 'Demo Mode Off'}</span>
-              </Button>
+              {/* Demo Mode Toggle - Only visible for specific user */}
+              {authUser?.email === 'fobregona@yahoo.com' && (
+                <Button
+                  variant={isDemoMode ? "default" : "outline"}
+                  size="sm"
+                  className={`backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 ${
+                    isDemoMode 
+                      ? 'bg-green-500/80 hover:bg-green-400/80 text-white border-green-400' 
+                      : 'bg-background/80 hover:bg-accent hover:text-accent-foreground'
+                  }`}
+                  onClick={toggleDemoMode}
+                >
+                  {isDemoMode ? (
+                    <ToggleRight className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+                  ) : (
+                    <ToggleLeft className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+                  )}
+                  <span className="lg:hidden">{isDemoMode ? 'Demo On' : 'Demo Off'}</span>
+                  <span className="hidden lg:inline">{isDemoMode ? 'Demo Mode On' : 'Demo Mode Off'}</span>
+                </Button>
+              )}
               
               <Button
                 variant="outline"
