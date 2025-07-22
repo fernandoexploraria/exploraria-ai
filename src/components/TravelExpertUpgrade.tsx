@@ -245,259 +245,265 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
   // Determine which display mode to use
   const actualDisplayMode = displayMode === 'full' ? 'full' : displayMode === 'badge' ? 'badge' : shouldShowFullCard ? 'full' : 'badge';
 
-  // Badge mode - compact display with embedded help
-  if (actualDisplayMode === 'badge') {
-    return <div className="relative">
-        <Popover open={isHelpPopoverOpen} onOpenChange={setIsHelpPopoverOpen}>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="bg-gradient-to-r from-primary/10 to-secondary/10 backdrop-blur-sm border-primary/20 text-primary hover:from-primary/20 hover:to-secondary/20 relative pr-8">
-                Travel Expert
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="sm" className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0 hover:bg-accent hover:text-accent-foreground z-10" onClick={handleHelpClick}>
-                    <HelpCircle className="w-4 h-4" />
-                  </Button>
-                </PopoverTrigger>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>2 Become a Travel Expert</DialogTitle>
-                <DialogDescription>
-                  Help us personalize your experience as a Travel Expert
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="full_name">Full Name</Label>
-                  <Input id="full_name" placeholder="Your full name" value={formData.full_name} onChange={e => setFormData(prev => ({
-                  ...prev,
-                  full_name: e.target.value
-                }))} disabled={isUpgrading} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="bio">Bio (Optional)</Label>
-                  <Textarea id="bio" placeholder="Tell us about your travel expertise and local knowledge..." value={formData.bio} onChange={e => setFormData(prev => ({
-                  ...prev,
-                  bio: e.target.value
-                }))} rows={3} disabled={isUpgrading} />
-                </div>
-                
-                {isRedirectingToStripe && <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-center gap-2 text-blue-800">
-                      <ExternalLink className="h-4 w-4" />
-                      <span className="text-sm font-medium">Redirecting to Stripe...</span>
-                    </div>
-                    <p className="text-xs text-blue-600 mt-1">
-                      You'll be redirected to complete your payout setup. This may take a moment.
-                    </p>
-                  </div>}
-                
-                <Button onClick={handleUpgrade} disabled={isUpgrading || !formData.full_name} className="w-full">
-                  {isRedirectingToStripe ? <>
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      Redirecting...
-                    </> : isUpgrading ? "Upgrading..." : "Complete Upgrade"}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-          <PopoverContent className="w-80" align="end">
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-semibold text-sm flex items-center gap-2">
-                  <Star className="h-4 w-4 text-primary" />
-                  Travel Expert Benefits
-                </h4>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Share your local knowledge and create AI-powered guided experiences
-                </p>
-              </div>
-              
-              <div className="grid grid-cols-1 gap-3">
-                <div className="flex items-start gap-2">
-                  <div className="p-1 bg-primary/20 rounded-full mt-0.5">
-                    <MapPin className="h-3 w-3 text-primary" />
-                  </div>
-                  <div>
-                    <h5 className="font-medium text-xs">Create Experiences</h5>
-                    <p className="text-xs text-muted-foreground">
-                      Build AI-powered tours of your favorite places
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex items-start gap-2">
-                  <div className="p-1 bg-primary/20 rounded-full mt-0.5">
-                    <DollarSign className="h-3 w-3 text-primary" />
-                  </div>
-                  <div>
-                    <h5 className="font-medium text-xs">Earn Revenue</h5>
-                    <p className="text-xs text-muted-foreground">
-                      Monetize your expertise with every experience
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex items-start gap-2">
-                  <div className="p-1 bg-primary/20 rounded-full mt-0.5">
-                    <Users className="h-3 w-3 text-primary" />
-                  </div>
-                  <div>
-                    <h5 className="font-medium text-xs">Build Community</h5>
-                    <p className="text-xs text-muted-foreground">
-                      Connect with travelers and share your passion
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex items-start gap-2">
-                  <div className="p-1 bg-primary/20 rounded-full mt-0.5">
-                    <Check className="h-3 w-3 text-primary" />
-                  </div>
-                  <div>
-                    <h5 className="font-medium text-xs">Full Access</h5>
-                    <p className="text-xs text-muted-foreground">
-                      Access all tourist features plus curator tools
-                    </p>
-                  </div>
-                </div>
-              </div>
-              
-              <Button onClick={() => {
-              setIsHelpPopoverOpen(false);
-              setIsDialogOpen(true);
-            }} className="w-full" size="sm">
-                <Star className="mr-2 h-3 w-3" />
-                Upgrade Now
-              </Button>
-            </div>
-          </PopoverContent>
-        </Popover>
-      </div>;
-  }
-
   // Don't render if card was dismissed with animation
-  if (!shouldShowFullCard) {
+  if (!shouldShowFullCard && actualDisplayMode === 'full') {
     return null;
   }
 
-  // Full card mode - prominent display with enhanced UX
-  return <div ref={cardRef} className={`transform transition-all duration-300 ease-in-out ${isCardVisible ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-2 opacity-0 scale-95'}`}>
-      <Card className="bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/10 relative shadow-lg hover:shadow-xl transition-shadow duration-200">
-        {/* Enhanced dismiss button with better visibility */}
-        <Button variant="ghost" size="sm" className="absolute top-3 right-3 h-9 w-9 p-0 hover:bg-destructive/10 hover:text-destructive z-20 rounded-full bg-background/80 backdrop-blur-sm shadow-sm border border-border/50" onClick={handleDismiss} aria-label="Close travel expert upgrade card">
-          <X className="h-5 w-5" />
-        </Button>
-        
-        <CardHeader className="pr-12">
-          <CardTitle className="flex items-center gap-2">
-            <Star className="h-5 w-5 text-primary" />
-            Become a Travel Expert
-          </CardTitle>
-          <CardDescription>
-            Share your local knowledge and create AI-powered guided experiences
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Benefits */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex items-start gap-3">
-              <div className="p-1.5 bg-primary/20 rounded-full mt-1">
-                <MapPin className="h-3 w-3 text-primary" />
-              </div>
-              <div>
-                <h4 className="font-medium text-sm">Create Experiences</h4>
-                <p className="text-xs text-muted-foreground">
-                  Build AI-powered tours of your favorite places
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="p-1.5 bg-primary/20 rounded-full mt-1">
-                <DollarSign className="h-3 w-3 text-primary" />
-              </div>
-              <div>
-                <h4 className="font-medium text-sm">Earn Revenue</h4>
-                <p className="text-xs text-muted-foreground">
-                  Monetize your expertise with every experience
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="p-1.5 bg-primary/20 rounded-full mt-1">
-                <Users className="h-3 w-3 text-primary" />
-              </div>
-              <div>
-                <h4 className="font-medium text-sm">Build Community</h4>
-                <p className="text-xs text-muted-foreground">
-                  Connect with travelers and share your passion
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="p-1.5 bg-primary/20 rounded-full mt-1">
-                <Check className="h-3 w-3 text-primary" />
-              </div>
-              <div>
-                <h4 className="font-medium text-sm">Full Access</h4>
-                <p className="text-xs text-muted-foreground">
-                  Access all tourist features plus curator tools
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="w-full" size="lg">
-                <Star className="mr-2 h-4 w-4" />
-                Upgrade to Travel Expert
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>1 Become a Travel Expert</DialogTitle>
-                <DialogDescription>
-                  Help us personalize your experience as a Travel Expert
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="full_name">Full Name</Label>
-                  <Input id="full_name" placeholder="Your full name" value={formData.full_name} onChange={e => setFormData(prev => ({
+  return (
+    <>
+      {/* Single consolidated dialog for both modes */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Become a Travel Expert</DialogTitle>
+            <DialogDescription>
+              Help us personalize your experience as a Travel Expert
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="full_name">Full Name</Label>
+              <Input 
+                id="full_name" 
+                placeholder="Your full name" 
+                value={formData.full_name} 
+                onChange={e => setFormData(prev => ({
                   ...prev,
                   full_name: e.target.value
-                }))} disabled={isUpgrading} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="bio">Bio (Optional)</Label>
-                  <Textarea id="bio" placeholder="Tell us about your travel expertise and local knowledge..." value={formData.bio} onChange={e => setFormData(prev => ({
+                }))} 
+                disabled={isUpgrading} 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bio">Bio (Optional)</Label>
+              <Textarea 
+                id="bio" 
+                placeholder="Tell us about your travel expertise and local knowledge..." 
+                value={formData.bio} 
+                onChange={e => setFormData(prev => ({
                   ...prev,
                   bio: e.target.value
-                }))} rows={3} disabled={isUpgrading} />
+                }))} 
+                rows={3} 
+                disabled={isUpgrading} 
+              />
+            </div>
+            
+            {isRedirectingToStripe && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 text-blue-800">
+                  <ExternalLink className="h-4 w-4" />
+                  <span className="text-sm font-medium">Redirecting to Stripe...</span>
                 </div>
-                
-                {isRedirectingToStripe && <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-center gap-2 text-blue-800">
-                      <ExternalLink className="h-4 w-4" />
-                      <span className="text-sm font-medium">Redirecting to Stripe...</span>
-                    </div>
-                    <p className="text-xs text-blue-600 mt-1">
-                      You'll be redirected to complete your payout setup. This may take a moment.
-                    </p>
-                  </div>}
-                
-                <Button onClick={handleUpgrade} disabled={isUpgrading || !formData.full_name} className="w-full">
-                  {isRedirectingToStripe ? <>
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      Redirecting...
-                    </> : isUpgrading ? "Upgrading..." : "Complete Upgrade"}
-                </Button>
+                <p className="text-xs text-blue-600 mt-1">
+                  You'll be redirected to complete your payout setup. This may take a moment.
+                </p>
               </div>
-            </DialogContent>
-          </Dialog>
-        </CardContent>
-      </Card>
-    </div>;
+            )}
+            
+            <Button 
+              onClick={handleUpgrade} 
+              disabled={isUpgrading || !formData.full_name} 
+              className="w-full"
+            >
+              {isRedirectingToStripe ? (
+                <>
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Redirecting...
+                </>
+              ) : isUpgrading ? "Upgrading..." : "Complete Upgrade"}
+            </Button>
+          </div>
+        </DialogContent>
+
+        {/* Badge mode - compact display with embedded help */}
+        {actualDisplayMode === 'badge' && (
+          <div className="relative">
+            <Popover open={isHelpPopoverOpen} onOpenChange={setIsHelpPopoverOpen}>
+              <DialogTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="bg-gradient-to-r from-primary/10 to-secondary/10 backdrop-blur-sm border-primary/20 text-primary hover:from-primary/20 hover:to-secondary/20 relative pr-8"
+                >
+                  Travel Expert
+                  <PopoverTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0 hover:bg-accent hover:text-accent-foreground z-10" 
+                      onClick={handleHelpClick}
+                    >
+                      <HelpCircle className="w-4 h-4" />
+                    </Button>
+                  </PopoverTrigger>
+                </Button>
+              </DialogTrigger>
+              
+              <PopoverContent className="w-80" align="end">
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold text-sm flex items-center gap-2">
+                      <Star className="h-4 w-4 text-primary" />
+                      Travel Expert Benefits
+                    </h4>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Share your local knowledge and create AI-powered guided experiences
+                    </p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 gap-3">
+                    <div className="flex items-start gap-2">
+                      <div className="p-1 bg-primary/20 rounded-full mt-0.5">
+                        <MapPin className="h-3 w-3 text-primary" />
+                      </div>
+                      <div>
+                        <h5 className="font-medium text-xs">Create Experiences</h5>
+                        <p className="text-xs text-muted-foreground">
+                          Build AI-powered tours of your favorite places
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start gap-2">
+                      <div className="p-1 bg-primary/20 rounded-full mt-0.5">
+                        <DollarSign className="h-3 w-3 text-primary" />
+                      </div>
+                      <div>
+                        <h5 className="font-medium text-xs">Earn Revenue</h5>
+                        <p className="text-xs text-muted-foreground">
+                          Monetize your expertise with every experience
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start gap-2">
+                      <div className="p-1 bg-primary/20 rounded-full mt-0.5">
+                        <Users className="h-3 w-3 text-primary" />
+                      </div>
+                      <div>
+                        <h5 className="font-medium text-xs">Build Community</h5>
+                        <p className="text-xs text-muted-foreground">
+                          Connect with travelers and share your passion
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start gap-2">
+                      <div className="p-1 bg-primary/20 rounded-full mt-0.5">
+                        <Check className="h-3 w-3 text-primary" />
+                      </div>
+                      <div>
+                        <h5 className="font-medium text-xs">Full Access</h5>
+                        <p className="text-xs text-muted-foreground">
+                          Access all tourist features plus curator tools
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <Button 
+                    onClick={() => {
+                      setIsHelpPopoverOpen(false);
+                      setIsDialogOpen(true);
+                    }} 
+                    className="w-full" 
+                    size="sm"
+                  >
+                    <Star className="mr-2 h-3 w-3" />
+                    Upgrade Now
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+        )}
+
+        {/* Full card mode - prominent display with enhanced UX */}
+        {actualDisplayMode === 'full' && (
+          <div ref={cardRef} className={`transform transition-all duration-300 ease-in-out ${isCardVisible ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-2 opacity-0 scale-95'}`}>
+            <Card className="bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/10 relative shadow-lg hover:shadow-xl transition-shadow duration-200">
+              {/* Enhanced dismiss button with better visibility */}
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="absolute top-3 right-3 h-9 w-9 p-0 hover:bg-destructive/10 hover:text-destructive z-20 rounded-full bg-background/80 backdrop-blur-sm shadow-sm border border-border/50" 
+                onClick={handleDismiss} 
+                aria-label="Close travel expert upgrade card"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+              
+              <CardHeader className="pr-12">
+                <CardTitle className="flex items-center gap-2">
+                  <Star className="h-5 w-5 text-primary" />
+                  Become a Travel Expert
+                </CardTitle>
+                <CardDescription>
+                  Share your local knowledge and create AI-powered guided experiences
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Benefits */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="p-1.5 bg-primary/20 rounded-full mt-1">
+                      <MapPin className="h-3 w-3 text-primary" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-sm">Create Experiences</h4>
+                      <p className="text-xs text-muted-foreground">
+                        Build AI-powered tours of your favorite places
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="p-1.5 bg-primary/20 rounded-full mt-1">
+                      <DollarSign className="h-3 w-3 text-primary" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-sm">Earn Revenue</h4>
+                      <p className="text-xs text-muted-foreground">
+                        Monetize your expertise with every experience
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="p-1.5 bg-primary/20 rounded-full mt-1">
+                      <Users className="h-3 w-3 text-primary" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-sm">Build Community</h4>
+                      <p className="text-xs text-muted-foreground">
+                        Connect with travelers and share your passion
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="p-1.5 bg-primary/20 rounded-full mt-1">
+                      <Check className="h-3 w-3 text-primary" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-sm">Full Access</h4>
+                      <p className="text-xs text-muted-foreground">
+                        Access all tourist features plus curator tools
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <DialogTrigger asChild>
+                  <Button className="w-full" size="lg">
+                    <Star className="mr-2 h-4 w-4" />
+                    Upgrade to Travel Expert
+                  </Button>
+                </DialogTrigger>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </Dialog>
+    </>
+  );
 };
