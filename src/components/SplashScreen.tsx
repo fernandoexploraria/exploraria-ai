@@ -18,14 +18,18 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
 
   useEffect(() => {
     const startTime = Date.now();
-    // Increase minimum display time for manual triggers
     const isManualTrigger = localStorage.getItem('splash-manual-trigger') === 'true';
-    const minDisplayTime = isManualTrigger ? 3000 : 2000; // 3 seconds for manual, 2 for auto
+    
+    // Enhanced timing for different scenarios
+    const minDisplayTime = isManualTrigger ? 3000 : 5000; // 5 seconds for auto (first-time), 3 for manual
+    const isFirstTimeVisitor = !localStorage.getItem('has-visited');
+    
     let imageLoadPromise: Promise<void>;
     let timeoutId: NodeJS.Timeout;
     let dismissed = false;
 
     console.log(`🎬 Splash screen initialized - ${isManualTrigger ? 'manually triggered' : 'auto triggered'}`);
+    console.log(`🎬 First time visitor: ${isFirstTimeVisitor}`);
     
     // Clear manual trigger flag
     localStorage.removeItem('splash-manual-trigger');
@@ -43,7 +47,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
       console.log('🎬 Skipping background image on slow connection');
       setImageError(true);
       imageLoadPromise = Promise.resolve();
-    } else if (cachedImageUrl && cacheAge < maxCacheAge) {
+    } else if (cachedImageUrl && cacheAge < maxCacheAge && !isFirstTimeVisitor) {
       console.log('🎬 Using cached splash image URL');
       setImageUrl(cachedImageUrl);
       imageLoadPromise = preloadImage(cachedImageUrl);
@@ -69,8 +73,8 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
       }
     }
 
-  // Show loading indicator immediately for manual triggers, or after 500ms for auto
-    const loadingIndicatorDelay = isManualTrigger ? 100 : 500;
+    // Show loading indicator earlier for auto-triggers (first-time visitors)
+    const loadingIndicatorDelay = isManualTrigger ? 500 : 200;
     const loadingIndicatorTimeout = setTimeout(() => {
       if (!imageLoaded && !imageError && !dismissed) {
         console.log(`🎬 Showing loading indicator after ${loadingIndicatorDelay}ms - image still loading`);
@@ -78,11 +82,20 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
       }
     }, loadingIndicatorDelay);
 
-    // Create adaptive timeout based on network conditions
-    // Use a longer timeout for manual triggers to ensure the image loads
+    // Enhanced timeout strategy - longer for first-time visitors
     const baseTimeout = getRecommendedTimeout();
-    const maxTimeout = isManualTrigger ? baseTimeout * 3 : baseTimeout * 2; 
-    console.log(`🎬 Using adaptive timeout: ${maxTimeout}ms for ${effectiveType} connection`);
+    let maxTimeout: number;
+    
+    if (isFirstTimeVisitor) {
+      // First-time visitors get longer timeout to ensure image loads
+      maxTimeout = Math.max(baseTimeout * 3, 20000); // At least 20 seconds
+    } else if (isManualTrigger) {
+      maxTimeout = baseTimeout * 2;
+    } else {
+      maxTimeout = baseTimeout * 1.5;
+    }
+    
+    console.log(`🎬 Using adaptive timeout: ${maxTimeout}ms for ${effectiveType} connection (first-time: ${isFirstTimeVisitor})`);
 
     const handleDismiss = () => {
       if (dismissed) return;
@@ -102,33 +115,59 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
       }, remainingMinTime);
     };
 
-    // Wait for either image load or timeout
-    Promise.race([
-      imageLoadPromise,
-      new Promise<void>((resolve) => {
-        timeoutId = setTimeout(() => {
-          console.log('🎬 Maximum timeout reached for splash screen');
-          resolve();
-        }, maxTimeout);
-      })
-    ]).then(() => {
-      if (!dismissed) {
-        console.log('🎬 Auto-dismissing splash screen after image load or timeout');
-        handleDismiss();
-      }
-    });
+    // For auto-triggered (first-time visitor) splash, wait for image OR minimum display time + timeout
+    if (!isManualTrigger) {
+      // Auto-trigger: wait for BOTH minimum time AND (image load OR timeout)
+      const minTimePromise = new Promise<void>((resolve) => {
+        setTimeout(resolve, minDisplayTime);
+      });
+      
+      const imageOrTimeoutPromise = Promise.race([
+        imageLoadPromise,
+        new Promise<void>((resolve) => {
+          timeoutId = setTimeout(() => {
+            console.log('🎬 Maximum timeout reached for auto-triggered splash screen');
+            resolve();
+          }, maxTimeout);
+        })
+      ]);
+      
+      Promise.all([minTimePromise, imageOrTimeoutPromise]).then(() => {
+        if (!dismissed) {
+          console.log('🎬 Auto-dismissing splash screen after minimum time and image load/timeout');
+          handleDismiss();
+        }
+      });
+    } else {
+      // Manual trigger: existing behavior - wait for image load or timeout
+      Promise.race([
+        imageLoadPromise,
+        new Promise<void>((resolve) => {
+          timeoutId = setTimeout(() => {
+            console.log('🎬 Maximum timeout reached for manual splash screen');
+            resolve();
+          }, maxTimeout);
+        })
+      ]).then(() => {
+        if (!dismissed) {
+          console.log('🎬 Auto-dismissing manual splash screen after image load or timeout');
+          handleDismiss();
+        }
+      });
+    }
 
     // User interaction handlers - with different behavior for manual vs auto trigger
     const handleUserInteraction = (e: Event) => {
-      // For manual triggers, allow immediate dismissal
-      // For auto triggers, enforce minimum display time
       const elapsedTime = Date.now() - startTime;
       
-      if (isManualTrigger || elapsedTime >= minDisplayTime) {
+      // For auto-triggers, enforce longer minimum display time for first-time visitors
+      const requiredMinTime = isManualTrigger ? 1000 : (isFirstTimeVisitor ? 3000 : 2000);
+      
+      if (elapsedTime >= requiredMinTime) {
         console.log(`🎬 User dismissed splash after ${elapsedTime}ms`);
         handleDismiss();
       } else {
-        console.log(`🎬 Ignoring early dismiss attempt (${elapsedTime}ms < ${minDisplayTime}ms)`);
+        console.log(`🎬 Ignoring early dismiss attempt (${elapsedTime}ms < ${requiredMinTime}ms)`);
       }
     };
 
@@ -241,7 +280,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
         </h1>
         <div className="w-16 h-1 bg-yellow-400 mx-auto rounded-full"></div>
         
-        {/* Loading indicator and interaction hint */}
+        {/* Enhanced loading indicator and interaction hint */}
         <div className="mt-6 space-y-2">
           {showLoadingIndicator && (
             <div className="flex items-center justify-center space-x-2">
@@ -251,7 +290,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
             </div>
           )}
           <p className="text-sm text-white/60 opacity-60">
-            {showLoadingIndicator ? 'Loading...' : 'Tap anywhere to continue'}
+            {showLoadingIndicator ? 'Loading experience...' : 'Tap anywhere to continue'}
           </p>
         </div>
       </div>
