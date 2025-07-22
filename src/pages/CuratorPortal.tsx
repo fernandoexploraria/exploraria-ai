@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, ArrowLeft, BookOpen, Users, TrendingUp, Zap, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { Plus, ArrowLeft, BookOpen, Users, TrendingUp, Zap, CheckCircle, AlertCircle, Clock, ExternalLink } from 'lucide-react';
 import { ExperienceCreationWizard } from '@/components/ExperienceCreationWizard';
 import { Link, useLocation } from 'react-router-dom';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -19,6 +19,7 @@ const CuratorPortal: React.FC = () => {
     payoutsEnabled?: boolean;
     chargesEnabled?: boolean;
   }>({});
+  const [isAccessingStripe, setIsAccessingStripe] = useState(false);
 
   // Handle Stripe Connect return flow
   useEffect(() => {
@@ -154,6 +155,39 @@ const CuratorPortal: React.FC = () => {
     }
   };
 
+  const handleStripeAccountAccess = async () => {
+    try {
+      setIsAccessingStripe(true);
+      
+      const { data, error } = await supabase.functions.invoke('create-express-login-link', {
+        body: {}
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.url) {
+        toast({
+          title: "Redirecting to Stripe...",
+          description: "Opening your Stripe Express dashboard.",
+        });
+        
+        // Open Stripe Express dashboard in new tab
+        window.open(data.url, '_blank');
+      }
+    } catch (error) {
+      console.error('Error creating Express login link:', error);
+      toast({
+        title: "Access Error",
+        description: "Unable to access Stripe dashboard. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAccessingStripe(false);
+    }
+  };
+
   if (showCreateExperience) {
     return (
       <ExperienceCreationWizard
@@ -251,12 +285,32 @@ const CuratorPortal: React.FC = () => {
                   <div>
                     <p className="text-2xl font-bold">$0</p>
                     <p className="text-sm text-muted-foreground">Total Earnings</p>
-                    {stripeStatusDisplay.variant === 'success' && (
-                      <div className="flex items-center gap-1 mt-1">
-                        {stripeStatusDisplay.icon}
-                        <span className="text-xs text-green-600">Ready to earn</span>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2 mt-2">
+                      {stripeStatusDisplay.variant === 'success' && (
+                        <div className="flex items-center gap-1">
+                          {stripeStatusDisplay.icon}
+                          <span className="text-xs text-green-600">Ready to earn</span>
+                        </div>
+                      )}
+                      {stripeStatus.accountStatus === 'active' && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={handleStripeAccountAccess}
+                          disabled={isAccessingStripe}
+                          className="h-6 text-xs"
+                        >
+                          {isAccessingStripe ? (
+                            "Loading..."
+                          ) : (
+                            <>
+                              <ExternalLink className="w-3 h-3 mr-1" />
+                              Manage Payouts
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardContent>
