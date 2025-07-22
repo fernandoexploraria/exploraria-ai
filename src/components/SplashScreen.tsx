@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
 
 interface SplashScreenProps {
   onDismiss: () => void;
@@ -38,28 +39,6 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
       console.warn('Could not get public URL for splash background image');
       setImageError(true);
     }
-
-    // Auto-dismiss after 5 seconds
-    const timer = setTimeout(() => {
-      handleDismiss();
-    }, 5000);
-
-    // Dismiss on any user interaction
-    const handleUserInteraction = () => {
-      handleDismiss();
-    };
-
-    // Add event listeners for user interactions
-    document.addEventListener('click', handleUserInteraction);
-    document.addEventListener('keydown', handleUserInteraction);
-    document.addEventListener('touchstart', handleUserInteraction);
-
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener('click', handleUserInteraction);
-      document.removeEventListener('keydown', handleUserInteraction);
-      document.removeEventListener('touchstart', handleUserInteraction);
-    };
   }, []);
 
   const handleDismiss = () => {
@@ -123,10 +102,13 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
         <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">
           Explore the world like never before
         </h1>
-        <div className="w-16 h-1 bg-yellow-400 mx-auto rounded-full"></div>
-        <p className="text-sm text-white/60 mt-6 opacity-60">
-          Tap anywhere to continue
-        </p>
+        <div className="w-16 h-1 bg-yellow-400 mx-auto rounded-full mb-8"></div>
+        <Button 
+          onClick={handleDismiss}
+          className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-8 py-3 text-lg"
+        >
+          Continue
+        </Button>
       </div>
     </div>
   );
