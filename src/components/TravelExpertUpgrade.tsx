@@ -11,10 +11,12 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Star, MapPin, DollarSign, Users, ArrowRight, Check, X, HelpCircle, ExternalLink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+
 interface TravelExpertUpgradeProps {
   onUpgradeComplete?: () => void;
   displayMode?: 'full' | 'badge';
 }
+
 export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
   onUpgradeComplete,
   displayMode = 'full'
@@ -79,7 +81,7 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
     checkCardVisibility();
   }, [user, profile]);
 
-  // Add click-outside detection
+  // Add click-outside detection with fixed condition
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (cardRef.current && !cardRef.current.contains(event.target as Node)) {
@@ -94,8 +96,8 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
       }
     };
 
-    // Only add listeners when full card is visible
-    if (shouldShowFullCard && isCardVisible) {
+    // Only add listeners when full card is visible AND dialog is NOT open
+    if (shouldShowFullCard && isCardVisible && !isDialogOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       document.addEventListener('keydown', handleEscapeKey);
       return () => {
@@ -103,7 +105,8 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
         document.removeEventListener('keydown', handleEscapeKey);
       };
     }
-  }, [shouldShowFullCard, isCardVisible]);
+  }, [shouldShowFullCard, isCardVisible, isDialogOpen]);
+
   const handleDismiss = async (event?: React.MouseEvent) => {
     if (event) {
       event.stopPropagation();
@@ -136,6 +139,7 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
       }
     }, 300); // Match animation duration
   };
+
   const handleUpgrade = async () => {
     if (!user) return;
     setIsUpgrading(true);
@@ -227,11 +231,13 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
       setIsRedirectingToStripe(false);
     }
   };
+
   const handleHelpClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
     setIsHelpPopoverOpen(!isHelpPopoverOpen);
   };
+
   if (profile?.role === 'travel_expert') {
     return null; // Don't show anything for travel experts
   }
