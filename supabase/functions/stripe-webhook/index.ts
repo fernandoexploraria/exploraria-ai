@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -7,10 +8,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Helper logging function for debugging
-const logStep = (step: string, details?: any) => {
+// Helper logging function for debugging with webhook source tracking
+const logStep = (step: string, details?: any, webhookSource?: string) => {
+  const sourcePrefix = webhookSource ? `[${webhookSource.toUpperCase()}] ` : '';
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
-  console.log(`[STRIPE-WEBHOOK] ${step}${detailsStr}`);
+  console.log(`[STRIPE-WEBHOOK] ${sourcePrefix}${step}${detailsStr}`);
 };
 
 // Helper function to determine subscription tier based on price
@@ -30,6 +32,41 @@ const getSubscriptionTier = async (stripe: Stripe, subscription: Stripe.Subscrip
   } catch (error) {
     logStep("ERROR: Failed to determine subscription tier", { error: error.message });
     return "Premium"; // Default fallback
+  }
+};
+
+// Enhanced webhook signature verification with dual secret support
+const verifyWebhookSignature = async (
+  stripe: Stripe, 
+  body: string, 
+  signature: string
+): Promise<{ event: Stripe.Event; source: 'main' | 'connect' }> => {
+  const mainWebhookSecret = Deno.env.get("STRIPE_WEBHOOK");
+  const connectWebhookSecret = Deno.env.get("STRIPE_CONNECT_WEBHOOK_SECRET");
+
+  if (!mainWebhookSecret) {
+    throw new Error("Main webhook secret not configured");
+  }
+
+  // Try Connect webhook secret first (for account.updated events)
+  if (connectWebhookSecret) {
+    try {
+      const event = await stripe.webhooks.constructEventAsync(body, signature, connectWebhookSecret);
+      logStep("Webhook signature verified", { eventType: event.type, source: 'connect' });
+      return { event, source: 'connect' };
+    } catch (connectError) {
+      logStep("Connect webhook signature verification failed, trying main webhook", { error: connectError.message });
+    }
+  }
+
+  // Fallback to main webhook secret
+  try {
+    const event = await stripe.webhooks.constructEventAsync(body, signature, mainWebhookSecret);
+    logStep("Webhook signature verified", { eventType: event.type, source: 'main' });
+    return { event, source: 'main' };
+  } catch (mainError) {
+    logStep("Main webhook signature verification failed", { error: mainError.message });
+    throw new Error(`Webhook signature verification failed for both secrets: ${mainError.message}`);
   }
 };
 
@@ -54,18 +91,14 @@ serve(async (req) => {
       apiVersion: "2023-10-16",
     });
 
-    // Verify webhook signature
-    const webhookSecret = Deno.env.get("STRIPE_WEBHOOK");
-    if (!webhookSecret) {
-      logStep("ERROR: No webhook secret configured");
-      return new Response("Webhook secret not configured", { status: 400 });
-    }
-
-    let event;
+    // Verify webhook signature and determine source
+    let event: Stripe.Event;
+    let webhookSource: 'main' | 'connect';
+    
     try {
-      // Use constructEventAsync instead of constructEvent for Deno compatibility
-      event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
-      logStep("Webhook signature verified", { eventType: event.type });
+      const verificationResult = await verifyWebhookSignature(stripe, body, signature);
+      event = verificationResult.event;
+      webhookSource = verificationResult.source;
     } catch (err) {
       logStep("ERROR: Webhook signature verification failed", { error: err.message });
       return new Response(`Webhook signature verification failed: ${err.message}`, { status: 400 });
@@ -81,14 +114,20 @@ serve(async (req) => {
     // Handle different event types
     switch (event.type) {
       case "account.updated": {
-        logStep("Processing account.updated - Updating Travel Expert onboarding status");
+        // Only process account.updated events from Connect webhook
+        if (webhookSource !== 'connect') {
+          logStep("WARNING: account.updated event received from main webhook, ignoring", { eventType: event.type }, webhookSource);
+          break;
+        }
+
+        logStep("Processing account.updated - Updating Travel Expert onboarding status", {}, webhookSource);
         const account = event.data.object as Stripe.Account;
 
         // Use metadata to find the internal user ID
         const internalUserId = account.metadata?.internal_user_id;
 
         if (!internalUserId) {
-          logStep("WARNING: account.updated webhook received without internal_user_id in metadata. Cannot link to profile.", { accountId: account.id });
+          logStep("WARNING: account.updated webhook received without internal_user_id in metadata. Cannot link to profile.", { accountId: account.id }, webhookSource);
           break;
         }
 
@@ -112,20 +151,20 @@ serve(async (req) => {
           .eq('id', internalUserId);
 
         if (updateProfileError) {
-          logStep("ERROR: Failed to update profile with Stripe account status", { userId: internalUserId, error: updateProfileError });
+          logStep("ERROR: Failed to update profile with Stripe account status", { userId: internalUserId, error: updateProfileError }, webhookSource);
         } else {
           logStep("Travel Expert Stripe account status updated in profile", {
             userId: internalUserId,
             status: stripeAccountStatus,
             payoutsEnabled: stripePayoutsEnabled,
             chargesEnabled: stripeChargesEnabled
-          });
+          }, webhookSource);
         }
         break;
       }
 
       case "payment_intent.succeeded": {
-        logStep("Processing payment_intent.succeeded");
+        logStep("Processing payment_intent.succeeded", {}, webhookSource);
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         
         // Update payment status in database
@@ -136,7 +175,7 @@ serve(async (req) => {
           .single();
 
         if (fetchError || !payment) {
-          logStep("ERROR: Payment record not found", { paymentIntentId: paymentIntent.id });
+          logStep("ERROR: Payment record not found", { paymentIntentId: paymentIntent.id }, webhookSource);
           break;
         }
 
@@ -150,17 +189,17 @@ serve(async (req) => {
           .eq("stripe_payment_intent_id", paymentIntent.id);
 
         if (updateError) {
-          logStep("ERROR: Failed to update payment status", { error: updateError });
+          logStep("ERROR: Failed to update payment status", { error: updateError }, webhookSource);
         } else {
-          logStep("Payment status updated to succeeded", { paymentId: payment.id });
+          logStep("Payment status updated to succeeded", { paymentId: payment.id }, webhookSource);
         }
 
-        logStep("Payment processing completed successfully");
+        logStep("Payment processing completed successfully", {}, webhookSource);
         break;
       }
 
       case "charge.succeeded": {
-        logStep("Processing charge.succeeded - Extracting Charge & Transfer IDs");
+        logStep("Processing charge.succeeded - Extracting Charge & Transfer IDs", {}, webhookSource);
         const charge = event.data.object as Stripe.Charge;
 
         // 1. Get the PaymentIntent ID associated with this charge
@@ -177,17 +216,17 @@ serve(async (req) => {
           stripeTransferId = typeof charge.transfer === 'string'
             ? charge.transfer
             : charge.transfer.id;
-          logStep("Transfer ID found in charge.transfer field", { transferId: stripeTransferId });
+          logStep("Transfer ID found in charge.transfer field", { transferId: stripeTransferId }, webhookSource);
         } else if (charge.transfers?.data?.length > 0) {
           stripeTransferId = charge.transfers.data[0].id;
-          logStep("Transfer ID found in charge.transfers.data", { transferId: stripeTransferId });
+          logStep("Transfer ID found in charge.transfers.data", { transferId: stripeTransferId }, webhookSource);
         }
 
         logStep("Extracted IDs from charge.succeeded", {
           paymentIntentId: paymentIntentId,
           chargeId: stripeChargeId,
           transferId: stripeTransferId,
-        });
+        }, webhookSource);
 
         // 4. Update the corresponding payment record in your database
         if (paymentIntentId) {
@@ -198,7 +237,7 @@ serve(async (req) => {
             .single();
 
           if (fetchError || !payment) {
-            logStep("ERROR: Payment record not found for charge.succeeded", { paymentIntentId: paymentIntentId, error: fetchError?.message });
+            logStep("ERROR: Payment record not found for charge.succeeded", { paymentIntentId: paymentIntentId, error: fetchError?.message }, webhookSource);
             break;
           }
 
@@ -214,9 +253,9 @@ serve(async (req) => {
             .eq("stripe_payment_intent_id", paymentIntentId);
 
           if (updateError) {
-            logStep("ERROR: Failed to update payment with Charge/Transfer IDs", { error: updateError });
+            logStep("ERROR: Failed to update payment with Charge/Transfer IDs", { error: updateError }, webhookSource);
           } else {
-            logStep("Payment record updated with Charge/Transfer IDs", { paymentId: payment.id });
+            logStep("Payment record updated with Charge/Transfer IDs", { paymentId: payment.id }, webhookSource);
 
             // 5. CRITICAL BUSINESS LOGIC FOR FULFILLMENT:
             // Mark the tour as fully booked/purchased
@@ -228,19 +267,19 @@ serve(async (req) => {
               .eq("id", payment.tour_id);
 
             if (tourUpdateError) {
-              logStep("ERROR: Failed to update generated_tour status", { error: tourUpdateError });
+              logStep("ERROR: Failed to update generated_tour status", { error: tourUpdateError }, webhookSource);
             } else {
-              logStep("Generated tour status updated", { tourId: payment.tour_id });
+              logStep("Generated tour status updated", { tourId: payment.tour_id }, webhookSource);
             }
           }
         } else {
-          logStep("WARNING: charge.succeeded received but no associated PaymentIntent ID found", { chargeId: stripeChargeId });
+          logStep("WARNING: charge.succeeded received but no associated PaymentIntent ID found", { chargeId: stripeChargeId }, webhookSource);
         }
         break;
       }
 
       case "payment_intent.payment_failed": {
-        logStep("Processing payment_intent.payment_failed");
+        logStep("Processing payment_intent.payment_failed", {}, webhookSource);
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         
         const { error: updateError } = await supabaseClient
@@ -252,15 +291,15 @@ serve(async (req) => {
           .eq("stripe_payment_intent_id", paymentIntent.id);
 
         if (updateError) {
-          logStep("ERROR: Failed to update payment status", { error: updateError });
+          logStep("ERROR: Failed to update payment status", { error: updateError }, webhookSource);
         } else {
-          logStep("Payment status updated to failed", { paymentIntentId: paymentIntent.id });
+          logStep("Payment status updated to failed", { paymentIntentId: paymentIntent.id }, webhookSource);
         }
         break;
       }
 
       case "charge.refunded": {
-        logStep("Processing charge.refunded");
+        logStep("Processing charge.refunded", {}, webhookSource);
         const charge = event.data.object as Stripe.Charge;
         const paymentIntentId = typeof charge.payment_intent === 'string'
           ? charge.payment_intent
@@ -276,17 +315,17 @@ serve(async (req) => {
             .eq("stripe_payment_intent_id", paymentIntentId);
 
           if (updateError) {
-            logStep("ERROR: Failed to update refund status", { error: updateError });
+            logStep("ERROR: Failed to update refund status", { error: updateError }, webhookSource);
           } else {
-            logStep("Payment status updated to refunded", { chargeId: charge.id });
+            logStep("Payment status updated to refunded", { chargeId: charge.id }, webhookSource);
           }
         }
-        logStep("WARNING: Tour guide refund handling not fully implemented");
+        logStep("WARNING: Tour guide refund handling not fully implemented", {}, webhookSource);
         break;
       }
 
       case "charge.dispute.created": {
-        logStep("Processing charge.dispute.created");
+        logStep("Processing charge.dispute.created", {}, webhookSource);
         const dispute = event.data.object as Stripe.Dispute;
         const paymentIntentId = typeof dispute.payment_intent === 'string'
           ? dispute.payment_intent
@@ -302,21 +341,21 @@ serve(async (req) => {
             .eq("stripe_payment_intent_id", paymentIntentId);
 
           if (updateError) {
-            logStep("ERROR: Failed to update dispute status", { error: updateError });
+            logStep("ERROR: Failed to update dispute status", { error: updateError }, webhookSource);
           } else {
             logStep("Payment status updated to disputed", {
               chargeId: dispute.charge,
               disputeId: dispute.id,
-            });
+            }, webhookSource);
           }
         }
-        logStep("ALERT: Dispute created - operations team should be notified");
+        logStep("ALERT: Dispute created - operations team should be notified", {}, webhookSource);
         break;
       }
 
       // Subscription event handlers
       case "customer.subscription.created": {
-        logStep("Processing customer.subscription.created");
+        logStep("Processing customer.subscription.created", {}, webhookSource);
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
         
@@ -345,7 +384,7 @@ serve(async (req) => {
             }, { onConflict: 'email' });
 
           if (updateError) {
-            logStep("ERROR: Failed to update subscriber on creation", { error: updateError });
+            logStep("ERROR: Failed to update subscriber on creation", { error: updateError }, webhookSource);
           } else {
             logStep("Subscriber updated on creation", { 
               email: customerEmail,
@@ -353,14 +392,14 @@ serve(async (req) => {
               subscribed: isActive,
               subscriptionEnd,
               subscriptionTier 
-            });
+            }, webhookSource);
           }
         }
         break;
       }
 
       case "customer.subscription.updated": {
-        logStep("Processing customer.subscription.updated");
+        logStep("Processing customer.subscription.updated", {}, webhookSource);
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
         
@@ -390,7 +429,7 @@ serve(async (req) => {
             }, { onConflict: 'email' });
 
           if (updateError) {
-            logStep("ERROR: Failed to update subscriber", { error: updateError });
+            logStep("ERROR: Failed to update subscriber", { error: updateError }, webhookSource);
           } else {
             logStep("Subscriber updated", { 
               email: customerEmail,
@@ -398,14 +437,14 @@ serve(async (req) => {
               subscriptionEnd,
               cancelAtPeriodEnd,
               subscriptionTier 
-            });
+            }, webhookSource);
           }
         }
         break;
       }
 
       case "customer.subscription.deleted": {
-        logStep("Processing customer.subscription.deleted");
+        logStep("Processing customer.subscription.deleted", {}, webhookSource);
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
         
@@ -429,16 +468,16 @@ serve(async (req) => {
             }, { onConflict: 'email' });
 
           if (updateError) {
-            logStep("ERROR: Failed to update subscriber on deletion", { error: updateError });
+            logStep("ERROR: Failed to update subscriber on deletion", { error: updateError }, webhookSource);
           } else {
-            logStep("Subscriber marked as unsubscribed", { email: customerEmail });
+            logStep("Subscriber marked as unsubscribed", { email: customerEmail }, webhookSource);
           }
         }
         break;
       }
 
       case "invoice.paid": {
-        logStep("Processing invoice.paid");
+        logStep("Processing invoice.paid", {}, webhookSource);
         const invoice = event.data.object as Stripe.Invoice;
         
         // Only process subscription invoices
@@ -471,13 +510,13 @@ serve(async (req) => {
               }, { onConflict: 'email' });
 
             if (updateError) {
-              logStep("ERROR: Failed to update subscriber on invoice paid", { error: updateError });
+              logStep("ERROR: Failed to update subscriber on invoice paid", { error: updateError }, webhookSource);
             } else {
               logStep("Subscriber activated on invoice payment", { 
                 email: customerEmail,
                 subscriptionEnd,
                 subscriptionTier 
-              });
+              }, webhookSource);
             }
           }
         }
@@ -485,7 +524,7 @@ serve(async (req) => {
       }
 
       case "invoice.payment_failed": {
-        logStep("Processing invoice.payment_failed");
+        logStep("Processing invoice.payment_failed", {}, webhookSource);
         const invoice = event.data.object as Stripe.Invoice;
         
         // Only process subscription invoices
@@ -500,7 +539,7 @@ serve(async (req) => {
             logStep("Subscription payment failed", { 
               email: customerEmail,
               invoiceId: invoice.id 
-            });
+            }, webhookSource);
             // Note: We don't immediately deactivate on payment failure
             // Stripe will retry and eventually cancel if needed
           }
@@ -509,7 +548,7 @@ serve(async (req) => {
       }
 
       default:
-        logStep("Unhandled event type", { eventType: event.type });
+        logStep("Unhandled event type", { eventType: event.type }, webhookSource);
     }
 
     // Always return 200 OK to acknowledge receipt of webhook
