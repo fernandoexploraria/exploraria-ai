@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SplashScreen from '@/components/SplashScreen';
@@ -220,8 +221,8 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
     return <SplashScreen onDismiss={dismissSplash} />;
   }
 
-  // Don't render the map until we have a token AND splash is not showing
-  if (!showSplash && !mapboxToken) {
+  // Don't render the map until we have a token
+  if (!mapboxToken) {
     return <div className="w-screen h-screen flex items-center justify-center">Loading map...</div>;
   }
 
