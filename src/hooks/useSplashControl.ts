@@ -11,18 +11,28 @@ export const useSplashControl = () => {
     // Check if this is a first-time visitor
     const hasVisitedBefore = localStorage.getItem('has-visited');
     
-    // Show splash if:
+    // Enhanced logic: Show splash if:
     // 1. First time visitor (no localStorage entry), OR
-    // 2. New browser session (no sessionStorage entry)
-    if (!hasVisitedBefore || !splashShownThisSession) {
-      console.log('🎬 Showing splash screen - first visit or new session');
+    // 2. New browser session (no sessionStorage entry), OR  
+    // 3. Last visit was more than 24 hours ago (for returning users to see updates)
+    const lastVisit = localStorage.getItem('last-visit-time');
+    const daysSinceLastVisit = lastVisit ? 
+      (Date.now() - parseInt(lastVisit)) / (1000 * 60 * 60 * 24) : Infinity;
+    
+    const shouldShowSplash = !hasVisitedBefore || 
+                           !splashShownThisSession || 
+                           daysSinceLastVisit > 1;
+
+    if (shouldShowSplash) {
+      console.log('🎬 Showing splash screen - first visit, new session, or returning after 24h');
       setShowSplash(true);
       
       // Mark as visited and session splash shown
       localStorage.setItem('has-visited', 'true');
+      localStorage.setItem('last-visit-time', Date.now().toString());
       sessionStorage.setItem('splash-shown', 'true');
     } else {
-      console.log('🎬 Skipping splash screen - already shown this session');
+      console.log('🎬 Skipping splash screen - already shown recently');
       setShowSplash(false);
     }
   }, []);
