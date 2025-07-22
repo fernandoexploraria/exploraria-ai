@@ -18,10 +18,17 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
 
   useEffect(() => {
     const startTime = Date.now();
-    const minDisplayTime = 2000; // Minimum 2 seconds display
+    // Increase minimum display time for manual triggers
+    const isManualTrigger = localStorage.getItem('splash-manual-trigger') === 'true';
+    const minDisplayTime = isManualTrigger ? 3000 : 2000; // 3 seconds for manual, 2 for auto
     let imageLoadPromise: Promise<void>;
     let timeoutId: NodeJS.Timeout;
     let dismissed = false;
+
+    console.log(`🎬 Splash screen initialized - ${isManualTrigger ? 'manually triggered' : 'auto triggered'}`);
+    
+    // Clear manual trigger flag
+    localStorage.removeItem('splash-manual-trigger');
 
     // Check if image is cached from previous visit
     const cachedImageUrl = localStorage.getItem('splash-image-url');
@@ -62,15 +69,19 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
       }
     }
 
-    // Show loading indicator after 1 second if image hasn't loaded
+  // Show loading indicator immediately for manual triggers, or after 500ms for auto
+    const loadingIndicatorDelay = isManualTrigger ? 100 : 500;
     const loadingIndicatorTimeout = setTimeout(() => {
       if (!imageLoaded && !imageError && !dismissed) {
+        console.log(`🎬 Showing loading indicator after ${loadingIndicatorDelay}ms - image still loading`);
         setShowLoadingIndicator(true);
       }
-    }, 1000);
+    }, loadingIndicatorDelay);
 
     // Create adaptive timeout based on network conditions
-    const maxTimeout = getRecommendedTimeout() * 2; // Double the recommended timeout for splash
+    // Use a longer timeout for manual triggers to ensure the image loads
+    const baseTimeout = getRecommendedTimeout();
+    const maxTimeout = isManualTrigger ? baseTimeout * 3 : baseTimeout * 2; 
     console.log(`🎬 Using adaptive timeout: ${maxTimeout}ms for ${effectiveType} connection`);
 
     const handleDismiss = () => {
@@ -79,6 +90,8 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
       
       const elapsedTime = Date.now() - startTime;
       const remainingMinTime = Math.max(0, minDisplayTime - elapsedTime);
+      
+      console.log(`🎬 Dismissing splash after ${elapsedTime}ms (waiting ${remainingMinTime}ms more for min time)`);
       
       clearTimeout(timeoutId);
       clearTimeout(loadingIndicatorTimeout);
@@ -93,21 +106,29 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
     Promise.race([
       imageLoadPromise,
       new Promise<void>((resolve) => {
-        timeoutId = setTimeout(resolve, maxTimeout);
+        timeoutId = setTimeout(() => {
+          console.log('🎬 Maximum timeout reached for splash screen');
+          resolve();
+        }, maxTimeout);
       })
     ]).then(() => {
       if (!dismissed) {
-        console.log('🎬 Auto-dismissing splash screen');
+        console.log('🎬 Auto-dismissing splash screen after image load or timeout');
         handleDismiss();
       }
     });
 
-    // User interaction handlers
+    // User interaction handlers - with different behavior for manual vs auto trigger
     const handleUserInteraction = (e: Event) => {
-      // Only dismiss after minimum display time has passed
+      // For manual triggers, allow immediate dismissal
+      // For auto triggers, enforce minimum display time
       const elapsedTime = Date.now() - startTime;
-      if (elapsedTime >= minDisplayTime) {
+      
+      if (isManualTrigger || elapsedTime >= minDisplayTime) {
+        console.log(`🎬 User dismissed splash after ${elapsedTime}ms`);
         handleDismiss();
+      } else {
+        console.log(`🎬 Ignoring early dismiss attempt (${elapsedTime}ms < ${minDisplayTime}ms)`);
       }
     };
 
@@ -125,23 +146,42 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
   }, [effectiveType, getRecommendedTimeout, onDismiss]);
 
   const preloadImage = (url: string): Promise<void> => {
+    console.log(`🎬 Starting to preload image: ${url.substring(0, 50)}...`);
+    const startLoadTime = Date.now();
+    
     return new Promise((resolve, reject) => {
       const img = new Image();
+      
       img.onload = () => {
         setImageLoaded(true);
         setImageError(false);
         setShowLoadingIndicator(false);
-        console.log('🎬 Splash background image loaded successfully');
+        
+        // Calculate load time for diagnostics
+        const loadTime = Date.now() - startLoadTime;
+        console.log(`🎬 Splash background image loaded successfully in ${loadTime}ms`);
+        
         resolve();
       };
-      img.onerror = () => {
-        console.warn('🎬 Failed to load splash background image, using gradient fallback');
+      
+      img.onerror = (e) => {
+        console.warn(`🎬 Failed to load splash background image: ${e.toString()}`);
+        console.warn(`🎬 URL attempted: ${url.substring(0, 50)}...`);
+        console.warn('🎬 Using gradient fallback instead');
+        
         setImageLoaded(false);
         setImageError(true);
         setShowLoadingIndicator(false);
         resolve(); // Resolve anyway to prevent hanging
       };
+      
       img.src = url;
+      
+      // Force load attempt
+      if (img.complete) {
+        console.log('🎬 Image already cached in browser, triggering onload');
+        img.onload?.(new Event('load') as any);
+      }
     });
   };
 

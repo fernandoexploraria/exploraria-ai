@@ -124,10 +124,12 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
     setIsInteractionHistoryOpen(true);
   };
 
-  // Simplified logo click - just shows splash screen
+  // Logo click - shows splash screen with longer timing for manually triggered display
   const handleLogoClick = () => {
     console.log('🎬 Logo clicked - showing splash screen');
-    showSplashManually();
+    // Always force show regardless of session state for better user experience
+    // This ensures the splash screen appears even if it was already shown in this session
+    showSplashManually(true);
   };
 
   const handleNewTourAssistantOpen = () => {
