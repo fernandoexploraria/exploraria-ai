@@ -188,6 +188,9 @@ const CuratorPortal: React.FC = () => {
     }
   };
 
+  // Check if experience creation should be enabled
+  const canCreateExperiences = stripeStatus.accountStatus === 'active' && stripeStatus.payoutsEnabled;
+
   if (showCreateExperience) {
     return (
       <ExperienceCreationWizard
@@ -326,26 +329,53 @@ const CuratorPortal: React.FC = () => {
                 Create immersive tours that blend your knowledge with cutting-edge AI technology.
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Button
-                onClick={() => setShowCreateExperience(true)}
-                size="lg"
-                className="px-8 py-6 text-lg"
-              >
-                <Plus className="mr-2 h-5 w-5" />
-                Create New Experience
-              </Button>
-              <Link to="/elevenlabs-playground">
+            
+            {canCreateExperiences ? (
+              <div className="flex flex-col sm:flex-row gap-4">
                 <Button
-                  variant="outline"
+                  onClick={() => setShowCreateExperience(true)}
                   size="lg"
                   className="px-8 py-6 text-lg"
                 >
-                  <Zap className="mr-2 h-5 w-5" />
-                  ElevenLabs Playground
+                  <Plus className="mr-2 h-5 w-5" />
+                  Create New Experience
                 </Button>
-              </Link>
-            </div>
+                <Link to="/elevenlabs-playground">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="px-8 py-6 text-lg"
+                  >
+                    <Zap className="mr-2 h-5 w-5" />
+                    ElevenLabs Playground
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <Card className="max-w-lg mx-auto">
+                <CardContent className="pt-6">
+                  <div className="text-center space-y-4">
+                    <AlertCircle className="h-12 w-12 text-yellow-600 mx-auto" />
+                    <div>
+                      <h3 className="font-semibold text-lg">Payout Setup Required</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Complete your Stripe payout setup to start creating experiences and earning from your expertise.
+                      </p>
+                    </div>
+                    {(stripeStatus.accountStatus === 'not_started' || stripeStatus.accountStatus === 'pending_info') && (
+                      <Button onClick={handleStripeSetup} className="w-full">
+                        Complete Stripe Setup
+                      </Button>
+                    )}
+                    {stripeStatus.accountStatus === 'pending_verification' && (
+                      <div className="text-sm text-muted-foreground">
+                        Your account is under review. You'll be able to create experiences once verification is complete.
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Coming Soon Features */}
