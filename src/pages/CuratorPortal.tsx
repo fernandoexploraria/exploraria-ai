@@ -340,16 +340,18 @@ const CuratorPortal: React.FC = () => {
                   <Plus className="mr-2 h-5 w-5" />
                   Create New Experience
                 </Button>
-                <Link to="/elevenlabs-playground">
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="px-8 py-6 text-lg"
-                  >
-                    <Zap className="mr-2 h-5 w-5" />
-                    ElevenLabs Playground
-                  </Button>
-                </Link>
+                {user?.email === 'fobregona@yahoo.com' && (
+                  <Link to="/elevenlabs-playground">
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className="px-8 py-6 text-lg"
+                    >
+                      <Zap className="mr-2 h-5 w-5" />
+                      ElevenLabs Playground
+                    </Button>
+                  </Link>
+                )}
               </div>
             ) : (
               <Card className="max-w-lg mx-auto">
