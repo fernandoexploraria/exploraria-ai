@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/components/AuthProvider";
 import { TTSProvider } from "@/contexts/TTSContext";
 import { StripeProvider } from "@/contexts/StripeProvider";
+import { OnboardingProvider } from "@/contexts/OnboardingContext";
 import { PostAuthAction } from "@/utils/authActions";
 import Index from "./pages/Index";
 import CuratorPortal from "./pages/CuratorPortal";
@@ -55,7 +56,8 @@ const App = () => {
             <Sonner />
             <BrowserRouter>
               <AuthProvider onPostAuthAction={handlePostAuthAction}>
-                <Routes>
+                <OnboardingProvider>
+                  <Routes>
                   <Route 
                     path="/" 
                     element={
@@ -81,7 +83,8 @@ const App = () => {
                     path="/payment-failed" 
                     element={<PaymentFailure />} 
                   />
-                </Routes>
+                  </Routes>
+                </OnboardingProvider>
               </AuthProvider>
             </BrowserRouter>
           </TTSProvider>

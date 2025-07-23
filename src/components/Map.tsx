@@ -27,6 +27,8 @@ import { useTransitRoute } from '@/hooks/useTransitRoute';
 import FloatingRouteCard from '@/components/FloatingRouteCard';
 import { usePermissionMonitor } from '@/hooks/usePermissionMonitor';
 import { setPostAuthAction, setPostAuthLandmark } from '@/utils/authActions';
+import { useOnboarding } from '@/contexts/OnboardingContext';
+import { SmartTooltip } from './onboarding/SmartTooltip';
 
 interface MapProps {
   mapboxToken: string;
@@ -105,6 +107,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
   
   const { user } = useAuth();
   const { speak: speakTTS, stop: stopTTS, isPlaying: isTTSPlaying } = useTTSContext();
+  const { trackAction } = useOnboarding();
   const { proximitySettings } = useProximityAlerts();
   const { fetchLandmarkPhotos: fetchPhotosWithHook } = useLandmarkPhotos();
   const { locationState } = useLocationTracking();

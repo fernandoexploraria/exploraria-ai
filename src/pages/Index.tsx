@@ -17,6 +17,10 @@ import { useSplashControl } from '@/hooks/useSplashControl';
 import { performComprehensiveTourReset } from '@/utils/tourResetUtils';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useOnboarding } from '@/contexts/OnboardingContext';
+import { WelcomeFlow } from '@/components/onboarding/WelcomeFlow';
+import { FeatureIntroduction } from '@/components/onboarding/FeatureIntroduction';
+import { OnboardingCelebration } from '@/components/onboarding/OnboardingCelebration';
 
 interface IndexProps {
   onRegisterPostAuthActions?: (actions: { onSmartTour?: () => void; onIntelligentTour?: () => void }) => void;
@@ -43,6 +47,20 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
   const { toast } = useToast();
   
   const { user, signOut } = useAuth();
+  const {
+    trackAction,
+    shouldShowVoiceIntro,
+    shouldShowTravelLogCelebration,
+    shouldShowFeature
+  } = useOnboarding();
+  
+  // Onboarding state
+  const [showWelcomeFlow, setShowWelcomeFlow] = useState(false);
+  const [showCelebration, setShowCelebration] = useState<{
+    title: string;
+    message: string;
+    icon?: 'sparkles' | 'check' | 'star' | 'map';
+  } | null>(null);
   const mapboxToken = useMapboxToken();
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
   
@@ -102,7 +120,8 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
 
   const handleSelectLandmark = useCallback((landmark: Landmark) => {
     setSelectedLandmark(landmark);
-  }, [setSelectedLandmark]);
+    trackAction('tour_viewed', { landmarkId: landmark.id });
+  }, [setSelectedLandmark, trackAction]);
 
   const handleAuthDialogClose = (open: boolean) => {
     setIsAuthDialogOpen(open);
@@ -217,6 +236,26 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
     // voiceTourData is cleared during tour generation/reset in handleIntelligentTourOpen
   };
 
+  // Onboarding effects
+  useEffect(() => {
+    // Show welcome flow for first-time users
+    if (shouldShowFeature('welcome_flow') && !user) {
+      const timer = setTimeout(() => setShowWelcomeFlow(true), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [shouldShowFeature, user]);
+
+  useEffect(() => {
+    // Show travel log celebration after first voice interaction
+    if (shouldShowTravelLogCelebration()) {
+      setShowCelebration({
+        title: "Moment Saved!",
+        message: "Your conversation has been added to your Travel Log. Build your journey one interaction at a time.",
+        icon: 'sparkles'
+      });
+    }
+  }, [shouldShowTravelLogCelebration]);
+
   if (showSplash) {
     return <SplashScreen onDismiss={dismissSplash} />;
   }
@@ -302,6 +341,35 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
         clientSecret={clientSecret}
         onPaymentSuccess={handleExperiencePaymentSuccess}
       />
+      
+      {/* Onboarding Components */}
+      {showWelcomeFlow && (
+        <WelcomeFlow onComplete={() => setShowWelcomeFlow(false)} />
+      )}
+      
+      {showCelebration && (
+        <OnboardingCelebration
+          title={showCelebration.title}
+          message={showCelebration.message}
+          icon={showCelebration.icon}
+          onComplete={() => setShowCelebration(null)}
+        />
+      )}
+      
+      {/* Voice Introduction Feature */}
+      {shouldShowVoiceIntro() && (
+        <FeatureIntroduction
+          id="voice_intro"
+          title="Try Voice Search!"
+          description="Ask our AI about destinations, get recommendations, or plan your perfect tour - all with your voice."
+          actionText="Let's try it"
+          onAction={() => {
+            trackAction('voice_interaction');
+            handleVoiceAssistantOpen();
+          }}
+          priority="medium"
+        />
+      )}
     </>
   );
 };
