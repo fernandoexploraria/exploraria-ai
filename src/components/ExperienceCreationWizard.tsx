@@ -608,7 +608,12 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <currentStepData.icon className="h-5 w-5" />
-                  <span>{currentStepData.title}</span>
+                  <span>
+                    {currentStep === 1 && experienceData.destination ? 
+                      `Select Landmarks for ${experienceData.destination.structured_formatting?.main_text || experienceData.destination.description}` : 
+                      currentStepData.title
+                    }
+                  </span>
                 </CardTitle>
                 {currentStep === 2 && (
                   <div className="space-y-3">
