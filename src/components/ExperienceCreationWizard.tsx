@@ -427,7 +427,16 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
 
       // if (agentError) throw agentError;
 
-      // 2. Get destination details
+      // 2. Get user's stripe_account_id from profiles
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('stripe_account_id')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      // 3. Get destination details
       const { data: destinationData, error: destinationError } = await supabase.functions.invoke('google-places-details', {
         body: {
           placeId: experienceData.destination.place_id,
@@ -436,7 +445,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
 
       if (destinationError) throw destinationError;
 
-      // 3. Create generated_tour
+      // 4. Create generated_tour
       const { data: tourData, error: tourError } = await supabase
         .from('generated_tours')
         .insert({
@@ -446,6 +455,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
           system_prompt: experienceData.systemPrompt,
           experience: true,
           agentid: experienceData.agentId, // Use the new agent created in Voice & Audio phase
+          account_id: profileData.stripe_account_id, // Set account_id to user's stripe_account_id
           total_landmarks: experienceData.landmarks.length,
           generation_start_time: new Date().toISOString(),
           generation_end_time: new Date().toISOString(),
@@ -457,7 +467,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
 
       if (tourError) throw tourError;
 
-      // 4. Create landmarks using the same process as IntelligentTourDialog
+      // 5. Create landmarks using the same process as IntelligentTourDialog
       const landmarkInserts = [];
       
       for (let index = 0; index < experienceData.landmarks.length; index++) {
