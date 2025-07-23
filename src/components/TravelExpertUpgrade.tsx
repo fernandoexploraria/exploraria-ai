@@ -496,7 +496,7 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
                 <DialogTrigger asChild>
                   <Button className="w-full" size="lg">
                     <Star className="mr-2 h-4 w-4" />
-                    Upgrade to Travel Expert
+                    Enroll Now
                   </Button>
                 </DialogTrigger>
               </CardContent>
