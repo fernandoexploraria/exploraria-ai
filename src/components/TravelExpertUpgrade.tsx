@@ -412,7 +412,7 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
                     size="sm"
                   >
                     <Star className="mr-2 h-3 w-3" />
-                    Upgrade Now
+                    Enroll Now
                   </Button>
                 </div>
               </PopoverContent>
