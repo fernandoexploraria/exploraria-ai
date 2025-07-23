@@ -312,7 +312,7 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
                   <ExternalLink className="mr-2 h-4 w-4" />
                   Redirecting...
                 </>
-              ) : isUpgrading ? "Upgrading..." : "Complete Upgrade"}
+              ) : isUpgrading ? "Setting up..." : "Setup Stripe Connected Account"}
             </Button>
           </div>
         </DialogContent>
