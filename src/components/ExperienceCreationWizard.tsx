@@ -543,7 +543,7 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
     switch (stepIndex) {
       case 0: return !!experienceData.destination;
       case 1: return experienceData.landmarks.length > 0;
-      case 2: return experienceData.systemPrompt.length > 50;
+      case 2: return experienceData.systemPrompt.length > 50 && !!experienceData.agentName?.trim();
       case 3: return !!experienceData.agentId && !!experienceData.agentName?.trim() && !!experienceData.voiceId;
       case 4: return true; // Knowledge base is optional for MVP
       case 5: return experienceData.description.length > 0;
@@ -1135,7 +1135,14 @@ Always maintain an engaging, helpful tone and adapt to the user's interests and 
                   </Button>
                 ) : (
                   <Button
-                    onClick={() => handleStepChange(currentStep + 1)}
+                    onClick={() => {
+                      // Special validation for Step 3 (AI Personality) - check Agent Name
+                      if (currentStep === 2 && !experienceData.agentName?.trim()) {
+                        toast.error('Please enter an Agent Name before proceeding');
+                        return;
+                      }
+                      handleStepChange(currentStep + 1);
+                    }}
                     disabled={!canProceed}
                   >
                     Next
