@@ -18,9 +18,12 @@ import {
   Camera,
   Bell,
   Route,
-  X
+  X,
+  Square,
+  Loader2
 } from 'lucide-react';
 import type { CarouselApi } from '@/components/ui/carousel';
+import { useVoiceDialogueDemo } from '@/hooks/useVoiceDialogueDemo';
 
 interface OnboardingCarouselProps {
   onComplete: () => void;
@@ -34,6 +37,7 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
   const [count, setCount] = useState(0);
+  const { playDialogue, isPlaying, isGenerating, currentLine } = useVoiceDialogueDemo();
 
   React.useEffect(() => {
     if (!api) return;
@@ -54,9 +58,8 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
     }
   };
 
-  const handleAudioPreview = () => {
-    // TODO: Implement audio preview when TTS is ready
-    console.log('🎵 Audio preview clicked');
+  const handleVoiceDemo = () => {
+    playDialogue();
   };
 
   return (
@@ -92,14 +95,30 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                     Get live commentary and insider tips as you explore - just like having a local expert with you
                   </p>
                 </div>
-                <Button
-                  variant="outline"
-                  onClick={handleAudioPreview}
-                  className="flex items-center gap-2"
-                >
-                  <Play className="w-4 h-4" />
-                  Try Voice Preview
-                </Button>
+                <div className="space-y-3">
+                  <Button
+                    variant="outline"
+                    onClick={handleVoiceDemo}
+                    disabled={isGenerating}
+                    className="flex items-center gap-2 w-full"
+                  >
+                    {isGenerating ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : isPlaying ? (
+                      <Square className="w-4 h-4" />
+                    ) : (
+                      <Play className="w-4 h-4" />
+                    )}
+                    {isGenerating ? 'Preparing Demo...' : isPlaying ? 'Stop Demo' : 'Try Personal AI Tour Guide'}
+                  </Button>
+                  
+                  {isPlaying && currentLine >= 0 && (
+                    <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground animate-pulse">
+                      <div className="w-2 h-2 bg-primary rounded-full animate-ping" />
+                      {currentLine % 2 === 0 ? '🗺️ Tour Guide Speaking...' : '🧳 Tourist Speaking...'}
+                    </div>
+                  )}
+                </div>
               </div>
             </CarouselItem>
 
