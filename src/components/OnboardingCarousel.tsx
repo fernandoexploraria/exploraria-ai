@@ -299,7 +299,7 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                     Optimal routes, proximity alerts, and contextual information - all powered by AI
                   </p>
                 </div>
-                <div className="grid grid-cols-3 gap-4 text-xs">
+                <div className="grid grid-cols-2 gap-4 text-xs">
                   <div className="text-center">
                     <Route className="w-6 h-6 mx-auto text-primary mb-1" />
                     <div className="font-medium">Efficient</div>
@@ -311,6 +311,10 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                   <div className="text-center">
                     <Zap className="w-6 h-6 mx-auto text-primary mb-1" />
                     <div className="font-medium">Smart</div>
+                  </div>
+                  <div className="text-center">
+                    <Camera className="w-6 h-6 mx-auto text-primary mb-1" />
+                    <div className="font-medium">Visual</div>
                   </div>
                 </div>
               </div>
