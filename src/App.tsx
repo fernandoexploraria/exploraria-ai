@@ -11,6 +11,7 @@ import { PostAuthAction } from "@/utils/authActions";
 import Index from "./pages/Index";
 import CuratorPortal from "./pages/CuratorPortal";
 import ElevenLabsPlayground from "./pages/ElevenLabsPlayground";
+import AudioGenerator from "./pages/AudioGenerator";
 import { PaymentSuccess } from "./components/PaymentSuccess";
 import { PaymentFailure } from "./components/PaymentFailure";
 import { useState } from "react";
@@ -69,18 +70,22 @@ const App = () => {
                     path="/curator-portal" 
                     element={<CuratorPortal />} 
                   />
-                  <Route 
-                    path="/elevenlabs-playground" 
-                    element={<ElevenLabsPlayground />} 
-                  />
-                  <Route 
-                    path="/payment-success" 
-                    element={<PaymentSuccess />} 
-                  />
-                  <Route 
-                    path="/payment-failed" 
-                    element={<PaymentFailure />} 
-                  />
+                   <Route 
+                     path="/elevenlabs-playground" 
+                     element={<ElevenLabsPlayground />} 
+                   />
+                   <Route 
+                     path="/audio-generator" 
+                     element={<AudioGenerator />} 
+                   />
+                   <Route 
+                     path="/payment-success" 
+                     element={<PaymentSuccess />} 
+                   />
+                   <Route 
+                     path="/payment-failed" 
+                     element={<PaymentFailure />} 
+                   />
                 </Routes>
               </AuthProvider>
             </BrowserRouter>
