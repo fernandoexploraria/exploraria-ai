@@ -116,32 +116,47 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
               )}
             </CarouselItem>
 
-            {/* Slide 2: Instant Discovery */}
+            {/* Slide 2: Three Tour Types */}
             <CarouselItem>
               <div className="p-6 text-center space-y-6">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="aspect-square bg-muted rounded-lg flex items-center justify-center">
-                    <MapPin className="w-8 h-8 text-primary" />
+                <div className="space-y-3">
+                  {/* Smart Tour - Featured on top */}
+                  <div className="aspect-[2/1] bg-muted rounded-lg flex items-center justify-center">
+                    <Zap className="w-10 h-10 text-primary" />
                   </div>
-                  <div className="aspect-square bg-muted rounded-lg flex items-center justify-center">
-                    <Camera className="w-8 h-8 text-primary" />
+                  
+                  {/* 100 Landmarks & Experiences - Bottom row */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="aspect-square bg-muted rounded-lg flex items-center justify-center">
+                      <MapPin className="w-8 h-8 text-primary" />
+                    </div>
+                    <div className="aspect-square bg-muted rounded-lg flex items-center justify-center">
+                      <Camera className="w-8 h-8 text-primary" />
+                    </div>
                   </div>
                 </div>
+                
                 <div className="space-y-3">
                   <h2 className="text-2xl font-bold text-foreground">
-                    Discover Amazing Places Instantly
+                    Three Ways to Explore
                   </h2>
                   <p className="text-muted-foreground text-sm">
-                    From world-famous landmarks to hidden local gems
+                    AI-powered tours, famous landmarks, or local experiences
                   </p>
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1">
-                    Top 100 Landmarks
+                
+                <div className="space-y-2">
+                  <Button variant="outline" size="sm" className="w-full">
+                    Smart Tour (AI-Generated)
                   </Button>
-                  <Button variant="outline" size="sm" className="flex-1">
-                    Local Experiences
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="flex-1">
+                      Top 100 Landmarks
+                    </Button>
+                    <Button variant="outline" size="sm" className="flex-1">
+                      Local Experiences
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CarouselItem>
