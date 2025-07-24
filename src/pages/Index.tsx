@@ -14,6 +14,8 @@ import { useProximityNotifications } from '@/hooks/useProximityNotifications';
 import { useDebugWindow } from '@/hooks/useDebugWindow';
 import { useConnectionMonitor } from '@/hooks/useConnectionMonitor';
 import { useSplashControl } from '@/hooks/useSplashControl';
+import { useOnboardingControl } from '@/hooks/useOnboardingControl';
+import OnboardingCarousel from '@/components/OnboardingCarousel';
 import { performComprehensiveTourReset } from '@/utils/tourResetUtils';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,6 +27,7 @@ interface IndexProps {
 
 const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentStateChange }) => {
   const { showSplash, dismissSplash, showSplashManually } = useSplashControl();
+  const { showOnboarding, completeOnboarding, skipOnboarding } = useOnboardingControl();
   const [smartTourLandmarks, setSmartTourLandmarks] = useState<Landmark[]>([]);
   const [voiceTourData, setVoiceTourData] = useState<{
     destination: string;
@@ -219,6 +222,15 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
 
   if (showSplash) {
     return <SplashScreen onDismiss={dismissSplash} />;
+  }
+
+  if (showOnboarding) {
+    return (
+      <OnboardingCarousel 
+        onComplete={completeOnboarding}
+        onSkip={skipOnboarding}
+      />
+    );
   }
 
   // Don't render the map until we have a token
