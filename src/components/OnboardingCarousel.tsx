@@ -296,7 +296,7 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                     Effortless Exploration
                   </h2>
                   <p className="text-muted-foreground text-sm">
-                    Optimal routes, proximity alerts, and contextual information - all powered by AI
+                    Optimal routes, proximity alerts, contextual information, and image recognition - all powered by AI
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-4 text-xs">
