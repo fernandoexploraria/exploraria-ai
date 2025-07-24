@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { 
@@ -26,6 +26,9 @@ import { PreRenderedVoiceDemo } from '@/components/PreRenderedVoiceDemo';
 import SmartTourAnimationDemo from '@/components/SmartTourAnimationDemo';
 import LandmarkAnimationDemo from '@/components/LandmarkAnimationDemo';
 import LocalExperienceAnimationDemo from '@/components/LocalExperienceAnimationDemo';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
+import { useMapboxToken } from '@/hooks/useMapboxToken';
 
 interface OnboardingCarouselProps {
   onComplete: () => void;
@@ -43,6 +46,37 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
   const [showSmartTourDemo, setShowSmartTourDemo] = useState(false);
   const [showLandmarkDemo, setShowLandmarkDemo] = useState(false);
   const [showLocalExperienceDemo, setShowLocalExperienceDemo] = useState(false);
+  
+  const mapContainer = useRef<HTMLDivElement>(null);
+  const map = useRef<mapboxgl.Map | null>(null);
+  const mapboxToken = useMapboxToken();
+  
+  // Times Square coordinates from LandmarkAnimationDemo
+  const timesSquareCoords: [number, number] = [-73.9855426, 40.7579747];
+
+  // Initialize mini Mapbox map for landmarks preview
+  useEffect(() => {
+    if (!mapContainer.current || !mapboxToken) return;
+
+    mapboxgl.accessToken = mapboxToken;
+    
+    map.current = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: 'mapbox://styles/mapbox/light-v11',
+      center: timesSquareCoords,
+      zoom: 15,
+      interactive: false
+    });
+
+    // Add marker for Times Square
+    new mapboxgl.Marker({ color: '#ef4444' })
+      .setLngLat(timesSquareCoords)
+      .addTo(map.current);
+
+    return () => {
+      map.current?.remove();
+    };
+  }, [mapboxToken]);
 
   React.useEffect(() => {
     if (!api) return;
@@ -182,13 +216,10 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                     {/* 100 Landmarks & Experiences - Bottom row */}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="aspect-square bg-muted rounded-lg flex items-center justify-center relative overflow-hidden">
-                        <img 
-                          src="https://images.unsplash.com/photo-1472396961693-142e6e269027?w=200&h=200&fit=crop&crop=center"
-                          alt="Deer and mountains"
-                          className="absolute inset-0 w-full h-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-black/20" />
-                        <MapPin className="w-8 h-8 text-white relative z-10" />
+                        <div ref={mapContainer} className="w-full h-full" />
+                        <div className="absolute bottom-1 left-1 text-xs text-white bg-black/50 px-1 py-0.5 rounded text-center">
+                          Tap any landmark
+                        </div>
                       </div>
                       <div className="aspect-square bg-muted rounded-lg flex items-center justify-center relative overflow-hidden">
                         <img 
