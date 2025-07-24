@@ -18,7 +18,8 @@ import {
   Camera,
   Bell,
   Route,
-  X
+  X,
+  Search
 } from 'lucide-react';
 import type { CarouselApi } from '@/components/ui/carousel';
 import { PreRenderedVoiceDemo } from '@/components/PreRenderedVoiceDemo';
@@ -164,14 +165,18 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                 <div className="p-6 text-center space-y-6">
                   <div className="space-y-3">
                     {/* Smart Tour - Featured on top */}
-                    <div className="aspect-[2/1] bg-muted rounded-lg flex items-center justify-center relative overflow-hidden">
-                      <img 
-                        src="https://images.unsplash.com/photo-1469474968028-56623f02e42d?w=400&h=200&fit=crop&crop=center"
-                        alt="Mountain landscape"
-                        className="absolute inset-0 w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-black/20" />
-                      <Zap className="w-10 h-10 text-white relative z-10" />
+                    <div className="aspect-[2/1] bg-gradient-to-br from-primary/10 to-secondary/10 rounded-lg flex flex-col items-center justify-center relative overflow-hidden p-4">
+                      <div className="relative mb-2">
+                        <Search className="w-8 h-8 text-primary animate-pulse" />
+                        <div className="absolute inset-0 w-8 h-8 rounded-full border-2 border-primary animate-ping" />
+                      </div>
+                      <h4 className="text-sm font-semibold text-foreground">Choose Your Destination</h4>
+                      <div className="bg-background/80 rounded-md px-2 py-1 mt-1 animate-scale-in">
+                        <div className="flex items-center gap-1 text-xs">
+                          <MapPin className="w-3 h-3 text-primary" />
+                          <span className="text-foreground">Paris, France</span>
+                        </div>
+                      </div>
                     </div>
                     
                     {/* 100 Landmarks & Experiences - Bottom row */}
