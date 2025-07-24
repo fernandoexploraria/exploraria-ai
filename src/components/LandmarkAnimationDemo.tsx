@@ -7,7 +7,9 @@ import {
   Clock, 
   Star,
   ArrowLeft,
-  Loader2
+  Loader2,
+  CheckCircle,
+  ArrowRight
 } from 'lucide-react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -60,6 +62,7 @@ const LandmarkAnimationDemo: React.FC<LandmarkAnimationDemoProps> = ({ onComplet
       setTimeout(() => setStep(1), 1000),   // Click marker
       setTimeout(() => setStep(2), 2500),   // Loading landmark info
       setTimeout(() => setStep(3), 4000),   // Show landmark details
+      setTimeout(() => setStep(4), 6500),   // Show completion screen
     ];
 
     return () => timeouts.forEach(timeout => clearTimeout(timeout));
@@ -84,95 +87,126 @@ const LandmarkAnimationDemo: React.FC<LandmarkAnimationDemoProps> = ({ onComplet
 
       {/* Animation Content */}
       <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-4">
-        {/* Step 1: Real Mapbox map with Times Square */}
-        {step >= 0 && (
-          <div className="relative w-full max-w-sm h-48 bg-muted rounded-lg border border-border overflow-hidden">
-            <div ref={mapContainer} className="w-full h-full" />
-            
-            {/* Click indicator */}
-            {step >= 1 && (
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 border-2 border-red-500 rounded-full animate-ping" />
-            )}
-            
-            <div className="absolute bottom-2 left-2 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
-              {step === 0 && "Tap any landmark marker"}
-              {step >= 1 && "Loading landmark..."}
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Loading */}
-        {step >= 2 && step < 3 && (
-          <div className="flex flex-col items-center space-y-3">
-            <Loader2 className="w-8 h-8 text-primary animate-spin" />
-            <p className="text-sm text-muted-foreground">Gathering landmark information...</p>
-          </div>
-        )}
-
-        {/* Step 3: Times Square landmark details */}
-        {step >= 3 && (
-          <Card className="w-full max-w-sm p-4 space-y-3 animate-fade-in">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                <MapPin className="w-6 h-6 text-primary" />
-              </div>
-              <div className="flex-1">
-                <h4 className="font-medium text-foreground">Times Square</h4>
-                <p className="text-xs text-muted-foreground">Manhattan, NY 10036, USA</p>
-              </div>
+        {/* Step 4: Completion Screen */}
+        {step >= 4 ? (
+          <div className="flex flex-col items-center justify-center space-y-6 text-center animate-fade-in">
+            {/* Success Icon */}
+            <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center">
+              <ArrowRight className="w-8 h-8 text-white" />
             </div>
             
-            <div className="grid grid-cols-3 gap-2">
-              {timesSquarePhotos.slice(0, 3).map((photo, index) => (
-                <div key={index} className="aspect-square bg-muted rounded-md overflow-hidden">
-                  <img 
-                    src={photo} 
-                    alt={`Times Square ${index + 1}`}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      // Fallback to camera icon if image fails to load
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                      target.parentElement!.classList.add('flex', 'items-center', 'justify-center');
-                      target.parentElement!.innerHTML = '<div class="w-4 h-4 text-muted-foreground"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 9 3 3 3-3"/><path d="M6 3h12l2 4v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7l2-4Z"/></svg></div>';
-                    }}
-                  />
+            {/* Success Message */}
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold text-foreground">Landmark Guide Ready!</h2>
+              <p className="text-muted-foreground max-w-xs">
+                Your comprehensive guide to 100 famous landmarks with photos, history, and insider tips
+              </p>
+            </div>
+            
+            {/* Continue Button */}
+            <Button 
+              onClick={onComplete}
+              className="w-full max-w-xs bg-background text-foreground border border-border hover:bg-muted"
+              size="lg"
+            >
+              Continue Onboarding
+            </Button>
+          </div>
+        ) : (
+          <>
+            {/* Step 1: Real Mapbox map with Times Square */}
+            {step >= 0 && step < 4 && (
+              <div className="relative w-full max-w-sm h-48 bg-muted rounded-lg border border-border overflow-hidden">
+                <div ref={mapContainer} className="w-full h-full" />
+                
+                {/* Click indicator */}
+                {step >= 1 && (
+                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 border-2 border-red-500 rounded-full animate-ping" />
+                )}
+                
+                <div className="absolute bottom-2 left-2 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
+                  {step === 0 && "Tap any landmark marker"}
+                  {step >= 1 && "Loading landmark..."}
                 </div>
-              ))}
-            </div>
-            
-            <div className="flex items-center justify-between text-xs">
-              <div className="flex items-center space-x-1">
-                <Star className="w-3 h-3 text-yellow-500 fill-current" />
-                <span className="text-muted-foreground">4.7 • Plaza</span>
               </div>
-              <div className="flex items-center space-x-1">
-                <Clock className="w-3 h-3 text-muted-foreground" />
-                <span className="text-muted-foreground">24/7 open</span>
-              </div>
-            </div>
-            
-            <p className="text-xs text-muted-foreground">
-              Bustling destination in the heart of the Theater District known for bright lights, shopping & shows.
-            </p>
-          </Card>
-        )}
+            )}
 
-        {/* Progress text */}
-        <div className="text-center space-y-1">
-          <h3 className="text-lg font-semibold text-foreground">
-            {step === 0 && "Explore 100 Famous Landmarks"}
-            {step === 1 && "Instant Access"}
-            {step === 2 && "Rich Information"}
-            {step >= 3 && "Complete Landmark Guide"}
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            {step === 0 && "Tap any landmark to learn more"}
-            {step === 1 && "Get detailed information instantly"}
-            {step === 2 && "Photos, history, and visiting tips"}
-            {step >= 3 && "Everything you need to plan your visit"}
-          </p>
-        </div>
+            {/* Step 2: Loading */}
+            {step >= 2 && step < 3 && (
+              <div className="flex flex-col items-center space-y-3">
+                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                <p className="text-sm text-muted-foreground">Gathering landmark information...</p>
+              </div>
+            )}
+
+            {/* Step 3: Times Square landmark details */}
+            {step >= 3 && step < 4 && (
+              <Card className="w-full max-w-sm p-4 space-y-3 animate-fade-in">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <MapPin className="w-6 h-6 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-medium text-foreground">Times Square</h4>
+                    <p className="text-xs text-muted-foreground">Manhattan, NY 10036, USA</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-3 gap-2">
+                  {timesSquarePhotos.slice(0, 3).map((photo, index) => (
+                    <div key={index} className="aspect-square bg-muted rounded-md overflow-hidden">
+                      <img 
+                        src={photo} 
+                        alt={`Times Square ${index + 1}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Fallback to camera icon if image fails to load
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          target.parentElement!.classList.add('flex', 'items-center', 'justify-center');
+                          target.parentElement!.innerHTML = '<div class="w-4 h-4 text-muted-foreground"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 9 3 3 3-3"/><path d="M6 3h12l2 4v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7l2-4Z"/></svg></div>';
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center space-x-1">
+                    <Star className="w-3 h-3 text-yellow-500 fill-current" />
+                    <span className="text-muted-foreground">4.7 • Plaza</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <Clock className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-muted-foreground">24/7 open</span>
+                  </div>
+                </div>
+                
+                <p className="text-xs text-muted-foreground">
+                  Bustling destination in the heart of the Theater District known for bright lights, shopping & shows.
+                </p>
+              </Card>
+            )}
+
+            {/* Progress text */}
+            {step < 4 && (
+              <div className="text-center space-y-1">
+                <h3 className="text-lg font-semibold text-foreground">
+                  {step === 0 && "Explore 100 Famous Landmarks"}
+                  {step === 1 && "Instant Access"}
+                  {step === 2 && "Rich Information"}
+                  {step >= 3 && "Complete Landmark Guide"}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {step === 0 && "Tap any landmark to learn more"}
+                  {step === 1 && "Get detailed information instantly"}
+                  {step === 2 && "Photos, history, and visiting tips"}
+                  {step >= 3 && "Everything you need to plan your visit"}
+                </p>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
