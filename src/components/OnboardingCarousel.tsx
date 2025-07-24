@@ -164,17 +164,35 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                 <div className="p-6 text-center space-y-6">
                   <div className="space-y-3">
                     {/* Smart Tour - Featured on top */}
-                    <div className="aspect-[2/1] bg-muted rounded-lg flex items-center justify-center">
-                      <Zap className="w-10 h-10 text-primary" />
+                    <div className="aspect-[2/1] bg-muted rounded-lg flex items-center justify-center relative overflow-hidden">
+                      <img 
+                        src="https://images.unsplash.com/photo-1469474968028-56623f02e42d?w=400&h=200&fit=crop&crop=center"
+                        alt="Mountain landscape"
+                        className="absolute inset-0 w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/20" />
+                      <Zap className="w-10 h-10 text-white relative z-10" />
                     </div>
                     
                     {/* 100 Landmarks & Experiences - Bottom row */}
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="aspect-square bg-muted rounded-lg flex items-center justify-center">
-                        <MapPin className="w-8 h-8 text-primary" />
+                      <div className="aspect-square bg-muted rounded-lg flex items-center justify-center relative overflow-hidden">
+                        <img 
+                          src="https://images.unsplash.com/photo-1472396961693-142e6e269027?w=200&h=200&fit=crop&crop=center"
+                          alt="Deer and mountains"
+                          className="absolute inset-0 w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/20" />
+                        <MapPin className="w-8 h-8 text-white relative z-10" />
                       </div>
-                      <div className="aspect-square bg-muted rounded-lg flex items-center justify-center">
-                        <Camera className="w-8 h-8 text-primary" />
+                      <div className="aspect-square bg-muted rounded-lg flex items-center justify-center relative overflow-hidden">
+                        <img 
+                          src="https://images.unsplash.com/photo-1581090464777-f3220bbe1b8b?w=200&h=200&fit=crop&crop=center"
+                          alt="Woman with laptop"
+                          className="absolute inset-0 w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/20" />
+                        <Camera className="w-8 h-8 text-white relative z-10" />
                       </div>
                     </div>
                   </div>
