@@ -71,19 +71,9 @@ const LocalExperienceAnimationDemo: React.FC<LocalExperienceAnimationDemoProps> 
   }, []);
 
   return (
-    <div className="relative w-full h-full flex flex-col bg-background overflow-hidden">
-      {/* Background Image for Step 0 */}
-      {step === 0 && (
-        <div className="absolute inset-0 opacity-20">
-          <img 
-            src="https://images.unsplash.com/photo-1472396961693-142e6e269027?w=800&auto=format&fit=crop&q=60"
-            alt="Local experience background"
-            className="w-full h-full object-cover"
-          />
-        </div>
-      )}
+    <div className="w-full h-full flex flex-col bg-background">
       {/* Header */}
-      <div className="relative z-10 flex items-center justify-between p-4 border-b border-border">
+      <div className="flex items-center justify-between p-4 border-b border-border">
         <Button
           variant="ghost"
           size="sm"
@@ -98,7 +88,7 @@ const LocalExperienceAnimationDemo: React.FC<LocalExperienceAnimationDemoProps> 
       </div>
 
       {/* Animation Content */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6 space-y-4">
+      <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-4">
         {/* Step 5: Completion Screen */}
         {step >= 5 ? (
           <div className="flex flex-col items-center justify-center space-y-6 text-center animate-fade-in">
