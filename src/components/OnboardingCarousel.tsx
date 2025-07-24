@@ -18,12 +18,10 @@ import {
   Camera,
   Bell,
   Route,
-  X,
-  Square,
-  Loader2
+  X
 } from 'lucide-react';
 import type { CarouselApi } from '@/components/ui/carousel';
-import { useVoiceDialogueDemo } from '@/hooks/useVoiceDialogueDemo';
+import { PreRenderedVoiceDemo } from '@/components/PreRenderedVoiceDemo';
 
 interface OnboardingCarouselProps {
   onComplete: () => void;
@@ -37,7 +35,7 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
   const [count, setCount] = useState(0);
-  const { playDialogue, isPlaying, isGenerating, currentLine } = useVoiceDialogueDemo();
+  const [showVoiceDemo, setShowVoiceDemo] = useState(false);
 
   React.useEffect(() => {
     if (!api) return;
@@ -58,13 +56,12 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
     }
   };
 
-  const handleVoiceDemo = async () => {
-    console.log('🎭 OnboardingCarousel: handleVoiceDemo called');
-    try {
-      await playDialogue();
-    } catch (error) {
-      console.error('🎭 OnboardingCarousel: Error in handleVoiceDemo:', error);
-    }
+  const handleVoiceDemo = () => {
+    setShowVoiceDemo(true);
+  };
+
+  const handleDemoComplete = () => {
+    setShowVoiceDemo(false);
   };
 
   return (
@@ -87,44 +84,36 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
           <CarouselContent>
             {/* Slide 1: AI Voice Hook */}
             <CarouselItem>
-              <div className="p-6 text-center space-y-6">
-                <div className="relative">
-                  <Volume2 className="w-16 h-16 mx-auto text-primary animate-pulse" />
-                  <div className="absolute inset-0 w-16 h-16 mx-auto rounded-full border-2 border-primary animate-ping" />
+              {showVoiceDemo ? (
+                <div className="p-2">
+                  <PreRenderedVoiceDemo onComplete={handleDemoComplete} />
                 </div>
-                <div className="space-y-3">
-                  <h2 className="text-2xl font-bold text-foreground">
-                    Your Personal AI Tour Guide
-                  </h2>
-                  <p className="text-muted-foreground text-sm">
-                    Get live commentary and insider tips as you explore - just like having a local expert with you
-                  </p>
-                </div>
-                <div className="space-y-3">
-                  <Button
-                    variant="outline"
-                    onClick={handleVoiceDemo}
-                    disabled={isGenerating || isPlaying}
-                    className="flex items-center gap-2 w-full"
-                  >
-                    {isGenerating ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : isPlaying ? (
-                      <Square className="w-4 h-4" />
-                    ) : (
+              ) : (
+                <div className="p-6 text-center space-y-6">
+                  <div className="relative">
+                    <Volume2 className="w-16 h-16 mx-auto text-primary animate-pulse" />
+                    <div className="absolute inset-0 w-16 h-16 mx-auto rounded-full border-2 border-primary animate-ping" />
+                  </div>
+                  <div className="space-y-3">
+                    <h2 className="text-2xl font-bold text-foreground">
+                      Your Personal AI Tour Guide
+                    </h2>
+                    <p className="text-muted-foreground text-sm">
+                      Get live commentary and insider tips as you explore - just like having a local expert with you
+                    </p>
+                  </div>
+                  <div className="space-y-3">
+                    <Button
+                      variant="outline"
+                      onClick={handleVoiceDemo}
+                      className="flex items-center gap-2 w-full"
+                    >
                       <Play className="w-4 h-4" />
-                    )}
-                    {isGenerating ? 'Preparing Demo...' : isPlaying ? 'Stop Demo' : 'Try Personal AI Tour Guide'}
-                  </Button>
-                  
-                  {isPlaying && currentLine >= 0 && (
-                    <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground animate-pulse">
-                      <div className="w-2 h-2 bg-primary rounded-full animate-ping" />
-                      {currentLine % 2 === 0 ? '🗺️ Tour Guide Speaking...' : '🧳 Tourist Speaking...'}
-                    </div>
-                  )}
+                      Try Personal AI Tour Guide
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
             </CarouselItem>
 
             {/* Slide 2: Instant Discovery */}

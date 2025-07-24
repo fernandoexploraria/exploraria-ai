@@ -1,0 +1,355 @@
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Play, Square, Volume2 } from 'lucide-react';
+
+interface DialogueLine {
+  id: string;
+  speaker: 'AGENT' | 'TOURIST';
+  text: string;
+  audioUrl: string;
+}
+
+interface DialogueChoice {
+  id: string;
+  text: string;
+  displayText: string;
+}
+
+interface DialogueStep {
+  id: string;
+  lines: DialogueLine[];
+  choices?: DialogueChoice[];
+  isEnd?: boolean;
+}
+
+// Pre-scripted dialogue tree
+const DIALOGUE_SCRIPT: Record<string, DialogueStep> = {
+  intro: {
+    id: 'intro',
+    lines: [
+      {
+        id: 'agent-welcome',
+        speaker: 'AGENT',
+        text: "Hi! I'm Alexis, your personal AI tour guide. Welcome to New York City! What kind of adventure are you looking for today?",
+        audioUrl: 'voice-demo-audio/agent-welcome.mp3'
+      }
+    ],
+    choices: [
+      { id: 'historical', text: 'historical', displayText: 'Show me iconic landmarks and history' },
+      { id: 'hidden', text: 'hidden', displayText: 'I want to discover hidden gems' }
+    ]
+  },
+  historical: {
+    id: 'historical',
+    lines: [
+      {
+        id: 'tourist-historical',
+        speaker: 'TOURIST',
+        text: 'Show me iconic landmarks and history',
+        audioUrl: 'voice-demo-audio/tourist-historical.mp3'
+      },
+      {
+        id: 'agent-historical-response',
+        speaker: 'AGENT',
+        text: "Perfect choice! New York is rich with incredible history. Look behind you - that's the magnificent Empire State Building! Built in 1931, it was the world's tallest building for 40 years. Would you like to explore it or see what other treasures are nearby?",
+        audioUrl: 'voice-demo-audio/agent-historical-response.mp3'
+      }
+    ],
+    choices: [
+      { id: 'empire-state', text: 'empire-state', displayText: 'Tell me more about the Empire State Building' },
+      { id: 'nearby-treasures', text: 'nearby-treasures', displayText: 'Show me other nearby treasures' }
+    ]
+  },
+  hidden: {
+    id: 'hidden',
+    lines: [
+      {
+        id: 'tourist-hidden',
+        speaker: 'TOURIST',
+        text: 'I want to discover hidden gems',
+        audioUrl: 'voice-demo-audio/tourist-hidden.mp3'
+      },
+      {
+        id: 'agent-hidden-response',
+        speaker: 'AGENT',
+        text: "Excellent! I love showing visitors NYC's secret spots. Just two blocks from here is a hidden speakeasy from the 1920s that most tourists never find. Plus, there's a rooftop garden with stunning city views that locals use as their quiet escape. Which sounds more intriguing?",
+        audioUrl: 'voice-demo-audio/agent-hidden-response.mp3'
+      }
+    ],
+    choices: [
+      { id: 'speakeasy', text: 'speakeasy', displayText: 'The secret speakeasy sounds amazing!' },
+      { id: 'garden', text: 'garden', displayText: 'I love peaceful spots - show me the garden' }
+    ]
+  },
+  'empire-state': {
+    id: 'empire-state',
+    lines: [
+      {
+        id: 'tourist-empire-state',
+        speaker: 'TOURIST',
+        text: 'Tell me more about the Empire State Building',
+        audioUrl: 'voice-demo-audio/tourist-empire-state.mp3'
+      },
+      {
+        id: 'agent-empire-final',
+        speaker: 'AGENT',
+        text: "Here's a fascinating detail - the building has its own ZIP code! It was constructed in just 410 days, and on clear days, you can see five states from the top. The lights change colors for holidays and special events. I can help you skip the lines and find the best photo spots. Ready to start your New York adventure?",
+        audioUrl: 'voice-demo-audio/agent-empire-final.mp3'
+      }
+    ],
+    isEnd: true
+  },
+  'nearby-treasures': {
+    id: 'nearby-treasures',
+    lines: [
+      {
+        id: 'tourist-nearby',
+        speaker: 'TOURIST',
+        text: 'Show me other nearby treasures',
+        audioUrl: 'voice-demo-audio/tourist-nearby.mp3'
+      },
+      {
+        id: 'agent-nearby-final',
+        speaker: 'AGENT',
+        text: "Within walking distance, you'll find the stunning New York Public Library with its famous lions, Bryant Park where locals relax, and Grand Central Terminal - an architectural masterpiece. I can create the perfect route based on your interests and show you insider tips for each location. Shall we begin your personalized tour?",
+        audioUrl: 'voice-demo-audio/agent-nearby-final.mp3'
+      }
+    ],
+    isEnd: true
+  },
+  speakeasy: {
+    id: 'speakeasy',
+    lines: [
+      {
+        id: 'tourist-speakeasy',
+        speaker: 'TOURIST',
+        text: 'The secret speakeasy sounds amazing!',
+        audioUrl: 'voice-demo-audio/tourist-speakeasy.mp3'
+      },
+      {
+        id: 'agent-speakeasy-final',
+        speaker: 'AGENT',
+        text: "Perfect! It's called 'The Back Room' and you enter through a toy store - just like the prohibition era! They serve authentic 1920s cocktails in teacups and brown paper bags. I'll guide you there and share the secret password. Plus, I know the best time to visit when it's not crowded. Ready to discover New York's hidden side?",
+        audioUrl: 'voice-demo-audio/agent-speakeasy-final.mp3'
+      }
+    ],
+    isEnd: true
+  },
+  garden: {
+    id: 'garden',
+    lines: [
+      {
+        id: 'tourist-garden',
+        speaker: 'TOURIST',
+        text: 'I love peaceful spots - show me the garden',
+        audioUrl: 'voice-demo-audio/tourist-garden.mp3'
+      },
+      {
+        id: 'agent-garden-final',
+        speaker: 'AGENT',
+        text: "It's called the High Line - an elevated park built on old railway tracks. You'll walk among wildflowers with incredible views of the Hudson River and city skyline. There are art installations and cozy seating areas where you can watch the sunset. I can show you the best entrance and the most Instagram-worthy spots. Shall we head there now?",
+        audioUrl: 'voice-demo-audio/agent-garden-final.mp3'
+      }
+    ],
+    isEnd: true
+  }
+};
+
+interface PreRenderedVoiceDemoProps {
+  onComplete: () => void;
+}
+
+export const PreRenderedVoiceDemo = ({ onComplete }: PreRenderedVoiceDemoProps) => {
+  const [currentStep, setCurrentStep] = useState<string>('intro');
+  const [displayedLines, setDisplayedLines] = useState<DialogueLine[]>([]);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
+  const [isThinking, setIsThinking] = useState(false);
+
+  const step = DIALOGUE_SCRIPT[currentStep];
+
+  useEffect(() => {
+    // Reset displayed lines when step changes
+    setDisplayedLines([]);
+    playStepLines();
+  }, [currentStep]);
+
+  const playStepLines = async () => {
+    if (!step || isPlaying) return;
+    
+    setIsPlaying(true);
+    
+    for (let i = 0; i < step.lines.length; i++) {
+      const line = step.lines[i];
+      
+      // Add thinking animation before AI responses
+      if (line.speaker === 'AGENT' && i > 0) {
+        setIsThinking(true);
+        await new Promise(resolve => setTimeout(resolve, 1200));
+        setIsThinking(false);
+      }
+      
+      // Display the text
+      setDisplayedLines(prev => [...prev, line]);
+      
+      // Play the audio
+      try {
+        await playAudio(line.audioUrl);
+      } catch (error) {
+        console.log('Audio playback failed:', error);
+        // Continue without audio if file doesn't exist
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+      
+      // Short pause between lines
+      if (i < step.lines.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 800));
+      }
+    }
+    
+    setIsPlaying(false);
+  };
+
+  const playAudio = (audioUrl: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      // Stop current audio if playing
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+      }
+      
+      const audio = new Audio(`https://ejqgdmbuabrcjxbhpxup.supabase.co/storage/v1/object/public/${audioUrl}`);
+      setCurrentAudio(audio);
+      
+      audio.onended = () => resolve();
+      audio.onerror = () => {
+        console.log(`Audio file not found: ${audioUrl}`);
+        reject(new Error('Audio file not found'));
+      };
+      
+      audio.play().catch(reject);
+    });
+  };
+
+  const handleChoice = (choiceId: string) => {
+    if (isPlaying) return;
+    setCurrentStep(choiceId);
+  };
+
+  const stopDemo = () => {
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+    }
+    setIsPlaying(false);
+    setIsThinking(false);
+    onComplete();
+  };
+
+  return (
+    <Card className="w-full max-w-2xl mx-auto p-6 bg-gradient-to-br from-background via-background to-background/80 border-2 border-primary/20">
+      <div className="space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Volume2 className="h-5 w-5 text-primary" />
+            <h3 className="text-lg font-semibold">AI Tour Guide Demo</h3>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={stopDemo}
+            className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20"
+          >
+            <Square className="h-3 w-3 mr-1" />
+            Stop Demo
+          </Button>
+        </div>
+
+        {/* Chat Messages */}
+        <div className="space-y-3 min-h-[300px] max-h-[400px] overflow-y-auto">
+          {displayedLines.map((line, index) => (
+            <div
+              key={`${line.id}-${index}`}
+              className={`flex ${line.speaker === 'AGENT' ? 'justify-start' : 'justify-end'}`}
+            >
+              <div
+                className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                  line.speaker === 'AGENT'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-secondary text-secondary-foreground'
+                }`}
+              >
+                <div className="text-xs opacity-70 mb-1">
+                  {line.speaker === 'AGENT' ? '🤖 Alexis' : '👤 You'}
+                </div>
+                <div className="text-sm">{line.text}</div>
+              </div>
+            </div>
+          ))}
+          
+          {/* Thinking animation */}
+          {isThinking && (
+            <div className="flex justify-start">
+              <div className="bg-primary text-primary-foreground rounded-lg px-4 py-2 max-w-[80%]">
+                <div className="text-xs opacity-70 mb-1">🤖 Alexis</div>
+                <div className="flex items-center gap-1">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:0ms]"></div>
+                    <div className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:150ms]"></div>
+                    <div className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:300ms]"></div>
+                  </div>
+                  <span className="text-xs ml-2">thinking...</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Choice Buttons */}
+        {step.choices && !isPlaying && !isThinking && (
+          <div className="space-y-2">
+            <div className="text-sm text-muted-foreground text-center">Choose your response:</div>
+            <div className="flex flex-col gap-2">
+              {step.choices.map((choice) => (
+                <Button
+                  key={choice.id}
+                  variant="outline"
+                  onClick={() => handleChoice(choice.id)}
+                  className="justify-start text-left h-auto p-3 hover:bg-secondary/80"
+                  disabled={isPlaying}
+                >
+                  {choice.displayText}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* End of Demo */}
+        {step.isEnd && !isPlaying && (
+          <div className="text-center space-y-4 pt-4 border-t">
+            <div className="text-sm text-muted-foreground">
+              ✨ Demo completed! Experience the full AI tour guide with your own personalized adventures.
+            </div>
+            <Button
+              onClick={onComplete}
+              className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary text-primary-foreground"
+            >
+              Start Your Real Adventure
+            </Button>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {isPlaying && (
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
+            Playing demo...
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+};
