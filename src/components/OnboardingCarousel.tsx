@@ -24,6 +24,7 @@ import type { CarouselApi } from '@/components/ui/carousel';
 import { PreRenderedVoiceDemo } from '@/components/PreRenderedVoiceDemo';
 import SmartTourAnimationDemo from '@/components/SmartTourAnimationDemo';
 import LandmarkAnimationDemo from '@/components/LandmarkAnimationDemo';
+import LocalExperienceAnimationDemo from '@/components/LocalExperienceAnimationDemo';
 
 interface OnboardingCarouselProps {
   onComplete: () => void;
@@ -40,6 +41,7 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
   const [showVoiceDemo, setShowVoiceDemo] = useState(false);
   const [showSmartTourDemo, setShowSmartTourDemo] = useState(false);
   const [showLandmarkDemo, setShowLandmarkDemo] = useState(false);
+  const [showLocalExperienceDemo, setShowLocalExperienceDemo] = useState(false);
 
   React.useEffect(() => {
     if (!api) return;
@@ -82,6 +84,14 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
 
   const handleLandmarkDemoComplete = () => {
     setShowLandmarkDemo(false);
+  };
+
+  const handleLocalExperienceDemo = () => {
+    setShowLocalExperienceDemo(true);
+  };
+
+  const handleLocalExperienceDemoComplete = () => {
+    setShowLocalExperienceDemo(false);
   };
 
   return (
@@ -146,6 +156,10 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                 <div className="p-2">
                   <LandmarkAnimationDemo onComplete={handleLandmarkDemoComplete} />
                 </div>
+              ) : showLocalExperienceDemo ? (
+                <div className="p-2">
+                  <LocalExperienceAnimationDemo onComplete={handleLocalExperienceDemoComplete} />
+                </div>
               ) : (
                 <div className="p-6 text-center space-y-6">
                   <div className="space-y-3">
@@ -193,7 +207,12 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                       >
                         Top 100 Landmarks
                       </Button>
-                      <Button variant="outline" size="sm" className="flex-1">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={handleLocalExperienceDemo}
+                      >
                         Local Experiences
                       </Button>
                     </div>
