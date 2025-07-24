@@ -19,7 +19,9 @@ import {
   Bell,
   Route,
   X,
-  Search
+  Search,
+  User,
+  Award
 } from 'lucide-react';
 import type { CarouselApi } from '@/components/ui/carousel';
 import { PreRenderedVoiceDemo } from '@/components/PreRenderedVoiceDemo';
@@ -221,14 +223,22 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                           Tap any landmark
                         </div>
                       </div>
-                      <div className="aspect-square bg-muted rounded-lg flex items-center justify-center relative overflow-hidden">
-                        <img 
-                          src="https://images.unsplash.com/photo-1581090464777-f3220bbe1b8b?w=200&h=200&fit=crop&crop=center"
-                          alt="Woman with laptop"
-                          className="absolute inset-0 w-full h-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-black/20" />
-                        <Camera className="w-8 h-8 text-white relative z-10" />
+                      <div className="aspect-square bg-gradient-to-br from-primary/10 to-secondary/10 rounded-lg flex flex-col items-center justify-center relative overflow-hidden p-3">
+                        {/* Expert Avatar */}
+                        <div className="relative mb-2">
+                          <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                            <User className="w-6 h-6 text-primary" />
+                          </div>
+                          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-yellow-500 rounded-full flex items-center justify-center">
+                            <Award className="w-3 h-3 text-white" />
+                          </div>
+                        </div>
+                        
+                        {/* Expert Info */}
+                        <div className="text-center">
+                          <h4 className="text-xs font-semibold text-foreground">Travel Expert</h4>
+                          <p className="text-xs text-muted-foreground">Mexico City Guide</p>
+                        </div>
                       </div>
                     </div>
                   </div>
