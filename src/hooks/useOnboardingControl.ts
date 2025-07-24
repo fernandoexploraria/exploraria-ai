@@ -7,18 +7,22 @@ export const useOnboardingControl = () => {
     // Check if onboarding has been completed
     const onboardingCompleted = localStorage.getItem('onboarding-completed');
     
-    // Check if this is a first-time visitor
-    const hasVisitedBefore = localStorage.getItem('has-visited');
+    console.log('🎯 Onboarding check:', {
+      onboardingCompleted,
+      localStorage: Object.keys(localStorage)
+    });
     
-    // Show onboarding if:
-    // 1. First time visitor (no localStorage entry) AND onboarding not completed
-    if (!hasVisitedBefore && !onboardingCompleted) {
-      console.log('🎯 Showing onboarding - first time visitor');
+    // Show onboarding if it hasn't been completed yet
+    if (!onboardingCompleted) {
+      console.log('🎯 Showing onboarding - not completed yet');
       setShowOnboarding(true);
     } else {
-      console.log('🎯 Skipping onboarding - returning user or completed');
+      console.log('🎯 Skipping onboarding - already completed');
       setShowOnboarding(false);
     }
+    
+    // Mark that user has visited (for future reference)
+    localStorage.setItem('has-visited', 'true');
   }, []);
 
   const completeOnboarding = () => {
