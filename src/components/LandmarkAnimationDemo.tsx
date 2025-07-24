@@ -97,14 +97,26 @@ const LandmarkAnimationDemo: React.FC<LandmarkAnimationDemoProps> = ({ onComplet
             </div>
             
             <div className="grid grid-cols-3 gap-2">
-              <div className="aspect-square bg-muted rounded-md flex items-center justify-center">
-                <Camera className="w-4 h-4 text-muted-foreground" />
+              <div className="aspect-square bg-muted rounded-md overflow-hidden">
+                <img 
+                  src="https://images.unsplash.com/photo-1426604966848-d7adac402bff?w=150&h=150&fit=crop&crop=center" 
+                  alt="Eiffel Tower view 1" 
+                  className="w-full h-full object-cover"
+                />
               </div>
-              <div className="aspect-square bg-muted rounded-md flex items-center justify-center">
-                <Camera className="w-4 h-4 text-muted-foreground" />
+              <div className="aspect-square bg-muted rounded-md overflow-hidden">
+                <img 
+                  src="https://images.unsplash.com/photo-1469474968028-56623f02e425?w=150&h=150&fit=crop&crop=center" 
+                  alt="Eiffel Tower view 2" 
+                  className="w-full h-full object-cover"
+                />
               </div>
-              <div className="aspect-square bg-muted rounded-md flex items-center justify-center">
-                <Camera className="w-4 h-4 text-muted-foreground" />
+              <div className="aspect-square bg-muted rounded-md overflow-hidden">
+                <img 
+                  src="https://images.unsplash.com/photo-1473091534298-04dcbce3278c?w=150&h=150&fit=crop&crop=center" 
+                  alt="Eiffel Tower view 3" 
+                  className="w-full h-full object-cover"
+                />
               </div>
             </div>
             
