@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import type { CarouselApi } from '@/components/ui/carousel';
 import { PreRenderedVoiceDemo } from '@/components/PreRenderedVoiceDemo';
+import SmartTourAnimationDemo from '@/components/SmartTourAnimationDemo';
 
 interface OnboardingCarouselProps {
   onComplete: () => void;
@@ -36,6 +37,7 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
   const [current, setCurrent] = useState(0);
   const [count, setCount] = useState(0);
   const [showVoiceDemo, setShowVoiceDemo] = useState(false);
+  const [showSmartTourDemo, setShowSmartTourDemo] = useState(false);
 
   React.useEffect(() => {
     if (!api) return;
@@ -62,6 +64,14 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
 
   const handleDemoComplete = () => {
     setShowVoiceDemo(false);
+  };
+
+  const handleSmartTourDemo = () => {
+    setShowSmartTourDemo(true);
+  };
+
+  const handleSmartTourDemoComplete = () => {
+    setShowSmartTourDemo(false);
   };
 
   return (
@@ -118,47 +128,59 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
 
             {/* Slide 2: Three Tour Types */}
             <CarouselItem>
-              <div className="p-6 text-center space-y-6">
-                <div className="space-y-3">
-                  {/* Smart Tour - Featured on top */}
-                  <div className="aspect-[2/1] bg-muted rounded-lg flex items-center justify-center">
-                    <Zap className="w-10 h-10 text-primary" />
+              {showSmartTourDemo ? (
+                <div className="p-2">
+                  <SmartTourAnimationDemo onComplete={handleSmartTourDemoComplete} />
+                </div>
+              ) : (
+                <div className="p-6 text-center space-y-6">
+                  <div className="space-y-3">
+                    {/* Smart Tour - Featured on top */}
+                    <div className="aspect-[2/1] bg-muted rounded-lg flex items-center justify-center">
+                      <Zap className="w-10 h-10 text-primary" />
+                    </div>
+                    
+                    {/* 100 Landmarks & Experiences - Bottom row */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="aspect-square bg-muted rounded-lg flex items-center justify-center">
+                        <MapPin className="w-8 h-8 text-primary" />
+                      </div>
+                      <div className="aspect-square bg-muted rounded-lg flex items-center justify-center">
+                        <Camera className="w-8 h-8 text-primary" />
+                      </div>
+                    </div>
                   </div>
                   
-                  {/* 100 Landmarks & Experiences - Bottom row */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="aspect-square bg-muted rounded-lg flex items-center justify-center">
-                      <MapPin className="w-8 h-8 text-primary" />
-                    </div>
-                    <div className="aspect-square bg-muted rounded-lg flex items-center justify-center">
-                      <Camera className="w-8 h-8 text-primary" />
+                  <div className="space-y-3">
+                    <h2 className="text-2xl font-bold text-foreground">
+                      Three Ways to Explore
+                    </h2>
+                    <p className="text-muted-foreground text-sm">
+                      AI-powered tours, famous landmarks, or local experiences
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={handleSmartTourDemo}
+                    >
+                      <Zap className="w-4 h-4 mr-2" />
+                      Try Smart Tour (AI-Generated)
+                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" className="flex-1">
+                        Top 100 Landmarks
+                      </Button>
+                      <Button variant="outline" size="sm" className="flex-1">
+                        Local Experiences
+                      </Button>
                     </div>
                   </div>
                 </div>
-                
-                <div className="space-y-3">
-                  <h2 className="text-2xl font-bold text-foreground">
-                    Three Ways to Explore
-                  </h2>
-                  <p className="text-muted-foreground text-sm">
-                    AI-powered tours, famous landmarks, or local experiences
-                  </p>
-                </div>
-                
-                <div className="space-y-2">
-                  <Button variant="outline" size="sm" className="w-full">
-                    Smart Tour (AI-Generated)
-                  </Button>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1">
-                      Top 100 Landmarks
-                    </Button>
-                    <Button variant="outline" size="sm" className="flex-1">
-                      Local Experiences
-                    </Button>
-                  </div>
-                </div>
-              </div>
+              )}
             </CarouselItem>
 
             {/* Slide 3: Smart Features */}
