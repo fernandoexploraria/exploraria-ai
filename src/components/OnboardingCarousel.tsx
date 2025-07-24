@@ -58,8 +58,13 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
     }
   };
 
-  const handleVoiceDemo = () => {
-    playDialogue();
+  const handleVoiceDemo = async () => {
+    console.log('🎭 OnboardingCarousel: handleVoiceDemo called');
+    try {
+      await playDialogue();
+    } catch (error) {
+      console.error('🎭 OnboardingCarousel: Error in handleVoiceDemo:', error);
+    }
   };
 
   return (
