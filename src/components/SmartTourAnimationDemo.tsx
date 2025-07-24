@@ -55,19 +55,29 @@ const SmartTourAnimationDemo: React.FC<SmartTourAnimationDemoProps> = ({ onCompl
   }, []);
 
   const renderDestinationStep = () => (
-    <div className="text-center space-y-4 animate-fade-in">
-      <div className="relative">
-        <Search className="w-16 h-16 mx-auto text-primary animate-pulse" />
-        <div className="absolute inset-0 w-16 h-16 mx-auto rounded-full border-2 border-primary animate-ping" />
+    <div className="relative text-center space-y-4 animate-fade-in">
+      {/* Background Image */}
+      <div className="absolute inset-0 rounded-lg overflow-hidden opacity-20">
+        <img 
+          src="https://images.unsplash.com/photo-1500375592092-40eb2168fd21?w=800&auto=format&fit=crop&q=60"
+          alt="Travel background"
+          className="w-full h-full object-cover"
+        />
       </div>
-      <h3 className="text-xl font-bold text-foreground">Choose Your Destination</h3>
-      <div className="bg-muted rounded-lg p-3 animate-scale-in">
-        <div className="flex items-center gap-2 text-sm">
-          <MapPin className="w-4 h-4 text-primary" />
-          <span className="text-foreground">Paris, France</span>
+      <div className="relative z-10">
+        <div className="relative">
+          <Search className="w-16 h-16 mx-auto text-primary animate-pulse" />
+          <div className="absolute inset-0 w-16 h-16 mx-auto rounded-full border-2 border-primary animate-ping" />
         </div>
+        <h3 className="text-xl font-bold text-foreground">Choose Your Destination</h3>
+        <div className="bg-muted rounded-lg p-3 animate-scale-in">
+          <div className="flex items-center gap-2 text-sm">
+            <MapPin className="w-4 h-4 text-primary" />
+            <span className="text-foreground">Paris, France</span>
+          </div>
+        </div>
+        <p className="text-muted-foreground text-sm">Tell us where you want to explore...</p>
       </div>
-      <p className="text-muted-foreground text-sm">Tell us where you want to explore...</p>
     </div>
   );
 
