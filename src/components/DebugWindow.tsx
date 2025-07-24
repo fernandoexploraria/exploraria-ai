@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import EnhancedStreetViewModal from '@/components/EnhancedStreetViewModal';
 import PlacesApiTestPanel from '@/components/PlacesApiTestPanel';
 import NetworkTestingPanel from '@/components/NetworkTestingPanel';
+import DemoAssetsUtility from '@/components/DemoAssetsUtility';
 
 interface DebugWindowProps {
   isVisible: boolean;
@@ -574,6 +575,14 @@ const DebugWindow: React.FC<DebugWindowProps> = ({ isVisible, onClose }) => {
               
               <div className="mt-6">
                 <NetworkTestingPanel />
+              </div>
+
+              <div className="mt-6 p-4 border rounded-lg">
+                <div className="flex items-center gap-2 mb-4">
+                  <Camera className="w-4 h-4" />
+                  <span className="font-semibold text-sm">Demo Assets Storage</span>
+                </div>
+                <DemoAssetsUtility />
               </div>
             </div>
           </TabsContent>
