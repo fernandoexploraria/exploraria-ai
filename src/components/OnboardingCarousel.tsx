@@ -28,6 +28,7 @@ import { PreRenderedVoiceDemo } from '@/components/PreRenderedVoiceDemo';
 import SmartTourAnimationDemo from '@/components/SmartTourAnimationDemo';
 import LandmarkAnimationDemo from '@/components/LandmarkAnimationDemo';
 import LocalExperienceAnimationDemo from '@/components/LocalExperienceAnimationDemo';
+import TravelMemoryAnimationDemo from '@/components/TravelMemoryAnimationDemo';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useMapboxToken } from '@/hooks/useMapboxToken';
@@ -48,6 +49,7 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
   const [showSmartTourDemo, setShowSmartTourDemo] = useState(false);
   const [showLandmarkDemo, setShowLandmarkDemo] = useState(false);
   const [showLocalExperienceDemo, setShowLocalExperienceDemo] = useState(false);
+  const [showTravelMemoryDemo, setShowTravelMemoryDemo] = useState(false);
   
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -129,6 +131,14 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
 
   const handleLocalExperienceDemoComplete = () => {
     setShowLocalExperienceDemo(false);
+  };
+
+  const handleTravelMemoryDemo = () => {
+    setShowTravelMemoryDemo(true);
+  };
+
+  const handleTravelMemoryDemoComplete = () => {
+    setShowTravelMemoryDemo(false);
   };
 
   return (
@@ -322,25 +332,41 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
 
             {/* Slide 4: Travel Memory */}
             <CarouselItem>
-              <div className="p-6 text-center space-y-6">
-                <div className="relative">
-                  <BookOpen className="w-16 h-16 mx-auto text-primary" />
+              {showTravelMemoryDemo ? (
+                <div className="p-2">
+                  <TravelMemoryAnimationDemo onComplete={handleTravelMemoryDemoComplete} />
                 </div>
-                <div className="space-y-3">
-                  <h2 className="text-2xl font-bold text-foreground">
-                    Remember Every Adventure
-                  </h2>
-                  <p className="text-muted-foreground text-sm">
-                    Your Travel Log captures every interaction, photo, and discovery
-                  </p>
-                </div>
-                <div className="bg-muted rounded-lg p-3">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <div className="w-2 h-2 bg-primary rounded-full" />
-                    Join 10,000+ travelers building their adventure stories
+              ) : (
+                <div className="p-6 text-center space-y-6">
+                  <div className="relative">
+                    <BookOpen className="w-16 h-16 mx-auto text-primary" />
+                  </div>
+                  <div className="space-y-3">
+                    <h2 className="text-2xl font-bold text-foreground">
+                      Remember Every Adventure
+                    </h2>
+                    <p className="text-muted-foreground text-sm">
+                      Your Travel Log captures every interaction, photo, and discovery
+                    </p>
+                  </div>
+                  <div className="space-y-3">
+                    <Button
+                      variant="outline"
+                      onClick={handleTravelMemoryDemo}
+                      className="flex items-center gap-2 w-full"
+                    >
+                      <Camera className="w-4 h-4" />
+                      Try Travel Memory Demo
+                    </Button>
+                  </div>
+                  <div className="bg-muted rounded-lg p-3">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <div className="w-2 h-2 bg-primary rounded-full" />
+                      Join 10,000+ travelers building their adventure stories
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </CarouselItem>
 
             {/* Slide 5: Get Started */}
