@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
 interface TTSContextType {
-  speak: (text: string, isMemoryNarration?: boolean, interactionId?: string) => Promise<void>;
+  speak: (text: string, isMemoryNarration?: boolean, interactionId?: string, voiceGender?: 'male' | 'female') => Promise<void>;
   stop: () => void;
   isPlaying: boolean;
   currentPlayingId: string | null;
@@ -31,7 +31,7 @@ export const TTSProvider: React.FC<TTSProviderProps> = ({ children, isVoiceAgent
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-  const speak = async (text: string, isMemoryNarration: boolean = false, interactionId?: string) => {
+  const speak = async (text: string, isMemoryNarration: boolean = false, interactionId?: string, voiceGender: 'male' | 'female' = 'female') => {
     // Don't play TTS if voice agent is active to avoid overlapping audio
     if (isVoiceAgentActive) {
       console.log('TTS blocked: Voice agent is active');
@@ -78,7 +78,7 @@ export const TTSProvider: React.FC<TTSProviderProps> = ({ children, isVoiceAgent
               setIsPlaying(false);
               setCurrentPlayingId(null);
               URL.revokeObjectURL(audioUrl);
-              fallbackToWebSpeech(text);
+              fallbackToWebSpeech(text, voiceGender);
             };
             
             await audioRef.current.play();
@@ -89,7 +89,7 @@ export const TTSProvider: React.FC<TTSProviderProps> = ({ children, isVoiceAgent
         }
 
         // Fallback to browser speech synthesis
-        fallbackToWebSpeech(text);
+        fallbackToWebSpeech(text, voiceGender);
       } else {
         toast.error('Text-to-speech is not supported in this browser');
         setIsPlaying(false);
@@ -103,29 +103,73 @@ export const TTSProvider: React.FC<TTSProviderProps> = ({ children, isVoiceAgent
     }
   };
 
-  const fallbackToWebSpeech = (text: string) => {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.9;
-    utterance.pitch = 1;
-    utterance.volume = 1;
-    
-    utterance.onend = () => {
-      setIsPlaying(false);
-      setCurrentPlayingId(null);
-      utteranceRef.current = null;
+  const fallbackToWebSpeech = (text: string, voiceGender: 'male' | 'female' = 'female') => {
+    // Ensure voices are loaded
+    const selectVoiceAndSpeak = () => {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.9;
+      utterance.pitch = voiceGender === 'male' ? 0.7 : 1.1; // Lower pitch for male, higher for female
+      utterance.volume = 1;
+      
+      // Try to select appropriate voice
+      const voices = speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        // Look for gender-appropriate voice
+        const preferredVoice = voices.find(voice => {
+          const voiceName = voice.name.toLowerCase();
+          const voiceLang = voice.lang.toLowerCase();
+          
+          // Prefer English voices
+          if (!voiceLang.startsWith('en')) return false;
+          
+          if (voiceGender === 'male') {
+            return voiceName.includes('male') || voiceName.includes('david') || 
+                   voiceName.includes('alex') || voiceName.includes('daniel');
+          } else {
+            return voiceName.includes('female') || voiceName.includes('samantha') || 
+                   voiceName.includes('karen') || voiceName.includes('victoria');
+          }
+        });
+        
+        if (preferredVoice) {
+          utterance.voice = preferredVoice;
+          console.log(`🎭 Using voice: ${preferredVoice.name} for ${voiceGender}`);
+        } else {
+          // Fallback: use first available English voice
+          const englishVoice = voices.find(voice => voice.lang.toLowerCase().startsWith('en'));
+          if (englishVoice) {
+            utterance.voice = englishVoice;
+            console.log(`🎭 Using fallback English voice: ${englishVoice.name} for ${voiceGender}`);
+          }
+        }
+      }
+      
+      utterance.onend = () => {
+        setIsPlaying(false);
+        setCurrentPlayingId(null);
+        utteranceRef.current = null;
+      };
+      utterance.onerror = () => {
+        setIsPlaying(false);
+        setCurrentPlayingId(null);
+        utteranceRef.current = null;
+        toast.error('Failed to play audio');
+      };
+      utterance.onstart = () => {
+        setIsPlaying(true);
+      };
+      
+      utteranceRef.current = utterance;
+      speechSynthesis.speak(utterance);
     };
-    utterance.onerror = () => {
-      setIsPlaying(false);
-      setCurrentPlayingId(null);
-      utteranceRef.current = null;
-      toast.error('Failed to play audio');
-    };
-    utterance.onstart = () => {
-      setIsPlaying(true);
-    };
-    
-    utteranceRef.current = utterance;
-    speechSynthesis.speak(utterance);
+
+    // If voices aren't loaded yet, wait for them
+    const voices = speechSynthesis.getVoices();
+    if (voices.length === 0) {
+      speechSynthesis.addEventListener('voiceschanged', selectVoiceAndSpeak, { once: true });
+    } else {
+      selectVoiceAndSpeak();
+    }
   };
 
   const stop = () => {

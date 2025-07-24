@@ -137,16 +137,17 @@ Keep it to 4-6 exchanges maximum for a 30-second demo.`;
         
         console.log(`🎭 Speaking line ${i + 1}: ${line.speaker} - ${line.text}`);
         
-        // Add a small pause between speakers for natural flow
+        // Add a longer pause between speakers to prevent overlap
         if (i > 0) {
           console.log('🎭 Adding pause between speakers...');
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, 1500)); // Increased to 1.5 seconds
         }
         
         try {
-          // Speak the current line
+          // Speak the current line with appropriate voice
           console.log('🎭 Calling TTS speak function...');
-          await speak(line.text, false);
+          const voiceGender = line.speaker === 'AGENT' ? 'female' : 'male';
+          await speak(line.text, false, undefined, voiceGender);
           console.log('🎭 TTS speak function completed');
           
           // Wait for the speech to complete
@@ -178,9 +179,9 @@ Keep it to 4-6 exchanges maximum for a 30-second demo.`;
       // Average speaking rate is about 150-160 words per minute
       const estimateSpeechDuration = (text: string): number => {
         const wordCount = text.split(' ').length;
-        const wordsPerMinute = 150;
+        const wordsPerMinute = 140; // Slightly slower for more natural pacing
         const durationMs = (wordCount / wordsPerMinute) * 60 * 1000;
-        return Math.max(durationMs, 1500); // Minimum 1.5 seconds
+        return Math.max(durationMs + 800, 2000); // Add buffer time + minimum 2 seconds
       };
 
       const duration = estimateSpeechDuration(text);
