@@ -23,7 +23,6 @@ import {
 import type { CarouselApi } from '@/components/ui/carousel';
 import { PreRenderedVoiceDemo } from '@/components/PreRenderedVoiceDemo';
 import SmartTourAnimationDemo from '@/components/SmartTourAnimationDemo';
-import LandmarkAnimationDemo from '@/components/LandmarkAnimationDemo';
 
 interface OnboardingCarouselProps {
   onComplete: () => void;
@@ -39,7 +38,6 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
   const [count, setCount] = useState(0);
   const [showVoiceDemo, setShowVoiceDemo] = useState(false);
   const [showSmartTourDemo, setShowSmartTourDemo] = useState(false);
-  const [showLandmarkDemo, setShowLandmarkDemo] = useState(false);
 
   React.useEffect(() => {
     if (!api) return;
@@ -74,14 +72,6 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
 
   const handleSmartTourDemoComplete = () => {
     setShowSmartTourDemo(false);
-  };
-
-  const handleLandmarkDemo = () => {
-    setShowLandmarkDemo(true);
-  };
-
-  const handleLandmarkDemoComplete = () => {
-    setShowLandmarkDemo(false);
   };
 
   return (
@@ -142,10 +132,6 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                 <div className="p-2">
                   <SmartTourAnimationDemo onComplete={handleSmartTourDemoComplete} />
                 </div>
-              ) : showLandmarkDemo ? (
-                <div className="p-2">
-                  <LandmarkAnimationDemo onComplete={handleLandmarkDemoComplete} />
-                </div>
               ) : (
                 <div className="p-6 text-center space-y-6">
                   <div className="space-y-3">
@@ -185,12 +171,7 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                       Try Smart Tour (AI-Generated)
                     </Button>
                     <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1"
-                        onClick={handleLandmarkDemo}
-                      >
+                      <Button variant="outline" size="sm" className="flex-1">
                         Top 100 Landmarks
                       </Button>
                       <Button variant="outline" size="sm" className="flex-1">

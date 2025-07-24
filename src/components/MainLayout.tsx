@@ -354,13 +354,10 @@ const MemoizedProximityCard = React.memo<{
         onSessionStateChange={handleSessionStateChange}
       />
 
-      {/* Debug Window - Always visible at bottom for scrolling access */}
-      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-lg z-50">
-        <DebugWindow
-          isVisible={true}
-          onClose={() => {}} // Keep it always visible for demo utility access
-        />
-      </div>
+      <DebugWindow
+        isVisible={isDebugVisible}
+        onClose={toggleDebug}
+      />
 
       {/* Travel Expert Upgrade Component - shows only to logged in tourists with smart display logic */}
       {user && profile?.role === 'tourist' && (
