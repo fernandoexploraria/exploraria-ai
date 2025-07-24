@@ -104,7 +104,7 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                   <Button
                     variant="outline"
                     onClick={handleVoiceDemo}
-                    disabled={isGenerating}
+                    disabled={isGenerating || isPlaying}
                     className="flex items-center gap-2 w-full"
                   >
                     {isGenerating ? (

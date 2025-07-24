@@ -102,12 +102,15 @@ Keep it to 4-6 exchanges maximum for a 30-second demo.`;
   };
 
   const playDialogue = async () => {
+    console.log('🎭 playDialogue called, current isPlaying:', isPlaying);
+    
     if (isPlaying) {
+      console.log('🎭 Already playing, stopping dialogue');
       stopDialogue();
       return;
     }
 
-    console.log('🎭 playDialogue called - starting voice dialogue demo...');
+    console.log('🎭 Starting voice dialogue demo...');
     
     try {
       setIsPlaying(true);
@@ -123,11 +126,11 @@ Keep it to 4-6 exchanges maximum for a 30-second demo.`;
       
       console.log('🎭 Generated dialogue:', dialogue);
       
-      for (let i = 0; i < dialogue.length; i++) {
-        if (!isPlaying) {
-          console.log('🎭 Playback stopped by user');
-          break;
-        }
+      // Store playing state in a local variable to prevent race conditions
+      let stillPlaying = true;
+      
+      for (let i = 0; i < dialogue.length && stillPlaying; i++) {
+        console.log(`🎭 Processing line ${i + 1} of ${dialogue.length}`);
         
         setCurrentLine(i);
         const line = dialogue[i];
@@ -138,11 +141,6 @@ Keep it to 4-6 exchanges maximum for a 30-second demo.`;
         if (i > 0) {
           console.log('🎭 Adding pause between speakers...');
           await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-        
-        if (!isPlaying) {
-          console.log('🎭 Playback stopped during pause');
-          break;
         }
         
         try {
