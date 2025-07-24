@@ -28,12 +28,10 @@ const LocalExperienceAnimationDemo: React.FC<LocalExperienceAnimationDemoProps> 
   const map = useRef<mapboxgl.Map | null>(null);
   const mapboxToken = useMapboxToken();
 
-  // Frida Kahlo Museum data
-  const fridaKahloCoords: [number, number] = [-99.1625, 19.3547];
+  // Real Kahlo Museum data from database
+  const fridaKahloCoords: [number, number] = [-99.1624636, 19.3551806];
   const fridaKahloPhotos = [
-    "https://places.googleapis.com/v1/places/ChIJOz-6AMT_0YURofTM9_ekAWI/photos/ATKogpfmLqJzGNpJ8JiOcXNW2MwbJQiB4QOY7oVDfHTWBJY9HIkZZ-LZcVH0w8mJ5lExhYTRWJGJqMN2m_3pRN2FIQjT2xqGdNa7aVxcYn_X1b4kKSo6jYFpDgHhEeQr8VLzUgMx9gVQ3bPNmOkHfLsKJgT4wVxNpEm6YdXHgQ8fR2zNnJvGtBcLpKqWs5UfDxY3mHnEwTcSRbK8nQfP1zV7yLmJhGdXtBwQvNkFsE9YxRcJp2LgHqAZfK1mVn3xO8SJUvBwE7fQ6LzHgYtN4xRcJpKgDsLmVnE9YxRc/media?maxWidthPx=400&key=AIzaSyDwlzmac-ghW1kTlfJiEEoApG3XhyI0rZg",
-    "https://places.googleapis.com/v1/places/ChIJOz-6AMT_0YURofTM9_ekAWI/photos/ATKogpeW8nDfHgYtN4xRcJpKgDsLmVnE9YxRcJp2LgHqAZfK1mVn3xO8SJUvBwE7fQ6LzHgYtN4xRcJpKgDsLmVnE9YxRcJp2LgHqAZfK1mVn3xO8SJUvBwE7fQ6LzHgYtN4xRcJpKgDsLmVnE9YxRcJp2LgHqAZfK1mVn3xO8SJUvBwE7fQ6LzHgYtN4xRcJpKgDsLmVnE9YxRcJp2LgHqAZfK1mVn3xO8SJUvBwE7fQ6LzHgYtN4xRcJpKgDsLmVnE9YxRcJp2LgHqAZfK1mVn3xO8SJUvBwE/media?maxWidthPx=400&key=AIzaSyDwlzmac-ghW1kTlfJiEEoApG3XhyI0rZg",
-    "https://places.googleapis.com/v1/places/ChIJOz-6AMT_0YURofTM9_ekAWI/photos/ATKogpd7yLmJhGdXtBwQvNkFsE9YxRcJp2LgHqAZfK1mVn3xO8SJUvBwE7fQ6LzHgYtN4xRcJpKgDsLmVnE9YxRcJp2LgHqAZfK1mVn3xO8SJUvBwE7fQ6LzHgYtN4xRcJpKgDsLmVnE9YxRcJp2LgHqAZfK1mVn3xO8SJUvBwE7fQ6LzHgYtN4xRcJpKgDsLmVnE9YxRcJp2LgHqAZfK1mVn3xO8SJUvBwE7fQ6LzHgYtN4xRcJpKgDsLmVnE9YxRcJp2LgHqAZfK1mVn3xO8SJUvBwE7fQ6LzHgYtN4xRcJpKgDsLmVnE9YxRcJp2LgHqAZfK1mVn3xO8SJUvBwE/media?maxWidthPx=400&key=AIzaSyDwlzmac-ghW1kTlfJiEEoApG3XhyI0rZg"
+    "https://places.googleapis.com/v1/places/ChIJOz-6AMT_0YURofTM9_ekAWI/photos/ATKogpd5cSAgIcXVDI4c9e4nmmdz3HYr67Q6UOxfTwcqW0vfTL1a-m5ogNwByc6WEkYQKRryWPXDjHkVq9YK2h7N_C_gfXf6Wn5Gzf4-IpzSCqNCI50kGMnrXUWlEtL3CFaJaCuPlRK_O5ihALKVKb1_3ajUDAvqwihlN9cCJZAHqUX_lglt8XIo-ErJHE3A4QOFsMdqMqWOAHTlvepov9YQqexE0NR60e4_1uYdfEgpuqKxbdO-bb7Oaweaysi04ezAlVc-BHT-3EP5OteXW7ACHgmDo9MSlB7HdQm4wviCB9CTi9zSdNL6MmfKrJQFS5LxjxepJfNOZJjuJt5YoDy5-VQ5ZTBCD84xzvZ95tqLVlSS05bLDIJnZbTkkli2yIXUhjbb-fU7xBH3DlXFLI1eGfu0kfjiCO6XQ49j4jG9JyAsxA/media?maxWidthPx=400&key=AIzaSyDwlzmac-ghW1kTlfJiEEoApG3XhyI0rZg"
   ];
 
   // Initialize Mapbox map
@@ -223,7 +221,7 @@ const LocalExperienceAnimationDemo: React.FC<LocalExperienceAnimationDemoProps> 
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center space-x-1">
                     <Star className="w-3 h-3 text-yellow-500 fill-current" />
-                    <span className="text-muted-foreground">4.6 • Museum</span>
+                    <span className="text-muted-foreground">4.5 • Museum</span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <Clock className="w-3 h-3 text-muted-foreground" />
