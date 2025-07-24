@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ArrowLeft, Bot, Wrench, BookOpen, Play, AlertCircle, Copy, Users, Check, Edit, MessageCircle, Search, Mic, Upload } from 'lucide-react';
 import { VoiceSelector } from '@/components/VoiceSelector';
+import { VoiceDemoAudioGenerator } from '@/components/VoiceDemoAudioGenerator';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -1469,6 +1470,10 @@ const ElevenLabsPlayground: React.FC = () => {
         }}
         selectedVoiceId={selectedVoice?.voice_id}
       />
+
+      <div className="mb-8">
+        <VoiceDemoAudioGenerator />
+      </div>
     </div>
   );
 };
