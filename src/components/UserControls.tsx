@@ -2,7 +2,13 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { User, LogOut, Star } from 'lucide-react';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { User, LogOut, Star, HelpCircle, BookOpen } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { useAuth } from '@/components/AuthProvider';
 import { Link } from 'react-router-dom';
@@ -10,6 +16,7 @@ import { ProfileBackfillUtility } from '@/components/ProfileBackfillUtility';
 import { TravelExpertUpgrade } from '@/components/TravelExpertUpgrade';
 import { useDemoMode } from '@/hooks/useDemoMode';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useOnboardingControl } from '@/hooks/useOnboardingControl';
 
 interface UserControlsProps {
   user: SupabaseUser | null;
@@ -21,6 +28,7 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
   const { profile } = useAuth();
   const { isDemoMode } = useDemoMode();
   const isMobile = useIsMobile();
+  const { completeOnboarding } = useOnboardingControl();
   
   const handleSignOut = async () => {
     console.log('Sign out button clicked');
@@ -36,9 +44,40 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
     }
   };
 
+  const handleShowTutorial = () => {
+    // Reset onboarding completion to show tutorial again
+    localStorage.removeItem('onboarding-completed');
+    window.location.reload();
+  };
+
   return (
     <>
       <div className="absolute top-[10px] right-[45px] z-20 flex items-start gap-2">
+        {/* Help/Settings Dropdown - Available for all users */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="bg-background/80 backdrop-blur-sm shadow-lg border border-input text-foreground hover:bg-accent hover:text-accent-foreground h-10 w-10 p-0"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent 
+            className="w-48 bg-background border border-border shadow-lg z-50" 
+            align="end"
+          >
+            <DropdownMenuItem 
+              onClick={handleShowTutorial}
+              className="cursor-pointer hover:bg-accent hover:text-accent-foreground"
+            >
+              <BookOpen className="w-4 h-4 mr-2" />
+              View Tutorial
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         {user ? (
           <div className="flex items-center gap-2">
             {/* Travel Expert Portal Link or Upgrade Badge */}
