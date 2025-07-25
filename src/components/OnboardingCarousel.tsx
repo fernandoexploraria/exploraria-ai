@@ -142,11 +142,11 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
   };
 
   return (
-    <div className="flex items-center justify-center p-4">
-      <Card className="w-full max-w-md mx-auto bg-card/95 backdrop-blur-sm border-border">
+    <div className="flex items-center justify-center p-2 sm:p-4 min-h-screen">
+      <Card className="w-full max-w-sm sm:max-w-md mx-auto bg-card/95 backdrop-blur-sm border-border max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header with title and skip button */}
-        <div className="flex justify-between items-center p-4 pb-2">
-          <h1 className="text-xl font-bold text-foreground">Discover Exploraria</h1>
+        <div className="flex justify-between items-center p-3 sm:p-4 pb-2 flex-shrink-0">
+          <h1 className="text-lg sm:text-xl font-bold text-foreground">Discover Exploraria</h1>
           <Button
             variant="ghost"
             size="sm"
@@ -158,25 +158,25 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
           </Button>
         </div>
 
-        <Carousel setApi={setApi} className="w-full">
-          <CarouselContent>
+        <Carousel setApi={setApi} className="w-full flex-1 flex flex-col min-h-0">
+          <CarouselContent className="flex-1 min-h-0">
             {/* Slide 1: AI Voice Hook */}
             <CarouselItem>
               {showVoiceDemo ? (
                 <div className="p-2">
                   <PreRenderedVoiceDemo onComplete={handleDemoComplete} />
                 </div>
-              ) : (
-                <div className="p-6 text-center space-y-6">
+               ) : (
+                <div className="p-4 sm:p-6 text-center space-y-4 sm:space-y-6 overflow-y-auto">
                   <div className="relative">
                     <Volume2 className="w-16 h-16 mx-auto text-primary animate-pulse" />
                     <div className="absolute inset-0 w-16 h-16 mx-auto rounded-full border-2 border-primary animate-ping" />
                   </div>
-                  <div className="space-y-3">
-                    <h2 className="text-2xl font-bold text-foreground">
+                   <div className="space-y-2 sm:space-y-3">
+                    <h2 className="text-xl sm:text-2xl font-bold text-foreground">
                       Your Personal AI Tour Guide
                     </h2>
-                    <p className="text-muted-foreground text-sm">
+                    <p className="text-muted-foreground text-sm sm:text-base">
                       Get live commentary and insider tips as you explore - just like having a local expert with you
                     </p>
                   </div>
@@ -184,7 +184,7 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                     <Button
                       variant="outline"
                       onClick={handleVoiceDemo}
-                      className="flex items-center gap-2 w-full"
+                      className="flex items-center gap-2 w-full h-12 text-base"
                     >
                       <Play className="w-4 h-4" />
                       Try Personal AI Tour Guide
