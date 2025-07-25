@@ -142,7 +142,23 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
   };
 
   return (
-    <div className="w-screen h-screen bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="w-screen h-screen relative overflow-hidden flex items-center justify-center p-4">
+      {/* Animated travel-inspired background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-orange-900/20 animate-pulse" />
+      
+      {/* Floating map-like elements */}
+      <div className="absolute inset-0">
+        <div className="absolute top-20 left-20 w-32 h-32 bg-primary/5 rounded-full animate-float" />
+        <div className="absolute top-40 right-32 w-24 h-24 bg-secondary/5 rounded-full animate-float" style={{ animationDelay: '1s' }} />
+        <div className="absolute bottom-32 left-32 w-28 h-28 bg-accent/5 rounded-full animate-float" style={{ animationDelay: '2s' }} />
+        <div className="absolute bottom-20 right-20 w-20 h-20 bg-primary/5 rounded-full animate-float" style={{ animationDelay: '0.5s' }} />
+      </div>
+      
+      {/* Subtle grid pattern overlay */}
+      <div className="absolute inset-0 opacity-5" style={{
+        backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.3) 1px, transparent 0)',
+        backgroundSize: '30px 30px'
+      }} />
       <Card className="w-full max-w-md mx-auto bg-card border-border">
         {/* Header with title and skip button */}
         <div className="flex justify-between items-center p-4 pb-2">
