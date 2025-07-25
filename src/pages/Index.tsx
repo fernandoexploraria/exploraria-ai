@@ -224,15 +224,6 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
     return <SplashScreen onDismiss={dismissSplash} />;
   }
 
-  if (showOnboarding) {
-    return (
-      <OnboardingCarousel 
-        onComplete={completeOnboarding}
-        onSkip={skipOnboarding}
-      />
-    );
-  }
-
   // Don't render the map until we have a token
   if (!mapboxToken) {
     return <div className="w-screen h-screen flex items-center justify-center">Loading map...</div>;
@@ -303,6 +294,17 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
         voiceTourData={voiceTourData}
         tourKey={tourKey}
       />
+      
+      {/* Onboarding overlay */}
+      {showOnboarding && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <OnboardingCarousel 
+            onComplete={completeOnboarding}
+            onSkip={skipOnboarding}
+          />
+        </div>
+      )}
+      
       <DebugWindow 
         isVisible={isDebugVisible}
         onClose={toggleDebug}
