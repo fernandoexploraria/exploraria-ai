@@ -142,7 +142,7 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
   };
 
   return (
-    <div className="w-screen h-screen bg-background flex items-center justify-center p-4">
+    <div className="w-screen h-screen bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
       <Card className="w-full max-w-md mx-auto bg-card border-border">
         {/* Header with title and skip button */}
         <div className="flex justify-between items-center p-4 pb-2">
