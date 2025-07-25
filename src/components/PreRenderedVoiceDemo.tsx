@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Play, Square, Volume2 } from 'lucide-react';
@@ -164,88 +164,193 @@ export const PreRenderedVoiceDemo = ({ onComplete }: PreRenderedVoiceDemoProps) 
   const [currentStep, setCurrentStep] = useState<string>('intro');
   const [displayedLines, setDisplayedLines] = useState<DialogueLine[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   const [isThinking, setIsThinking] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
+  
+  // Use refs to track audio instances and prevent race conditions
+  const audioInstancesRef = useRef<Set<HTMLAudioElement>>(new Set());
+  const currentStepRef = useRef<string>('intro');
+  const isPlayingRef = useRef<boolean>(false);
 
   const step = DIALOGUE_SCRIPT[currentStep];
 
+  // Cleanup function to stop all audio instances
+  const cleanupAllAudio = useCallback(() => {
+    console.log('🧹 Cleaning up all audio instances:', audioInstancesRef.current.size);
+    audioInstancesRef.current.forEach(audio => {
+      try {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.removeEventListener('ended', () => {});
+        audio.removeEventListener('error', () => {});
+      } catch (error) {
+        console.warn('Error cleaning up audio:', error);
+      }
+    });
+    audioInstancesRef.current.clear();
+    setIsPlaying(false);
+    setIsThinking(false);
+    isPlayingRef.current = false;
+  }, []);
+
+  // Update refs when state changes
   useEffect(() => {
-    // Reset displayed lines when step changes
-    setDisplayedLines([]);
-    playStepLines();
+    currentStepRef.current = currentStep;
   }, [currentStep]);
 
-  const playStepLines = async () => {
-    if (!step || isPlaying) return;
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
+
+  useEffect(() => {
+    // Cleanup and reset when step changes
+    console.log('🔄 Step changed to:', currentStep);
+    cleanupAllAudio();
+    setDisplayedLines([]);
     
-    setIsPlaying(true);
-    
-    for (let i = 0; i < step.lines.length; i++) {
-      const line = step.lines[i];
-      
-      // Add thinking animation before AI responses
-      if (line.speaker === 'AGENT' && i > 0) {
-        setIsThinking(true);
-        await new Promise(resolve => setTimeout(resolve, 1200));
-        setIsThinking(false);
+    // Add small delay to prevent overlap
+    const timer = setTimeout(() => {
+      if (currentStepRef.current === currentStep) {
+        playStepLines();
       }
-      
-      // Display the text
-      setDisplayedLines(prev => [...prev, line]);
-      
-      // Play the audio
-      try {
-        await playAudio(line.audioUrl);
-      } catch (error) {
-        console.log('Audio playback failed:', error);
-        // Continue without audio if file doesn't exist
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-      
-      // Short pause between lines
-      if (i < step.lines.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 800));
-      }
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      cleanupAllAudio();
+    };
+  }, [currentStep, cleanupAllAudio]);
+
+  const playStepLines = useCallback(async () => {
+    // Prevent multiple simultaneous playbacks
+    if (!step || isPlayingRef.current) {
+      console.log('🚫 Playback blocked - step:', !!step, 'isPlaying:', isPlayingRef.current);
+      return;
     }
     
-    setIsPlaying(false);
-  };
-
-  const playAudio = (audioUrl: string): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      // Stop current audio if playing
-      if (currentAudio) {
-        currentAudio.pause();
-        currentAudio.currentTime = 0;
+    console.log('🎵 Starting playback for step:', currentStep);
+    setIsPlaying(true);
+    isPlayingRef.current = true;
+    
+    try {
+      for (let i = 0; i < step.lines.length; i++) {
+        // Check if we should continue (step hasn't changed)
+        if (currentStepRef.current !== currentStep) {
+          console.log('🛑 Step changed during playback, stopping');
+          break;
+        }
+        
+        const line = step.lines[i];
+        
+        // Add thinking animation before AI responses
+        if (line.speaker === 'AGENT' && i > 0) {
+          setIsThinking(true);
+          await new Promise(resolve => setTimeout(resolve, 1200));
+          setIsThinking(false);
+          
+          // Check again after thinking delay
+          if (currentStepRef.current !== currentStep) break;
+        }
+        
+        // Display the text
+        setDisplayedLines(prev => [...prev, line]);
+        
+        // Play the audio
+        try {
+          await playAudio(line.audioUrl);
+        } catch (error) {
+          console.log('🔊 Audio playback failed:', error);
+          // Continue without audio if file doesn't exist
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+        
+        // Check if we should continue
+        if (currentStepRef.current !== currentStep) break;
+        
+        // Short pause between lines
+        if (i < step.lines.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 800));
+        }
       }
+    } catch (error) {
+      console.error('❌ Error in playStepLines:', error);
+    } finally {
+      setIsPlaying(false);
+      setIsThinking(false);
+      isPlayingRef.current = false;
+      console.log('✅ Playback completed for step:', currentStep);
+    }
+  }, [step, currentStep]);
+
+  const playAudio = useCallback((audioUrl: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      console.log('🎧 Creating audio for:', audioUrl);
+      
+      // Clean up any existing audio before creating new one
+      cleanupAllAudio();
       
       const audio = new Audio(`https://ejqgdmbuabrcjxbhpxup.supabase.co/storage/v1/object/public/${audioUrl}`);
-      setCurrentAudio(audio);
       
-      audio.onended = () => resolve();
-      audio.onerror = () => {
-        console.log(`Audio file not found: ${audioUrl}`);
+      // Add to tracking set
+      audioInstancesRef.current.add(audio);
+      
+      // Set up event handlers before adding to DOM
+      const handleEnded = () => {
+        console.log('🔚 Audio ended:', audioUrl);
+        audioInstancesRef.current.delete(audio);
+        resolve();
+      };
+      
+      const handleError = (error: any) => {
+        console.log('🚫 Audio file not found:', audioUrl, error);
+        audioInstancesRef.current.delete(audio);
         reject(new Error('Audio file not found'));
       };
       
-      audio.play().catch(reject);
+      const handleLoadStart = () => {
+        console.log('📥 Audio loading started:', audioUrl);
+      };
+      
+      const handleCanPlay = () => {
+        console.log('▶️ Audio ready to play:', audioUrl);
+      };
+      
+      audio.addEventListener('ended', handleEnded);
+      audio.addEventListener('error', handleError);
+      audio.addEventListener('loadstart', handleLoadStart);
+      audio.addEventListener('canplay', handleCanPlay);
+      
+      // Set volume and preload
+      audio.volume = 0.8;
+      audio.preload = 'auto';
+      
+      // Start playback
+      audio.play()
+        .then(() => {
+          console.log('✅ Audio playing:', audioUrl);
+        })
+        .catch((playError) => {
+          console.error('❌ Audio play failed:', audioUrl, playError);
+          audioInstancesRef.current.delete(audio);
+          reject(playError);
+        });
     });
-  };
+  }, [cleanupAllAudio]);
 
-  const handleChoice = (choiceId: string) => {
-    if (isPlaying) return;
-    setCurrentStep(choiceId);
-  };
-
-  const stopDemo = () => {
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio.currentTime = 0;
+  const handleChoice = useCallback((choiceId: string) => {
+    if (isPlayingRef.current) {
+      console.log('🚫 Choice blocked - audio is playing');
+      return;
     }
-    setIsPlaying(false);
-    setIsThinking(false);
+    console.log('👆 Choice selected:', choiceId);
+    setCurrentStep(choiceId);
+  }, []);
+
+  const stopDemo = useCallback(() => {
+    console.log('🛑 Stopping demo');
+    cleanupAllAudio();
     onComplete();
-  };
+  }, [cleanupAllAudio, onComplete]);
 
   return (
     <Card className="w-full max-w-2xl mx-auto p-6 bg-gradient-to-br from-background via-background to-background/80 border-2 border-primary/20">
@@ -317,8 +422,8 @@ export const PreRenderedVoiceDemo = ({ onComplete }: PreRenderedVoiceDemoProps) 
                   key={choice.id}
                   variant="outline"
                   onClick={() => handleChoice(choice.id)}
-                  className="justify-start text-left h-auto p-3 hover:bg-secondary/80"
-                  disabled={isPlaying}
+                  className="justify-start text-left h-auto p-3 hover:bg-secondary/80 transition-all duration-200"
+                  disabled={isPlaying || isThinking}
                 >
                   {choice.displayText}
                 </Button>
@@ -343,10 +448,17 @@ export const PreRenderedVoiceDemo = ({ onComplete }: PreRenderedVoiceDemoProps) 
         )}
 
         {/* Loading State */}
-        {isPlaying && (
+        {(isPlaying || isInitializing) && (
           <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
             <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
-            Playing demo...
+            {isInitializing ? 'Initializing demo...' : 'Playing demo...'}
+          </div>
+        )}
+
+        {/* Debug Info (only in development) */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="text-xs text-muted-foreground/50 text-center">
+            Step: {currentStep} | Playing: {isPlaying.toString()} | Audio Instances: {audioInstancesRef.current.size}
           </div>
         )}
       </div>
