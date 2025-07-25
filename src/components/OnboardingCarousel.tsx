@@ -360,12 +360,6 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                       Try Travel Log Demo
                     </Button>
                   </div>
-                  <div className="bg-muted rounded-lg p-3">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <div className="w-2 h-2 bg-primary rounded-full" />
-                      Join 10,000+ travelers building their adventure stories
-                    </div>
-                  </div>
                 </div>
               )}
             </CarouselItem>
@@ -411,6 +405,16 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
             </>
           )}
         </Carousel>
+
+        {/* Social proof below carousel */}
+        <div className="px-4 pb-2">
+          <div className="bg-muted rounded-lg p-3">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="w-2 h-2 bg-primary rounded-full" />
+              Join 10,000+ travelers building their adventure stories
+            </div>
+          </div>
+        </div>
 
         {/* Progress indicators and Next button */}
         <div className="p-4 pt-0">
