@@ -53,30 +53,15 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
   return (
     <>
       <div className="absolute top-[10px] right-[45px] z-20 flex items-start gap-2">
-        {/* Help/Settings Dropdown - Available for all users */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="bg-background/80 backdrop-blur-sm shadow-lg border border-input text-foreground hover:bg-accent hover:text-accent-foreground h-10 w-10 p-0"
-            >
-              <HelpCircle className="w-4 h-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent 
-            className="w-48 bg-background border border-border shadow-lg z-50" 
-            align="end"
-          >
-            <DropdownMenuItem 
-              onClick={handleShowTutorial}
-              className="cursor-pointer hover:bg-accent hover:text-accent-foreground"
-            >
-              <BookOpen className="w-4 h-4 mr-2" />
-              View Tutorial
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* Help Button - Available for all users */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleShowTutorial}
+          className="bg-background/80 backdrop-blur-sm shadow-lg border border-input text-foreground hover:bg-accent hover:text-accent-foreground h-10 w-10 p-0"
+        >
+          <HelpCircle className="w-4 h-4" />
+        </Button>
 
         {user ? (
           <div className="flex items-center gap-2">
