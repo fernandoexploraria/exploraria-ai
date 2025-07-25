@@ -143,7 +143,7 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
 
   return (
     <div className="flex items-center justify-center p-2 sm:p-4 min-h-screen">
-      <Card className="w-full max-w-sm sm:max-w-md mx-auto bg-card/95 backdrop-blur-sm border-border max-h-[90vh] lg:max-h-[85vh] overflow-hidden flex flex-col">
+      <Card className="w-full max-w-sm sm:max-w-md mx-auto bg-card/95 backdrop-blur-sm border-border max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header with title and skip button */}
         <div className="flex justify-between items-center p-3 sm:p-4 pb-2 flex-shrink-0">
           <h1 className="text-lg sm:text-xl font-bold text-foreground">Discover Exploraria</h1>
@@ -208,8 +208,8 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                 <div className="p-2">
                   <LocalExperienceAnimationDemo onComplete={handleLocalExperienceDemoComplete} />
                 </div>
-               ) : (
-                <div className="p-4 lg:p-6 text-center space-y-4 lg:space-y-6 overflow-y-auto">
+              ) : (
+                <div className="p-6 text-center space-y-6">
                   <div className="space-y-3">
                     {/* Smart Tour - Featured on top */}
                     <div className="aspect-[2/1] bg-gradient-to-br from-primary/10 to-secondary/10 rounded-lg flex flex-col items-center justify-center relative overflow-hidden p-4">
@@ -254,8 +254,8 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                     </div>
                   </div>
                   
-                  <div className="space-y-2 lg:space-y-3">
-                    <h2 className="text-xl lg:text-2xl font-bold text-foreground">
+                  <div className="space-y-3">
+                    <h2 className="text-2xl font-bold text-foreground">
                       Three Ways to Explore
                     </h2>
                     <p className="text-muted-foreground text-sm">
@@ -263,11 +263,11 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                     </p>
                   </div>
                   
-                  <div className="space-y-2 lg:space-y-3 min-h-[120px] lg:min-h-[140px] flex flex-col">
+                  <div className="space-y-2">
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className="w-full h-10 lg:h-12"
+                      className="w-full"
                       onClick={handleSmartTourDemo}
                     >
                       <Zap className="w-4 h-4 mr-2" />
@@ -277,7 +277,7 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        className="flex-1 h-10 lg:h-12 text-xs lg:text-sm"
+                        className="flex-1"
                         onClick={handleLandmarkDemo}
                       >
                         Top 100 Landmarks
@@ -285,7 +285,7 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        className="flex-1 h-10 lg:h-12 text-xs lg:text-sm"
+                        className="flex-1"
                         onClick={handleLocalExperienceDemo}
                       >
                         Local Experiences
