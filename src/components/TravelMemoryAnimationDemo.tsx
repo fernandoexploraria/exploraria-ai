@@ -226,7 +226,7 @@ const TravelMemoryAnimationDemo: React.FC<TravelMemoryAnimationDemoProps> = ({
       </div>
       
       <div className="space-y-2">
-        <h2 className="text-2xl font-bold text-foreground">Travel Memory Created!</h2>
+        <h2 className="text-2xl font-bold text-foreground">Travel Log Updated!</h2>
         <p className="text-muted-foreground max-w-xs">
           Your experience is saved, favorited, and shared with your travel community
         </p>
