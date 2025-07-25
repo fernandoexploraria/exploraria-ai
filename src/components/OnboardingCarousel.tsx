@@ -212,7 +212,7 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                 <div className="p-6 text-center space-y-6">
                   <div className="space-y-3">
                     {/* Smart Tour - Featured on top */}
-                    <div className="aspect-[2/1] bg-gradient-to-br from-primary/10 to-secondary/10 rounded-lg flex flex-col items-center justify-center relative overflow-hidden p-4">
+                    <div className="aspect-[5/2] bg-gradient-to-br from-primary/10 to-secondary/10 rounded-lg flex flex-col items-center justify-center relative overflow-hidden p-3">
                       <div className="relative mb-2">
                         <Search className="w-8 h-8 text-primary animate-pulse" />
                         <div className="absolute inset-0 w-8 h-8 rounded-full border-2 border-primary animate-ping" />
@@ -228,13 +228,13 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                     
                     {/* 100 Landmarks & Experiences - Bottom row */}
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="aspect-square bg-muted rounded-lg flex items-center justify-center relative overflow-hidden">
+                      <div className="aspect-[4/3] bg-muted rounded-lg flex items-center justify-center relative overflow-hidden">
                         <div ref={mapContainer} className="w-full h-full" />
                         <div className="absolute bottom-1 left-1 text-xs text-white bg-black/50 px-1 py-0.5 rounded text-center">
                           Tap any landmark
                         </div>
                       </div>
-                      <div className="aspect-square bg-gradient-to-br from-primary/10 to-secondary/10 rounded-lg flex flex-col items-center justify-center relative overflow-hidden p-3">
+                      <div className="aspect-[4/3] bg-gradient-to-br from-primary/10 to-secondary/10 rounded-lg flex flex-col items-center justify-center relative overflow-hidden p-3">
                         {/* Expert Avatar */}
                         <div className="relative mb-2">
                           <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
@@ -357,8 +357,14 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                       className="flex items-center gap-2 w-full"
                     >
                       <Camera className="w-4 h-4" />
-                      Try Travel Log Demo
+                      Try Travel Memory Demo
                     </Button>
+                  </div>
+                  <div className="bg-muted rounded-lg p-3">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <div className="w-2 h-2 bg-primary rounded-full" />
+                      Join 10,000+ travelers building their adventure stories
+                    </div>
                   </div>
                 </div>
               )}
@@ -405,16 +411,6 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
             </>
           )}
         </Carousel>
-
-        {/* Social proof below carousel */}
-        <div className="px-4 pb-2">
-          <div className="bg-muted rounded-lg p-3">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <div className="w-2 h-2 bg-primary rounded-full" />
-              Join 10,000+ travelers building their adventure stories
-            </div>
-          </div>
-        </div>
 
         {/* Progress indicators and Next button */}
         <div className="p-4 pt-0">
