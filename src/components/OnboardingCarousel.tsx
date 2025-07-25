@@ -143,7 +143,7 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
 
   return (
     <div className="flex items-center justify-center p-2 sm:p-4 min-h-screen">
-      <Card className="w-full max-w-sm sm:max-w-md mx-auto bg-card/95 backdrop-blur-sm border-border max-h-[90vh] overflow-hidden flex flex-col">
+      <Card className="w-full max-w-sm sm:max-w-md mx-auto bg-card/95 backdrop-blur-sm border-border max-h-[90vh] lg:max-h-[80vh] overflow-hidden flex flex-col">
         {/* Header with title and skip button */}
         <div className="flex justify-between items-center p-3 sm:p-4 pb-2 flex-shrink-0">
           <h1 className="text-lg sm:text-xl font-bold text-foreground">Discover Exploraria</h1>
@@ -159,7 +159,7 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
         </div>
 
         <Carousel setApi={setApi} className="w-full flex-1 flex flex-col min-h-0">
-          <CarouselContent className="flex-1 min-h-0">
+          <CarouselContent className="flex-1 min-h-0 overflow-y-auto">
             {/* Slide 1: AI Voice Hook */}
             <CarouselItem>
               {showVoiceDemo ? (
@@ -209,10 +209,10 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                   <LocalExperienceAnimationDemo onComplete={handleLocalExperienceDemoComplete} />
                 </div>
               ) : (
-                <div className="p-6 text-center space-y-6">
+                <div className="p-4 sm:p-6 text-center space-y-4 sm:space-y-6 overflow-y-auto">
                   <div className="space-y-3">
                     {/* Smart Tour - Featured on top */}
-                    <div className="aspect-[2/1] bg-gradient-to-br from-primary/10 to-secondary/10 rounded-lg flex flex-col items-center justify-center relative overflow-hidden p-4">
+                    <div className="aspect-[2/1] lg:aspect-[3/1] bg-gradient-to-br from-primary/10 to-secondary/10 rounded-lg flex flex-col items-center justify-center relative overflow-hidden p-4">
                       <div className="relative mb-2">
                         <Search className="w-8 h-8 text-primary animate-pulse" />
                         <div className="absolute inset-0 w-8 h-8 rounded-full border-2 border-primary animate-ping" />
@@ -228,13 +228,13 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                     
                     {/* 100 Landmarks & Experiences - Bottom row */}
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="aspect-square bg-muted rounded-lg flex items-center justify-center relative overflow-hidden">
+                      <div className="aspect-square lg:aspect-[4/3] bg-muted rounded-lg flex items-center justify-center relative overflow-hidden">
                         <div ref={mapContainer} className="w-full h-full" />
                         <div className="absolute bottom-1 left-1 text-xs text-white bg-black/50 px-1 py-0.5 rounded text-center">
                           Tap any landmark
                         </div>
                       </div>
-                      <div className="aspect-square bg-gradient-to-br from-primary/10 to-secondary/10 rounded-lg flex flex-col items-center justify-center relative overflow-hidden p-3">
+                      <div className="aspect-square lg:aspect-[4/3] bg-gradient-to-br from-primary/10 to-secondary/10 rounded-lg flex flex-col items-center justify-center relative overflow-hidden p-3">
                         {/* Expert Avatar */}
                         <div className="relative mb-2">
                           <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
@@ -254,8 +254,8 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                     </div>
                   </div>
                   
-                  <div className="space-y-3">
-                    <h2 className="text-2xl font-bold text-foreground">
+                  <div className="space-y-2 sm:space-y-3">
+                    <h2 className="text-xl sm:text-2xl font-bold text-foreground">
                       Three Ways to Explore
                     </h2>
                     <p className="text-muted-foreground text-sm">
@@ -263,7 +263,8 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                     </p>
                   </div>
                   
-                  <div className="space-y-2">
+                  {/* Responsive button layout */}
+                  <div className="space-y-2 lg:space-y-0 lg:flex lg:flex-col lg:gap-2">
                     <Button 
                       variant="outline" 
                       size="sm" 
@@ -273,7 +274,7 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                       <Zap className="w-4 h-4 mr-2" />
                       Try Smart Tour (AI-Generated)
                     </Button>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 lg:grid lg:grid-cols-2 lg:gap-2">
                       <Button 
                         variant="outline" 
                         size="sm" 
