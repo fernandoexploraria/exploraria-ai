@@ -143,7 +143,7 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
 
   return (
     <div className="flex items-center justify-center p-2 sm:p-4 min-h-screen">
-      <Card className="w-full max-w-sm sm:max-w-md mx-auto bg-card/95 backdrop-blur-sm border-border max-h-[90vh] overflow-hidden flex flex-col">
+      <Card className="w-full max-w-sm sm:max-w-md mx-auto bg-card/80 backdrop-blur-md border-border/50 max-h-[90vh] overflow-hidden flex flex-col shadow-xl">
         {/* Header with title and skip button */}
         <div className="flex justify-between items-center p-3 sm:p-4 pb-2 flex-shrink-0">
           <h1 className="text-lg sm:text-xl font-bold text-foreground">Discover Exploraria</h1>
