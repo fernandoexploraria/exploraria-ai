@@ -37,9 +37,15 @@ export const useOnboardingControl = () => {
     localStorage.setItem('onboarding-completed', 'true');
   };
 
+  const showOnboardingManually = () => {
+    console.log('🎯 Showing onboarding manually (help button)');
+    setShowOnboarding(true);
+  };
+
   return {
     showOnboarding,
     completeOnboarding,
-    skipOnboarding
+    skipOnboarding,
+    showOnboardingManually
   };
 };

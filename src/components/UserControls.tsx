@@ -22,9 +22,10 @@ interface UserControlsProps {
   user: SupabaseUser | null;
   onSignOut: () => Promise<void>;
   onAuthDialogOpen: () => void;
+  onShowOnboarding?: () => void;
 }
 
-const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDialogOpen }) => {
+const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDialogOpen, onShowOnboarding }) => {
   const { profile } = useAuth();
   const { isDemoMode } = useDemoMode();
   const isMobile = useIsMobile();
@@ -45,9 +46,14 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
   };
 
   const handleShowTutorial = () => {
-    // Reset onboarding completion to show tutorial again
-    localStorage.removeItem('onboarding-completed');
-    window.location.reload();
+    // Use the new manual onboarding trigger if available, otherwise fallback to reload
+    if (onShowOnboarding) {
+      onShowOnboarding();
+    } else {
+      // Fallback to the old method
+      localStorage.removeItem('onboarding-completed');
+      window.location.reload();
+    }
   };
 
   return (

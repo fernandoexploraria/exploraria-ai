@@ -44,6 +44,7 @@ interface MainLayoutProps {
   voiceTourData?: { destination: string; systemPrompt: string; landmarks: any[]; agentId?: string } | null;
   tourKey?: string;
   onVoiceAgentStateChange?: (isActive: boolean) => void;
+  onShowOnboarding?: () => void;
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({
@@ -71,6 +72,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   voiceTourData,
   tourKey,
   onVoiceAgentStateChange,
+  onShowOnboarding,
 }) => {
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
   const { userLocation } = useLocationTracking();
@@ -289,6 +291,7 @@ const MemoizedProximityCard = React.memo<{
         user={user}
         onSignOut={onSignOut}
         onAuthDialogOpen={onAuthDialogOpen}
+        onShowOnboarding={onShowOnboarding}
       />
 
       <Map 

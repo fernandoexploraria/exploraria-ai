@@ -27,7 +27,7 @@ interface IndexProps {
 
 const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentStateChange }) => {
   const { showSplash, dismissSplash, showSplashManually } = useSplashControl();
-  const { showOnboarding, completeOnboarding, skipOnboarding } = useOnboardingControl();
+  const { showOnboarding, completeOnboarding, skipOnboarding, showOnboardingManually } = useOnboardingControl();
   const [smartTourLandmarks, setSmartTourLandmarks] = useState<Landmark[]>([]);
   const [voiceTourData, setVoiceTourData] = useState<{
     destination: string;
@@ -293,6 +293,7 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
         onTourReadyForVoice={handleTourReadyForVoice}
         voiceTourData={voiceTourData}
         tourKey={tourKey}
+        onShowOnboarding={showOnboardingManually}
       />
       
       {/* Onboarding overlay */}
