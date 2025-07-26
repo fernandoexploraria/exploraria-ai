@@ -184,7 +184,7 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                     <Button
                       variant="outline"
                       onClick={handleVoiceDemo}
-                      className="flex items-center gap-2 w-full h-12 text-base"
+                      className="flex items-center gap-2 w-full h-12 text-base border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/30 transition-all duration-200 hover:shadow-sm"
                     >
                       <Play className="w-4 h-4" />
                       Try Personal AI Tour Guide
@@ -267,7 +267,7 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className="w-full"
+                      className="w-full border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/30 transition-all duration-200 hover:shadow-sm"
                       onClick={handleSmartTourDemo}
                     >
                       <Zap className="w-4 h-4 mr-2" />
@@ -277,7 +277,7 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        className="flex-1"
+                        className="flex-1 border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/30 transition-all duration-200 hover:shadow-sm"
                         onClick={handleLandmarkDemo}
                       >
                         Top 100 Landmarks
@@ -285,7 +285,7 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        className="flex-1"
+                        className="flex-1 border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/30 transition-all duration-200 hover:shadow-sm"
                         onClick={handleLocalExperienceDemo}
                       >
                         Local Experiences
@@ -354,7 +354,7 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                     <Button
                       variant="outline"
                       onClick={handleTravelMemoryDemo}
-                      className="flex items-center gap-2 w-full"
+                      className="flex items-center gap-2 w-full border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/30 transition-all duration-200 hover:shadow-sm"
                     >
                       <Camera className="w-4 h-4" />
                       Try Travel Memory Demo
@@ -387,14 +387,14 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
                 <div className="space-y-3">
                   <Button 
                     onClick={onComplete}
-                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-md transition-all duration-200"
                   >
                     Explore Free Tours
                   </Button>
                   <Button 
                     variant="outline" 
                     onClick={onComplete}
-                    className="w-full"
+                    className="w-full border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/30 transition-all duration-200 hover:shadow-sm"
                   >
                     Start with Top 100 Landmarks
                   </Button>
@@ -429,7 +429,7 @@ const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({
               <Button
                 onClick={handleNext}
                 size="sm"
-                className="bg-primary text-primary-foreground hover:bg-primary/90"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-md transition-all duration-200"
               >
                 Next
                 <ArrowRight className="w-4 h-4 ml-1" />
