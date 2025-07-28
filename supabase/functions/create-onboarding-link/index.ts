@@ -25,12 +25,15 @@ serve(async (req) => {
   try {
     logStep("Processing onboarding link request");
 
-    // Parse request body to get country parameter
-    const { country } = await req.json();
+    // Parse request body to get country and business_type parameters
+    const { country, business_type = 'individual' } = await req.json();
     if (!country || !['US', 'MX'].includes(country)) {
       throw new Error("Valid country parameter (US or MX) is required");
     }
-    logStep("Country selected", { country });
+    if (!['individual', 'company'].includes(business_type)) {
+      throw new Error("Valid business_type parameter (individual or company) is required");
+    }
+    logStep("Parameters selected", { country, business_type });
 
     const stripeKey = Deno.env.get("STRIPE_PRIVATE_KEY_TEST");
     if (!stripeKey) throw new Error("STRIPE_PRIVATE_KEY_TEST is not set");
@@ -79,7 +82,7 @@ serve(async (req) => {
           transfers: { requested: true },
           card_payments: { requested: true },
         },
-        business_type: 'individual',
+        business_type: business_type,
         individual: {
           email: profile.email,
           first_name: profile.full_name?.split(' ')[0] || '',
