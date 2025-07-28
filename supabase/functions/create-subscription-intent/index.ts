@@ -87,14 +87,13 @@ serve(async (req) => {
       guideId: oaxacaTourGuideId 
     });
 
-    // Create subscription with incomplete payment behavior and promotion code support
+    // Create subscription with incomplete payment behavior
     const subscription = await stripe.subscriptions.create({
       customer: customerId,
       items: [{ price: priceId }],
       payment_behavior: "default_incomplete",
       payment_settings: { save_default_payment_method: "on_subscription" },
       expand: ["latest_invoice.payment_intent"],
-      allow_promotion_codes: true,
       metadata: {
         user_id: user.id,
         user_email: user.email,
