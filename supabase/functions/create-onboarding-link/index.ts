@@ -25,6 +25,13 @@ serve(async (req) => {
   try {
     logStep("Processing onboarding link request");
 
+    // Parse request body to get country parameter
+    const { country } = await req.json();
+    if (!country || !['US', 'MX'].includes(country)) {
+      throw new Error("Valid country parameter (US or MX) is required");
+    }
+    logStep("Country selected", { country });
+
     const stripeKey = Deno.env.get("STRIPE_PRIVATE_KEY_TEST");
     if (!stripeKey) throw new Error("STRIPE_PRIVATE_KEY_TEST is not set");
 
@@ -66,7 +73,7 @@ serve(async (req) => {
       
       const newAccount = await stripe.accounts.create({
         type: 'express',
-        country: 'US',
+        country: country,
         email: profile.email,
         capabilities: {
           transfers: { requested: true },
