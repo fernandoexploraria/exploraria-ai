@@ -25,9 +25,14 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    const stripeKey = Deno.env.get("STRIPE_PRIVATE_KEY_TEST");
+    const environment = Deno.env.get("STRIPE_ENVIRONMENT") || "test";
+    const stripeKey = environment === "live" 
+      ? Deno.env.get("STRIPE_PRIVATE_KEY_LIVE")
+      : Deno.env.get("STRIPE_PRIVATE_KEY_TEST");
+    
+    logStep(`Using Stripe ${environment} environment`);
     if (!stripeKey) {
-      logStep("ERROR: STRIPE_PRIVATE_KEY_TEST is not set");
+      logStep(`ERROR: STRIPE_PRIVATE_KEY_${environment.toUpperCase()} is not set`);
       return new Response(JSON.stringify({ error: "Stripe configuration missing" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,

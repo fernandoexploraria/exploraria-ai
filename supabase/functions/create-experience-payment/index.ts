@@ -84,8 +84,17 @@ serve(async (req) => {
       tourGuideTransferCents
     });
 
+    // Initialize Stripe with environment-appropriate key
+    const environment = Deno.env.get("STRIPE_ENVIRONMENT") || "test";
+    const stripeKey = environment === "live" 
+      ? Deno.env.get("STRIPE_PRIVATE_KEY_LIVE")
+      : Deno.env.get("STRIPE_PRIVATE_KEY_TEST");
+    
+    logStep(`Using Stripe ${environment} environment`);
+    if (!stripeKey) throw new Error(`STRIPE_PRIVATE_KEY_${environment.toUpperCase()} is not set`);
+    
     // Initialize Stripe
-    const stripe = new Stripe(Deno.env.get("STRIPE_PRIVATE_KEY_TEST") || "", {
+    const stripe = new Stripe(stripeKey, {
       apiVersion: "2023-10-16",
     });
 
