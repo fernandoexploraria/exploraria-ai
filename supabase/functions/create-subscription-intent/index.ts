@@ -91,20 +91,25 @@ serve(async (req) => {
     });
 
     // Create subscription with incomplete payment behavior
-    const subscription = await stripe.subscriptions.create({
-      customer: customerId,
-      items: [{ price: priceId }],
-      payment_behavior: "default_incomplete",
-      payment_settings: { save_default_payment_method: "on_subscription" },
-      expand: ["latest_invoice.payment_intent"],
-      metadata: {
-        user_id: user.id,
-        user_email: user.email,
-        reference_tour_id: oaxacaTourId
-      },
-    });
-
-    logStep("Subscription created", { subscriptionId: subscription.id });
+    let subscription;
+    try {
+      subscription = await stripe.subscriptions.create({
+        customer: customerId,
+        items: [{ price: priceId }],
+        payment_behavior: "default_incomplete",
+        payment_settings: { save_default_payment_method: "on_subscription" },
+        expand: ["latest_invoice.payment_intent"],
+        metadata: {
+          user_id: user.id,
+          user_email: user.email,
+          reference_tour_id: oaxacaTourId
+        },
+      });
+      logStep("Subscription created", { subscriptionId: subscription.id });
+    } catch (stripeError) {
+      logStep("Stripe subscription creation failed", { error: stripeError });
+      throw new Error(`Failed to create Stripe subscription: ${stripeError instanceof Error ? stripeError.message : String(stripeError)}`);
+    }
 
     // Extract client_secret from the payment intent
     const invoice = subscription.latest_invoice as Stripe.Invoice;
