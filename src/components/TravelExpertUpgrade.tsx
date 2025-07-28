@@ -41,7 +41,7 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
   const [formData, setFormData] = useState({
     full_name: profile?.full_name || '',
     bio: profile?.bio || '',
-    country: ''
+    business_type: 'individual'
   });
 
   // Determine card visibility based on user profile data
@@ -176,7 +176,7 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
           data,
           error
         } = await supabase.functions.invoke('create-onboarding-link', {
-          body: { country: formData.country }
+          body: { business_type: formData.business_type }
         });
         if (error) {
           console.error('Error creating onboarding link:', error);
@@ -293,17 +293,17 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="country">COUNTRY *</Label>
+              <Label htmlFor="business_type">BUSINESS TYPE *</Label>
               <Select
-                value={formData.country}
+                value={formData.business_type}
                 onValueChange={(value) => setFormData(prev => ({
                   ...prev,
-                  country: value
+                  business_type: value
                 }))}
                 disabled={isUpgrading}
               >
                 <SelectTrigger className="w-full bg-background">
-                  <SelectValue placeholder="Select your country" />
+                  <SelectValue placeholder="Select business type" />
                 </SelectTrigger>
                 <SelectContent 
                   className="z-[99999] bg-background border border-border shadow-2xl max-h-[200px] min-w-[200px] overflow-y-auto"
@@ -315,16 +315,16 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
                   collisionPadding={20}
                 >
                   <SelectItem 
-                    value="US" 
+                    value="individual" 
                     className="cursor-pointer hover:bg-accent focus:bg-accent px-4 py-3 text-sm"
                   >
-                    🇺🇸 United States
+                    👤 Individual
                   </SelectItem>
                   <SelectItem 
-                    value="MX" 
+                    value="company" 
                     className="cursor-pointer hover:bg-accent focus:bg-accent px-4 py-3 text-sm"
                   >
-                    🇲🇽 Mexico
+                    🏢 Company
                   </SelectItem>
                 </SelectContent>
               </Select>
@@ -344,7 +344,7 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
             
             <Button 
               onClick={handleUpgrade} 
-              disabled={isUpgrading || !formData.full_name || !formData.country} 
+              disabled={isUpgrading || !formData.full_name || !formData.business_type} 
               className="w-full"
             >
               {isRedirectingToStripe ? (

@@ -25,12 +25,12 @@ serve(async (req) => {
   try {
     logStep("Processing onboarding link request");
 
-    // Parse request body to get country parameter
-    const { country } = await req.json();
-    if (!country || !['US', 'MX'].includes(country)) {
-      throw new Error("Valid country parameter (US or MX) is required");
+    // Parse request body to get business_type parameter
+    const { business_type } = await req.json();
+    if (!business_type || !['individual', 'company'].includes(business_type)) {
+      throw new Error("Valid business_type parameter (individual or company) is required");
     }
-    logStep("Country selected", { country });
+    logStep("Business type selected", { business_type });
 
     const stripeKey = Deno.env.get("STRIPE_PRIVATE_KEY_TEST");
     if (!stripeKey) throw new Error("STRIPE_PRIVATE_KEY_TEST is not set");
@@ -73,13 +73,13 @@ serve(async (req) => {
       
       const newAccount = await stripe.accounts.create({
         type: 'express',
-        country: country,
+        country: 'US',
         email: profile.email,
         capabilities: {
           transfers: { requested: true },
           card_payments: { requested: true },
         },
-        business_type: 'individual',
+        business_type: business_type,
         individual: {
           email: profile.email,
           first_name: profile.full_name?.split(' ')[0] || '',
