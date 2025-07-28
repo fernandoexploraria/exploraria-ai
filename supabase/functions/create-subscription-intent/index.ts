@@ -20,7 +20,19 @@ serve(async (req) => {
   }
 
   try {
+    console.log("=== CREATE-SUBSCRIPTION-INTENT STARTED ===");
     logStep("Function started");
+    
+    // Log all available environment variables for debugging
+    const allEnvs = {
+      SUPABASE_URL: !!Deno.env.get("SUPABASE_URL"),
+      STRIPE_ENVIRONMENT: Deno.env.get("STRIPE_ENVIRONMENT"),
+      STRIPE_PRIVATE_KEY_TEST: !!Deno.env.get("STRIPE_PRIVATE_KEY_TEST"),
+      STRIPE_PRIVATE_KEY_LIVE: !!Deno.env.get("STRIPE_PRIVATE_KEY_LIVE"),
+      STRIPE_PRICE_ID_TEST: !!Deno.env.get("STRIPE_PRICE_ID_TEST"),
+      STRIPE_PRICE_ID_LIVE: !!Deno.env.get("STRIPE_PRICE_ID_LIVE"),
+    };
+    console.log("Environment variables check:", JSON.stringify(allEnvs, null, 2));
     
     // Check all environment variables
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
