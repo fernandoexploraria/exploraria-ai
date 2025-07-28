@@ -68,7 +68,7 @@ export const useSubscription = () => {
     }
   };
 
-  const createSubscriptionIntent = async (promotionCodeId?: string) => {
+  const createSubscriptionIntent = async () => {
     if (!user || !session) {
       throw new Error('User not authenticated');
     }
@@ -78,7 +78,6 @@ export const useSubscription = () => {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: promotionCodeId ? { promotionCodeId } : {},
       });
 
       if (error) {
