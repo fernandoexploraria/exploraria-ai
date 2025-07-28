@@ -58,6 +58,14 @@ serve(async (req) => {
     const user = userData.user;
     logStep("User authenticated", { userId: user.id, email: user.email });
 
+    // Get request body data
+    const requestBody = await req.json().catch(() => ({}));
+    const { promotionCodeId } = requestBody;
+    
+    if (promotionCodeId) {
+      logStep("Promotion code provided", { promotionCodeId });
+    }
+
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
 
     // Find or create Stripe customer
@@ -88,7 +96,7 @@ serve(async (req) => {
     });
 
     // Create subscription with incomplete payment behavior
-    const subscription = await stripe.subscriptions.create({
+    const subscriptionCreateOptions: any = {
       customer: customerId,
       items: [{ price: priceId }],
       payment_behavior: "default_incomplete",
@@ -99,7 +107,15 @@ serve(async (req) => {
         user_email: user.email,
         reference_tour_id: oaxacaTourId
       },
-    });
+    };
+
+    // Add promotion code if provided
+    if (promotionCodeId) {
+      subscriptionCreateOptions.promotion_code = promotionCodeId;
+      logStep("Adding promotion code to subscription", { promotionCodeId });
+    }
+
+    const subscription = await stripe.subscriptions.create(subscriptionCreateOptions);
 
     logStep("Subscription created", { subscriptionId: subscription.id });
 

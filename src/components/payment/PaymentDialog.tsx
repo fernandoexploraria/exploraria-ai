@@ -34,6 +34,10 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState<string>("");
   const [resetKey, setResetKey] = useState<number>(0);
+  const [appliedPromotion, setAppliedPromotion] = useState<{
+    promotionCodeId: string;
+    discountedAmount: number;
+  } | null>(null);
   const isMobile = useIsMobile();
   const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
 
@@ -107,6 +111,10 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({
     setStatusMessage(error);
   };
 
+  const handlePromotionCodeApplied = (promotionCodeId: string, newAmount: number) => {
+    setAppliedPromotion({ promotionCodeId, discountedAmount: newAmount });
+  };
+
   if (!experience || !clientSecret || !stripe) {
     return null;
   }
@@ -169,9 +177,10 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({
                 <EmbeddedPaymentForm
                   onSuccess={handlePaymentSuccess}
                   onError={handlePaymentError}
-                  amount={999} // $9.99 in cents
+                  amount={appliedPromotion?.discountedAmount || 999} // Use discounted amount if promo applied
                   experienceTitle={experience.destination}
                   isMobile={isMobile}
+                  onPromotionCodeApplied={handlePromotionCodeApplied}
                 />
               </Elements>
             )}

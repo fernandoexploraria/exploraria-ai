@@ -7,7 +7,9 @@ import {
 } from "@stripe/react-stripe-js";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Loader2, Tag } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface EmbeddedPaymentFormProps {
   onSuccess: () => void;
@@ -15,6 +17,7 @@ interface EmbeddedPaymentFormProps {
   amount: number;
   experienceTitle: string;
   isMobile?: boolean;
+  onPromotionCodeApplied?: (promotionCodeId: string, newAmount: number) => void;
 }
 
 export const EmbeddedPaymentForm: React.FC<EmbeddedPaymentFormProps> = ({
@@ -23,11 +26,20 @@ export const EmbeddedPaymentForm: React.FC<EmbeddedPaymentFormProps> = ({
   amount,
   experienceTitle,
   isMobile = false,
+  onPromotionCodeApplied,
 }) => {
   const stripe = useStripe();
   const elements = useElements();
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [promoCode, setPromoCode] = useState<string>("");
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoApplied, setPromoApplied] = useState<{
+    applied: boolean;
+    message: string;
+    promotionCodeId?: string;
+    discountedAmount?: number;
+  }>({ applied: false, message: "" });
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -58,6 +70,41 @@ export const EmbeddedPaymentForm: React.FC<EmbeddedPaymentFormProps> = ({
     }
   };
 
+  const handleApplyPromoCode = async () => {
+    if (!promoCode.trim()) return;
+
+    setPromoLoading(true);
+    setErrorMessage("");
+
+    try {
+      const { data, error } = await supabase.functions.invoke('validate-promo-code', {
+        body: { couponCode: promoCode.trim() }
+      });
+
+      if (error) throw error;
+
+      if (data.valid) {
+        setPromoApplied({
+          applied: true,
+          message: data.message,
+          promotionCodeId: data.promotionCodeId,
+          discountedAmount: data.newAmount,
+        });
+        
+        if (onPromotionCodeApplied) {
+          onPromotionCodeApplied(data.promotionCodeId, data.newAmount);
+        }
+      } else {
+        setErrorMessage(data.message || "Invalid promotion code");
+      }
+    } catch (error) {
+      console.error('Error applying promo code:', error);
+      setErrorMessage("Failed to apply promotion code. Please try again.");
+    } finally {
+      setPromoLoading(false);
+    }
+  };
+
   const formatAmount = (amount: number) => {
     return (amount / 100).toFixed(2);
   };
@@ -72,9 +119,58 @@ export const EmbeddedPaymentForm: React.FC<EmbeddedPaymentFormProps> = ({
           {experienceTitle}
         </p>
         <p className={`font-bold text-foreground ${isMobile ? 'text-base' : 'text-lg'}`}>
-          ${formatAmount(amount)} USD
+          {promoApplied.applied && promoApplied.discountedAmount !== undefined ? (
+            <span>
+              <span className="line-through text-muted-foreground text-sm">
+                ${formatAmount(amount)}
+              </span>{" "}
+              ${formatAmount(promoApplied.discountedAmount)} USD
+            </span>
+          ) : (
+            `$${formatAmount(amount)} USD`
+          )}
         </p>
+        
+        {promoApplied.applied && (
+          <div className="text-sm text-green-600 font-medium">
+            ✓ {promoApplied.message}
+          </div>
+        )}
       </div>
+
+      {/* Promotion Code Section */}
+      {!promoApplied.applied && (
+        <div className="space-y-3 border rounded-lg p-4 bg-muted/30">
+          <div className="flex items-center gap-2">
+            <Tag className="w-4 h-4 text-muted-foreground" />
+            <span className={`text-muted-foreground ${isMobile ? 'text-xs' : 'text-sm'}`}>
+              Have a promotion code?
+            </span>
+          </div>
+          <div className="flex gap-2">
+            <Input
+              placeholder="Enter code"
+              value={promoCode}
+              onChange={(e) => setPromoCode(e.target.value)}
+              className={isMobile ? 'text-sm' : ''}
+              disabled={promoLoading}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleApplyPromoCode}
+              disabled={!promoCode.trim() || promoLoading}
+              className={isMobile ? 'text-xs px-3' : 'px-4'}
+            >
+              {promoLoading ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                "Apply"
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-4">
         <LinkAuthenticationElement />
