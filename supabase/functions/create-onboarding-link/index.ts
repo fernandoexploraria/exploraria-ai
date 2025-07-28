@@ -45,6 +45,10 @@ serve(async (req) => {
 
     logStep("User authenticated", { userId: user.id, email: user.email });
 
+    // Parse request body to get country
+    const { country = 'US' } = await req.json().catch(() => ({}));
+    logStep("Country selected", { country });
+
     const { data: profile, error: profileError } = await supabaseClient
       .from('profiles')
       .select('*')
@@ -66,7 +70,7 @@ serve(async (req) => {
       
       const newAccount = await stripe.accounts.create({
         type: 'express',
-        country: 'US',
+        country: country,
         email: profile.email,
         capabilities: {
           transfers: { requested: true },
@@ -80,6 +84,7 @@ serve(async (req) => {
         },
         metadata: {
           internal_user_id: user.id,
+          country: country,
         },
       });
       
