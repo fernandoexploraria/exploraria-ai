@@ -24,18 +24,9 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    const environment = Deno.env.get("STRIPE_ENVIRONMENT") || "test";
-    const stripeKey = environment === "live" 
-      ? Deno.env.get("STRIPE_PRIVATE_KEY_LIVE")
-      : Deno.env.get("STRIPE_PRIVATE_KEY_TEST");
-    const priceId = environment === "live" 
-      ? "price_1RpuLoE8IehUonMERamhnjsl"
-      : Deno.env.get("STRIPE_PRICE_ID");
-    
-    logStep(`Using Stripe ${environment} environment`);
-    if (!stripeKey) throw new Error(`STRIPE_PRIVATE_KEY_${environment.toUpperCase()} is not set`);
-    if (!priceId) throw new Error(`Price ID for ${environment} environment is not set`);
-    logStep("Stripe key and price ID verified");
+    const stripeKey = Deno.env.get("STRIPE_PRIVATE_KEY_TEST");
+    if (!stripeKey) throw new Error("STRIPE_PRIVATE_KEY_TEST is not set");
+    logStep("Stripe key verified");
 
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -68,7 +59,12 @@ serve(async (req) => {
       customer_email: customerId ? undefined : user.email,
       line_items: [
         {
-          price: priceId,
+          price_data: {
+            currency: "usd",
+            product_data: { name: "Premium Subscription" },
+            unit_amount: 999, // $9.99
+            recurring: { interval: "month" },
+          },
           quantity: 1,
         },
       ],
