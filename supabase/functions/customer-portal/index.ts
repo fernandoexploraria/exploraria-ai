@@ -24,8 +24,13 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    const stripeKey = Deno.env.get("STRIPE_PRIVATE_KEY_TEST");
-    if (!stripeKey) throw new Error("STRIPE_PRIVATE_KEY_TEST is not set");
+    const environment = Deno.env.get("STRIPE_ENVIRONMENT") || "test";
+    const stripeKey = environment === "live" 
+      ? Deno.env.get("STRIPE_PRIVATE_KEY_LIVE")
+      : Deno.env.get("STRIPE_PRIVATE_KEY_TEST");
+    
+    logStep(`Using Stripe ${environment} environment`);
+    if (!stripeKey) throw new Error(`STRIPE_PRIVATE_KEY_${environment.toUpperCase()} is not set`);
     logStep("Stripe key verified");
 
     const supabaseClient = createClient(
