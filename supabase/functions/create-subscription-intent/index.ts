@@ -27,6 +27,8 @@ serve(async (req) => {
     const environment = Deno.env.get("STRIPE_ENVIRONMENT") || "test";
     const isLive = environment === "live";
     
+    logStep("Environment check", { environment, isLive });
+    
     const stripeKey = isLive 
       ? Deno.env.get("STRIPE_PRIVATE_KEY_LIVE")
       : Deno.env.get("STRIPE_PRIVATE_KEY_TEST");
@@ -34,6 +36,12 @@ serve(async (req) => {
     const priceId = isLive 
       ? Deno.env.get("STRIPE_PRICE_ID_LIVE")
       : Deno.env.get("STRIPE_PRICE_ID_TEST");
+    
+    logStep("Keys check", { 
+      hasStripeKey: !!stripeKey, 
+      hasPriceId: !!priceId,
+      hasSupabaseUrl: !!supabaseUrl 
+    });
     
     if (!supabaseUrl) throw new Error("SUPABASE_URL is not set");
     if (!stripeKey) throw new Error(`Stripe private key not set for ${environment} environment`);
