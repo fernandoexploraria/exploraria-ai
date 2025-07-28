@@ -302,12 +302,16 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
                 }))}
                 disabled={isUpgrading}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select your country" />
                 </SelectTrigger>
-                <SelectContent className="z-[100] bg-popover">
-                  <SelectItem value="US">United States</SelectItem>
-                  <SelectItem value="MX">Mexico</SelectItem>
+                <SelectContent className="z-[999] bg-background border shadow-lg">
+                  <SelectItem value="US" className="cursor-pointer hover:bg-accent">
+                    🇺🇸 United States
+                  </SelectItem>
+                  <SelectItem value="MX" className="cursor-pointer hover:bg-accent">
+                    🇲🇽 Mexico
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
