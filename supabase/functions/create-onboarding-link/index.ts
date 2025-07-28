@@ -71,7 +71,7 @@ serve(async (req) => {
     } else {
       logStep("Creating new Stripe Express account");
       
-      const newAccount = await stripe.accounts.create({
+      const accountData: any = {
         type: 'express',
         country: 'US',
         email: profile.email,
@@ -80,15 +80,21 @@ serve(async (req) => {
           card_payments: { requested: true },
         },
         business_type: business_type,
-        individual: {
-          email: profile.email,
-          first_name: profile.full_name?.split(' ')[0] || '',
-          last_name: profile.full_name?.split(' ').slice(1).join(' ') || '',
-        },
         metadata: {
           internal_user_id: user.id,
         },
-      });
+      };
+
+      // Only add individual data if business_type is 'individual'
+      if (business_type === 'individual') {
+        accountData.individual = {
+          email: profile.email,
+          first_name: profile.full_name?.split(' ')[0] || '',
+          last_name: profile.full_name?.split(' ').slice(1).join(' ') || '',
+        };
+      }
+
+      const newAccount = await stripe.accounts.create(accountData);
       
       stripeAccountId = newAccount.id;
       logStep("Created new Stripe account", { accountId: stripeAccountId });
