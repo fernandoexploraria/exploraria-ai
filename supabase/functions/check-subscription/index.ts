@@ -25,21 +25,15 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    const environment = Deno.env.get("STRIPE_ENVIRONMENT") || "test";
-    const isLive = environment === "live";
-    
-    const stripeKey = isLive 
-      ? Deno.env.get("STRIPE_PRIVATE_KEY_LIVE")
-      : Deno.env.get("STRIPE_PRIVATE_KEY_TEST");
-    
+    const stripeKey = Deno.env.get("STRIPE_PRIVATE_KEY_TEST");
     if (!stripeKey) {
-      logStep(`ERROR: Stripe private key not set for ${environment} environment`);
+      logStep("ERROR: STRIPE_PRIVATE_KEY_TEST is not set");
       return new Response(JSON.stringify({ error: "Stripe configuration missing" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,
       });
     }
-    logStep(`Stripe key verified for ${environment} environment`);
+    logStep("Stripe key verified");
 
     // Use the service role key to perform writes (upsert) in Supabase
     const supabaseClient = createClient(
