@@ -306,19 +306,23 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
                   <SelectValue placeholder="Select your country" />
                 </SelectTrigger>
                 <SelectContent 
-                  className="z-[9999] bg-background border border-border shadow-xl"
+                  className="z-[99999] bg-background border border-border shadow-2xl max-h-[200px] min-w-[200px] overflow-y-auto"
                   position="popper"
-                  sideOffset={8}
+                  side="bottom"
+                  align="start"
+                  sideOffset={4}
+                  avoidCollisions={true}
+                  collisionPadding={20}
                 >
                   <SelectItem 
                     value="US" 
-                    className="cursor-pointer hover:bg-accent focus:bg-accent px-3 py-2"
+                    className="cursor-pointer hover:bg-accent focus:bg-accent px-4 py-3 text-sm"
                   >
                     🇺🇸 United States
                   </SelectItem>
                   <SelectItem 
                     value="MX" 
-                    className="cursor-pointer hover:bg-accent focus:bg-accent px-3 py-2"
+                    className="cursor-pointer hover:bg-accent focus:bg-accent px-4 py-3 text-sm"
                   >
                     🇲🇽 Mexico
                   </SelectItem>
