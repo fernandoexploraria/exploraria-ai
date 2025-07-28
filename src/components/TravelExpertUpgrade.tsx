@@ -305,7 +305,7 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
                 <SelectTrigger>
                   <SelectValue placeholder="Select your country" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[100] bg-popover">
                   <SelectItem value="US">United States</SelectItem>
                   <SelectItem value="MX">Mexico</SelectItem>
                 </SelectContent>
