@@ -116,6 +116,12 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({
     appearance: {
       theme: 'stripe' as const,
     },
+    features: {
+      linkAuthentication: {
+        allowLoggedOutEmail: true,
+        allowRedisplay: 'auto',
+      },
+    },
   };
 
   const dynamicMaxHeight = isMobile ? 

@@ -3,6 +3,7 @@ import {
   useStripe,
   useElements,
   PaymentElement,
+  LinkAuthenticationElement,
 } from "@stripe/react-stripe-js";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -75,11 +76,16 @@ export const EmbeddedPaymentForm: React.FC<EmbeddedPaymentFormProps> = ({
         </p>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
+        <LinkAuthenticationElement />
+        
         <PaymentElement
           options={{
             layout: isMobile ? "accordion" : "tabs",
             paymentMethodOrder: isMobile ? ["card"] : undefined,
+            fields: {
+              billingDetails: 'auto',
+            },
           }}
         />
       </div>
