@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -39,7 +40,8 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
   const cardRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState({
     full_name: profile?.full_name || '',
-    bio: profile?.bio || ''
+    bio: profile?.bio || '',
+    country: ''
   });
 
   // Determine card visibility based on user profile data
@@ -174,7 +176,7 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
           data,
           error
         } = await supabase.functions.invoke('create-onboarding-link', {
-          body: {}
+          body: { country: formData.country }
         });
         if (error) {
           console.error('Error creating onboarding link:', error);
@@ -290,6 +292,26 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
               />
             </div>
             
+            <div className="space-y-2">
+              <Label htmlFor="country">Country *</Label>
+              <Select
+                value={formData.country}
+                onValueChange={(value) => setFormData(prev => ({
+                  ...prev,
+                  country: value
+                }))}
+                disabled={isUpgrading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select your country" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="US">United States</SelectItem>
+                  <SelectItem value="MX">Mexico</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
             {isRedirectingToStripe && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-center gap-2 text-blue-800">
@@ -304,7 +326,7 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
             
             <Button 
               onClick={handleUpgrade} 
-              disabled={isUpgrading || !formData.full_name} 
+              disabled={isUpgrading || !formData.full_name || !formData.country} 
               className="w-full"
             >
               {isRedirectingToStripe ? (
