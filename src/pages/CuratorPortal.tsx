@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Plus, ArrowLeft, BookOpen, Users, TrendingUp, Zap, CheckCircle, AlertCircle, Clock, ExternalLink } from 'lucide-react';
 import { ExperienceCreationWizard } from '@/components/ExperienceCreationWizard';
-import { StripeCountrySelectionDialog } from '@/components/StripeCountrySelectionDialog';
 import { Link, useLocation } from 'react-router-dom';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useToast } from '@/hooks/use-toast';
@@ -21,8 +20,6 @@ const CuratorPortal: React.FC = () => {
     chargesEnabled?: boolean;
   }>({});
   const [isAccessingStripe, setIsAccessingStripe] = useState(false);
-  const [showCountryDialog, setShowCountryDialog] = useState(false);
-  const [isCreatingStripeAccount, setIsCreatingStripeAccount] = useState(false);
 
   // Handle Stripe Connect return flow
   useEffect(() => {
@@ -125,17 +122,10 @@ const CuratorPortal: React.FC = () => {
     }
   };
 
-  const handleStripeSetup = () => {
-    setShowCountryDialog(true);
-  };
-
-  const handleCountrySelect = async (country: string) => {
-    setIsCreatingStripeAccount(true);
-    setShowCountryDialog(false);
-    
+  const handleStripeSetup = async () => {
     try {
       const { data, error } = await supabase.functions.invoke('create-onboarding-link', {
-        body: { country }
+        body: {}
       });
 
       if (error) {
@@ -162,8 +152,6 @@ const CuratorPortal: React.FC = () => {
         description: "Unable to start Stripe setup. Please try again later.",
         variant: "destructive",
       });
-    } finally {
-      setIsCreatingStripeAccount(false);
     }
   };
 
@@ -430,14 +418,6 @@ const CuratorPortal: React.FC = () => {
             </CardContent>
           </Card>
         </main>
-        
-        {/* Country Selection Dialog */}
-        <StripeCountrySelectionDialog
-          open={showCountryDialog}
-          onOpenChange={setShowCountryDialog}
-          onCountrySelect={handleCountrySelect}
-          isLoading={isCreatingStripeAccount}
-        />
       </div>
     </ProtectedRoute>
   );
