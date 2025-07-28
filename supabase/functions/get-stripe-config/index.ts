@@ -11,11 +11,16 @@ serve(async (req) => {
   }
 
   try {
-    const publicKey = Deno.env.get("STRIPE_PUBLIC_KEY_TEST");
+    const environment = Deno.env.get("STRIPE_ENVIRONMENT") || "test";
+    const publicKey = environment === "live" 
+      ? Deno.env.get("STRIPE_PUBLIC_KEY_LIVE")
+      : Deno.env.get("STRIPE_PUBLIC_KEY_TEST");
+    
+    console.log(`[GET-STRIPE-CONFIG] Using ${environment} environment`);
     
     if (!publicKey) {
       return new Response(
-        JSON.stringify({ error: "Stripe public key not configured" }),
+        JSON.stringify({ error: `Stripe public key not configured for ${environment} environment` }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 500,

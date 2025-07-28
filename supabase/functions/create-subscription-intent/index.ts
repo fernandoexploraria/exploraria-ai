@@ -24,14 +24,17 @@ serve(async (req) => {
     
     // Check all environment variables
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const stripeKey = Deno.env.get("STRIPE_PRIVATE_KEY_TEST");
+    const environment = Deno.env.get("STRIPE_ENVIRONMENT") || "test";
+    const stripeKey = environment === "live" 
+      ? Deno.env.get("STRIPE_PRIVATE_KEY_LIVE")
+      : Deno.env.get("STRIPE_PRIVATE_KEY_TEST");
     const priceId = Deno.env.get("STRIPE_PRICE_ID");
     
     if (!supabaseUrl) throw new Error("SUPABASE_URL is not set");
-    if (!stripeKey) throw new Error("STRIPE_PRIVATE_KEY_TEST is not set");
+    if (!stripeKey) throw new Error(`STRIPE_PRIVATE_KEY_${environment.toUpperCase()} is not set`);
     if (!priceId) throw new Error("STRIPE_PRICE_ID is not set");
     
-    logStep("Environment variables verified");
+    logStep("Environment variables verified", { environment });
 
     // Create Supabase client with service role for secure operations
     const supabaseClient = createClient(
