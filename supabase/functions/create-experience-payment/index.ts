@@ -133,15 +133,10 @@ serve(async (req) => {
       logStep("New Stripe product created", { productId });
     }
 
-    // Create Payment Intent with destination charges
+    // Create Payment Intent (simplified version without destination charges for now)
     const paymentIntent = await stripe.paymentIntents.create({
       amount: totalAmountCents,
       currency: "usd",
-      // Core destination charge configuration
-      application_fee_amount: platformCommissionCents,
-      transfer_data: {
-        destination: experience.account_id, // Tour guide's Stripe account ID
-      },
       automatic_payment_methods: {
         enabled: true,
       },
@@ -152,6 +147,8 @@ serve(async (req) => {
         internal_tourist_id: tourist.id,
         stripe_product_id: productId,
         tour_destination: experience.destination,
+        platform_fee_amount: platformCommissionCents.toString(),
+        tour_guide_amount: tourGuideTransferCents.toString(),
       },
     });
 
