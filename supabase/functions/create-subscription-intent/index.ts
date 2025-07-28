@@ -105,9 +105,16 @@ serve(async (req) => {
 
     // Extract client_secret from the payment intent
     const invoice = subscription.latest_invoice as Stripe.Invoice;
+    if (!invoice) {
+      throw new Error("No invoice found on subscription");
+    }
+    
     const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent;
+    if (!paymentIntent) {
+      throw new Error("No payment intent found on invoice");
+    }
+    
     const clientSecret = paymentIntent.client_secret;
-
     if (!clientSecret) {
       throw new Error("Failed to create subscription payment intent");
     }
