@@ -24,12 +24,20 @@ serve(async (req) => {
     
     // Check all environment variables
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const stripeKey = Deno.env.get("STRIPE_PRIVATE_KEY_TEST");
-    const priceId = Deno.env.get("STRIPE_PRICE_ID");
+    const environment = Deno.env.get("STRIPE_ENVIRONMENT") || "test";
+    const isLive = environment === "live";
+    
+    const stripeKey = isLive 
+      ? Deno.env.get("STRIPE_PRIVATE_KEY_LIVE")
+      : Deno.env.get("STRIPE_PRIVATE_KEY_TEST");
+    
+    const priceId = isLive 
+      ? Deno.env.get("STRIPE_PRICE_ID_LIVE")
+      : Deno.env.get("STRIPE_PRICE_ID_TEST");
     
     if (!supabaseUrl) throw new Error("SUPABASE_URL is not set");
-    if (!stripeKey) throw new Error("STRIPE_PRIVATE_KEY_TEST is not set");
-    if (!priceId) throw new Error("STRIPE_PRICE_ID is not set");
+    if (!stripeKey) throw new Error(`Stripe private key not set for ${environment} environment`);
+    if (!priceId) throw new Error(`Stripe price ID not set for ${environment} environment`);
     
     logStep("Environment variables verified");
 
