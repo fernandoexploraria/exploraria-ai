@@ -293,7 +293,7 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="country">Country *</Label>
+              <Label htmlFor="country">COUNTRY *</Label>
               <Select
                 value={formData.country}
                 onValueChange={(value) => setFormData(prev => ({
@@ -302,14 +302,24 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
                 }))}
                 disabled={isUpgrading}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full bg-background">
                   <SelectValue placeholder="Select your country" />
                 </SelectTrigger>
-                <SelectContent className="z-[999] bg-background border shadow-lg">
-                  <SelectItem value="US" className="cursor-pointer hover:bg-accent">
+                <SelectContent 
+                  className="z-[9999] bg-background border border-border shadow-xl"
+                  position="popper"
+                  sideOffset={8}
+                >
+                  <SelectItem 
+                    value="US" 
+                    className="cursor-pointer hover:bg-accent focus:bg-accent px-3 py-2"
+                  >
                     🇺🇸 United States
                   </SelectItem>
-                  <SelectItem value="MX" className="cursor-pointer hover:bg-accent">
+                  <SelectItem 
+                    value="MX" 
+                    className="cursor-pointer hover:bg-accent focus:bg-accent px-3 py-2"
+                  >
                     🇲🇽 Mexico
                   </SelectItem>
                 </SelectContent>
