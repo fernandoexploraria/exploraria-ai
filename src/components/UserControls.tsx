@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { 
@@ -8,12 +8,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { User, LogOut, Star, HelpCircle, BookOpen } from 'lucide-react';
+import { User, LogOut, Star, HelpCircle, BookOpen, Apple } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { useAuth } from '@/components/AuthProvider';
 import { Link } from 'react-router-dom';
 import { ProfileBackfillUtility } from '@/components/ProfileBackfillUtility';
 import { TravelExpertUpgrade } from '@/components/TravelExpertUpgrade';
+import { AppleOAuthJWTDialog } from '@/components/AppleOAuthJWTDialog';
 import { useDemoMode } from '@/hooks/useDemoMode';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useOnboardingControl } from '@/hooks/useOnboardingControl';
@@ -30,6 +31,10 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
   const { isDemoMode } = useDemoMode();
   const isMobile = useIsMobile();
   const { completeOnboarding } = useOnboardingControl();
+  const [isAppleJWTDialogOpen, setIsAppleJWTDialogOpen] = useState(false);
+  
+  // Check if user has access to Apple OAuth JWT functionality
+  const hasAppleOAuthAccess = user?.email === 'fobregona@yahoo.com';
   
   const handleSignOut = async () => {
     console.log('Sign out button clicked');
@@ -71,6 +76,19 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
 
         {user ? (
           <div className="flex items-center gap-2">
+            {/* Apple OAuth JWT Generator - only for specific user */}
+            {hasAppleOAuthAccess && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsAppleJWTDialogOpen(true)}
+                className="bg-background/80 backdrop-blur-sm shadow-lg border border-input text-foreground hover:bg-accent hover:text-accent-foreground h-10"
+              >
+                <Apple className="w-4 h-4 mr-2" />
+                Apple JWT
+              </Button>
+            )}
+            
             {/* Travel Expert Portal Link or Upgrade Badge */}
             {profile?.role === 'travel_expert' ? (
               <Link to="/curator-portal">
@@ -128,6 +146,12 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
           <ProfileBackfillUtility />
         </div>
       )}
+
+      {/* Apple OAuth JWT Dialog */}
+      <AppleOAuthJWTDialog 
+        open={isAppleJWTDialogOpen} 
+        onOpenChange={setIsAppleJWTDialogOpen} 
+      />
     </>
   );
 };
