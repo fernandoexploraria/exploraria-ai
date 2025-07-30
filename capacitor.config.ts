@@ -2,7 +2,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.1349ca1f6be14b1d987344f9d88cdaf0',
+  appId: 'app.lovable.exploraria',
   appName: 'exploraria-ai',
   webDir: 'dist',
   server: {
