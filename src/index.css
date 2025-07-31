@@ -120,9 +120,19 @@
   }
 }
 
+html, body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  position: fixed;
+}
+
 #root {
   width: 100vw;
-  height: 100vh;
+  height: 100dvh; /* Use dynamic viewport height for Safari */
+  height: 100vh; /* Fallback for older browsers */
   overflow: hidden;
   background-color: hsl(var(--background));
 }
