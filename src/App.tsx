@@ -13,8 +13,7 @@ import CuratorPortal from "./pages/CuratorPortal";
 import ElevenLabsPlayground from "./pages/ElevenLabsPlayground";
 import { PaymentSuccess } from "./components/PaymentSuccess";
 import { PaymentFailure } from "./components/PaymentFailure";
-import { NativePermissionDialog } from "@/components/NativePermissionDialog";
-import { useNativePermissions } from "@/hooks/useNativePermissions";
+import { NativePermissionManager } from "@/components/NativePermissionManager";
 import { useState, useEffect } from "react";
 
 const queryClient = new QueryClient();
@@ -25,9 +24,6 @@ const App = () => {
     onIntelligentTour?: () => void;
   }>({});
   const [isVoiceAgentActive, setIsVoiceAgentActive] = useState(false);
-  const { isNativeApp, permissionState } = useNativePermissions();
-  const [showPermissionDialog, setShowPermissionDialog] = useState(false);
-  const [permissionDialogCompleted, setPermissionDialogCompleted] = useState(false);
 
   const handlePostAuthAction = (action: PostAuthAction) => {
     console.log('🎯 App handling post-auth action:', action);
@@ -48,30 +44,6 @@ const App = () => {
     }
   };
 
-  // Handle native app permission flow
-  useEffect(() => {
-    if (isNativeApp && permissionState.hasCheckedInitially && !permissionDialogCompleted) {
-      // Show permission dialog if we haven't checked permissions yet or they're not granted
-      const needsPermissions = permissionState.location !== 'granted';
-      if (needsPermissions) {
-        setShowPermissionDialog(true);
-      } else {
-        setPermissionDialogCompleted(true);
-      }
-    }
-  }, [isNativeApp, permissionState.hasCheckedInitially, permissionState.location, permissionDialogCompleted]);
-
-  const handlePermissionDialogComplete = (hasRequiredPermissions: boolean) => {
-    setShowPermissionDialog(false);
-    setPermissionDialogCompleted(true);
-    
-    // You could add additional logic here based on permission results
-    if (!hasRequiredPermissions) {
-      console.log('⚠️ App running with limited permissions');
-    } else {
-      console.log('✅ App has all required permissions');
-    }
-  };
 
   // Add console logging to detect StrictMode double-mounting
   console.log('🔧 App component mounting/rendering at:', new Date().toISOString());
@@ -115,11 +87,8 @@ const App = () => {
                </AuthProvider>
              </BrowserRouter>
              
-             {/* Native app permission dialog */}
-             <NativePermissionDialog
-               isOpen={showPermissionDialog}
-               onComplete={handlePermissionDialogComplete}
-             />
+              {/* Native app permission manager */}
+              <NativePermissionManager />
            </TTSProvider>
          </StripeProvider>
        </TooltipProvider>
