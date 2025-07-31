@@ -117,6 +117,12 @@
   .pulse-marker-1 {
     animation: pulse-marker 2s ease-in-out infinite;
   }
+
+  /* Native app safe area adjustments for Mapbox controls */
+  .native-app .mapboxgl-ctrl-geolocate {
+    margin-bottom: env(safe-area-inset-bottom);
+    margin-right: env(safe-area-inset-right);
+  }
   }
 }
 

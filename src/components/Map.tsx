@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
+import { Capacitor } from '@capacitor/core';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Volume2, Eye, MapPin, Route, Navigation } from 'lucide-react';
@@ -386,6 +387,21 @@ const MapComponent: React.FC<MapProps> = React.memo(({
   // 🔥 PREVENT MAP RESETS - Store map state persistently
   const mapStateRef = useRef<{ zoom: number; center: [number, number] } | null>(null);
   
+  // Apply native app class for safe area CSS
+  useEffect(() => {
+    const isNativeApp = Capacitor.isNativePlatform();
+    if (isNativeApp) {
+      document.body.classList.add('native-app');
+    } else {
+      document.body.classList.remove('native-app');
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      document.body.classList.remove('native-app');
+    };
+  }, []);
+
   useEffect(() => {
     console.log('🗺️ [Map] MAP INITIALIZATION useEffect triggered with token:', mapboxToken ? 'TOKEN_PRESENT' : 'TOKEN_EMPTY');
     console.log('🗺️ [Map] Current map state:', map.current ? 'EXISTS' : 'NULL');
