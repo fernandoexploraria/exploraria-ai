@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { 
@@ -33,6 +34,9 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
   const { completeOnboarding } = useOnboardingControl();
   const [isAppleJWTDialogOpen, setIsAppleJWTDialogOpen] = useState(false);
   
+  // Detect if running in native app
+  const isNativeApp = Capacitor.isNativePlatform();
+  
   // Check if user has access to Apple OAuth JWT functionality
   const hasAppleOAuthAccess = user?.email === 'fobregona@yahoo.com';
   
@@ -61,9 +65,14 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
     }
   };
 
+  // Apply safe area padding only in native app
+  const containerClasses = isNativeApp
+    ? "absolute top-[10px] right-[45px] z-20 flex items-start gap-2 pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)]"
+    : "absolute top-[10px] right-[45px] z-20 flex items-start gap-2";
+
   return (
     <>
-      <div className="absolute top-[10px] right-[45px] z-20 flex items-start gap-2">
+      <div className={containerClasses}>
         {/* Help Button - Available for all users */}
         <Button
           variant="outline"
@@ -142,7 +151,10 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
       
       {/* Profile Backfill Utility - only when demo mode is off */}
       {user && !isDemoMode && (
-        <div className="absolute top-[70px] right-[45px] z-20">
+        <div className={isNativeApp 
+          ? "absolute top-[70px] right-[45px] z-20 pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)]"
+          : "absolute top-[70px] right-[45px] z-20"
+        }>
           <ProfileBackfillUtility />
         </div>
       )}

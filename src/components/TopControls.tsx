@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube, MapPin, ToggleLeft, ToggleRight, Compass } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerTrigger, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
@@ -158,9 +159,17 @@ const TopControls: React.FC<TopControlsProps> = ({
     });
   };
 
+  // Detect if running in native app
+  const isNativeApp = Capacitor.isNativePlatform();
+  
+  // Apply safe area padding only in native app
+  const containerClasses = isNativeApp
+    ? "absolute top-4 left-4 z-10 pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)]"
+    : "absolute top-4 left-4 z-10";
+
   return (
     <>
-      <div className="absolute top-4 left-4 z-10">
+      <div className={containerClasses}>
         <div className="flex flex-col items-start gap-2 max-w-[calc(100vw-120px)]">
           <img 
             src="/lovable-uploads/ac9cbebd-b083-4d3d-a85e-782e03045422.png" 
