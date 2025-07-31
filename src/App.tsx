@@ -14,7 +14,6 @@ import ElevenLabsPlayground from "./pages/ElevenLabsPlayground";
 import { PaymentSuccess } from "./components/PaymentSuccess";
 import { PaymentFailure } from "./components/PaymentFailure";
 import { useState } from "react";
-import { useDeepLinkHandler } from "@/hooks/useDeepLinkHandler";
 
 const queryClient = new QueryClient();
 
@@ -24,9 +23,6 @@ const App = () => {
     onIntelligentTour?: () => void;
   }>({});
   const [isVoiceAgentActive, setIsVoiceAgentActive] = useState(false);
-  
-  // Handle deep links for Capacitor app
-  useDeepLinkHandler();
 
   const handlePostAuthAction = (action: PostAuthAction) => {
     console.log('🎯 App handling post-auth action:', action);

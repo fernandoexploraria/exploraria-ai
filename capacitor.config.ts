@@ -9,17 +9,8 @@ const config: CapacitorConfig = {
     plist: {
       NSPhotoLibraryUsageDescription: 'This app uses the camera to capture photos of landmarks and places you visit during your tours.',
       NSCameraUsageDescription: 'This app uses the camera to capture photos of landmarks and places you visit during your tours.',
-      ITSAppUsesNonExemptEncryption: false,
-      CFBundleURLTypes: [
-        {
-          CFBundleURLName: 'Auth Callback',
-          CFBundleURLSchemes: ['app.lovable.exploraria']
-        }
-      ]
+      ITSAppUsesNonExemptEncryption: false
     }
-  },
-  android: {
-    allowMixedContent: true
   },
   plugins: {
     SplashScreen: {

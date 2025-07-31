@@ -296,13 +296,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
   }, [onPostAuthAction]);
 
   const signUp = async (email: string, password: string) => {
-    // Check if we're in a Capacitor app
-    const isCapacitor = !!(window as any).Capacitor?.isNativePlatform?.();
-    
-    // Use app scheme for Capacitor, web URL for browser
-    const redirectUrl = isCapacitor 
-      ? 'app.lovable.exploraria://auth-callback'
-      : `${window.location.origin}/`;
+    const redirectUrl = `${window.location.origin}/`;
     
     const { error } = await supabase.auth.signUp({
       email,
