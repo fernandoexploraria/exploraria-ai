@@ -15,21 +15,38 @@ export const useDeepLinkHandler = () => {
       // Check if this is an auth callback
       if (data.url.startsWith('app.lovable.exploraria://auth-callback')) {
         try {
-          // Extract the fragment from the URL which contains the auth tokens
           const url = new URL(data.url);
-          const fragment = url.hash || url.search;
           
-          if (fragment) {
-            console.log('Processing auth callback with fragment:', fragment);
-            
-            // Handle the auth callback - Supabase will automatically process the tokens
-            const { data: sessionData, error } = await supabase.auth.getSession();
+          // Extract tokens from URL fragment (Supabase puts tokens in hash)
+          const fragment = url.hash.substring(1); // Remove the # character
+          const params = new URLSearchParams(fragment);
+          
+          const accessToken = params.get('access_token');
+          const refreshToken = params.get('refresh_token');
+          const tokenType = params.get('token_type');
+          const expiresIn = params.get('expires_in');
+          
+          console.log('Auth callback tokens:', { accessToken: !!accessToken, refreshToken: !!refreshToken });
+          
+          if (accessToken && refreshToken) {
+            // Set the session with the extracted tokens
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken
+            });
             
             if (error) {
-              console.error('Error processing auth callback:', error);
+              console.error('Error setting auth session:', error);
             } else {
-              console.log('Auth callback processed successfully');
+              console.log('Auth session set successfully:', data.session?.user?.email);
+              
+              // Navigate to main app (you might want to customize this route)
+              if (typeof window !== 'undefined') {
+                window.location.replace('/');
+              }
             }
+          } else {
+            console.warn('No auth tokens found in deep link fragment');
           }
         } catch (error) {
           console.error('Error handling deep link:', error);
