@@ -51,7 +51,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  
 
   // Track browser sessions using localStorage + sessionStorage
   const trackUserSession = async (userId: string) => {
@@ -152,8 +151,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
         // Handle post-auth actions for successful sign-ins
         if (event === 'SIGNED_IN' && session?.user) {
           console.log('Sign in detected, checking for pending actions');
-          
-          
           const pendingAction = getPostAuthAction();
           
           if (pendingAction !== 'none') {
