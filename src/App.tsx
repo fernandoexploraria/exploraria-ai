@@ -13,8 +13,7 @@ import CuratorPortal from "./pages/CuratorPortal";
 import ElevenLabsPlayground from "./pages/ElevenLabsPlayground";
 import { PaymentSuccess } from "./components/PaymentSuccess";
 import { PaymentFailure } from "./components/PaymentFailure";
-import { NativePermissionManager } from "@/components/NativePermissionManager";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 const queryClient = new QueryClient();
 
@@ -43,7 +42,6 @@ const App = () => {
         break;
     }
   };
-
 
   // Add console logging to detect StrictMode double-mounting
   console.log('🔧 App component mounting/rendering at:', new Date().toISOString());
@@ -83,17 +81,14 @@ const App = () => {
                      path="/payment-failed" 
                      element={<PaymentFailure />} 
                    />
-                 </Routes>
-                 
-                 {/* Native app permission manager */}
-                 <NativePermissionManager />
-                </AuthProvider>
-              </BrowserRouter>
-           </TTSProvider>
-         </StripeProvider>
-       </TooltipProvider>
-     </QueryClientProvider>
-   );
+                </Routes>
+              </AuthProvider>
+            </BrowserRouter>
+          </TTSProvider>
+        </StripeProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
 };
 
 export default App;
