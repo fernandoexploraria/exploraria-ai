@@ -8,6 +8,8 @@ import { useAuth } from './AuthProvider';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { setPostAuthAction, PostAuthAction } from '@/utils/authActions';
+import { Browser } from '@capacitor/browser';
+import { App } from '@capacitor/app';
 
 interface AuthDialogProps {
   open: boolean;
@@ -89,38 +91,81 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
     // Check if we're in a Capacitor app
     const isCapacitor = !!(window as any).Capacitor?.isNativePlatform?.();
     
-    // Use app scheme for Capacitor, web URL for browser
-    const redirectTo = isCapacitor 
-      ? 'app.lovable.exploraria://auth-callback'
-      : window.location.origin;
-    
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo
-        }
-      });
+    if (isCapacitor) {
+      // Use in-app browser for Capacitor
+      try {
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: 'app.lovable.exploraria://auth-callback',
+            skipBrowserRedirect: true
+          }
+        });
 
-      if (error) {
+        if (error) throw error;
+
+        const authUrl = data.url;
+        console.log('Opening OAuth URL in browser:', authUrl);
+
+        // Open in-app browser
+        await Browser.open({ 
+          url: authUrl,
+          windowName: '_self'
+        });
+
+        // Set up listener for when browser closes
+        const listener = await App.addListener('appUrlOpen', async (event) => {
+          console.log('App opened with URL:', event.url);
+          
+          if (event.url.startsWith('app.lovable.exploraria://auth-callback')) {
+            // Close the browser
+            await Browser.close();
+            
+            // Remove the listener
+            listener.remove();
+            
+            // Close the auth dialog
+            onOpenChange(false);
+          }
+        });
+
+      } catch (error: any) {
+        console.error('Google sign-in error:', error);
         toast({
           title: "Google Sign In Error",
-          description: error.message,
+          description: error.message || "Failed to sign in with Google.",
           variant: "destructive"
         });
-      } else {
-        // OAuth will redirect, so we close the dialog
-        onOpenChange(false);
       }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to sign in with Google.",
-        variant: "destructive"
-      });
-    } finally {
-      setGoogleLoading(false);
+    } else {
+      // Web browser - use standard flow
+      try {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: window.location.origin
+          }
+        });
+
+        if (error) {
+          toast({
+            title: "Google Sign In Error",
+            description: error.message,
+            variant: "destructive"
+          });
+        } else {
+          onOpenChange(false);
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to sign in with Google.",
+          variant: "destructive"
+        });
+      }
     }
+    
+    setGoogleLoading(false);
   };
 
   const handleAppleSignIn = async () => {
@@ -134,38 +179,81 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
     // Check if we're in a Capacitor app
     const isCapacitor = !!(window as any).Capacitor?.isNativePlatform?.();
     
-    // Use app scheme for Capacitor, web URL for browser
-    const redirectTo = isCapacitor 
-      ? 'app.lovable.exploraria://auth-callback'
-      : window.location.origin;
-    
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'apple',
-        options: {
-          redirectTo
-        }
-      });
+    if (isCapacitor) {
+      // Use in-app browser for Capacitor
+      try {
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: 'apple',
+          options: {
+            redirectTo: 'app.lovable.exploraria://auth-callback',
+            skipBrowserRedirect: true
+          }
+        });
 
-      if (error) {
+        if (error) throw error;
+
+        const authUrl = data.url;
+        console.log('Opening Apple OAuth URL in browser:', authUrl);
+
+        // Open in-app browser
+        await Browser.open({ 
+          url: authUrl,
+          windowName: '_self'
+        });
+
+        // Set up listener for when browser closes
+        const listener = await App.addListener('appUrlOpen', async (event) => {
+          console.log('App opened with URL:', event.url);
+          
+          if (event.url.startsWith('app.lovable.exploraria://auth-callback')) {
+            // Close the browser
+            await Browser.close();
+            
+            // Remove the listener
+            listener.remove();
+            
+            // Close the auth dialog
+            onOpenChange(false);
+          }
+        });
+
+      } catch (error: any) {
+        console.error('Apple sign-in error:', error);
         toast({
           title: "Apple Sign In Error",
-          description: error.message,
+          description: error.message || "Failed to sign in with Apple.",
           variant: "destructive"
         });
-      } else {
-        // OAuth will redirect, so we close the dialog
-        onOpenChange(false);
       }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to sign in with Apple.",
-        variant: "destructive"
-      });
-    } finally {
-      setAppleLoading(false);
+    } else {
+      // Web browser - use standard flow
+      try {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'apple',
+          options: {
+            redirectTo: window.location.origin
+          }
+        });
+
+        if (error) {
+          toast({
+            title: "Apple Sign In Error",
+            description: error.message,
+            variant: "destructive"
+          });
+        } else {
+          onOpenChange(false);
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to sign in with Apple.",
+          variant: "destructive"
+        });
+      }
     }
+    
+    setAppleLoading(false);
   };
 
   return (
