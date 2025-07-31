@@ -126,7 +126,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
     
     try {
       if (Capacitor.isNativePlatform()) {
-        // Use system browser for native apps to properly return to app
+        // Use in-app browser with proper callback detection
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
@@ -142,13 +142,22 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
             variant: "destructive"
           });
         } else if (data.url) {
-          // Open the OAuth URL in the system browser
+          // Set up listeners before opening browser
+          let finishedListener: any;
+          
+          // Listen for browser finished event for cleanup
+          finishedListener = await Browser.addListener('browserFinished', () => {
+            console.log('Browser finished or closed.');
+            finishedListener?.remove();
+          });
+
+          // Open the OAuth URL in the in-app browser
           await Browser.open({
             url: data.url,
-            windowName: '_system'
+            presentationStyle: 'popover'
           });
           
-          // Close the auth dialog immediately
+          // Close the auth dialog
           onOpenChange(false);
         }
       } else {
@@ -191,7 +200,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
     
     try {
       if (Capacitor.isNativePlatform()) {
-        // Use system browser for native apps to properly return to app
+        // Use in-app browser with proper callback detection
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider: 'apple',
           options: {
@@ -207,13 +216,22 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
             variant: "destructive"
           });
         } else if (data.url) {
-          // Open the OAuth URL in the system browser
+          // Set up listeners before opening browser
+          let finishedListener: any;
+          
+          // Listen for browser finished event for cleanup
+          finishedListener = await Browser.addListener('browserFinished', () => {
+            console.log('Browser finished or closed.');
+            finishedListener?.remove();
+          });
+
+          // Open the OAuth URL in the in-app browser
           await Browser.open({
             url: data.url,
-            windowName: '_system'
+            presentationStyle: 'popover'
           });
           
-          // Close the auth dialog immediately
+          // Close the auth dialog
           onOpenChange(false);
         }
       } else {
