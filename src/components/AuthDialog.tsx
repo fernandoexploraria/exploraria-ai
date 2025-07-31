@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,9 @@ import { useAuth } from './AuthProvider';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { setPostAuthAction, PostAuthAction } from '@/utils/authActions';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
+import { App } from '@capacitor/app';
 
 interface AuthDialogProps {
   open: boolean;
@@ -28,6 +31,41 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
   const [appleLoading, setAppleLoading] = useState(false);
   const { signIn, signUp } = useAuth();
   const { toast } = useToast();
+
+  // Listen for deep link callbacks when OAuth completes
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const handleAppUrlOpen = (event: any) => {
+      console.log('🔗 Deep link received:', event.url);
+      
+      // Check if this is an auth callback
+      if (event.url.includes('auth-callback')) {
+        // Close the browser and dialog
+        Browser.close();
+        onOpenChange(false);
+        
+        toast({
+          title: "Authentication",
+          description: "Processing authentication...",
+        });
+      }
+    };
+
+    let listener: any;
+    
+    const setupListener = async () => {
+      listener = await App.addListener('appUrlOpen', handleAppUrlOpen);
+    };
+    
+    setupListener();
+
+    return () => {
+      if (listener) {
+        listener.remove();
+      }
+    };
+  }, [onOpenChange, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,22 +125,47 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
     }
     
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin
-        }
-      });
-
-      if (error) {
-        toast({
-          title: "Google Sign In Error",
-          description: error.message,
-          variant: "destructive"
+      if (Capacitor.isNativePlatform()) {
+        // Use in-app browser for native apps
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: 'app.lovable.exploraria://auth-callback',
+            skipBrowserRedirect: true
+          }
         });
+
+        if (error) {
+          toast({
+            title: "Google Sign In Error",
+            description: error.message,
+            variant: "destructive"
+          });
+        } else if (data.url) {
+          // Open the OAuth URL in the in-app browser
+          await Browser.open({
+            url: data.url,
+            presentationStyle: 'popover'
+          });
+        }
       } else {
-        // OAuth will redirect, so we close the dialog
-        onOpenChange(false);
+        // Use standard flow for web
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: window.location.origin
+          }
+        });
+
+        if (error) {
+          toast({
+            title: "Google Sign In Error",
+            description: error.message,
+            variant: "destructive"
+          });
+        } else {
+          onOpenChange(false);
+        }
       }
     } catch (error) {
       toast({
@@ -124,22 +187,47 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
     }
     
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'apple',
-        options: {
-          redirectTo: window.location.origin
-        }
-      });
-
-      if (error) {
-        toast({
-          title: "Apple Sign In Error",
-          description: error.message,
-          variant: "destructive"
+      if (Capacitor.isNativePlatform()) {
+        // Use in-app browser for native apps
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: 'apple',
+          options: {
+            redirectTo: 'app.lovable.exploraria://auth-callback',
+            skipBrowserRedirect: true
+          }
         });
+
+        if (error) {
+          toast({
+            title: "Apple Sign In Error",
+            description: error.message,
+            variant: "destructive"
+          });
+        } else if (data.url) {
+          // Open the OAuth URL in the in-app browser
+          await Browser.open({
+            url: data.url,
+            presentationStyle: 'popover'
+          });
+        }
       } else {
-        // OAuth will redirect, so we close the dialog
-        onOpenChange(false);
+        // Use standard flow for web
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'apple',
+          options: {
+            redirectTo: window.location.origin
+          }
+        });
+
+        if (error) {
+          toast({
+            title: "Apple Sign In Error",
+            description: error.message,
+            variant: "destructive"
+          });
+        } else {
+          onOpenChange(false);
+        }
       }
     } catch (error) {
       toast({
