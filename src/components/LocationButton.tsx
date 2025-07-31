@@ -15,8 +15,11 @@ export const LocationButton: React.FC<LocationButtonProps> = ({
 }) => {
   const { showPermissionDialog, getCurrentPosition, permissionStatus } = useLocationPermissionFlow();
   const { userLocation, locationState } = useLocationTracking();
+  
+  console.log('🔧 LocationButton render:', { permissionStatus, userLocation, isTracking: locationState.isTracking });
 
   const handleLocationRequest = async () => {
+    console.log('📍 Location button clicked, current state:', { permissionStatus, userLocation });
     console.log('📍 Location button clicked');
     
     // If we already have location and are tracking, zoom to current location

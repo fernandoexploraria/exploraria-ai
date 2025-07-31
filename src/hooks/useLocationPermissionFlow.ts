@@ -38,23 +38,28 @@ export const useLocationPermissionFlow = (): UseLocationPermissionFlowReturn => 
   }, []);
 
   const showPermissionDialog = useCallback(async (requestFeature: 'tours' | 'navigation' | 'general' = 'general'): Promise<boolean> => {
+    console.log('🔧 showPermissionDialog called with feature:', requestFeature);
     setFeature(requestFeature);
     
     // First check current permission status
     const currentStatus = await checkPermissionStatus();
+    console.log('🔧 Current permission status:', currentStatus);
     
     if (currentStatus === 'granted') {
       // Already have permission, no need to show dialog
+      console.log('🔧 Permission already granted, skipping dialog');
       return true;
     }
     
     if (currentStatus === 'denied') {
       // Permission was previously denied
+      console.log('🔧 Permission previously denied, showing error toast');
       toast.error('Location access is required for this feature. Please enable it in your device settings.');
       return false;
     }
     
     // Show explainer dialog for 'prompt' or 'unknown' status
+    console.log('🔧 Showing permission dialog for status:', currentStatus);
     setIsDialogOpen(true);
     
     // Return a promise that resolves when the dialog interaction is complete
