@@ -126,7 +126,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
     
     try {
       if (Capacitor.isNativePlatform()) {
-        // Use in-app browser for native apps
+        // Use system browser for native apps to properly return to app
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
@@ -142,11 +142,14 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
             variant: "destructive"
           });
         } else if (data.url) {
-          // Open the OAuth URL in the in-app browser
+          // Open the OAuth URL in the system browser
           await Browser.open({
             url: data.url,
-            presentationStyle: 'popover'
+            windowName: '_system'
           });
+          
+          // Close the auth dialog immediately
+          onOpenChange(false);
         }
       } else {
         // Use standard flow for web
@@ -188,7 +191,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
     
     try {
       if (Capacitor.isNativePlatform()) {
-        // Use in-app browser for native apps
+        // Use system browser for native apps to properly return to app
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider: 'apple',
           options: {
@@ -204,11 +207,14 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
             variant: "destructive"
           });
         } else if (data.url) {
-          // Open the OAuth URL in the in-app browser
+          // Open the OAuth URL in the system browser
           await Browser.open({
             url: data.url,
-            presentationStyle: 'popover'
+            windowName: '_system'
           });
+          
+          // Close the auth dialog immediately
+          onOpenChange(false);
         }
       } else {
         // Use standard flow for web
