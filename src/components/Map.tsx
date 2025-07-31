@@ -28,7 +28,6 @@ import { useTransitRoute } from '@/hooks/useTransitRoute';
 import FloatingRouteCard from '@/components/FloatingRouteCard';
 import { usePermissionMonitor } from '@/hooks/usePermissionMonitor';
 import { setPostAuthAction, setPostAuthLandmark } from '@/utils/authActions';
-import { LocationButton } from '@/components/LocationButton';
 
 interface MapProps {
   mapboxToken: string;
@@ -2200,21 +2199,6 @@ const MapComponent: React.FC<MapProps> = React.memo(({
           </button>
         </div>
       )}
-
-      {/* Location Button */}
-      <div className="absolute top-[12px] right-[10px] z-10">
-        <LocationButton 
-          onLocationFound={(coordinates) => {
-            if (map.current) {
-              map.current.flyTo({
-                center: coordinates,
-                zoom: 15,
-                duration: 1500
-              });
-            }
-          }}
-        />
-      </div>
 
       {/* Clear Route Button - only show when route exists */}
       {routeGeoJSON && (

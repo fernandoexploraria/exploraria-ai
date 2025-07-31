@@ -10,7 +10,6 @@ const config: CapacitorConfig = {
     plist: {
       NSPhotoLibraryUsageDescription: 'This app uses the camera to capture photos of landmarks and places you visit during your tours.',
       NSCameraUsageDescription: 'This app uses the camera to capture photos of landmarks and places you visit during your tours.',
-      NSLocationWhenInUseUsageDescription: 'We use your location to show you nearby tours and provide navigation guidance during your explorations.',
       ITSAppUsesNonExemptEncryption: false,
       CFBundleURLTypes: [
         {
