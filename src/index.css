@@ -86,16 +86,16 @@
       background-color: hsl(var(--background)) !important;
     }
     
-    /* Comprehensive iOS safe area support */
-    html {
+    /* Comprehensive iOS safe area support - applied conditionally */
+    html.safe-area-enabled {
       padding-top: env(safe-area-inset-top, 0px);
       padding-bottom: env(safe-area-inset-bottom, 0px);
       padding-left: env(safe-area-inset-left, 0px);
       padding-right: env(safe-area-inset-right, 0px);
     }
     
-    /* Ensure safe area top coverage */
-    body {
+    /* Ensure safe area top coverage when enabled */
+    body.safe-area-enabled {
       min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
     }
   }
@@ -150,6 +150,9 @@
   height: 100vh;
   overflow: hidden;
   background-color: hsl(var(--background));
+}
+
+#root.safe-area-enabled {
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
   padding-left: env(safe-area-inset-left, 0px);

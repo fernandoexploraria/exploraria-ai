@@ -49,6 +49,25 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
   const mapboxToken = useMapboxToken();
   const { isVisible: isDebugVisible, toggle: toggleDebug } = useDebugWindow();
   
+  // Control safe area CSS classes based on splash screen state
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const root = document.getElementById('root');
+    
+    if (showSplash) {
+      // Remove safe area classes during splash - let it cover full screen
+      html.classList.remove('safe-area-enabled');
+      body.classList.remove('safe-area-enabled');
+      root?.classList.remove('safe-area-enabled');
+    } else {
+      // Add safe area classes for main app
+      html.classList.add('safe-area-enabled');
+      body.classList.add('safe-area-enabled');
+      root?.classList.add('safe-area-enabled');
+    }
+  }, [showSplash]);
+  
   const {
     selectedLandmark,
     setSelectedLandmark,
