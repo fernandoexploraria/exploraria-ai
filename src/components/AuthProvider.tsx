@@ -3,8 +3,6 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { PostAuthAction, getPostAuthAction, clearPostAuthAction, getPostAuthLandmark, clearPostAuthLandmark } from '@/utils/authActions';
-import { LocationPermissionDialog } from './LocationPermissionDialog';
-import { useMobileLocationPermission } from '@/hooks/useMobileLocationPermission';
 
 interface UserProfile {
   id: string;
@@ -54,13 +52,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   
-  const {
-    isNative,
-    isDialogOpen,
-    showPermissionDialog,
-    handleAllowLocation,
-    handleNotNow,
-  } = useMobileLocationPermission();
 
   // Track browser sessions using localStorage + sessionStorage
   const trackUserSession = async (userId: string) => {
@@ -162,13 +153,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
         if (event === 'SIGNED_IN' && session?.user) {
           console.log('Sign in detected, checking for pending actions');
           
-          // Show location permission dialog for mobile users
-          if (isNative) {
-            console.log('🔧 Mobile user logged in, checking location permission...');
-            setTimeout(() => {
-              showPermissionDialog();
-            }, 500); // Small delay to let auth settle
-          }
           
           const pendingAction = getPostAuthAction();
           
@@ -403,11 +387,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
   return (
     <AuthContext.Provider value={value}>
       {children}
-      <LocationPermissionDialog 
-        open={isDialogOpen}
-        onAllow={handleAllowLocation}
-        onNotNow={handleNotNow}
-      />
     </AuthContext.Provider>
   );
 };
