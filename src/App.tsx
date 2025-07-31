@@ -83,12 +83,12 @@ const App = () => {
                      path="/payment-failed" 
                      element={<PaymentFailure />} 
                    />
-                </Routes>
-               </AuthProvider>
-             </BrowserRouter>
-             
-              {/* Native app permission manager */}
-              <NativePermissionManager />
+                 </Routes>
+                 
+                 {/* Native app permission manager */}
+                 <NativePermissionManager />
+                </AuthProvider>
+              </BrowserRouter>
            </TTSProvider>
          </StripeProvider>
        </TooltipProvider>
