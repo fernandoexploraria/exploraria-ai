@@ -52,33 +52,40 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
         
         // Process the authentication
         try {
-          const { data: { session }, error } = await supabase.auth.getSession();
-          if (error) {
-            console.error('Error getting session after redirect:', error);
+          // Extract tokens from the URL fragment
+          const url = new URL(event.url.replace('#', '?')); // Convert fragment to query params for parsing
+          const accessToken = url.searchParams.get('access_token');
+          const refreshToken = url.searchParams.get('refresh_token');
+          
+          if (accessToken && refreshToken) {
+            console.log('🔗 Setting session from OAuth tokens');
+            const { data: { session }, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+            
+            if (error) {
+              console.error('Error setting session from tokens:', error);
+              toast({
+                title: "Authentication Error",
+                description: "Failed to complete authentication",
+                variant: "destructive"
+              });
+            } else if (session) {
+              console.log('✅ OAuth authentication successful:', session.user?.email);
+              toast({
+                title: "Success",
+                description: "Successfully signed in!",
+              });
+              onOpenChange(false); // Close the auth dialog
+            }
+          } else {
+            console.error('Missing OAuth tokens in callback URL');
             toast({
               title: "Authentication Error",
-              description: "Failed to complete authentication",
+              description: "Invalid authentication response",
               variant: "destructive"
             });
-          } else if (session) {
-            console.log('✅ OAuth authentication successful:', session.user?.email);
-            toast({
-              title: "Success",
-              description: "Successfully signed in!",
-            });
-          } else {
-            console.log('⏳ Session not immediately available, waiting...');
-            // Session might take a moment to be available
-            setTimeout(async () => {
-              const { data: { session: delayedSession } } = await supabase.auth.getSession();
-              if (delayedSession) {
-                console.log('✅ Delayed OAuth authentication successful:', delayedSession.user?.email);
-                toast({
-                  title: "Success",
-                  description: "Successfully signed in!",
-                });
-              }
-            }, 1000);
           }
         } catch (authError) {
           console.error('Error processing OAuth callback:', authError);
