@@ -242,7 +242,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
             </div>
             
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign In')}
+              {loading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign-In')}
             </Button>
             
             <Button
