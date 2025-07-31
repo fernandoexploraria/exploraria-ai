@@ -12,6 +12,7 @@ import {
   MovementState,
   LocationHistory
 } from '@/utils/locationUtils';
+import { LocationService } from '@/utils/locationService';
 
 interface LocationTrackingState {
   isTracking: boolean;
@@ -90,7 +91,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
   }, [locationState.isTracking]);
 
   // Handle location update with movement detection and filtering
-  const handleLocationUpdate = useCallback((position: GeolocationPosition) => {
+  const handleLocationUpdate = useCallback((position: any) => {
     const newLocation: UserLocation = {
       latitude: position.coords.latitude,
       longitude: position.coords.longitude,
@@ -211,20 +212,8 @@ export const useLocationTracking = (): LocationTrackingHook => {
     }
   }, [setUserLocation, nearbyLandmarks.length, locationState.isInBackground, locationState.pollInterval, preloadForProximity, nearbyLandmarks, proximitySettings?.outer_distance]);
 
-  const handleLocationError = useCallback((error: GeolocationPositionError) => {
-    let errorMessage = 'Location access failed';
-    
-    switch (error.code) {
-      case error.PERMISSION_DENIED:
-        errorMessage = 'Location permission denied';
-        break;
-      case error.POSITION_UNAVAILABLE:
-        errorMessage = 'Location information unavailable';
-        break;
-      case error.TIMEOUT:
-        errorMessage = 'Location request timed out';
-        break;
-    }
+  const handleLocationError = useCallback((error: Error) => {
+    const errorMessage = error.message || 'Location access failed';
     
     setLocationState(prev => {
       const consecutiveFailures = prev.consecutiveFailures + 1;
@@ -244,39 +233,30 @@ export const useLocationTracking = (): LocationTrackingHook => {
   }, []);
 
   const requestCurrentLocation = useCallback(async (): Promise<UserLocation | null> => {
-    console.log('📱 Requesting current location...');
+    console.log(`📱 Requesting current location... (Platform: ${LocationService.isNative() ? 'Native/Capacitor' : 'Web'})`);
     
-    if (!navigator.geolocation) {
-      console.error('❌ Geolocation not supported');
-      return null;
-    }
-
-    return new Promise((resolve) => {
+    try {
       const options = getOptimalLocationOptions(
         locationState.movementState,
         nearbyLandmarks.length,
         0 // No consecutive failures for manual request
       );
 
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          console.log('✅ Current location obtained');
-          handleLocationUpdate(position);
-          resolve({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            timestamp: Date.now(),
-          });
-        },
-        (error) => {
-          console.error('❌ Failed to get current location:', error);
-          handleLocationError(error);
-          resolve(null);
-        },
-        options
-      );
-    });
+      const position = await LocationService.getCurrentPosition(options);
+      console.log('✅ Current location obtained');
+      handleLocationUpdate(position);
+      
+      return {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+        timestamp: Date.now(),
+      };
+    } catch (error) {
+      console.error('❌ Failed to get current location:', error);
+      handleLocationError(error as Error);
+      return null;
+    }
   }, [handleLocationUpdate, handleLocationError, locationState.movementState, nearbyLandmarks.length]);
 
   const forceLocationUpdate = useCallback(async (): Promise<void> => {
@@ -293,7 +273,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
     pollIntervalRef.current = setTimeout(requestLocationUpdate, pollInterval);
   }, [locationState.pollInterval]);
 
-  const requestLocationUpdate = useCallback(() => {
+  const requestLocationUpdate = useCallback(async () => {
     const pollNumber = pollCountRef.current + 1;
     console.log(`🔄 Starting adaptive location poll #${pollNumber} at ${new Date().toLocaleTimeString()}`);
     
@@ -307,25 +287,45 @@ export const useLocationTracking = (): LocationTrackingHook => {
       enableHighAccuracy: options.enableHighAccuracy,
       timeout: `${options.timeout}ms`,
       maximumAge: `${options.maximumAge}ms`,
-      interval: `${locationState.pollInterval}ms`
+      interval: `${locationState.pollInterval}ms`,
+      platform: LocationService.isNative() ? 'Native/Capacitor' : 'Web'
     });
     
-    navigator.geolocation.getCurrentPosition(
-      handleLocationUpdate,
-      handleLocationError,
-      options
-    );
+    try {
+      const position = await LocationService.getCurrentPosition(options);
+      handleLocationUpdate(position);
+    } catch (error) {
+      handleLocationError(error as Error);
+    }
 
     // Schedule next poll
     scheduleNextPoll();
   }, [handleLocationUpdate, handleLocationError, locationState, nearbyLandmarks.length, scheduleNextPoll]);
 
   const startTracking = useCallback(async (): Promise<void> => {
-    console.log(`🚀 Starting optimized location tracking with enhanced Street View...`);
+    console.log(`🚀 Starting optimized location tracking with enhanced Street View... (Platform: ${LocationService.isNative() ? 'Native/Capacitor' : 'Web'})`);
     
-    if (!navigator.geolocation) {
-      console.error('❌ Geolocation not supported');
-      return;
+    // Check permissions on mobile
+    if (LocationService.isNative()) {
+      try {
+        const permissionStatus = await LocationService.checkPermissions();
+        if (permissionStatus.location !== 'granted') {
+          console.log('📱 Requesting location permissions...');
+          const requestResult = await LocationService.requestPermissions();
+          if (requestResult.location !== 'granted') {
+            console.error('❌ Location permission denied');
+            setLocationState(prev => ({
+              ...prev,
+              error: 'Location permission denied'
+            }));
+            return;
+          }
+        }
+        console.log('✅ Location permissions granted');
+      } catch (error) {
+        console.error('❌ Permission check failed:', error);
+        return;
+      }
     }
 
     // Reset tracking state
