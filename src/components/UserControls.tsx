@@ -63,7 +63,7 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
 
   return (
     <>
-      <div className="absolute top-[10px] right-[45px] z-20 flex items-start gap-2">
+      <div className="absolute top-4 right-[45px] z-20 flex items-start gap-2 safe-area-top safe-area-right">
         {/* Help Button - Available for all users */}
         <Button
           variant="outline"
@@ -142,7 +142,7 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
       
       {/* Profile Backfill Utility - only when demo mode is off */}
       {user && !isDemoMode && (
-        <div className="absolute top-[70px] right-[45px] z-20">
+        <div className="absolute right-[45px] z-20 safe-area-top safe-area-right" style={{ top: 'calc(4rem + 60px)' }}>
           <ProfileBackfillUtility />
         </div>
       )}

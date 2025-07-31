@@ -160,7 +160,7 @@ const TopControls: React.FC<TopControlsProps> = ({
 
   return (
     <>
-      <div className="absolute left-4 z-10" style={{ top: `max(1rem, env(safe-area-inset-top))` }}>
+      <div className="absolute left-4 top-4 z-10 safe-area-top">
         <div className="flex flex-col items-start gap-2 max-w-[calc(100vw-120px)]">
           <img 
             src="/lovable-uploads/ac9cbebd-b083-4d3d-a85e-782e03045422.png" 
