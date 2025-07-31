@@ -36,58 +36,19 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
-    const handleAppUrlOpen = async (event: any) => {
+    const handleAppUrlOpen = (event: any) => {
       console.log('🔗 Deep link received:', event.url);
       
       // Check if this is an auth callback
       if (event.url.includes('auth-callback')) {
-        console.log('🔗 Processing OAuth callback');
+        // Close the browser and dialog
+        Browser.close();
+        onOpenChange(false);
         
-        // Close any open browser
-        try {
-          await Browser.close();
-        } catch (e) {
-          console.log('Browser was already closed');
-        }
-        
-        // Process the authentication
-        try {
-          const { data: { session }, error } = await supabase.auth.getSession();
-          if (error) {
-            console.error('Error getting session after redirect:', error);
-            toast({
-              title: "Authentication Error",
-              description: "Failed to complete authentication",
-              variant: "destructive"
-            });
-          } else if (session) {
-            console.log('✅ OAuth authentication successful:', session.user?.email);
-            toast({
-              title: "Success",
-              description: "Successfully signed in!",
-            });
-          } else {
-            console.log('⏳ Session not immediately available, waiting...');
-            // Session might take a moment to be available
-            setTimeout(async () => {
-              const { data: { session: delayedSession } } = await supabase.auth.getSession();
-              if (delayedSession) {
-                console.log('✅ Delayed OAuth authentication successful:', delayedSession.user?.email);
-                toast({
-                  title: "Success",
-                  description: "Successfully signed in!",
-                });
-              }
-            }, 1000);
-          }
-        } catch (authError) {
-          console.error('Error processing OAuth callback:', authError);
-          toast({
-            title: "Authentication Error",
-            description: "Failed to process authentication",
-            variant: "destructive"
-          });
-        }
+        toast({
+          title: "Authentication",
+          description: "Processing authentication...",
+        });
       }
     };
 
@@ -95,19 +56,16 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
     
     const setupListener = async () => {
       listener = await App.addListener('appUrlOpen', handleAppUrlOpen);
-      console.log('🔗 OAuth deep link listener set up');
     };
     
     setupListener();
 
-    // Only cleanup listener on component unmount, not when dialog closes
     return () => {
       if (listener) {
-        console.log('🔗 Cleaning up OAuth deep link listener');
         listener.remove();
       }
     };
-  }, [toast]); // Only depend on toast, not onOpenChange
+  }, [onOpenChange, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
