@@ -86,11 +86,19 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
       setPostAuthAction(postAuthAction);
     }
     
+    // Check if we're in a Capacitor app
+    const isCapacitor = !!(window as any).Capacitor?.isNativePlatform?.();
+    
+    // Use app scheme for Capacitor, web URL for browser
+    const redirectTo = isCapacitor 
+      ? 'app.lovable.exploraria://auth-callback'
+      : window.location.origin;
+    
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin
+          redirectTo
         }
       });
 
@@ -123,11 +131,19 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
       setPostAuthAction(postAuthAction);
     }
     
+    // Check if we're in a Capacitor app
+    const isCapacitor = !!(window as any).Capacitor?.isNativePlatform?.();
+    
+    // Use app scheme for Capacitor, web URL for browser
+    const redirectTo = isCapacitor 
+      ? 'app.lovable.exploraria://auth-callback'
+      : window.location.origin;
+    
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
         options: {
-          redirectTo: window.location.origin
+          redirectTo
         }
       });
 
