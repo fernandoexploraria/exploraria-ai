@@ -43,7 +43,20 @@ export const NativePermissionDialog: React.FC<NativePermissionDialogProps> = ({
     setCurrentStep('requesting');
     
     try {
-      const results = await requestAllPermissions();
+      console.log('🚀 Starting permission request from dialog...');
+      
+      // Add overall timeout for the entire permission flow
+      const requestPromise = requestAllPermissions();
+      const overallTimeout = new Promise<{ location: boolean; orientation: boolean }>((resolve) => {
+        setTimeout(() => {
+          console.log('⏰ Overall permission request timed out after 20 seconds');
+          resolve({ location: false, orientation: false });
+        }, 20000); // 20 second overall timeout
+      });
+      
+      const results = await Promise.race([requestPromise, overallTimeout]);
+      console.log('🎯 Permission request completed in dialog:', results);
+      
       setRequestResults(results);
       setCurrentStep('results');
 
@@ -66,13 +79,16 @@ export const NativePermissionDialog: React.FC<NativePermissionDialogProps> = ({
         });
       }
     } catch (error) {
-      console.error('Error requesting permissions:', error);
+      console.error('❌ Error requesting permissions in dialog:', error);
       toast({
         title: "Permission Error",
         description: "There was an error requesting permissions. Please try again.",
         variant: "destructive",
       });
-      setCurrentStep('welcome');
+      
+      // Set failed results and go to results step instead of back to welcome
+      setRequestResults({ location: false, orientation: false });
+      setCurrentStep('results');
     }
   };
 
@@ -181,6 +197,20 @@ export const NativePermissionDialog: React.FC<NativePermissionDialogProps> = ({
           <Loader2 className="h-4 w-4 animate-spin text-green-600" />
           <span className="text-sm">Requesting orientation access...</span>
         </div>
+      </div>
+      
+      <div className="pt-4">
+        <Button 
+          variant="ghost" 
+          onClick={() => {
+            console.log('🛑 User cancelled permission request');
+            setRequestResults({ location: false, orientation: false });
+            setCurrentStep('results');
+          }} 
+          className="w-full"
+        >
+          Cancel and Continue with Limited Features
+        </Button>
       </div>
     </div>
   );

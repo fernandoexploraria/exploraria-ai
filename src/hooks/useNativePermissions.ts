@@ -180,18 +180,46 @@ export const useNativePermissions = (): NativePermissionsHook => {
   }, [isNativeApp]);
 
   const requestAllPermissions = useCallback(async () => {
+    console.log('🔄 Starting permission request sequence...');
+    
     const results = {
       location: false,
       orientation: false,
     };
 
-    // Request location first
-    results.location = await requestLocationPermission();
-    
-    // Request orientation regardless of location result
-    results.orientation = await requestOrientationPermission();
-
-    return results;
+    try {
+      // Request location first with timeout
+      console.log('📍 Requesting location permission...');
+      const locationPromise = requestLocationPermission();
+      const locationTimeout = new Promise<boolean>((resolve) => {
+        setTimeout(() => {
+          console.log('⏰ Location permission request timed out');
+          resolve(false);
+        }, 10000); // 10 second timeout
+      });
+      
+      results.location = await Promise.race([locationPromise, locationTimeout]);
+      console.log('📍 Location permission result:', results.location);
+      
+      // Request orientation regardless of location result with timeout
+      console.log('🧭 Requesting orientation permission...');
+      const orientationPromise = requestOrientationPermission();
+      const orientationTimeout = new Promise<boolean>((resolve) => {
+        setTimeout(() => {
+          console.log('⏰ Orientation permission request timed out');
+          resolve(false);
+        }, 5000); // 5 second timeout
+      });
+      
+      results.orientation = await Promise.race([orientationPromise, orientationTimeout]);
+      console.log('🧭 Orientation permission result:', results.orientation);
+      
+      console.log('✅ Permission request sequence completed:', results);
+      return results;
+    } catch (error) {
+      console.error('❌ Error in permission request sequence:', error);
+      return results;
+    }
   }, [requestLocationPermission, requestOrientationPermission]);
 
   // Check permissions on mount for native apps
