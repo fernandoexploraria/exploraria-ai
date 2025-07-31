@@ -8,6 +8,8 @@ import { useAuth } from './AuthProvider';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { setPostAuthAction, PostAuthAction } from '@/utils/authActions';
+import { isOAuthCallback } from '@/utils/oauthUtils';
+import { useOAuthCallback } from '@/hooks/useOAuthCallback';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { App } from '@capacitor/app';
@@ -31,6 +33,11 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
   const [appleLoading, setAppleLoading] = useState(false);
   const { signIn, signUp } = useAuth();
   const { toast } = useToast();
+  
+  // OAuth callback handler
+  const { processOAuthCallback } = useOAuthCallback({
+    onSuccess: () => onOpenChange(false),
+  });
 
   // Listen for deep link callbacks when OAuth completes
   useEffect(() => {
@@ -40,61 +47,8 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
       console.log('🔗 Deep link received:', event.url);
       
       // Check if this is an auth callback
-      if (event.url.includes('auth-callback')) {
-        console.log('🔗 Processing OAuth callback');
-        
-        // Close any open browser
-        try {
-          await Browser.close();
-        } catch (e) {
-          console.log('Browser was already closed');
-        }
-        
-        // Process the authentication
-        try {
-          // Extract tokens from the URL fragment
-          const url = new URL(event.url.replace('#', '?')); // Convert fragment to query params for parsing
-          const accessToken = url.searchParams.get('access_token');
-          const refreshToken = url.searchParams.get('refresh_token');
-          
-          if (accessToken && refreshToken) {
-            console.log('🔗 Setting session from OAuth tokens');
-            const { data: { session }, error } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            });
-            
-            if (error) {
-              console.error('Error setting session from tokens:', error);
-              toast({
-                title: "Authentication Error",
-                description: "Failed to complete authentication",
-                variant: "destructive"
-              });
-            } else if (session) {
-              console.log('✅ OAuth authentication successful:', session.user?.email);
-              toast({
-                title: "Success",
-                description: "Successfully signed in!",
-              });
-              onOpenChange(false); // Close the auth dialog
-            }
-          } else {
-            console.error('Missing OAuth tokens in callback URL');
-            toast({
-              title: "Authentication Error",
-              description: "Invalid authentication response",
-              variant: "destructive"
-            });
-          }
-        } catch (authError) {
-          console.error('Error processing OAuth callback:', authError);
-          toast({
-            title: "Authentication Error",
-            description: "Failed to process authentication",
-            variant: "destructive"
-          });
-        }
+      if (isOAuthCallback(event.url)) {
+        await processOAuthCallback(event.url);
       }
     };
 
