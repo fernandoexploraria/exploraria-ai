@@ -193,10 +193,10 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
             finishedListener?.remove();
           });
 
-          // Open the OAuth URL in the in-app browser
+          // Open the OAuth URL in the system browser to allow proper deep link handling
           await Browser.open({
             url: data.url,
-            presentationStyle: 'popover'
+            windowName: '_system'
           });
           
           // Close the auth dialog
@@ -267,10 +267,10 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
             finishedListener?.remove();
           });
 
-          // Open the OAuth URL in the in-app browser
+          // Open the OAuth URL in the system browser to allow proper deep link handling
           await Browser.open({
             url: data.url,
-            presentationStyle: 'popover'
+            windowName: '_system'
           });
           
           // Close the auth dialog
