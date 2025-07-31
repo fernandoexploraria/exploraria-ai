@@ -135,7 +135,7 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
             className="bg-background/80 backdrop-blur-sm shadow-lg border border-input text-foreground hover:bg-accent hover:text-accent-foreground h-10"
           >
             <User className="w-4 h-4 mr-2" />
-            Sign In
+            Sign-In
           </Button>
         )}
       </div>
