@@ -20,6 +20,8 @@ import { useLandmarkPhotos } from '@/hooks/useLandmarkPhotos';
 import { PhotoData } from '@/hooks/useEnhancedPhotos';
 import { PhotoCarousel } from './photo-carousel';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
+import { useLocationButton } from '@/hooks/useLocationButton';
+import { LocationButton } from './LocationButton';
 import { getEnhancedLandmarkText } from '@/utils/landmarkPromptUtils';
 import { useOptimalRoute } from '@/hooks/useOptimalRoute';
 import TravelModeSelector, { TravelMode } from '@/components/TravelModeSelector';
@@ -110,6 +112,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
   const { fetchLandmarkPhotos: fetchPhotosWithHook } = useLandmarkPhotos();
   const { locationState } = useLocationTracking();
   const { permissionState, requestPermission, checkPermission } = usePermissionMonitor();
+  const { mode: locationMode, toggleMode: toggleLocationMode } = useLocationButton(map.current);
   
   // Helper function to handle Navigation button click with authentication check
   const handleNavigationButtonClick = useCallback((landmark: Landmark) => {
@@ -553,21 +556,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
           }
         });
         
-        map.current.addControl(geoControl, 'top-right');
-
-        setTimeout(() => {
-          const controlContainer = document.querySelector('.mapboxgl-ctrl-top-right');
-          if (controlContainer) {
-            // Give the location control higher z-index than UserControls (z-20)
-            (controlContainer as HTMLElement).style.zIndex = '25';
-            (controlContainer as HTMLElement).style.top = '10px';
-            // On mobile, move it further from the edge to avoid overlap with UserControls
-            if (Capacitor.isNativePlatform()) {
-              (controlContainer as HTMLElement).style.right = '10px';
-              (controlContainer as HTMLElement).style.top = '80px'; // Move below UserControls
-            }
-          }
-        }, 100);
+        // Note: We're now using a custom LocationButton component instead of the native control
       }
 
       map.current.on('style.load', () => {
@@ -2269,6 +2258,14 @@ const MapComponent: React.FC<MapProps> = React.memo(({
           onClose={clearTransitRoute}
         />
       )}
+
+      {/* Custom Location Button */}
+      <div className="absolute top-20 right-4 z-30">
+        <LocationButton 
+          mode={locationMode} 
+          onToggle={toggleLocationMode}
+        />
+      </div>
     </>
   );
 });
