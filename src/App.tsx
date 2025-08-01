@@ -14,6 +14,7 @@ import ElevenLabsPlayground from "./pages/ElevenLabsPlayground";
 import TermsOfUse from "./pages/TermsOfUse";
 import AccountPrivacyPolicy from "./pages/AccountPrivacyPolicy";
 import Account from "./pages/Account";
+import ResetPassword from "./pages/ResetPassword";
 import { PaymentSuccess } from "./components/PaymentSuccess";
 import { PaymentFailure } from "./components/PaymentFailure";
 import { useState } from "react";
@@ -87,6 +88,10 @@ const App = () => {
                    <Route 
                      path="/account" 
                      element={<Account />} 
+                   />
+                   <Route 
+                     path="/reset-password" 
+                     element={<ResetPassword />} 
                    />
                    <Route 
                      path="/payment-success" 
