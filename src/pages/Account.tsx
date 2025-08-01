@@ -32,11 +32,23 @@ const Account: React.FC = () => {
     try {
       setIsDeleting(true);
       
-      // Sign out and redirect - the actual account deletion would need to be handled
-      // by a server-side function for security reasons
-      await signOut();
-      toast.success('Account deletion initiated. You have been signed out.');
-      navigate('/');
+      // Call the database function to delete user account
+      const { data, error } = await supabase.rpc('delete_user_account', {
+        target_user_id: (await supabase.auth.getUser()).data.user?.id
+      });
+
+      if (error) {
+        console.error('Error deleting account:', error);
+        toast.error('Failed to delete account. Please try again.');
+        return;
+      }
+
+      if (data?.success) {
+        toast.success('Account successfully deleted. All your data has been removed.');
+        navigate('/');
+      } else {
+        toast.error(data?.error || 'Failed to delete account. Please try again.');
+      }
     } catch (error) {
       console.error('Error deleting account:', error);
       toast.error('Failed to delete account. Please try again.');
