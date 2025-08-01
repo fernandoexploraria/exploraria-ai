@@ -136,9 +136,14 @@ export const PasswordManagementDialog: React.FC<PasswordManagementDialogProps> =
         <div className="space-y-6">
           {/* Option 1: Change Password (knows current password) */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Key className="w-4 h-4" />
-              <h3 className="font-semibold">Change Password</h3>
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+              <div className="p-2 rounded-full bg-primary/10">
+                <Key className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg">Change Password</h3>
+                <p className="text-sm text-muted-foreground">Update your password if you know the current one</p>
+              </div>
             </div>
             
             <div className="space-y-3">
@@ -234,9 +239,14 @@ export const PasswordManagementDialog: React.FC<PasswordManagementDialogProps> =
           
           {/* Option 2: Reset Password (doesn't remember current password) */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Mail className="w-4 h-4" />
-              <h3 className="font-semibold">Reset Password</h3>
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/5 border border-secondary/20">
+              <div className="p-2 rounded-full bg-secondary/10">
+                <Mail className="w-5 h-5 text-secondary-foreground" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg">Reset Password</h3>
+                <p className="text-sm text-muted-foreground">Get a reset link sent to your email</p>
+              </div>
             </div>
             <p className="text-sm text-muted-foreground">
               Don't remember your current password? We'll send you an email to reset it.
