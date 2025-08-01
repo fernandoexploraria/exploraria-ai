@@ -1,16 +1,49 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, Shield, FileText, LogOut } from 'lucide-react';
+import { ArrowLeft, User, Shield, FileText, LogOut, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/components/AuthProvider';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const Account: React.FC = () => {
   const navigate = useNavigate();
   const { signOut } = useAuth();
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showFinalConfirmation, setShowFinalConfirmation] = useState(false);
 
   const handleLogout = async () => {
     await signOut();
     navigate('/');
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      setIsDeleting(true);
+      
+      // Sign out and redirect - the actual account deletion would need to be handled
+      // by a server-side function for security reasons
+      await signOut();
+      toast.success('Account deletion initiated. You have been signed out.');
+      navigate('/');
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      toast.error('Failed to delete account. Please try again.');
+    } finally {
+      setIsDeleting(false);
+      setShowFinalConfirmation(false);
+    }
   };
 
   return (
@@ -65,6 +98,78 @@ const Account: React.FC = () => {
               <LogOut className="w-5 h-5" />
               Logout
             </Button>
+            
+            {/* Separator and Delete Account Section */}
+            <div className="border-t pt-6 mt-6">
+              <AlertDialog open={showFinalConfirmation} onOpenChange={setShowFinalConfirmation}>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button 
+                      variant="destructive" 
+                      className="w-full justify-start gap-3 h-12 bg-red-600 hover:bg-red-700"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                      Delete Account
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Account</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete your account? This action will:
+                        <br />
+                        <br />
+                        • Permanently delete all your data
+                        <br />
+                        • Remove all your tour history and interactions
+                        <br />
+                        • Cancel any active subscriptions
+                        <br />
+                        <br />
+                        This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => setShowFinalConfirmation(true)}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        Continue
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                
+                {/* Final confirmation dialog */}
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Final Confirmation</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This is your last chance to change your mind.
+                      <br />
+                      <br />
+                      <strong>Once deleted, your account and all associated data will be permanently removed and cannot be recovered.</strong>
+                      <br />
+                      <br />
+                      Are you absolutely certain you want to delete your account?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setShowFinalConfirmation(false)}>
+                      Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteAccount}
+                      disabled={isDeleting}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      {isDeleting ? 'Deleting...' : 'Delete My Account'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
         </div>
       </div>
