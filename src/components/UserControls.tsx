@@ -12,7 +12,7 @@ import {
 import { User, LogOut, Star, HelpCircle, BookOpen, Apple } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { useAuth } from '@/components/AuthProvider';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ProfileBackfillUtility } from '@/components/ProfileBackfillUtility';
 import { TravelExpertUpgrade } from '@/components/TravelExpertUpgrade';
 import { AppleOAuthJWTDialog } from '@/components/AppleOAuthJWTDialog';
@@ -33,6 +33,7 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
   const isMobile = useIsMobile();
   const { completeOnboarding } = useOnboardingControl();
   const [isAppleJWTDialogOpen, setIsAppleJWTDialogOpen] = useState(false);
+  const navigate = useNavigate();
   
   // Detect if running in native app
   const isNativeApp = Capacitor.isNativePlatform();
@@ -116,7 +117,7 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
             
             {/* User Profile */}
             <div className="flex items-center gap-2 bg-background/80 backdrop-blur-sm rounded-md px-3 py-2 shadow-lg border border-input h-10">
-              <Avatar className="w-6 h-6">
+              <Avatar className="w-6 h-6 cursor-pointer" onClick={() => navigate('/account')}>
                 <AvatarFallback className="text-xs">
                   {(profile?.full_name || user.email)?.charAt(0).toUpperCase()}
                 </AvatarFallback>
