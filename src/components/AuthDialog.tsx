@@ -112,6 +112,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
             title: "Check your email",
             description: "We've sent you a confirmation email. Please check your inbox and click the link to activate your account.",
           });
+          onOpenChange(false);
           setEmail('');
           setPassword('');
         } else {
