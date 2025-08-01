@@ -4,8 +4,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from './AuthProvider';
 import { useToast } from '@/hooks/use-toast';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { setPostAuthAction, PostAuthAction } from '@/utils/authActions';
 import { isOAuthCallback } from '@/utils/oauthUtils';
@@ -28,6 +30,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
@@ -72,6 +75,17 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate terms acceptance for signup
+    if (isSignUp && !termsAccepted) {
+      toast({
+        title: "Terms Required",
+        description: "You must agree to the Terms of Use and Privacy Policy to create an account.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setLoading(true);
 
     // Set the post-auth action before attempting authentication
@@ -81,7 +95,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
 
     try {
       const { error } = isSignUp 
-        ? await signUp(email, password)
+        ? await signUp(email, password, termsAccepted)
         : await signIn(email, password);
 
       if (error) {
@@ -355,6 +369,39 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
                 required
               />
             </div>
+            
+            {isSignUp && (
+              <div className="flex items-start space-x-2">
+                <Checkbox
+                  id="terms"
+                  checked={termsAccepted}
+                  onCheckedChange={(checked) => setTermsAccepted(checked as boolean)}
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <Label
+                    htmlFor="terms"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    I agree to Exploraria{' '}
+                    <Link 
+                      to="/terms-of-use" 
+                      className="text-primary underline hover:no-underline"
+                      onClick={() => onOpenChange(false)}
+                    >
+                      Terms of Use
+                    </Link>
+                    {' & '}
+                    <Link 
+                      to="/account-privacy-policy" 
+                      className="text-primary underline hover:no-underline"
+                      onClick={() => onOpenChange(false)}
+                    >
+                      Privacy Policy
+                    </Link>
+                  </Label>
+                </div>
+              </div>
+            )}
             
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign In')}

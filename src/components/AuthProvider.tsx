@@ -23,7 +23,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: UserProfile | null;
-  signUp: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, termsAccepted?: boolean) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<{ error: any }>;
@@ -295,14 +295,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
     return () => subscription.unsubscribe();
   }, [onPostAuthAction]);
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, termsAccepted?: boolean) => {
     const redirectUrl = `${window.location.origin}/`;
     
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: redirectUrl
+        emailRedirectTo: redirectUrl,
+        data: {
+          terms_accepted: termsAccepted || false,
+          terms_accepted_at: termsAccepted ? new Date().toISOString() : null
+        }
       }
     });
     return { error };
