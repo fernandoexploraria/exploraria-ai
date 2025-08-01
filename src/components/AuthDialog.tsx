@@ -109,8 +109,8 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
       } else {
         if (isSignUp) {
           toast({
-            title: "Check your email",
-            description: "We've sent you a confirmation email. Please check your inbox and click the link to activate your account.",
+            title: "Account created successfully!",
+            description: "Welcome to Exploraria! You're now signed in.",
           });
           onOpenChange(false);
           setEmail('');
