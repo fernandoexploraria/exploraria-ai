@@ -34,6 +34,8 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
+  const [magicLinkLoading, setMagicLinkLoading] = useState(false);
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
   const { signIn, signUp } = useAuth();
   const { toast } = useToast();
   
@@ -130,6 +132,50 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleMagicLink = async () => {
+    if (!email) {
+      toast({
+        title: "Email Required",
+        description: "Please enter your email address to receive a magic link.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setMagicLinkLoading(true);
+
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: window.location.origin
+        }
+      });
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive"
+        });
+      } else {
+        setMagicLinkSent(true);
+        toast({
+          title: "Magic Link Sent!",
+          description: "Check your email for a sign-in link. Click the link to access your account instantly.",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to send magic link.",
+        variant: "destructive"
+      });
+    } finally {
+      setMagicLinkLoading(false);
     }
   };
 
@@ -360,7 +406,20 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
             </div>
             
             <div>
-              <Label htmlFor="password">Password</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                {!isSignUp && (
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="h-auto p-0 text-sm"
+                    onClick={handleMagicLink}
+                    disabled={magicLinkLoading}
+                  >
+                    {magicLinkLoading ? 'Sending...' : 'Forgot Password?'}
+                  </Button>
+                )}
+              </div>
               <Input
                 id="password"
                 type="password"
@@ -368,6 +427,11 @@ const AuthDialog: React.FC<AuthDialogProps> = ({
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
+              {!isSignUp && magicLinkSent && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Magic link sent! Check your email to sign in instantly.
+                </p>
+              )}
             </div>
             
             {isSignUp && (
