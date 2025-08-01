@@ -3,6 +3,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SplashScreen from '@/components/SplashScreen';
 import MainLayout from '@/components/MainLayout';
+import Footer from '@/components/Footer';
 import DebugWindow from '@/components/DebugWindow';
 import { landmarks as staticLandmarks, Landmark } from '@/data/landmarks';
 import { useAuth } from '@/components/AuthProvider';
@@ -295,6 +296,9 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
         tourKey={tourKey}
         onShowOnboarding={showOnboardingManually}
       />
+      
+      {/* Footer */}
+      <Footer />
       
       {/* Onboarding overlay */}
       {showOnboarding && (
