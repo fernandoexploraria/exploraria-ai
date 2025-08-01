@@ -120,7 +120,7 @@
 
   /* Native app safe area adjustments for Mapbox controls */
   .native-app .mapboxgl-ctrl-geolocate {
-    margin-bottom: calc(25vh + env(safe-area-inset-bottom));
+    margin-bottom: env(safe-area-inset-bottom);
     margin-right: env(safe-area-inset-right);
   }
   }
