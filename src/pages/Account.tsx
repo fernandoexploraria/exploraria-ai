@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, Shield, FileText, LogOut, Trash2 } from 'lucide-react';
+import { ArrowLeft, User, Shield, FileText, LogOut, Trash2, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/components/AuthProvider';
 import { PersonalInfoDialog } from '@/components/PersonalInfoDialog';
+import { PasswordManagementDialog } from '@/components/PasswordManagementDialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,6 +25,7 @@ const Account: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showFinalConfirmation, setShowFinalConfirmation] = useState(false);
   const [showPersonalInfoDialog, setShowPersonalInfoDialog] = useState(false);
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
 
   const handleLogout = async () => {
     await signOut();
@@ -85,6 +87,15 @@ const Account: React.FC = () => {
             >
               <User className="w-5 h-5" />
               Personal Info
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              className="w-full justify-start gap-3 h-12"
+              onClick={() => setShowPasswordDialog(true)}
+            >
+              <Lock className="w-5 h-5" />
+              Password
             </Button>
             
             <Button 
@@ -191,6 +202,11 @@ const Account: React.FC = () => {
         <PersonalInfoDialog 
           open={showPersonalInfoDialog}
           onOpenChange={setShowPersonalInfoDialog}
+        />
+        
+        <PasswordManagementDialog 
+          open={showPasswordDialog}
+          onOpenChange={setShowPasswordDialog}
         />
       </div>
     </div>
