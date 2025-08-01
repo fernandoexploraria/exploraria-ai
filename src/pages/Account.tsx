@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, User, Shield, FileText, LogOut, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/components/AuthProvider';
+import { PersonalInfoDialog } from '@/components/PersonalInfoDialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +23,7 @@ const Account: React.FC = () => {
   const { signOut } = useAuth();
   const [isDeleting, setIsDeleting] = useState(false);
   const [showFinalConfirmation, setShowFinalConfirmation] = useState(false);
+  const [showPersonalInfoDialog, setShowPersonalInfoDialog] = useState(false);
 
   const handleLogout = async () => {
     await signOut();
@@ -79,6 +81,7 @@ const Account: React.FC = () => {
             <Button 
               variant="outline" 
               className="w-full justify-start gap-3 h-12"
+              onClick={() => setShowPersonalInfoDialog(true)}
             >
               <User className="w-5 h-5" />
               Personal Info
@@ -184,6 +187,11 @@ const Account: React.FC = () => {
             </div>
           </div>
         </div>
+
+        <PersonalInfoDialog 
+          open={showPersonalInfoDialog}
+          onOpenChange={setShowPersonalInfoDialog}
+        />
       </div>
     </div>
   );
