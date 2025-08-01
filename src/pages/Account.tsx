@@ -49,6 +49,8 @@ const Account: React.FC = () => {
 
       if (data?.success) {
         toast.success('Account successfully deleted. All your data has been removed.');
+        // Sign out the user before navigating
+        await signOut();
         navigate('/');
       } else {
         toast.error(data?.error || 'Failed to delete account. Please try again.');
