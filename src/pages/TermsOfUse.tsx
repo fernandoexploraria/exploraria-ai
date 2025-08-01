@@ -12,11 +12,11 @@ const TermsOfUse: React.FC = () => {
         <div className="mb-6">
           <Button 
             variant="ghost" 
-            onClick={() => navigate('/')}
+            onClick={() => navigate(-1)}
             className="flex items-center gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Main Page
+            Back
           </Button>
         </div>
         
