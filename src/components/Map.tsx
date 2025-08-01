@@ -553,7 +553,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
           }
         });
         
-        map.current.addControl(geoControl, 'top-right');
+        map.current.addControl(geoControl, 'bottom-right');
 
         setTimeout(() => {
           const controlContainer = document.querySelector('.mapboxgl-ctrl-top-right');
