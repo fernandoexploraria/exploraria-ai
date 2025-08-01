@@ -13,6 +13,7 @@ import CuratorPortal from "./pages/CuratorPortal";
 import ElevenLabsPlayground from "./pages/ElevenLabsPlayground";
 import TermsOfUse from "./pages/TermsOfUse";
 import AccountPrivacyPolicy from "./pages/AccountPrivacyPolicy";
+import Account from "./pages/Account";
 import { PaymentSuccess } from "./components/PaymentSuccess";
 import { PaymentFailure } from "./components/PaymentFailure";
 import { useState } from "react";
@@ -82,6 +83,10 @@ const App = () => {
                    <Route 
                      path="/account-privacy-policy" 
                      element={<AccountPrivacyPolicy />} 
+                   />
+                   <Route 
+                     path="/account" 
+                     element={<Account />} 
                    />
                    <Route 
                      path="/payment-success" 
