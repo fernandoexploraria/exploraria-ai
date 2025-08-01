@@ -558,7 +558,14 @@ const MapComponent: React.FC<MapProps> = React.memo(({
         setTimeout(() => {
           const controlContainer = document.querySelector('.mapboxgl-ctrl-top-right');
           if (controlContainer) {
+            // Give the location control higher z-index than UserControls (z-20)
+            (controlContainer as HTMLElement).style.zIndex = '25';
             (controlContainer as HTMLElement).style.top = '10px';
+            // On mobile, move it further from the edge to avoid overlap with UserControls
+            if (Capacitor.isNativePlatform()) {
+              (controlContainer as HTMLElement).style.right = '10px';
+              (controlContainer as HTMLElement).style.top = '80px'; // Move below UserControls
+            }
           }
         }, 100);
       }
