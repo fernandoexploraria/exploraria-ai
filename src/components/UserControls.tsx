@@ -9,7 +9,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { User, LogOut, Star, HelpCircle, BookOpen, Apple } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { User, LogOut, Star, HelpCircle, BookOpen, Apple, Monitor, Smartphone, Copy } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { useAuth } from '@/components/AuthProvider';
 import { Link, useNavigate } from 'react-router-dom';
@@ -19,6 +20,7 @@ import { AppleOAuthJWTDialog } from '@/components/AppleOAuthJWTDialog';
 import { useDemoMode } from '@/hooks/useDemoMode';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useOnboardingControl } from '@/hooks/useOnboardingControl';
+import { useToast } from '@/hooks/use-toast';
 
 interface UserControlsProps {
   user: SupabaseUser | null;
@@ -30,17 +32,48 @@ interface UserControlsProps {
 const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDialogOpen, onShowOnboarding }) => {
   const { profile } = useAuth();
   const { isDemoMode } = useDemoMode();
+  const { toast } = useToast();
   const isMobile = useIsMobile();
   const { completeOnboarding } = useOnboardingControl();
   const [isAppleJWTDialogOpen, setIsAppleJWTDialogOpen] = useState(false);
+  const [isTravelExpertMobileDialogOpen, setIsTravelExpertMobileDialogOpen] = useState(false);
   const navigate = useNavigate();
   
   // Detect if running in native app
   const isNativeApp = Capacitor.isNativePlatform();
+  const shouldShowMobileDialog = isMobile || isNativeApp;
+  const desktopUrl = 'https://lovable.exploraria.ai/curator-portal';
   
   // Check if user has access to Apple OAuth JWT functionality
   const hasAppleOAuthAccess = user?.email === 'fobregona@yahoo.com';
   
+  // Copy URL to clipboard handler
+  const copyUrlToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(desktopUrl);
+      toast({
+        title: "URL Copied!",
+        description: "The curator portal link has been copied to your clipboard."
+      });
+    } catch (error) {
+      console.error('Failed to copy URL:', error);
+      toast({
+        title: "Copy Failed",
+        description: "Please manually copy the URL above.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Travel Expert button click handler
+  const handleTravelExpertClick = () => {
+    if (shouldShowMobileDialog) {
+      setIsTravelExpertMobileDialogOpen(true);
+    } else {
+      navigate('/curator-portal');
+    }
+  };
+
   const handleSignOut = async () => {
     console.log('Sign out button clicked');
     try {
@@ -101,16 +134,15 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
             
             {/* Travel Expert Portal Link or Upgrade Badge */}
             {profile?.role === 'travel_expert' ? (
-              <Link to="/curator-portal">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="bg-primary/10 backdrop-blur-sm shadow-lg border border-primary/20 text-primary hover:bg-primary/20 hover:text-primary h-10"
-                >
-                  <Star className="w-4 h-4 mr-2" />
-                  Travel Expert
-                </Button>
-              </Link>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleTravelExpertClick}
+                className="bg-primary/10 backdrop-blur-sm shadow-lg border border-primary/20 text-primary hover:bg-primary/20 hover:text-primary h-10"
+              >
+                <Star className="w-4 h-4 mr-2" />
+                Travel Expert
+              </Button>
             ) : (
               <TravelExpertUpgrade displayMode="badge" />
             )}
@@ -165,6 +197,76 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
         open={isAppleJWTDialogOpen} 
         onOpenChange={setIsAppleJWTDialogOpen} 
       />
+
+      {/* Travel Expert Mobile Dialog */}
+      <Dialog open={isTravelExpertMobileDialogOpen} onOpenChange={setIsTravelExpertMobileDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Smartphone className="h-5 w-5 text-primary" />
+              Continue on Desktop
+            </DialogTitle>
+            <DialogDescription>
+              The Travel Expert portal is optimized for desktop browsers
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <Monitor className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h4 className="font-medium text-amber-800 text-sm">Desktop Required</h4>
+                  <p className="text-amber-700 text-xs mt-1">
+                    For the best experience with experience management, analytics, and business tools, please access the curator portal from a desktop computer.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="text-center space-y-4">
+              <div>
+                <h4 className="font-medium text-sm mb-2">Visit on Desktop:</h4>
+                <div className="bg-muted rounded-lg p-3 border">
+                  <code className="text-sm font-mono break-all">{desktopUrl}</code>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <Button 
+                  onClick={copyUrlToClipboard}
+                  variant="outline"
+                  className="w-full"
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copy URL to Clipboard
+                </Button>
+                <p className="text-xs text-muted-foreground text-center">
+                  Copy this link and paste it in your desktop browser
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-medium text-blue-800 text-sm mb-2">What you can do in the portal:</h4>
+              <ul className="text-blue-700 text-xs space-y-1">
+                <li>• Create and manage travel experiences</li>
+                <li>• View analytics and earnings</li>
+                <li>• Manage your Stripe Connected Account</li>
+                <li>• Configure expert profile and pricing</li>
+                <li>• Handle business operations and taxes</li>
+              </ul>
+            </div>
+
+            <Button 
+              onClick={() => setIsTravelExpertMobileDialogOpen(false)}
+              className="w-full"
+              variant="outline"
+            >
+              Got it, I'll continue on desktop
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
