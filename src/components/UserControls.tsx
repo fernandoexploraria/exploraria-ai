@@ -14,7 +14,6 @@ import { User, LogOut, Star, HelpCircle, BookOpen, Apple, Monitor, Smartphone, C
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { useAuth } from '@/components/AuthProvider';
 import { Link, useNavigate } from 'react-router-dom';
-import { setPostAuthAction } from '@/utils/authActions';
 import { ProfileBackfillUtility } from '@/components/ProfileBackfillUtility';
 import { TravelExpertUpgrade } from '@/components/TravelExpertUpgrade';
 import { AppleOAuthJWTDialog } from '@/components/AppleOAuthJWTDialog';
@@ -71,9 +70,7 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
     if (shouldShowMobileDialog) {
       setIsTravelExpertMobileDialogOpen(true);
     } else {
-      // Set post-auth action and trigger auth dialog
-      setPostAuthAction('curator-portal');
-      onAuthDialogOpen();
+      navigate('/curator-portal');
     }
   };
 
