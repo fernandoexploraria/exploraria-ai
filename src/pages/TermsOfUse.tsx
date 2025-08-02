@@ -7,24 +7,26 @@ const TermsOfUse: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Fixed header with back button */}
-      <div className="sticky top-0 z-50 bg-background border-b border-border px-4 py-3 sm:px-6">
-        <div className="max-w-4xl mx-auto">
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-foreground hover:bg-accent"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back
-          </Button>
+    <div className="h-screen bg-background flex flex-col">
+      {/* Sticky header with safe area support */}
+      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border safe-area-inset-top">
+        <div className="px-4 py-3 sm:px-6">
+          <div className="max-w-4xl mx-auto">
+            <Button 
+              variant="ghost" 
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-2 text-foreground hover:bg-accent"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Scrollable content area */}
-      <div className="h-[calc(100vh-60px)] overflow-y-auto">
-        <div className="max-w-4xl mx-auto p-4 sm:p-6">
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-4xl mx-auto p-4 sm:p-6 pb-8">
           <div className="prose prose-slate dark:prose-invert max-w-none">
             <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 text-foreground">Terms of Use</h1>
             
