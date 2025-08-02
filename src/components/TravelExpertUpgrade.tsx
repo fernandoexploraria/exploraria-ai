@@ -10,11 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Star, MapPin, DollarSign, Users, ArrowRight, Check, X, HelpCircle, ExternalLink, Monitor, Smartphone } from 'lucide-react';
+import { Star, MapPin, DollarSign, Users, ArrowRight, Check, X, HelpCircle, ExternalLink, Monitor, Smartphone, Copy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Capacitor } from '@capacitor/core';
-import QRCode from 'qrcode.react';
 
 interface TravelExpertUpgradeProps {
   onUpgradeComplete?: () => void;
@@ -52,6 +51,24 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
   const isNativeApp = Capacitor.isNativePlatform();
   const shouldShowMobileVersion = isMobile || isNativeApp;
   const desktopUrl = 'https://lovable.exploraria.com';
+
+  // Copy URL to clipboard handler
+  const copyUrlToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(desktopUrl);
+      toast({
+        title: "URL Copied!",
+        description: "The desktop link has been copied to your clipboard."
+      });
+    } catch (error) {
+      console.error('Failed to copy URL:', error);
+      toast({
+        title: "Copy Failed",
+        description: "Please manually copy the URL above.",
+        variant: "destructive"
+      });
+    }
+  };
 
   // Determine card visibility based on user profile data
   useEffect(() => {
@@ -299,19 +316,17 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <h4 className="font-medium text-sm">Scan QR Code:</h4>
-                    <div className="flex justify-center">
-                      <div className="bg-white p-4 rounded-lg border">
-                        <QRCode
-                          size={120}
-                          value={desktopUrl}
-                          viewBox="0 0 256 256"
-                        />
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Open your phone's camera to scan and send the link to your desktop
+                  <div className="space-y-3">
+                    <Button 
+                      onClick={copyUrlToClipboard}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <Copy className="mr-2 h-4 w-4" />
+                      Copy URL to Clipboard
+                    </Button>
+                    <p className="text-xs text-muted-foreground text-center">
+                      Copy this link and paste it in your desktop browser
                     </p>
                   </div>
                 </div>
