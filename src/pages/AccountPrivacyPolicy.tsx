@@ -8,9 +8,9 @@ const AccountPrivacyPolicy: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b p-4">
-        <div className="max-w-4xl mx-auto">
+      {/* Sticky Header with proper iOS safe area support */}
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b safe-area-header">
+        <div className="max-w-4xl mx-auto px-4">
           <Button 
             variant="ghost" 
             onClick={() => navigate(-1)}
