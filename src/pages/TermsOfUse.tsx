@@ -9,8 +9,8 @@ const TermsOfUse: React.FC = () => {
   return (
     <div className="h-screen bg-background flex flex-col">
       {/* Sticky header with safe area support */}
-      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border safe-area-inset-top">
-        <div className="px-4 py-3 sm:px-6">
+      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
+        <div className="px-4 py-3 sm:px-6 pt-safe-top">
           <div className="max-w-4xl mx-auto">
             <Button 
               variant="ghost" 
