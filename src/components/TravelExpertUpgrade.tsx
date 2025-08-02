@@ -10,8 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Star, MapPin, DollarSign, Users, ArrowRight, Check, X, HelpCircle, ExternalLink } from 'lucide-react';
+import { Star, MapPin, DollarSign, Users, ArrowRight, Check, X, HelpCircle, ExternalLink, Monitor, Smartphone } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Capacitor } from '@capacitor/core';
+import QRCode from 'react-qr-code';
 
 interface TravelExpertUpgradeProps {
   onUpgradeComplete?: () => void;
@@ -43,6 +46,12 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
     bio: profile?.bio || '',
     business_type: 'individual'
   });
+
+  // Mobile detection
+  const isMobile = useIsMobile();
+  const isNativeApp = Capacitor.isNativePlatform();
+  const shouldShowMobileVersion = isMobile || isNativeApp;
+  const desktopUrl = 'https://lovable.exploraria.com';
 
   // Determine card visibility based on user profile data
   useEffect(() => {
@@ -257,104 +266,179 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
       {/* Single consolidated dialog for both modes */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Become a Travel Expert</DialogTitle>
-            <DialogDescription>
-              Help us personalize your experience as a Travel Expert
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="full_name">Full Name</Label>
-              <Input 
-                id="full_name" 
-                placeholder="Your full name" 
-                value={formData.full_name} 
-                onChange={e => setFormData(prev => ({
-                  ...prev,
-                  full_name: e.target.value
-                }))} 
-                disabled={isUpgrading} 
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="bio">Bio (Optional)</Label>
-              <Textarea 
-                id="bio" 
-                placeholder="Tell us about your travel expertise and local knowledge..." 
-                value={formData.bio} 
-                onChange={e => setFormData(prev => ({
-                  ...prev,
-                  bio: e.target.value
-                }))} 
-                rows={3} 
-                disabled={isUpgrading} 
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="business_type">BUSINESS TYPE *</Label>
-              <Select
-                value={formData.business_type}
-                onValueChange={(value) => setFormData(prev => ({
-                  ...prev,
-                  business_type: value
-                }))}
-                disabled={isUpgrading}
-              >
-                <SelectTrigger className="w-full bg-background">
-                  <SelectValue placeholder="Select business type" />
-                </SelectTrigger>
-                <SelectContent 
-                  className="z-[99999] bg-background border border-border shadow-2xl max-h-[200px] min-w-[200px] overflow-y-auto"
-                  position="popper"
-                  side="bottom"
-                  align="start"
-                  sideOffset={4}
-                  avoidCollisions={true}
-                  collisionPadding={20}
-                >
-                  <SelectItem 
-                    value="individual" 
-                    className="cursor-pointer hover:bg-accent focus:bg-accent px-4 py-3 text-sm"
-                  >
-                    👤 Individual
-                  </SelectItem>
-                  <SelectItem 
-                    value="company" 
-                    className="cursor-pointer hover:bg-accent focus:bg-accent px-4 py-3 text-sm"
-                  >
-                    🏢 Company
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {isRedirectingToStripe && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-center gap-2 text-blue-800">
-                  <ExternalLink className="h-4 w-4" />
-                  <span className="text-sm font-medium">Redirecting to Stripe...</span>
+          {shouldShowMobileVersion ? (
+            // Mobile version - show instructions to use desktop
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Smartphone className="h-5 w-5 text-primary" />
+                  Continue on Desktop
+                </DialogTitle>
+                <DialogDescription>
+                  The Travel Expert onboarding process is optimized for desktop browsers
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-6">
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <Monitor className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-medium text-amber-800 text-sm">Desktop Required</h4>
+                      <p className="text-amber-700 text-xs mt-1">
+                        For the best experience with forms, file uploads, and Stripe setup, please access this feature from a desktop computer.
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-xs text-blue-600 mt-1">
-                  You'll be redirected to complete your payout setup. This may take a moment.
-                </p>
+
+                <div className="text-center space-y-4">
+                  <div>
+                    <h4 className="font-medium text-sm mb-2">Visit on Desktop:</h4>
+                    <div className="bg-muted rounded-lg p-3 border">
+                      <code className="text-sm font-mono break-all">{desktopUrl}</code>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm">Scan QR Code:</h4>
+                    <div className="flex justify-center">
+                      <div className="bg-white p-4 rounded-lg border">
+                        <QRCode
+                          size={120}
+                          value={desktopUrl}
+                          viewBox="0 0 256 256"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Open your phone's camera to scan and send the link to your desktop
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-800 text-sm mb-2">What you'll be able to do:</h4>
+                  <ul className="text-blue-700 text-xs space-y-1">
+                    <li>• Complete detailed Travel Expert application</li>
+                    <li>• Upload business documents and verification</li>
+                    <li>• Set up Stripe Connected Account for payments</li>
+                    <li>• Configure your expert profile and pricing</li>
+                    <li>• Start creating and monetizing experiences</li>
+                  </ul>
+                </div>
+
+                <Button 
+                  onClick={() => setIsDialogOpen(false)}
+                  className="w-full"
+                  variant="outline"
+                >
+                  Got it, I'll continue on desktop
+                </Button>
               </div>
-            )}
-            
-            <Button 
-              onClick={handleUpgrade} 
-              disabled={isUpgrading || !formData.full_name || !formData.business_type} 
-              className="w-full"
-            >
-              {isRedirectingToStripe ? (
-                <>
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  Redirecting...
-                </>
-              ) : isUpgrading ? "Setting up..." : "Setup Stripe Connected Account"}
-            </Button>
-          </div>
+            </>
+          ) : (
+            // Desktop version - show original form
+            <>
+              <DialogHeader>
+                <DialogTitle>Become a Travel Expert</DialogTitle>
+                <DialogDescription>
+                  Help us personalize your experience as a Travel Expert
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="full_name">Full Name</Label>
+                  <Input 
+                    id="full_name" 
+                    placeholder="Your full name" 
+                    value={formData.full_name} 
+                    onChange={e => setFormData(prev => ({
+                      ...prev,
+                      full_name: e.target.value
+                    }))} 
+                    disabled={isUpgrading} 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bio">Bio (Optional)</Label>
+                  <Textarea 
+                    id="bio" 
+                    placeholder="Tell us about your travel expertise and local knowledge..." 
+                    value={formData.bio} 
+                    onChange={e => setFormData(prev => ({
+                      ...prev,
+                      bio: e.target.value
+                    }))} 
+                    rows={3} 
+                    disabled={isUpgrading} 
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="business_type">BUSINESS TYPE *</Label>
+                  <Select
+                    value={formData.business_type}
+                    onValueChange={(value) => setFormData(prev => ({
+                      ...prev,
+                      business_type: value
+                    }))}
+                    disabled={isUpgrading}
+                  >
+                    <SelectTrigger className="w-full bg-background">
+                      <SelectValue placeholder="Select business type" />
+                    </SelectTrigger>
+                    <SelectContent 
+                      className="z-[99999] bg-background border border-border shadow-2xl max-h-[200px] min-w-[200px] overflow-y-auto"
+                      position="popper"
+                      side="bottom"
+                      align="start"
+                      sideOffset={4}
+                      avoidCollisions={true}
+                      collisionPadding={20}
+                    >
+                      <SelectItem 
+                        value="individual" 
+                        className="cursor-pointer hover:bg-accent focus:bg-accent px-4 py-3 text-sm"
+                      >
+                        👤 Individual
+                      </SelectItem>
+                      <SelectItem 
+                        value="company" 
+                        className="cursor-pointer hover:bg-accent focus:bg-accent px-4 py-3 text-sm"
+                      >
+                        🏢 Company
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {isRedirectingToStripe && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-blue-800">
+                      <ExternalLink className="h-4 w-4" />
+                      <span className="text-sm font-medium">Redirecting to Stripe...</span>
+                    </div>
+                    <p className="text-xs text-blue-600 mt-1">
+                      You'll be redirected to complete your payout setup. This may take a moment.
+                    </p>
+                  </div>
+                )}
+                
+                <Button 
+                  onClick={handleUpgrade} 
+                  disabled={isUpgrading || !formData.full_name || !formData.business_type} 
+                  className="w-full"
+                >
+                  {isRedirectingToStripe ? (
+                    <>
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      Redirecting...
+                    </>
+                  ) : isUpgrading ? "Setting up..." : "Setup Stripe Connected Account"}
+                </Button>
+              </div>
+            </>
+          )}
         </DialogContent>
 
         {/* Badge mode - compact display with embedded help */}
