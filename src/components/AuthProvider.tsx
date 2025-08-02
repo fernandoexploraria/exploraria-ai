@@ -264,6 +264,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
               }
             }
             
+            // Handle curator-portal action
+            if (pendingAction === 'curator-portal') {
+              console.log('🎯 Redirecting to Curator Portal after authentication');
+              setTimeout(() => {
+                window.location.href = '/curator-portal';
+              }, 500);
+              return;
+            }
+            
             // For other actions or if no payment needed, proceed normally
             setTimeout(() => {
               if (onPostAuthAction) {

@@ -4,22 +4,35 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Plus, ArrowLeft, BookOpen, Users, TrendingUp, Zap, CheckCircle, AlertCircle, Clock, ExternalLink } from 'lucide-react';
 import { ExperienceCreationWizard } from '@/components/ExperienceCreationWizard';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import AuthDialog from '@/components/AuthDialog';
+import { setPostAuthAction } from '@/utils/authActions';
 
 const CuratorPortal: React.FC = () => {
   const { user, profile, signOut } = useAuth();
   const { toast } = useToast();
   const location = useLocation();
+  const navigate = useNavigate();
   const [showCreateExperience, setShowCreateExperience] = useState(false);
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [stripeStatus, setStripeStatus] = useState<{
     accountStatus?: string;
     payoutsEnabled?: boolean;
     chargesEnabled?: boolean;
   }>({});
   const [isAccessingStripe, setIsAccessingStripe] = useState(false);
+
+  // Check authentication on page load
+  useEffect(() => {
+    if (!user) {
+      // User is not authenticated, set post-auth action and show auth dialog
+      setPostAuthAction('curator-portal');
+      setIsAuthDialogOpen(true);
+    }
+  }, [user]);
 
   // Handle Stripe Connect return flow
   useEffect(() => {
@@ -206,8 +219,20 @@ const CuratorPortal: React.FC = () => {
   const stripeStatusDisplay = getStripeStatusDisplay();
 
   return (
-    <ProtectedRoute requiredRole="travel_expert">
-      <div className="min-h-screen bg-background">
+    <>
+      <AuthDialog 
+        open={isAuthDialogOpen} 
+        onOpenChange={(open) => {
+          setIsAuthDialogOpen(open);
+          // If user closes dialog without signing in, redirect to home
+          if (!open && !user) {
+            navigate('/');
+          }
+        }} 
+        postAuthAction="curator-portal"
+      />
+      <ProtectedRoute requiredRole="travel_expert">
+        <div className="min-h-screen bg-background">
         {/* Header */}
         <header className="border-b border-border bg-card">
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -418,8 +443,9 @@ const CuratorPortal: React.FC = () => {
             </CardContent>
           </Card>
         </main>
-      </div>
-    </ProtectedRoute>
+        </div>
+      </ProtectedRoute>
+    </>
   );
 };
 
