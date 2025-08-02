@@ -14,7 +14,7 @@ import { Star, MapPin, DollarSign, Users, ArrowRight, Check, X, HelpCircle, Exte
 import { supabase } from '@/integrations/supabase/client';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Capacitor } from '@capacitor/core';
-import QRCode from 'react-qr-code';
+import QRCode from 'qrcode.react';
 
 interface TravelExpertUpgradeProps {
   onUpgradeComplete?: () => void;
