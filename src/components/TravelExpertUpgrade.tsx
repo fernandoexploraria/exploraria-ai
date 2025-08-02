@@ -50,7 +50,7 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
   const isMobile = useIsMobile();
   const isNativeApp = Capacitor.isNativePlatform();
   const shouldShowMobileVersion = isMobile || isNativeApp;
-  const desktopUrl = 'https://lovable.exploraria.com';
+  const desktopUrl = 'https://lovable.exploraria.ai';
 
   // Copy URL to clipboard handler
   const copyUrlToClipboard = async () => {
