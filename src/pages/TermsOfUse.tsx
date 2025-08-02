@@ -8,19 +8,17 @@ const TermsOfUse: React.FC = () => {
 
   return (
     <div className="h-screen bg-background flex flex-col">
-      {/* Sticky header with safe area support */}
-      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
-        <div className="px-4 py-3 sm:px-6 pt-safe-top">
-          <div className="max-w-4xl mx-auto">
-            <Button 
-              variant="ghost" 
-              onClick={() => navigate(-1)}
-              className="flex items-center gap-2 text-foreground hover:bg-accent"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back
-            </Button>
-          </div>
+      {/* Sticky header with proper iOS safe area support */}
+      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border safe-area-header">
+        <div className="px-4 sm:px-6 max-w-4xl mx-auto">
+          <Button 
+            variant="ghost" 
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-foreground hover:bg-accent"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </Button>
         </div>
       </div>
 
