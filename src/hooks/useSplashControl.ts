@@ -1,10 +1,20 @@
 
 import { useState, useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
 
 export const useSplashControl = () => {
   const [showSplash, setShowSplash] = useState(false);
 
   useEffect(() => {
+    // Skip automatic splash on native platforms (they have their own native splash)
+    const isNative = Capacitor.isNativePlatform();
+    
+    if (isNative) {
+      console.log('🎬 Skipping splash screen - running on native platform with native splash');
+      setShowSplash(false);
+      return;
+    }
+
     // Check if splash has been shown in this browser session
     const splashShownThisSession = sessionStorage.getItem('splash-shown');
     
