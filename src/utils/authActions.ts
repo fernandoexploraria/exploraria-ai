@@ -1,5 +1,5 @@
 
-export type PostAuthAction = 'smart-tour' | 'intelligent-tour' | 'none';
+export type PostAuthAction = 'smart-tour' | 'intelligent-tour' | 'curator-portal' | 'none';
 
 const AUTH_ACTION_KEY = 'pending-auth-action';
 const AUTH_LANDMARK_KEY = 'pending-auth-landmark';
