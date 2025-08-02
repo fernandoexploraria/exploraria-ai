@@ -42,7 +42,7 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
   // Detect if running in native app
   const isNativeApp = Capacitor.isNativePlatform();
   const shouldShowMobileDialog = isMobile || isNativeApp;
-  const desktopUrl = 'https://lovable.exploraria.ai/curator-portal?auth=required';
+  const desktopUrl = 'https://lovable.exploraria.ai/curator-portal';
   
   // Check if user has access to Apple OAuth JWT functionality
   const hasAppleOAuthAccess = user?.email === 'fobregona@yahoo.com';

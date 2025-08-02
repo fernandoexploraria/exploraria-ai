@@ -8,7 +8,6 @@ import { Link, useLocation } from 'react-router-dom';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import AuthDialog from '@/components/AuthDialog';
 
 const CuratorPortal: React.FC = () => {
   const { user, profile, signOut } = useAuth();
@@ -21,19 +20,6 @@ const CuratorPortal: React.FC = () => {
     chargesEnabled?: boolean;
   }>({});
   const [isAccessingStripe, setIsAccessingStripe] = useState(false);
-  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
-
-  // Check for auth=required query parameter and trigger auth dialog if not authenticated
-  useEffect(() => {
-    const urlParams = new URLSearchParams(location.search);
-    const authRequired = urlParams.get('auth');
-    
-    if (authRequired === 'required' && !user) {
-      setIsAuthDialogOpen(true);
-      // Clean up URL to remove the auth parameter
-      window.history.replaceState({}, document.title, location.pathname);
-    }
-  }, [location.search, user]);
 
   // Handle Stripe Connect return flow
   useEffect(() => {
@@ -220,13 +206,8 @@ const CuratorPortal: React.FC = () => {
   const stripeStatusDisplay = getStripeStatusDisplay();
 
   return (
-    <>
-      <AuthDialog 
-        open={isAuthDialogOpen} 
-        onOpenChange={setIsAuthDialogOpen}
-      />
-      <ProtectedRoute requiredRole="travel_expert">
-        <div className="min-h-screen bg-background">
+    <ProtectedRoute requiredRole="travel_expert">
+      <div className="min-h-screen bg-background">
         {/* Header */}
         <header className="border-b border-border bg-card">
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -437,9 +418,8 @@ const CuratorPortal: React.FC = () => {
             </CardContent>
           </Card>
         </main>
-        </div>
-      </ProtectedRoute>
-    </>
+      </div>
+    </ProtectedRoute>
   );
 };
 
