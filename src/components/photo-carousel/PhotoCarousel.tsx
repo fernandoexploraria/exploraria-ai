@@ -136,7 +136,7 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
                     console.log('🎠 [PhotoCarousel] Maximize button clicked, calling openFullscreen');
                     openFullscreen();
                   }}
-                  className="text-white hover:bg-white/20 relative z-30"
+                  className="text-green-500 hover:bg-green-500/20 relative z-30 border border-green-500"
                 >
                   <Maximize2 className="w-4 h-4" />
                 </Button>
