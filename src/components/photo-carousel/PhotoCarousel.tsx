@@ -219,14 +219,17 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
 
       {/* Fullscreen viewer */}
       {allowFullscreen && (
-        <FullscreenPhotoViewer
-          photos={photos}
-          currentIndex={currentIndex}
-          landmark={landmark || { name: 'Photo Gallery', type: 'unknown' }}
-          isOpen={isFullscreen}
-          onClose={closeFullscreen}
-          onIndexChange={goToIndex}
-        />
+        <>
+          {console.log(`🎠 [PhotoCarousel] Rendering FullscreenPhotoViewer - isFullscreen: ${isFullscreen}, photos: ${photos.length}`)}
+          <FullscreenPhotoViewer
+            photos={photos}
+            currentIndex={currentIndex}
+            landmark={landmark || { name: 'Photo Gallery', type: 'unknown' }}
+            isOpen={isFullscreen}
+            onClose={closeFullscreen}
+            onIndexChange={goToIndex}
+          />
+        </>
       )}
     </>
   );
