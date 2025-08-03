@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, X, Maximize2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, X } from 'lucide-react';
 import { PhotoData } from '@/hooks/useEnhancedPhotos';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { usePhotoNavigation } from '@/hooks/usePhotoNavigation';
@@ -125,18 +125,6 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
             </div>
             
             <div className="flex items-center gap-2">
-              
-              {allowFullscreen && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={openFullscreen}
-                  className="text-white hover:bg-white/20"
-                >
-                  <Maximize2 className="w-4 h-4" />
-                </Button>
-              )}
-              
               {onClose && (
                 <Button
                   variant="ghost"
