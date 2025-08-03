@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/popover';
 import { PhotoData } from '@/hooks/useEnhancedPhotos';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Wifi, 
   WifiOff, 
@@ -34,6 +35,7 @@ const PhotoQualityIndicator: React.FC<PhotoQualityIndicatorProps> = ({
   className
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const { 
     isOnline, 
     isSlowConnection, 
@@ -41,6 +43,15 @@ const PhotoQualityIndicator: React.FC<PhotoQualityIndicatorProps> = ({
     downlink,
     getOptimalImageQuality 
   } = useNetworkStatus();
+
+  // Check current user
+  React.useEffect(() => {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
+    };
+    checkUser();
+  }, []);
 
   const currentQuality = getOptimalImageQuality();
   
@@ -131,6 +142,11 @@ const PhotoQualityIndicator: React.FC<PhotoQualityIndicatorProps> = ({
     if (effectiveType === '3g') return '1-2s';
     return '<1s';
   };
+
+  // Only show for the specific user
+  if (currentUser?.email !== 'fobregona@yahoo.com') {
+    return null;
+  }
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
