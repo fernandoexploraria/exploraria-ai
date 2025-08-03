@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { Capacitor } from '@capacitor/core';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { Volume2, Eye, MapPin, Route, Navigation, Maximize2 } from 'lucide-react';
+import { Volume2, Eye, MapPin, Route, Navigation } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTTSContext } from '@/contexts/TTSContext';
 import { Landmark } from '@/data/landmarks';
@@ -19,7 +19,6 @@ import EnhancedStreetViewModal from './EnhancedStreetViewModal';
 import { useLandmarkPhotos } from '@/hooks/useLandmarkPhotos';
 import { PhotoData } from '@/hooks/useEnhancedPhotos';
 import { PhotoCarousel } from './photo-carousel';
-import FullscreenPhotoViewer from './FullscreenPhotoViewer';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import { getEnhancedLandmarkText } from '@/utils/landmarkPromptUtils';
 import { useOptimalRoute } from '@/hooks/useOptimalRoute';
@@ -1244,18 +1243,16 @@ const MapComponent: React.FC<MapProps> = React.memo(({
                 className="bg-black/90 hover:bg-blue-500/95 text-white border-2 border-white/90 rounded-full w-12 h-12 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg disabled:opacity-70"
                 title="Listen to description"
               >
-                 <Volume2 className="w-5 h-5" />
-               </button>
-             </div>
+                <Volume2 className="w-5 h-5" />
+              </button>
+            </div>
 
-             {photos.length > 0 ? (
+            {photos.length > 0 ? (
               <PhotoCarousel
                 photos={photos}
                 initialIndex={0}
-                landmark={landmark}
                 showThumbnails={photos.length > 1}
                 allowZoom={true}
-                allowFullscreen={true}
                 className="w-full"
               />
             ) : (
@@ -1265,10 +1262,10 @@ const MapComponent: React.FC<MapProps> = React.memo(({
                   <p className="text-gray-500">No photos available</p>
                 </div>
               </div>
-             )}
-           </div>
-         );
-       };
+            )}
+          </div>
+        );
+      };
 
       root.render(<PopupContent />);
 

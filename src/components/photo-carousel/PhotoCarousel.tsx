@@ -20,7 +20,6 @@ interface PhotoCarouselProps {
   allowZoom?: boolean;
   allowFullscreen?: boolean;
   className?: string;
-  landmark?: any; // Add landmark prop
 }
 
 const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
@@ -30,8 +29,7 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
   showThumbnails = true,
   allowZoom = true,
   allowFullscreen = true,
-  className,
-  landmark
+  className
 }) => {
   const [zoomLevel, setZoomLevel] = useState(1);
   const [showAttribution, setShowAttribution] = useState(false);
@@ -129,23 +127,14 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
             <div className="flex items-center gap-2">
               
               {allowFullscreen && (
-                <>
-                  {console.log('🎠 [PhotoCarousel] Rendering Maximize button')}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      console.log('🎠 [PhotoCarousel] Maximize button clicked, calling openFullscreen');
-                      openFullscreen();
-                    }}
-                    onMouseEnter={() => console.log('🎠 [PhotoCarousel] Maximize button mouse enter')}
-                    onMouseDown={() => console.log('🎠 [PhotoCarousel] Maximize button mouse down')}
-                    className="text-green-500 hover:bg-green-500/20 relative z-50 border-2 border-green-500 pointer-events-auto"
-                    style={{ pointerEvents: 'auto' }}
-                  >
-                    <Maximize2 className="w-4 h-4" />
-                  </Button>
-                </>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={openFullscreen}
+                  className="text-white hover:bg-white/20"
+                >
+                  <Maximize2 className="w-4 h-4" />
+                </Button>
               )}
               
               {onClose && (
@@ -225,17 +214,13 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
 
       {/* Fullscreen viewer */}
       {allowFullscreen && (
-        <>
-          {console.log(`🎠 [PhotoCarousel] Rendering FullscreenPhotoViewer - isFullscreen: ${isFullscreen}, photos: ${photos.length}`)}
-          <FullscreenPhotoViewer
-            photos={photos}
-            currentIndex={currentIndex}
-            landmark={landmark || { name: 'Photo Gallery', type: 'unknown' }}
-            isOpen={isFullscreen}
-            onClose={closeFullscreen}
-            onIndexChange={goToIndex}
-          />
-        </>
+        <FullscreenPhotoViewer
+          photos={photos}
+          currentIndex={currentIndex}
+          isOpen={isFullscreen}
+          onClose={closeFullscreen}
+          onIndexChange={goToIndex}
+        />
       )}
     </>
   );

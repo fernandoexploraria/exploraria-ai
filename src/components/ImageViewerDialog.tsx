@@ -280,7 +280,6 @@ const ImageViewerDialog: React.FC<ImageViewerDialogProps> = ({
           height: 600
         }] : [])}
         currentIndex={currentIndex}
-        landmark={{ name: imageName, type: 'unknown' }}
         isOpen={isFullscreen}
         onClose={closeFullscreen}
         onIndexChange={goToIndex}
