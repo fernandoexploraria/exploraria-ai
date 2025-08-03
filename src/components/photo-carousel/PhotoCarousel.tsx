@@ -125,31 +125,6 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
             </div>
             
             <div className="flex items-center gap-2">
-              {allowZoom && (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={zoomOut}
-                    disabled={zoomLevel <= 0.5}
-                    className="text-white hover:bg-white/20"
-                  >
-                    <ZoomOut className="w-4 h-4" />
-                  </Button>
-                  <span className="text-white text-sm min-w-12 text-center">
-                    {Math.round(zoomLevel * 100)}%
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={zoomIn}
-                    disabled={zoomLevel >= 4}
-                    className="text-white hover:bg-white/20"
-                  >
-                    <ZoomIn className="w-4 h-4" />
-                  </Button>
-                </>
-              )}
               
               {allowFullscreen && (
                 <Button
