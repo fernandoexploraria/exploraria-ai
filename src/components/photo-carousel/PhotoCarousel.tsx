@@ -20,6 +20,7 @@ interface PhotoCarouselProps {
   allowZoom?: boolean;
   allowFullscreen?: boolean;
   className?: string;
+  landmark?: any; // Add landmark prop
 }
 
 const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
@@ -29,7 +30,8 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
   showThumbnails = true,
   allowZoom = true,
   allowFullscreen = true,
-  className
+  className,
+  landmark
 }) => {
   const [zoomLevel, setZoomLevel] = useState(1);
   const [showAttribution, setShowAttribution] = useState(false);
@@ -217,7 +219,7 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
         <FullscreenPhotoViewer
           photos={photos}
           currentIndex={currentIndex}
-          landmark={{ name: 'Photo Gallery', type: 'unknown' }}
+          landmark={landmark || { name: 'Photo Gallery', type: 'unknown' }}
           isOpen={isFullscreen}
           onClose={closeFullscreen}
           onIndexChange={goToIndex}

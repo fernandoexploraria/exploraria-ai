@@ -1251,6 +1251,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
               <PhotoCarousel
                 photos={photos}
                 initialIndex={0}
+                landmark={landmark}
                 showThumbnails={photos.length > 1}
                 allowZoom={true}
                 className="w-full"
