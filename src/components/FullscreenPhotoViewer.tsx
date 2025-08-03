@@ -1,361 +1,323 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState } from 'react';
+import { X, ChevronLeft, ChevronRight, MapPin, Star, Clock, Phone, Globe, Camera, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { X, ZoomIn, ZoomOut, RotateCcw, Play, Pause, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { PhotoData } from '@/hooks/useEnhancedPhotos';
-import EnhancedProgressiveImage from './EnhancedProgressiveImage';
-import PhotoThumbnailGrid from './photo-carousel/PhotoThumbnailGrid';
-import PhotoAttribution from './photo-carousel/PhotoAttribution';
-import { cn } from '@/lib/utils';
+import { Landmark, EnhancedLandmark } from '@/data/landmarks';
 
 interface FullscreenPhotoViewerProps {
-  photos: PhotoData[];
-  currentIndex: number;
   isOpen: boolean;
   onClose: () => void;
+  photos: PhotoData[];
+  currentIndex: number;
+  landmark: Landmark | EnhancedLandmark | any; // any to handle database landmarks
   onIndexChange: (index: number) => void;
 }
 
-const FullscreenPhotoViewer: React.FC<FullscreenPhotoViewerProps> = ({
-  photos,
-  currentIndex,
+export const FullscreenPhotoViewer: React.FC<FullscreenPhotoViewerProps> = ({
   isOpen,
   onClose,
+  photos,
+  currentIndex,
+  landmark,
   onIndexChange
 }) => {
-  const [zoomLevel, setZoomLevel] = useState(1);
-  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [showThumbnails, setShowThumbnails] = useState(true);
-  const [showAttribution, setShowAttribution] = useState(false);
-  const [isSlideshow, setIsSlideshow] = useState(false);
-  const [preloadedImages, setPreloadedImages] = useState<Set<number>>(new Set());
+  const [imageLoading, setImageLoading] = useState(true);
   
-  const imageContainerRef = useRef<HTMLDivElement>(null);
-  const slideshowInterval = useRef<NodeJS.Timeout | null>(null);
-
   const currentPhoto = photos[currentIndex];
-
-  // Preload adjacent images
-  useEffect(() => {
-    const preloadImage = (index: number) => {
-      if (index >= 0 && index < photos.length && !preloadedImages.has(index)) {
-        const img = new Image();
-        img.src = photos[index].urls.large || photos[index].urls.medium;
-        img.onload = () => {
-          setPreloadedImages(prev => new Set(prev).add(index));
-        };
-      }
-    };
-
-    // Preload current, previous, and next images
-    preloadImage(currentIndex);
-    preloadImage(currentIndex - 1);
-    preloadImage(currentIndex + 1);
-  }, [currentIndex, photos, preloadedImages]);
-
-  // Slideshow logic
-  useEffect(() => {
-    if (isSlideshow && photos.length > 1) {
-      slideshowInterval.current = setInterval(() => {
-        onIndexChange((currentIndex + 1) % photos.length);
-      }, 3000);
-    } else {
-      if (slideshowInterval.current) {
-        clearInterval(slideshowInterval.current);
-        slideshowInterval.current = null;
-      }
+  
+  // Detect landmark type and available data
+  const isGeneratedLandmark = landmark?.raw_data || landmark?.place_id || landmark?.formatted_address;
+  const isTop100Landmark = !isGeneratedLandmark && landmark?.types;
+  
+  // Extract data based on landmark type
+  const getLandmarkData = () => {
+    if (isGeneratedLandmark) {
+      // Generated landmark - rich data from database
+      const rawData = landmark.raw_data || {};
+      return {
+        type: 'generated',
+        name: landmark.name,
+        rating: landmark.rating || rawData.rating,
+        userRatingsTotal: landmark.user_ratings_total || rawData.user_ratings_total,
+        address: landmark.formatted_address || rawData.formatted_address,
+        website: landmark.website_uri || rawData.website,
+        phone: rawData.formatted_phone_number,
+        openingHours: landmark.opening_hours || rawData.opening_hours,
+        priceLevel: landmark.price_level || rawData.price_level,
+        types: landmark.types || rawData.types || [],
+        editorialSummary: landmark.editorial_summary || rawData.editorial_summary?.text,
+        reviews: rawData.reviews?.slice(0, 3) || [], // First 3 reviews
+        photos: landmark.photos || rawData.photos || []
+      };
+    } else if (isTop100Landmark) {
+      // Top100 landmark - limited persisted data
+      return {
+        type: 'top100',
+        name: landmark.name,
+        description: landmark.description,
+        rating: landmark.rating,
+        address: landmark.formattedAddress,
+        types: landmark.types || [],
+        coordinates: landmark.coordinates
+      };
     }
-
-    return () => {
-      if (slideshowInterval.current) {
-        clearInterval(slideshowInterval.current);
-      }
-    };
-  }, [isSlideshow, currentIndex, photos.length, onIndexChange]);
-
-  // Reset zoom and pan when photo changes
-  useEffect(() => {
-    setZoomLevel(1);
-    setPanOffset({ x: 0, y: 0 });
-  }, [currentIndex]);
-
-  // Keyboard navigation
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      switch (event.key) {
-        case 'Escape':
-          event.preventDefault();
-          onClose();
-          break;
-        case 'ArrowLeft':
-          event.preventDefault();
-          goToPrevious();
-          break;
-        case 'ArrowRight':
-        case ' ':
-          event.preventDefault();
-          goToNext();
-          break;
-        case 'Home':
-          event.preventDefault();
-          onIndexChange(0);
-          break;
-        case 'End':
-          event.preventDefault();
-          onIndexChange(photos.length - 1);
-          break;
-        case '+':
-        case '=':
-          event.preventDefault();
-          zoomIn();
-          break;
-        case '-':
-          event.preventDefault();
-          zoomOut();
-          break;
-        case '0':
-          event.preventDefault();
-          resetZoom();
-          break;
-        case 'f':
-        case 'F':
-          event.preventDefault();
-          toggleFullscreen();
-          break;
-        case 's':
-        case 'S':
-          event.preventDefault();
-          setIsSlideshow(!isSlideshow);
-          break;
-        case 't':
-        case 'T':
-          event.preventDefault();
-          setShowThumbnails(!showThumbnails);
-          break;
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, currentIndex, photos.length, isSlideshow, showThumbnails]);
-
-  const goToPrevious = useCallback(() => {
-    onIndexChange(currentIndex > 0 ? currentIndex - 1 : photos.length - 1);
-  }, [currentIndex, photos.length, onIndexChange]);
-
-  const goToNext = useCallback(() => {
-    onIndexChange(currentIndex < photos.length - 1 ? currentIndex + 1 : 0);
-  }, [currentIndex, photos.length, onIndexChange]);
-
-  const zoomIn = useCallback(() => {
-    setZoomLevel(prev => Math.min(prev * 1.5, 5));
-  }, []);
-
-  const zoomOut = useCallback(() => {
-    setZoomLevel(prev => Math.max(prev / 1.5, 0.25));
-  }, []);
-
-  const resetZoom = useCallback(() => {
-    setZoomLevel(1);
-    setPanOffset({ x: 0, y: 0 });
-  }, []);
-
-  const toggleFullscreen = useCallback(() => {
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
-    } else {
-      document.documentElement.requestFullscreen();
+    
+    return { type: 'unknown', name: landmark?.name || 'Unknown' };
+  };
+  
+  const landmarkData = getLandmarkData();
+  
+  const navigatePhoto = (direction: 'prev' | 'next') => {
+    if (direction === 'prev' && currentIndex > 0) {
+      onIndexChange(currentIndex - 1);
+    } else if (direction === 'next' && currentIndex < photos.length - 1) {
+      onIndexChange(currentIndex + 1);
     }
-  }, []);
-
-  // Mouse drag handlers
-  const handleMouseDown = useCallback((event: React.MouseEvent) => {
-    if (zoomLevel > 1) {
-      setIsDragging(true);
-      setDragStart({ x: event.clientX - panOffset.x, y: event.clientY - panOffset.y });
+    setImageLoading(true);
+  };
+  
+  const formatPriceLevel = (level: number) => {
+    return '€'.repeat(level);
+  };
+  
+  const getStatusBadge = () => {
+    if (landmarkData.type === 'generated') {
+      return <Badge variant="secondary" className="text-xs">Smart Tour</Badge>;
+    } else if (landmarkData.type === 'top100') {
+      return <Badge variant="outline" className="text-xs">Top Landmark</Badge>;
     }
-  }, [zoomLevel, panOffset]);
-
-  const handleMouseMove = useCallback((event: React.MouseEvent) => {
-    if (isDragging && zoomLevel > 1) {
-      setPanOffset({
-        x: event.clientX - dragStart.x,
-        y: event.clientY - dragStart.y
-      });
-    }
-  }, [isDragging, dragStart, zoomLevel]);
-
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-  }, []);
-
-  // Touch handlers for mobile
-  const handleTouchStart = useCallback((event: React.TouchEvent) => {
-    if (event.touches.length === 1 && zoomLevel > 1) {
-      const touch = event.touches[0];
-      setIsDragging(true);
-      setDragStart({ x: touch.clientX - panOffset.x, y: touch.clientY - panOffset.y });
-    }
-  }, [zoomLevel, panOffset]);
-
-  const handleTouchMove = useCallback((event: React.TouchEvent) => {
-    if (event.touches.length === 1 && isDragging && zoomLevel > 1) {
-      event.preventDefault();
-      const touch = event.touches[0];
-      setPanOffset({
-        x: touch.clientX - dragStart.x,
-        y: touch.clientY - dragStart.y
-      });
-    }
-  }, [isDragging, dragStart, zoomLevel]);
-
-  if (!isOpen || !currentPhoto) return null;
+    return null;
+  };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black flex flex-col">
-      {/* Header Controls */}
-      <div className="absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-black/80 to-transparent p-4">
-        <div className="flex items-center justify-between text-white">
-          <div className="flex items-center gap-4">
-            <span className="text-lg font-medium">
-              {currentIndex + 1} of {photos.length}
-            </span>
-            {photos.length > 1 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsSlideshow(!isSlideshow)}
-                className="text-white hover:bg-white/20"
-              >
-                {isSlideshow ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                <span className="ml-2">{isSlideshow ? 'Pause' : 'Slideshow'}</span>
-              </Button>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-none w-full h-full p-0 bg-black">
+        <div className="relative w-full h-full flex flex-col">
+          {/* Header */}
+          <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/70 to-transparent p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <h2 className="text-white text-lg font-semibold truncate max-w-md">
+                  {landmarkData.name}
+                </h2>
+                {getStatusBadge()}
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-white hover:bg-white/20"
+                >
+                  <Share2 className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onClose}
+                  className="text-white hover:bg-white/20"
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Main photo area */}
+          <div className="flex-1 relative flex items-center justify-center bg-black">
+            {currentPhoto && (
+              <>
+                <img
+                  src={currentPhoto.urls?.large || currentPhoto.urls?.medium || currentPhoto.urls?.thumb}
+                  alt={`${landmarkData.name} - Photo ${currentIndex + 1}`}
+                  className="max-w-full max-h-full object-contain"
+                  onLoad={() => setImageLoading(false)}
+                  onError={() => setImageLoading(false)}
+                />
+                
+                {/* Photo navigation */}
+                {photos.length > 1 && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigatePhoto('prev')}
+                      disabled={currentIndex === 0}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 disabled:opacity-30"
+                    >
+                      <ChevronLeft className="w-6 h-6" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigatePhoto('next')}
+                      disabled={currentIndex === photos.length - 1}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 disabled:opacity-30"
+                    >
+                      <ChevronRight className="w-6 h-6" />
+                    </Button>
+                  </>
+                )}
+              </>
             )}
           </div>
-          
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={zoomOut}
-              disabled={zoomLevel <= 0.25}
-              className="text-white hover:bg-white/20"
-            >
-              <ZoomOut className="w-4 h-4" />
-            </Button>
-            
-            <span className="text-white min-w-16 text-center">
-              {Math.round(zoomLevel * 100)}%
-            </span>
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={zoomIn}
-              disabled={zoomLevel >= 5}
-              className="text-white hover:bg-white/20"
-            >
-              <ZoomIn className="w-4 h-4" />
-            </Button>
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={resetZoom}
-              className="text-white hover:bg-white/20"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </Button>
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              className="text-white hover:bg-white/20"
-            >
-              <X className="w-6 h-6" />
-            </Button>
+
+          {/* Bottom info panel */}
+          <div className="bg-background border-t p-4 max-h-80 overflow-y-auto">
+            <div className="max-w-4xl mx-auto space-y-4">
+              
+              {/* Basic info row */}
+              <div className="flex items-start justify-between">
+                <div className="space-y-2">
+                  <h3 className="text-xl font-semibold">{landmarkData.name}</h3>
+                  
+                  {landmarkData.rating && (
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                        <span className="font-medium">{landmarkData.rating}</span>
+                      </div>
+                      {landmarkData.userRatingsTotal && (
+                        <span className="text-muted-foreground text-sm">
+                          ({landmarkData.userRatingsTotal.toLocaleString()} reviews)
+                        </span>
+                      )}
+                      {landmarkData.priceLevel && (
+                        <span className="text-sm font-medium">
+                          {formatPriceLevel(landmarkData.priceLevel)}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  
+                  {landmarkData.address && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <MapPin className="w-4 h-4" />
+                      <span className="text-sm">{landmarkData.address}</span>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Camera className="w-4 h-4" />
+                    <span className="text-sm">{currentIndex + 1} of {photos.length}</span>
+                  </div>
+                  {currentPhoto?.attributions && currentPhoto.attributions.length > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      Photo by {currentPhoto.attributions[0].displayName}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Type-specific content */}
+              {landmarkData.type === 'generated' && (
+                <div className="space-y-4">
+                  {/* Contact info */}
+                  {(landmarkData.website || landmarkData.phone) && (
+                    <div className="flex gap-4">
+                      {landmarkData.website && (
+                        <div className="flex items-center gap-2">
+                          <Globe className="w-4 h-4 text-muted-foreground" />
+                          <a 
+                            href={landmarkData.website}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline text-sm"
+                          >
+                            Website
+                          </a>
+                        </div>
+                      )}
+                      {landmarkData.phone && (
+                        <div className="flex items-center gap-2">
+                          <Phone className="w-4 h-4 text-muted-foreground" />
+                          <a href={`tel:${landmarkData.phone}`} className="text-primary hover:underline text-sm">
+                            {landmarkData.phone}
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Opening hours */}
+                  {landmarkData.openingHours?.weekday_text && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">Hours</span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-1 text-sm text-muted-foreground">
+                        {landmarkData.openingHours.weekday_text.slice(0, 4).map((hours: string, index: number) => (
+                          <div key={index}>{hours}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Editorial summary */}
+                  {landmarkData.editorialSummary && (
+                    <div className="space-y-2">
+                      <h4 className="font-medium">About</h4>
+                      <p className="text-sm text-muted-foreground">{landmarkData.editorialSummary}</p>
+                    </div>
+                  )}
+
+                  {/* Recent reviews preview */}
+                  {landmarkData.reviews.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="font-medium">Recent Reviews</h4>
+                      <div className="space-y-2">
+                        {landmarkData.reviews.map((review: any, index: number) => (
+                          <div key={index} className="text-sm border-l-2 border-muted pl-3">
+                            <div className="flex items-center gap-2 mb-1">
+                              <div className="flex items-center gap-1">
+                                <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                                <span className="font-medium">{review.rating}</span>
+                              </div>
+                              <span className="text-muted-foreground">by {review.author_name}</span>
+                            </div>
+                            <p className="text-muted-foreground line-clamp-2">{review.text}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {landmarkData.type === 'top100' && (
+                <div className="space-y-4">
+                  {landmarkData.description && (
+                    <div className="space-y-2">
+                      <h4 className="font-medium">Description</h4>
+                      <p className="text-sm text-muted-foreground">{landmarkData.description}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Categories */}
+              {landmarkData.types && landmarkData.types.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-medium text-sm">Categories</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {landmarkData.types.slice(0, 5).map((type: string, index: number) => (
+                      <Badge key={index} variant="outline" className="text-xs">
+                        {type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-
-      {/* Main Photo Display */}
-      <div
-        ref={imageContainerRef}
-        className="flex-1 flex items-center justify-center overflow-hidden cursor-move"
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={() => setIsDragging(false)}
-      >
-        <div
-          className="transition-transform duration-200 ease-out"
-          style={{
-            transform: `scale(${zoomLevel}) translate(${panOffset.x / zoomLevel}px, ${panOffset.y / zoomLevel}px)`,
-            cursor: zoomLevel > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'
-          }}
-        >
-          <EnhancedProgressiveImage
-            photo={currentPhoto}
-            alt={`Photo ${currentIndex + 1}`}
-            className="max-w-screen max-h-screen object-contain"
-            showAttribution={false}
-          />
-        </div>
-      </div>
-
-      {/* Navigation Arrows */}
-      {photos.length > 1 && (
-        <>
-          <Button
-            variant="ghost"
-            size="lg"
-            onClick={goToPrevious}
-            className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white"
-          >
-            <ChevronLeft className="w-8 h-8" />
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="lg"
-            onClick={goToNext}
-            className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white"
-          >
-            <ChevronRight className="w-8 h-8" />
-          </Button>
-        </>
-      )}
-
-      {/* Attribution */}
-      <PhotoAttribution
-        photo={currentPhoto}
-        isVisible={showAttribution}
-        onToggle={() => setShowAttribution(!showAttribution)}
-      />
-
-      {/* Thumbnail Grid */}
-      {showThumbnails && photos.length > 1 && (
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-          <PhotoThumbnailGrid
-            photos={photos}
-            currentIndex={currentIndex}
-            onThumbnailClick={onIndexChange}
-          />
-        </div>
-      )}
-
-      {/* Quick Help */}
-      <div className="absolute bottom-4 right-4 text-white text-xs opacity-70 bg-black/50 rounded px-2 py-1">
-        ← → Navigate • +/- Zoom • 0 Reset • F Fullscreen • S Slideshow • T Thumbnails • ESC Close
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
