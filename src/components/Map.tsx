@@ -1195,9 +1195,6 @@ const MapComponent: React.FC<MapProps> = React.memo(({
       const root = ReactDOM.createRoot(popupContainer);
 
       const PopupContent = () => {
-        const [isFullscreenOpen, setIsFullscreenOpen] = React.useState(false);
-        const [fullscreenPhotoIndex, setFullscreenPhotoIndex] = React.useState(0);
-
         return (
           <div className="relative">
             <button
@@ -1249,17 +1246,6 @@ const MapComponent: React.FC<MapProps> = React.memo(({
               >
                  <Volume2 className="w-5 h-5" />
                </button>
-               
-               {/* Expand/Fullscreen button - only show if we have photos */}
-               {photos.length > 0 && (
-                 <button
-                   onClick={() => setIsFullscreenOpen(true)}
-                   className="bg-green-600/95 hover:bg-green-700 text-white border-2 border-white/90 rounded-full w-12 h-12 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg"
-                   title="View photos in fullscreen"
-                 >
-                   <Maximize2 className="w-5 h-5" />
-                 </button>
-               )}
              </div>
 
              {photos.length > 0 ? (
@@ -1279,16 +1265,6 @@ const MapComponent: React.FC<MapProps> = React.memo(({
                 </div>
               </div>
              )}
-             
-             {/* Fullscreen Photo Viewer */}
-             <FullscreenPhotoViewer
-               isOpen={isFullscreenOpen}
-               onClose={() => setIsFullscreenOpen(false)}
-               photos={photos}
-               currentIndex={fullscreenPhotoIndex}
-               landmark={landmark}
-               onIndexChange={setFullscreenPhotoIndex}
-             />
            </div>
          );
        };
