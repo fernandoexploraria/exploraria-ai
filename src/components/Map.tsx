@@ -1255,6 +1255,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
                 landmark={landmark}
                 showThumbnails={photos.length > 1}
                 allowZoom={true}
+                allowFullscreen={true}
                 className="w-full"
               />
             ) : (
