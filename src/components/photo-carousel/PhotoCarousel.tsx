@@ -132,7 +132,10 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={openFullscreen}
+                  onClick={() => {
+                    console.log('🎠 [PhotoCarousel] Maximize button clicked, calling openFullscreen');
+                    openFullscreen();
+                  }}
                   className="text-white hover:bg-white/20"
                 >
                   <Maximize2 className="w-4 h-4" />

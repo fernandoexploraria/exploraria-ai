@@ -63,10 +63,12 @@ export const usePhotoNavigation = ({
   }, [photos.length, handleIndexChange, currentIndex]);
 
   const openFullscreen = useCallback(() => {
+    console.log('🔍 [usePhotoNavigation] openFullscreen called');
     setIsFullscreen(true);
   }, []);
 
   const closeFullscreen = useCallback(() => {
+    console.log('🔍 [usePhotoNavigation] closeFullscreen called');
     setIsFullscreen(false);
   }, []);
 

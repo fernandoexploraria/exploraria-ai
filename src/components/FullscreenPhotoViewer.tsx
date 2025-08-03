@@ -91,6 +91,8 @@ export const FullscreenPhotoViewer: React.FC<FullscreenPhotoViewerProps> = ({
     return null;
   };
 
+  console.log(`🔍 [FullscreenPhotoViewer] Rendering with isOpen: ${isOpen}, photos: ${photos.length}, currentIndex: ${currentIndex}`);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-none w-full h-full p-0 bg-black">
