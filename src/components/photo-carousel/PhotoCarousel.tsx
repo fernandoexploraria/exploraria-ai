@@ -129,17 +129,23 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
             <div className="flex items-center gap-2">
               
               {allowFullscreen && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    console.log('🎠 [PhotoCarousel] Maximize button clicked, calling openFullscreen');
-                    openFullscreen();
-                  }}
-                  className="text-green-500 hover:bg-green-500/20 relative z-30 border border-green-500"
-                >
-                  <Maximize2 className="w-4 h-4" />
-                </Button>
+                <>
+                  {console.log('🎠 [PhotoCarousel] Rendering Maximize button')}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      console.log('🎠 [PhotoCarousel] Maximize button clicked, calling openFullscreen');
+                      openFullscreen();
+                    }}
+                    onMouseEnter={() => console.log('🎠 [PhotoCarousel] Maximize button mouse enter')}
+                    onMouseDown={() => console.log('🎠 [PhotoCarousel] Maximize button mouse down')}
+                    className="text-green-500 hover:bg-green-500/20 relative z-50 border-2 border-green-500 pointer-events-auto"
+                    style={{ pointerEvents: 'auto' }}
+                  >
+                    <Maximize2 className="w-4 h-4" />
+                  </Button>
+                </>
               )}
               
               {onClose && (
