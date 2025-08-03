@@ -235,10 +235,6 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
           </div>
         )}
 
-        {/* Keyboard hints */}
-        <div className="absolute bottom-2 right-2 text-white text-xs opacity-50">
-          ← → Navigate • +/- Zoom • {allowFullscreen ? 'F Fullscreen • ' : ''}ESC Close
-        </div>
       </div>
 
       {/* Fullscreen viewer */}
