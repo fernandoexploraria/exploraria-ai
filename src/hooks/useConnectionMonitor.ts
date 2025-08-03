@@ -59,18 +59,18 @@ export const useConnectionMonitor = () => {
       lastHealthCheck: now
     });
 
-    // Show toast notification for new critical issues (with cooldown)
+    // Show toast notification for reconnection (with cooldown)
     if (!isHealthy && now - lastToastRef.current > TOAST_COOLDOWN) {
       const criticalIssues = issues.filter(issue => 
         issue.includes('taking too long')
       );
       
       if (criticalIssues.length > 0) {
-        console.log('🚨 Connection Health: Critical issues detected', criticalIssues);
+        console.log('🔄 Connection Health: Reconnecting services', criticalIssues);
         toast({
-          title: "Connection Issues Detected",
-          description: `${criticalIssues.length} service(s) experiencing problems. Check connection status for details.`,
-          variant: "destructive",
+          title: "Reconnecting...",
+          description: "Getting you back up to speed",
+          variant: "default",
         });
         lastToastRef.current = now;
       }
