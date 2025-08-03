@@ -37,10 +37,6 @@ const PlacesApiTestPanel: React.FC = () => {
   const runTests = async () => {
     setIsRunning(true);
     try {
-      toast({
-        title: "Starting Tests",
-        description: "Running comprehensive Google Places API tests...",
-      });
 
       const testResults = await placesApiTester.runComprehensiveTests();
       setResults(testResults);
@@ -56,20 +52,9 @@ const PlacesApiTestPanel: React.FC = () => {
       ];
 
       const failCount = allTests.filter(t => t.status === 'fail').length;
-      
-      toast({
-        title: failCount === 0 ? "Tests Completed Successfully!" : "Tests Completed with Issues",
-        description: `${allTests.length} tests run, ${failCount} failures`,
-        variant: failCount === 0 ? "default" : "destructive"
-      });
 
     } catch (error) {
       console.error('Test execution failed:', error);
-      toast({
-        title: "Test Execution Failed",
-        description: error instanceof Error ? error.message : "Unknown error occurred",
-        variant: "destructive"
-      });
     } finally {
       setIsRunning(false);
     }

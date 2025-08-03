@@ -141,14 +141,6 @@ const FloatingProximityCard: React.FC<FloatingProximityCardProps> = React.memo((
     
     console.log(`🏪 [CARD-${instanceIdRef.current}] NEW FloatingProximityCard instance for ${landmark.name} - Global Count #${newRenderCount}`);
     
-    // Show debug toast only for NEW instances with cooldown
-    // if (now - lastToastTimeRef.current > 2000) { // 2 second cooldown
-    //   lastToastTimeRef.current = now;
-    //   toast(`🏪 NEW Card: ${landmark.name}`, {
-    //     description: `Global Count #${newRenderCount} | Instance: ${instanceIdRef.current.split('-').slice(-1)[0]}`,
-    //     duration: 2000
-    //   });
-    // }
     
     return () => {
       console.log(`🏪 [CARD-${instanceIdRef.current}] FloatingProximityCard cleanup for ${landmark.name}`);

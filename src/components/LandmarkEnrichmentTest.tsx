@@ -53,22 +53,11 @@ const LandmarkEnrichmentTest: React.FC = () => {
       if (data?.enrichedLandmarks) {
         setResults(data.enrichedLandmarks);
         
-        const summary = data.summary;
-        toast({
-          title: "Phase 1 Test Complete",
-          description: `${summary.success} successful, ${summary.failed} failed, ${summary.notFound} not found`,
-        });
-        
         console.log('Phase 1 results:', data.enrichedLandmarks);
       }
 
     } catch (error) {
       console.error('Phase 1 enrichment error:', error);
-      toast({
-        title: "Phase 1 Test Failed",
-        description: error.message || "Unknown error occurred",
-        variant: "destructive"
-      });
     } finally {
       setIsEnriching(false);
     }
@@ -152,20 +141,10 @@ const LandmarkEnrichmentTest: React.FC = () => {
       const failedCount = allResults.filter(l => l.enrichment_status === 'failed').length;
       const notFoundCount = allResults.filter(l => l.enrichment_status === 'not_found').length;
       
-      toast({
-        title: "Bulk Enrichment Complete",
-        description: `${successCount} successful, ${failedCount} failed, ${notFoundCount} not found out of ${TOP_LANDMARKS.length} landmarks`,
-      });
-      
       console.log(`Bulk enrichment complete: ${successCount}/${TOP_LANDMARKS.length} landmarks enriched successfully`);
 
     } catch (error) {
       console.error('Bulk enrichment error:', error);
-      toast({
-        title: "Bulk Enrichment Failed",
-        description: error.message || "Unknown error occurred",
-        variant: "destructive"
-      });
     } finally {
       setIsEnriching(false);
     }
@@ -199,16 +178,8 @@ const LandmarkEnrichmentTest: React.FC = () => {
   const copyCodeToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(enrichedCode);
-      toast({
-        title: "Code Copied",
-        description: "The enriched code has been copied to your clipboard",
-      });
     } catch (error) {
-      toast({
-        title: "Copy Failed",
-        description: "Could not copy to clipboard",
-        variant: "destructive"
-      });
+      console.error('Copy failed:', error);
     }
   };
 

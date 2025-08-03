@@ -36,11 +36,6 @@ export const ProfileBackfillUtility = () => {
       setStats(data);
     } catch (error) {
       console.error('Error fetching profile stats:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch profile statistics",
-        variant: "destructive",
-      });
     } finally {
       setLoading(false);
     }
@@ -57,20 +52,11 @@ export const ProfileBackfillUtility = () => {
         throw error;
       }
 
-      toast({
-        title: "Success",
-        description: `Created ${data.created} missing profiles`,
-      });
 
       // Refresh stats
       await fetchStats();
     } catch (error) {
       console.error('Error creating profiles:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create missing profiles",
-        variant: "destructive",
-      });
     } finally {
       setCreating(false);
     }
@@ -87,20 +73,11 @@ export const ProfileBackfillUtility = () => {
         throw error;
       }
 
-      toast({
-        title: "Success",
-        description: `Updated ${data.updated} profiles with tracking fields`,
-      });
 
       // Refresh stats
       await fetchStats();
     } catch (error) {
       console.error('Error updating profiles:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update profile tracking fields",
-        variant: "destructive",
-      });
     } finally {
       setUpdating(false);
     }

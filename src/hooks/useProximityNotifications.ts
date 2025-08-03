@@ -431,9 +431,9 @@ export const useProximityNotifications = () => {
     const streetViewData = getCachedData(landmark.id || landmark.placeId);
     const hasStreetView = !!streetViewData;
 
-    // Show visual toast with optional Street View enhancement and debug info
+    // Show visual toast with optional Street View enhancement
     toast(`🗺️ ${landmark.name}`, {
-      description: `You're ${formattedDistance} away${hasStreetView ? ' • Street View ready' : ''} • Round ${currentPollRound} at ${timestamp}`,
+      description: `You're ${formattedDistance} away${hasStreetView ? ' • Street View ready' : ''}`,
       duration: 8000,
       action: {
         label: 'Get Me There',
