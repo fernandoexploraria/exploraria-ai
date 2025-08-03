@@ -217,6 +217,7 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
         <FullscreenPhotoViewer
           photos={photos}
           currentIndex={currentIndex}
+          landmark={{ name: 'Photo Gallery', type: 'unknown' }}
           isOpen={isFullscreen}
           onClose={closeFullscreen}
           onIndexChange={goToIndex}
