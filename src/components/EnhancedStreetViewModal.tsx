@@ -590,8 +590,8 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
                     isLoading={loadingState.isLoading}
                   />
                   
-                  {/* Fallback information */}
-                  {currentStreetViewData.metadata.fallbackInfo && (
+                  {/* Fallback information - only show in demo mode */}
+                  {isDemoMode && currentStreetViewData.metadata.fallbackInfo && (
                     <div className="text-xs text-blue-400 opacity-75">
                       Coverage: {currentStreetViewData.metadata.fallbackInfo.coveragePercent}% 
                       ({currentStreetViewData.metadata.fallbackInfo.fallbacksUsed} fallbacks used)
