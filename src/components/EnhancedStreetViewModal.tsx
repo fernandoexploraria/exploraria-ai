@@ -693,8 +693,8 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
           </div>
         )}
 
-        {/* Debug overlay to verify compass should be visible */}
-        {process.env.NODE_ENV === 'development' && (
+        {/* Debug overlay to verify compass should be visible - only when demo mode is enabled */}
+        {isDemoMode && (
           <div className="absolute top-1/2 left-4 bg-black/80 text-white text-xs p-2 rounded">
             <div>Multi: {isMultiViewpoint ? 'YES' : 'NO'}</div>
             <div>Views: {allViewpoints.length}</div>
