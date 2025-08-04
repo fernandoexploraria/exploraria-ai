@@ -15,6 +15,7 @@ import TermsOfUse from "./pages/TermsOfUse";
 import AccountPrivacyPolicy from "./pages/AccountPrivacyPolicy";
 import Account from "./pages/Account";
 import ResetPassword from "./pages/ResetPassword";
+import EmailTest from "./pages/EmailTest";
 import { PaymentSuccess } from "./components/PaymentSuccess";
 import { PaymentFailure } from "./components/PaymentFailure";
 import { useState } from "react";
@@ -101,7 +102,11 @@ const App = () => {
                      path="/payment-failed" 
                      element={<PaymentFailure />} 
                    />
-                </Routes>
+                   <Route 
+                     path="/email-test" 
+                     element={<EmailTest />} 
+                   />
+                 </Routes>
               </AuthProvider>
             </BrowserRouter>
           </TTSProvider>
