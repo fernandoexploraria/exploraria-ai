@@ -51,7 +51,7 @@ const SearchControl: React.FC<SearchControlProps> = ({
   return <>
       <div className="flex gap-2">
         <Button variant="outline" className="bg-background/80 backdrop-blur-sm shadow-lg" onClick={() => setOpen(true)}>
-          <span className="mr-2 hidden sm:inline">Search Destination...</span>
+          <span className="mr-2 hidden sm:inline">Search destination...</span>
           <span className="mr-2 sm:hidden">Search...</span>
           <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
             <span className="text-xs">⌘</span>K
