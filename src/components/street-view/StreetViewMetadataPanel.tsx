@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Info, Wifi, WifiOff, Gauge, Image, RotateCw, X } from 'lucide-react';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useDemoMode } from '@/hooks/useDemoMode';
 import { cn } from '@/lib/utils';
 
 interface StreetViewData {
@@ -57,6 +58,7 @@ const StreetViewMetadataPanel: React.FC<StreetViewMetadataPanelProps> = ({
   className = ""
 }) => {
   const { isOnline, isSlowConnection, connectionType, effectiveType, downlink } = useNetworkStatus();
+  const { isDemoMode } = useDemoMode();
 
   const isMultiViewpoint = isMultiViewpointData(streetViewData);
   const currentStreetView = isMultiViewpoint 
@@ -89,6 +91,11 @@ const StreetViewMetadataPanel: React.FC<StreetViewMetadataPanelProps> = ({
         <Info className="w-4 h-4" />
       </Button>
     );
+  }
+
+  // Only show when demo mode is enabled
+  if (!isDemoMode) {
+    return null;
   }
 
   return (
