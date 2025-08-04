@@ -740,7 +740,7 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
         />
 
         {/* Enhanced Keyboard shortcuts hint */}
-        <div className="absolute bottom-4 right-4 text-white text-xs opacity-50">
+        <div className="absolute bottom-4 right-4 text-yellow-300 text-xs font-medium bg-black/60 backdrop-blur-sm px-2 py-1 rounded-md">
           {isMultiViewpoint 
             ? '← → Navigate • ↑ ↓ / 1-9 Change View • Space Next • F Fullscreen • I Info • ? Help • ESC Close'
             : '← → Navigate • Space Next • F Fullscreen • I Info • ? Help • ESC Close'
