@@ -459,9 +459,9 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
           strategy={strategy}
         />
         
-        {/* Header */}
-        <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 to-transparent p-4">
-          <div className="flex items-center justify-between text-white">
+        {/* Header with iOS safe area support */}
+        <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 to-transparent safe-area-header">
+          <div className="flex items-center justify-between text-white px-4">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
                 <h2 className="text-xl font-bold">{currentStreetView.landmarkName}</h2>
