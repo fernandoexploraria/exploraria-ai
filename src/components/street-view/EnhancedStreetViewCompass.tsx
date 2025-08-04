@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Navigation, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useDemoMode } from '@/hooks/useDemoMode';
 
 interface StreetViewData {
   imageUrl: string;
@@ -54,19 +55,22 @@ const EnhancedStreetViewCompass: React.FC<EnhancedStreetViewCompassProps> = ({
   className = ""
 }) => {
   const [showPreviews, setShowPreviews] = useState(false);
+  const { isDemoMode } = useDemoMode();
 
   if (viewpoints.length <= 1) return null;
 
   return (
     <div className={cn("flex flex-col items-center gap-3", className)}>
-      {/* Strategy Indicator */}
-      <div className="bg-black/60 backdrop-blur-sm rounded-full px-3 py-1 text-white text-xs">
-        <div className="flex items-center gap-2">
-          <div className={cn("w-2 h-2 rounded-full", getStrategyColor(strategy))} />
-          <span className="capitalize">{strategy} Strategy</span>
-          <span className="text-white/70">({viewpoints.length} views)</span>
+      {/* Strategy Indicator - only show in demo mode */}
+      {isDemoMode && (
+        <div className="bg-black/60 backdrop-blur-sm rounded-full px-3 py-1 text-white text-xs">
+          <div className="flex items-center gap-2">
+            <div className={cn("w-2 h-2 rounded-full", getStrategyColor(strategy))} />
+            <span className="capitalize">{strategy} Strategy</span>
+            <span className="text-white/70">({viewpoints.length} views)</span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Main Compass */}
       <div className="relative">
