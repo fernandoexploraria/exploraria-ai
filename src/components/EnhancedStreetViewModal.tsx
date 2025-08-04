@@ -15,6 +15,7 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useAdaptiveStreetViewLoader } from '@/hooks/useAdaptiveStreetViewLoader';
 import { PhotoData } from '@/hooks/useEnhancedPhotos';
 import { performanceBenchmark } from '@/utils/streetViewTestUtils';
+import { useDemoMode } from '@/hooks/useDemoMode';
 
 interface StreetViewData {
   imageUrl: string;
@@ -113,6 +114,7 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
   const [showMetadata, setShowMetadata] = useState(false);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const { isOnline, isSlowConnection } = useNetworkStatus();
+  const { isDemoMode } = useDemoMode();
 
   // Refs for loading state management
   const mountedRef = useRef(true);
@@ -569,11 +571,13 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
                 <h2 className="text-xl font-bold">{currentStreetView.landmarkName}</h2>
                 <OfflineIndicator />
               </div>
-              <div className="flex items-center gap-4 text-sm opacity-90 mb-2">
-                <span>
-                  Street View • {currentStreetView.location.lat.toFixed(6)}, {currentStreetView.location.lng.toFixed(6)}
-                </span>
-              </div>
+              {isDemoMode && (
+                <div className="flex items-center gap-4 text-sm opacity-90 mb-2">
+                  <span>
+                    Street View • {currentStreetView.location.lat.toFixed(6)}, {currentStreetView.location.lng.toFixed(6)}
+                  </span>
+                </div>
+              )}
               
               {/* Multi-viewpoint indicator with fallback info */}
               {isMultiViewpoint && (
