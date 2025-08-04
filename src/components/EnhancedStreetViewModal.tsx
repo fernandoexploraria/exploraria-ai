@@ -7,7 +7,7 @@ import EnhancedStreetViewCompass from './street-view/EnhancedStreetViewCompass';
 import StreetViewMetadataPanel from './street-view/StreetViewMetadataPanel';
 import StreetViewLoadingOverlay from './street-view/StreetViewLoadingOverlay';
 import MultiViewpointIndicator from './street-view/MultiViewpointIndicator';
-import StreetViewKeyboardHelp from './street-view/StreetViewKeyboardHelp';
+
 import StreetViewDebugPanel from './street-view/StreetViewDebugPanel';
 import OfflineIndicator from './OfflineIndicator';
 import EnhancedProgressiveImage from './EnhancedProgressiveImage';
@@ -112,7 +112,7 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
   const [currentViewpoint, setCurrentViewpoint] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showMetadata, setShowMetadata] = useState(false);
-  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+  
   const { isOnline, isSlowConnection } = useNetworkStatus();
   const { isDemoMode } = useDemoMode();
 
@@ -236,110 +236,6 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
     }
   }, [currentIndex, currentViewpoint, streetViewItems, onLocationSelect, onClose]);
 
-  // Enhanced keyboard navigation with new shortcuts
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyPress = (e: KeyboardEvent) => {
-      const currentItem = streetViewItems[currentIndex];
-      const currentStreetViewData = currentItem?.streetViewData;
-      const isMultiViewpoint = currentStreetViewData && isMultiViewpointData(currentStreetViewData);
-      const maxViewpoints = isMultiViewpoint ? currentStreetViewData.viewpoints.length : 1;
-
-      switch (e.key) {
-        case 'ArrowLeft':
-          e.preventDefault();
-          if (e.shiftKey && isMultiViewpoint) {
-            const newViewpoint = currentViewpoint > 0 ? currentViewpoint - 1 : maxViewpoints - 1;
-            console.log(`⌨️ Keyboard: changing viewpoint from ${currentViewpoint} to ${newViewpoint}`);
-            setCurrentViewpoint(newViewpoint);
-          } else {
-            handlePrevious();
-          }
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          if (e.shiftKey && isMultiViewpoint) {
-            const newViewpoint = currentViewpoint < maxViewpoints - 1 ? currentViewpoint + 1 : 0;
-            console.log(`⌨️ Keyboard: changing viewpoint from ${currentViewpoint} to ${newViewpoint}`);
-            setCurrentViewpoint(newViewpoint);
-          } else {
-            handleNext();
-          }
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          if (isMultiViewpoint) {
-            const newViewpoint = currentViewpoint > 0 ? currentViewpoint - 1 : maxViewpoints - 1;
-            console.log(`⌨️ Keyboard: changing viewpoint from ${currentViewpoint} to ${newViewpoint}`);
-            setCurrentViewpoint(newViewpoint);
-          }
-          break;
-        case 'ArrowDown':
-          e.preventDefault();
-          if (isMultiViewpoint) {
-            const newViewpoint = currentViewpoint < maxViewpoints - 1 ? currentViewpoint + 1 : 0;
-            console.log(`⌨️ Keyboard: changing viewpoint from ${currentViewpoint} to ${newViewpoint}`);
-            setCurrentViewpoint(newViewpoint);
-          }
-          break;
-        case ' ':
-          e.preventDefault();
-          if (e.shiftKey) {
-            handlePrevious();
-          } else {
-            handleNext();
-          }
-          break;
-        case 'Escape':
-          e.preventDefault();
-          if (showKeyboardHelp) {
-            setShowKeyboardHelp(false);
-          } else {
-            onClose();
-          }
-          break;
-        case 'f':
-        case 'F':
-          e.preventDefault();
-          toggleFullscreen();
-          break;
-        case 'i':
-        case 'I':
-          e.preventDefault();
-          setShowMetadata(prev => !prev);
-          break;
-        case 'm':
-        case 'M':
-          e.preventDefault();
-          if (onLocationSelect) {
-            handleShowOnMap();
-          }
-          break;
-        case 'r':
-        case 'R':
-          e.preventDefault();
-          // Reset view functionality would be implemented here
-          break;
-        case '?':
-          e.preventDefault();
-          setShowKeyboardHelp(prev => !prev);
-          break;
-        default:
-          // Handle number keys for viewpoint selection
-          if (isMultiViewpoint && /^[1-9]$/.test(e.key)) {
-            const viewpointIndex = parseInt(e.key) - 1;
-            if (viewpointIndex < maxViewpoints) {
-              setCurrentViewpoint(viewpointIndex);
-            }
-          }
-          break;
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyPress);
-    return () => document.removeEventListener('keydown', handleKeyPress);
-  }, [isOpen, currentIndex, currentViewpoint, streetViewItems.length, onClose, handlePrevious, handleNext, toggleFullscreen, showKeyboardHelp, onLocationSelect, handleShowOnMap]);
 
   const [showDebugPanel, setShowDebugPanel] = useState(process.env.NODE_ENV === 'development');
 
@@ -627,7 +523,6 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
                 onFullscreen={toggleFullscreen}
                 onShowOnMap={onLocationSelect ? handleShowOnMap : undefined}
                 onToggleInfo={() => setShowMetadata(!showMetadata)}
-                onToggleKeyboardHelp={() => setShowKeyboardHelp(!showKeyboardHelp)}
                 hasPrevious={currentIndex > 0}
                 hasNext={currentIndex < streetViewItems.length - 1}
                 currentIndex={currentIndex}
@@ -668,14 +563,6 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
           )}
         </div>
 
-        {/* Keyboard Help Panel */}
-        {showKeyboardHelp && (
-          <StreetViewKeyboardHelp
-            isMultiViewpoint={isMultiViewpoint}
-            isVisible={showKeyboardHelp}
-            onToggle={() => setShowKeyboardHelp(!showKeyboardHelp)}
-          />
-        )}
 
         {/* Enhanced Multi-viewpoint Compass - Updated visibility logic */}
         {shouldShowCompass && (
@@ -742,10 +629,7 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
         {/* Enhanced Keyboard shortcuts hint - only show in demo mode */}
         {isDemoMode && (
           <div className="absolute bottom-4 right-4 text-yellow-300 text-xs font-medium bg-black/60 backdrop-blur-sm px-2 py-1 rounded-md">
-            {isMultiViewpoint 
-              ? '← → Navigate • ↑ ↓ / 1-9 Change View • Space Next • F Fullscreen • I Info • ? Help • ESC Close'
-              : '← → Navigate • Space Next • F Fullscreen • I Info • ? Help • ESC Close'
-            }
+            Mouse/Touch Navigation: Click thumbnails • Use controls • Close with ✕
           </div>
         )}
       </div>

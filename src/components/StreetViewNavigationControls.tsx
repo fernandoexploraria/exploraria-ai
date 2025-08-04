@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw, Maximize2, Navigation, Info, Keyboard } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw, Maximize2, Navigation, Info } from 'lucide-react';
 import { useDemoMode } from '@/hooks/useDemoMode';
 
 interface StreetViewNavigationControlsProps {
@@ -13,7 +13,6 @@ interface StreetViewNavigationControlsProps {
   onFullscreen?: () => void;
   onShowOnMap?: () => void;
   onToggleInfo?: () => void;
-  onToggleKeyboardHelp?: () => void;
   hasPrevious?: boolean;
   hasNext?: boolean;
   currentIndex?: number;
@@ -32,7 +31,6 @@ const StreetViewNavigationControls: React.FC<StreetViewNavigationControlsProps> 
   onFullscreen,
   onShowOnMap,
   onToggleInfo,
-  onToggleKeyboardHelp,
   hasPrevious = false,
   hasNext = false,
   currentIndex = 0,
@@ -53,7 +51,7 @@ const StreetViewNavigationControls: React.FC<StreetViewNavigationControlsProps> 
             onClick={onPrevious}
             disabled={!hasPrevious}
             className="h-8 w-8 p-0 text-white hover:bg-white/20 disabled:opacity-50"
-            title="Previous landmark (← or Shift+Space)"
+            title="Previous landmark"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -68,7 +66,7 @@ const StreetViewNavigationControls: React.FC<StreetViewNavigationControlsProps> 
             onClick={onNext}
             disabled={!hasNext}
             className="h-8 w-8 p-0 text-white hover:bg-white/20 disabled:opacity-50"
-            title="Next landmark (→ or Space)"
+            title="Next landmark"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -107,7 +105,7 @@ const StreetViewNavigationControls: React.FC<StreetViewNavigationControlsProps> 
             size="sm"
             onClick={onResetView}
             className="h-8 w-8 p-0 text-white hover:bg-white/20"
-            title="Reset view (R)"
+            title="Reset view"
           >
             <RotateCcw className="h-4 w-4" />
           </Button>
@@ -123,7 +121,7 @@ const StreetViewNavigationControls: React.FC<StreetViewNavigationControlsProps> 
             size="sm"
             onClick={onToggleInfo}
             className={`h-8 w-8 p-0 text-white hover:bg-white/20 ${isInfoVisible ? 'bg-white/20' : ''}`}
-            title="Toggle information (I)"
+            title="Toggle information"
           >
             <Info className="h-4 w-4" />
           </Button>
@@ -135,7 +133,7 @@ const StreetViewNavigationControls: React.FC<StreetViewNavigationControlsProps> 
             size="sm"
             onClick={onShowOnMap}
             className="h-8 w-8 p-0 text-white hover:bg-white/20"
-            title="Show on map (M)"
+            title="Show on map"
           >
             <Navigation className="h-4 w-4" />
           </Button>
@@ -147,24 +145,12 @@ const StreetViewNavigationControls: React.FC<StreetViewNavigationControlsProps> 
             size="sm"
             onClick={onFullscreen}
             className="h-8 w-8 p-0 text-white hover:bg-white/20"
-            title="Fullscreen (F)"
+            title="Fullscreen"
           >
             <Maximize2 className="h-4 w-4" />
           </Button>
         )}
 
-        {/* Keyboard Help */}
-        {onToggleKeyboardHelp && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onToggleKeyboardHelp}
-            className="h-8 w-8 p-0 text-white/70 hover:text-white hover:bg-white/20"
-            title="Keyboard shortcuts (Press ? for help)"
-          >
-            <Keyboard className="h-4 w-4" />
-          </Button>
-        )}
         </div>
       )}
     </div>
