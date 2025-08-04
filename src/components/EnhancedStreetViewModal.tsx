@@ -15,7 +15,6 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useAdaptiveStreetViewLoader } from '@/hooks/useAdaptiveStreetViewLoader';
 import { PhotoData } from '@/hooks/useEnhancedPhotos';
 import { performanceBenchmark } from '@/utils/streetViewTestUtils';
-import { supabase } from '@/integrations/supabase/client';
 
 interface StreetViewData {
   imageUrl: string;
@@ -113,17 +112,7 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showMetadata, setShowMetadata] = useState(false);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
   const { isOnline, isSlowConnection } = useNetworkStatus();
-
-  // Get current user for conditional rendering
-  useEffect(() => {
-    const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setCurrentUser(user);
-    };
-    getCurrentUser();
-  }, []);
 
   // Refs for loading state management
   const mountedRef = useRef(true);
@@ -701,7 +690,7 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
         )}
 
         {/* Debug overlay to verify compass should be visible */}
-        {process.env.NODE_ENV === 'development' && currentUser?.email === 'fobregona@yahoo.com' && (
+        {process.env.NODE_ENV === 'development' && (
           <div className="absolute top-1/2 left-4 bg-black/80 text-white text-xs p-2 rounded">
             <div>Multi: {isMultiViewpoint ? 'YES' : 'NO'}</div>
             <div>Views: {allViewpoints.length}</div>
