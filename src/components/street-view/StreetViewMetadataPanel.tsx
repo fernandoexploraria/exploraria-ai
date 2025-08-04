@@ -79,22 +79,7 @@ const StreetViewMetadataPanel: React.FC<StreetViewMetadataPanelProps> = ({
     return 'Unknown';
   };
 
-  if (!isVisible) {
-    return (
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onToggle}
-        className="fixed top-20 right-4 z-30 bg-black/50 hover:bg-black/70 text-white backdrop-blur-sm"
-        title="Show metadata"
-      >
-        <Info className="w-4 h-4" />
-      </Button>
-    );
-  }
-
-  // Only show when demo mode is enabled
-  if (!isDemoMode) {
+  if (!isVisible || !isDemoMode) {
     return null;
   }
 
