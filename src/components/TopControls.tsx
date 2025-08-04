@@ -171,7 +171,7 @@ const TopControls: React.FC<TopControlsProps> = ({
           
           <SearchControl landmarks={allLandmarks} onSelectLandmark={onSelectLandmark} />
           
-          {!isDemoMode && (isCollapsed || !connectionHealth.isHealthy) && <ConnectionStatus compact className="w-full" />}
+          {isDemoMode && (isCollapsed || !connectionHealth.isHealthy) && <ConnectionStatus compact className="w-full" />}
           
           <Button variant="outline" size="sm" className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2" onClick={toggleCollapse}>
             <Menu className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
@@ -214,8 +214,8 @@ const TopControls: React.FC<TopControlsProps> = ({
               {/* Image Analysis Button - only appears when there's an active Smart Tour */}
               <ImageAnalysis smartTourLandmarks={smartTourLandmarks} />
               
-              {/* Debug Tools - Hidden in Demo Mode */}
-              {!isDemoMode && <>
+              {/* Debug Tools - Shown in Demo Mode */}
+              {isDemoMode && <>
                   <ConnectionStatus showDetails className="w-full" />
                   
                   <Button variant="outline" size="sm" className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2" onClick={handleTestCors} disabled={isTestingCors}>

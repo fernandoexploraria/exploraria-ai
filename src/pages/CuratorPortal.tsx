@@ -8,10 +8,12 @@ import { Link, useLocation } from 'react-router-dom';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useDemoMode } from '@/hooks/useDemoMode';
 
 const CuratorPortal: React.FC = () => {
   const { user, profile, signOut } = useAuth();
   const { toast } = useToast();
+  const { isDemoMode } = useDemoMode();
   const location = useLocation();
   const [showCreateExperience, setShowCreateExperience] = useState(false);
   const [stripeStatus, setStripeStatus] = useState<{
@@ -340,7 +342,7 @@ const CuratorPortal: React.FC = () => {
                   <Plus className="mr-2 h-5 w-5" />
                   Create New Experience
                 </Button>
-                {user?.email === 'fobregona@yahoo.com' && (
+                {isDemoMode && (
                   <Link to="/elevenlabs-playground">
                     <Button
                       variant="outline"

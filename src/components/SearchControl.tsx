@@ -58,14 +58,14 @@ const SearchControl: React.FC<SearchControlProps> = ({
           </kbd>
         </Button>
         
-        {/* Conditionally render test button only when demo mode is off */}
-        {!isDemoMode && <Button variant="secondary" size="sm" onClick={() => setShowEnrichmentTest(!showEnrichmentTest)} className="text-xs">
+        {/* Conditionally render test button only when demo mode is on */}
+        {isDemoMode && <Button variant="secondary" size="sm" onClick={() => setShowEnrichmentTest(!showEnrichmentTest)} className="text-xs">
             {showEnrichmentTest ? 'Hide' : 'Test'} Enrichment
           </Button>}
       </div>
 
-      {/* Repositioned enrichment test component to top-right */}
-      {showEnrichmentTest && <div className="fixed top-4 right-4 z-50 w-96 max-h-[90vh] overflow-y-auto bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg">
+      {/* Repositioned enrichment test component to top-right - only shown in demo mode */}
+      {isDemoMode && showEnrichmentTest && <div className="fixed top-4 right-4 z-50 w-96 max-h-[90vh] overflow-y-auto bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg">
           <LandmarkEnrichmentTest />
         </div>}
 

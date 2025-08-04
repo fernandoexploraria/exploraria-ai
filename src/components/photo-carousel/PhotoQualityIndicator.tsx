@@ -24,6 +24,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useDemoMode } from '@/hooks/useDemoMode';
 
 interface PhotoQualityIndicatorProps {
   photo: PhotoData;
@@ -35,7 +36,7 @@ const PhotoQualityIndicator: React.FC<PhotoQualityIndicatorProps> = ({
   className
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const { isDemoMode } = useDemoMode();
   const { 
     isOnline, 
     isSlowConnection, 
@@ -43,15 +44,6 @@ const PhotoQualityIndicator: React.FC<PhotoQualityIndicatorProps> = ({
     downlink,
     getOptimalImageQuality 
   } = useNetworkStatus();
-
-  // Check current user
-  React.useEffect(() => {
-    const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setCurrentUser(user);
-    };
-    checkUser();
-  }, []);
 
   const currentQuality = getOptimalImageQuality();
   
@@ -143,8 +135,8 @@ const PhotoQualityIndicator: React.FC<PhotoQualityIndicatorProps> = ({
     return '<1s';
   };
 
-  // Only show for the specific user
-  if (currentUser?.email !== 'fobregona@yahoo.com') {
+  // Only show when demo mode is enabled
+  if (!isDemoMode) {
     return null;
   }
 

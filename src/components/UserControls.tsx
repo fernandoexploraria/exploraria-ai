@@ -45,7 +45,7 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
   const desktopUrl = 'https://lovable.exploraria.ai/curator-portal';
   
   // Check if user has access to Apple OAuth JWT functionality
-  const hasAppleOAuthAccess = user?.email === 'fobregona@yahoo.com';
+  const hasAppleOAuthAccess = isDemoMode;
   
   // Copy URL to clipboard handler
   const copyUrlToClipboard = async () => {
@@ -182,8 +182,8 @@ const UserControls: React.FC<UserControlsProps> = ({ user, onSignOut, onAuthDial
         )}
       </div>
       
-      {/* Profile Backfill Utility - only when demo mode is off */}
-      {user && !isDemoMode && (
+      {/* Profile Backfill Utility - only when demo mode is on */}
+      {user && isDemoMode && (
         <div className={isNativeApp 
           ? "absolute top-[70px] right-[45px] z-20 pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)]"
           : "absolute top-[70px] right-[45px] z-20"
