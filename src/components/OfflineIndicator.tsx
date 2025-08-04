@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { WifiOff, Wifi, Signal, SignalLow, AlertTriangle } from 'lucide-react';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useConnectionMonitor } from '@/hooks/useConnectionMonitor';
+import { useDemoMode } from '@/hooks/useDemoMode';
 
 interface OfflineIndicatorProps {
   className?: string;
@@ -18,6 +19,7 @@ const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
 }) => {
   const { isOnline, isSlowConnection, effectiveType, downlink } = useNetworkStatus();
   const { connectionHealth } = useConnectionMonitor();
+  const { isDemoMode } = useDemoMode();
 
   const networkIcon = () => {
     if (!isOnline) return <WifiOff className="h-3 w-3" />;
@@ -38,8 +40,8 @@ const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
     return 'Online';
   };
 
-  const shouldShow = !isOnline || showDetails || isSlowConnection || 
-    (showConnectionHealth && !connectionHealth.isHealthy);
+  const shouldShow = isDemoMode && (!isOnline || showDetails || isSlowConnection || 
+    (showConnectionHealth && !connectionHealth.isHealthy));
 
   if (!shouldShow) {
     return null;
