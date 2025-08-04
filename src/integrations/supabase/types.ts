@@ -436,6 +436,8 @@ export type Database = {
           stripe_account_status: string
           stripe_charges_enabled: boolean
           stripe_payouts_enabled: boolean
+          terms_accepted: boolean
+          terms_accepted_at: string | null
           updated_at: string
           upgrade_card_dismissed_at: string | null
         }
@@ -453,6 +455,8 @@ export type Database = {
           stripe_account_status?: string
           stripe_charges_enabled?: boolean
           stripe_payouts_enabled?: boolean
+          terms_accepted?: boolean
+          terms_accepted_at?: string | null
           updated_at?: string
           upgrade_card_dismissed_at?: string | null
         }
@@ -470,6 +474,8 @@ export type Database = {
           stripe_account_status?: string
           stripe_charges_enabled?: boolean
           stripe_payouts_enabled?: boolean
+          terms_accepted?: boolean
+          terms_accepted_at?: string | null
           updated_at?: string
           upgrade_card_dismissed_at?: string | null
         }
@@ -767,6 +773,10 @@ export type Database = {
       }
       custom_access_token_hook: {
         Args: { event: Json }
+        Returns: Json
+      }
+      delete_user_account: {
+        Args: { target_user_id: string }
         Returns: Json
       }
       halfvec_avg: {
