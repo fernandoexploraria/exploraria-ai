@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 
 export default function EmailTest() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('579954zx65@privaterelay.appleid.com');
+  const [email, setEmail] = useState('p8d8pgqrsr@privaterelay.appleid.com');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{
     type: 'success' | 'error' | 'info';
