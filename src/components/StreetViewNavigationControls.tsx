@@ -2,6 +2,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw, Maximize2, Navigation, Info, Keyboard } from 'lucide-react';
+import { useDemoMode } from '@/hooks/useDemoMode';
 
 interface StreetViewNavigationControlsProps {
   onPrevious?: () => void;
@@ -40,6 +41,7 @@ const StreetViewNavigationControls: React.FC<StreetViewNavigationControlsProps> 
   isInfoVisible = false,
   className = ""
 }) => {
+  const { isDemoMode } = useDemoMode();
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       {/* Navigation Controls */}
@@ -112,8 +114,9 @@ const StreetViewNavigationControls: React.FC<StreetViewNavigationControlsProps> 
         )}
       </div>
 
-      {/* Additional Controls */}
-      <div className="flex items-center gap-1 bg-black/20 backdrop-blur-sm rounded-lg p-1">
+      {/* Additional Controls - only show in demo mode */}
+      {isDemoMode && (
+        <div className="flex items-center gap-1 bg-black/20 backdrop-blur-sm rounded-lg p-1">
         {onToggleInfo && (
           <Button
             variant="ghost"
@@ -162,7 +165,8 @@ const StreetViewNavigationControls: React.FC<StreetViewNavigationControlsProps> 
             <Keyboard className="h-4 w-4" />
           </Button>
         )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
