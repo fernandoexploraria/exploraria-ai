@@ -606,8 +606,8 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
                 </p>
               )}
 
-              {/* Debug information - only in development */}
-              {process.env.NODE_ENV === 'development' && (
+              {/* Debug information - only when demo mode is enabled */}
+              {isDemoMode && (
                 <div className="text-xs text-blue-400 mt-1 opacity-75">
                   Debug: {isMultiViewpoint ? 'Multi' : 'Single'} • 
                   Views: {allViewpoints.length} • 
