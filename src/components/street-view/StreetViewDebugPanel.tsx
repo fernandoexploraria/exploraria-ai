@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { networkSimulator, NETWORK_CONDITIONS, testStrategySelection, performanceTimer } from '@/utils/networkSimulator';
+import { useDemoMode } from '@/hooks/useDemoMode';
 import { CacheTestUtils, performanceBenchmark } from '@/utils/streetViewTestUtils';
 
 interface StreetViewDebugPanelProps {
@@ -34,6 +35,7 @@ const StreetViewDebugPanel: React.FC<StreetViewDebugPanelProps> = ({
   const [refreshKey, setRefreshKey] = useState(0);
   const [simulatedNetwork, setSimulatedNetwork] = useState<string | null>(null);
   const { isOnline, effectiveType, downlink, connectionType } = useNetworkStatus();
+  const { isDemoMode } = useDemoMode();
   const cacheTestUtils = CacheTestUtils.getInstance();
 
   // Auto-refresh debug data
@@ -74,6 +76,12 @@ const StreetViewDebugPanel: React.FC<StreetViewDebugPanelProps> = ({
     performanceBenchmark.clear();
     console.log('🗑️ All caches and metrics cleared');
   };
+
+  
+  // Only show when demo mode is enabled
+  if (!isDemoMode) {
+    return null;
+  }
 
   if (!isVisible) {
     return (
