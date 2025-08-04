@@ -2,29 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>We need access to your microphone so you can talk to your AI Tour Guide and use real-time voice commands.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>We need your location to show you destinations and provide navigation.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>This app uses the camera to capture photos of landmarks and places you visit during your tours.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>This app uses the camera to capture photos of landmarks and places you visit during your tours.</string>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Viewer</string>
-			<key>CFBundleURLName</key>
-			<string>app.lovable.exploraria</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>app.lovable.exploraria</string>
-			</array>
-		</dict>
-	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
@@ -41,10 +18,35 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>CFBundleURLIconFile</key>
+			<string></string>
+			<key>CFBundleURLName</key>
+			<string>app.lovable.exploraria</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>app.lovable.exploraria</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>This app uses the camera to capture photos of landmarks and places you visit during your tours.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We need your location to show you destinations and provide navigation.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>We need access to your microphone so you can talk to your AI Tour Guide and use real-time voice commands.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app uses the camera to capture photos of landmarks and places you visit during your tours.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
