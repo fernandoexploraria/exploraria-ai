@@ -191,7 +191,7 @@ const TopControls: React.FC<TopControlsProps> = ({
               <Button variant="outline" size="sm" className="bg-gradient-to-r from-yellow-400/80 to-orange-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 border-yellow-300 hover:from-yellow-300/80 hover:to-orange-300/80" onClick={handleSmartTourClick}>
                 <Sparkles className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
                 <span className="lg:hidden">Smart Tour</span>
-                <span className="hidden lg:inline">Smart tour</span>
+                <span className="hidden lg:inline">Smart Tour</span>
               </Button>
               
               <Button variant="outline" size="sm" className="bg-gradient-to-r from-purple-400/80 to-pink-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 border-purple-300 hover:from-purple-300/80 hover:to-pink-300/80" onClick={handleExperiencesClick}>
