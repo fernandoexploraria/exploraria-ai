@@ -3,6 +3,7 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Layers, Eye, Navigation, Zap, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useDemoMode } from '@/hooks/useDemoMode';
 
 interface MultiViewpointIndicatorProps {
   strategy: 'single' | 'cardinal' | 'smart' | 'all';
@@ -21,6 +22,7 @@ const MultiViewpointIndicator: React.FC<MultiViewpointIndicatorProps> = ({
   variant = 'compact',
   isLoading = false
 }) => {
+  const { isDemoMode } = useDemoMode();
   const strategyConfig = {
     single: {
       icon: Eye,
@@ -50,6 +52,11 @@ const MultiViewpointIndicator: React.FC<MultiViewpointIndicatorProps> = ({
 
   const config = strategyConfig[strategy];
   const Icon = config.icon;
+
+  // Only show when demo mode is enabled
+  if (!isDemoMode) {
+    return null;
+  }
 
   if (variant === 'compact') {
     return (
