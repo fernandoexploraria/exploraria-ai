@@ -14,6 +14,7 @@ import EnhancedProgressiveImage from './EnhancedProgressiveImage';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useAdaptiveStreetViewLoader } from '@/hooks/useAdaptiveStreetViewLoader';
 import { PhotoData } from '@/hooks/useEnhancedPhotos';
+import { useAuth } from './AuthProvider';
 import { performanceBenchmark } from '@/utils/streetViewTestUtils';
 
 interface StreetViewData {
@@ -107,6 +108,7 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
   initialIndex = 0,
   onLocationSelect
 }) => {
+  const { user } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [currentViewpoint, setCurrentViewpoint] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -570,9 +572,11 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
                 <OfflineIndicator />
               </div>
               <div className="flex items-center gap-4 text-sm opacity-90 mb-2">
-                <span>
-                  Street View • {currentStreetView.location.lat.toFixed(6)}, {currentStreetView.location.lng.toFixed(6)}
-                </span>
+                {user?.email === 'fobregona@yahoo.com' && (
+                  <span>
+                    Street View • {currentStreetView.location.lat.toFixed(6)}, {currentStreetView.location.lng.toFixed(6)}
+                  </span>
+                )}
               </div>
               
               {/* Multi-viewpoint indicator with fallback info */}
