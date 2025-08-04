@@ -1,9 +1,10 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { WifiOff, Wifi, Signal, SignalLow, AlertTriangle } from 'lucide-react';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useConnectionMonitor } from '@/hooks/useConnectionMonitor';
+import { supabase } from '@/integrations/supabase/client';
 
 interface OfflineIndicatorProps {
   className?: string;
@@ -18,6 +19,16 @@ const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
 }) => {
   const { isOnline, isSlowConnection, effectiveType, downlink } = useNetworkStatus();
   const { connectionHealth } = useConnectionMonitor();
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // Get current user for conditional rendering
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
+    };
+    getCurrentUser();
+  }, []);
 
   const networkIcon = () => {
     if (!isOnline) return <WifiOff className="h-3 w-3" />;
@@ -41,7 +52,7 @@ const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
   const shouldShow = !isOnline || showDetails || isSlowConnection || 
     (showConnectionHealth && !connectionHealth.isHealthy);
 
-  if (!shouldShow) {
+  if (!shouldShow || currentUser?.email !== 'fobregona@yahoo.com') {
     return null;
   }
 
