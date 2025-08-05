@@ -163,7 +163,7 @@ export const BlogPost: React.FC = () => {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(blogPost.schema) }}
       />
 
-      <div className="bg-gradient-to-br from-primary/5 to-secondary/5">
+      <div className="absolute inset-0 flex flex-col overflow-hidden bg-gradient-to-br from-primary/5 to-secondary/5">
         {/* Hero Section */}
         <section className="relative bg-gradient-to-r from-primary to-primary-foreground text-white py-16">
           <div className="container mx-auto px-4">
@@ -200,6 +200,7 @@ export const BlogPost: React.FC = () => {
           </div>
         </section>
 
+        <main className="flex-grow overflow-y-auto">
         {/* Content */}
         <div className="container mx-auto px-4 py-12">
           <div className="max-w-4xl mx-auto">
@@ -260,6 +261,7 @@ export const BlogPost: React.FC = () => {
             </Card>
           </div>
         </div>
+        </main>
       </div>
     </>
   );
