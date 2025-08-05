@@ -17,6 +17,7 @@ import Account from "./pages/Account";
 import ResetPassword from "./pages/ResetPassword";
 import { PaymentSuccess } from "./components/PaymentSuccess";
 import { PaymentFailure } from "./components/PaymentFailure";
+import { CityExplore } from "./pages/CityExplore";
 import { useState } from "react";
 
 const queryClient = new QueryClient();
@@ -100,6 +101,10 @@ const App = () => {
                    <Route 
                      path="/payment-failed" 
                      element={<PaymentFailure />} 
+                   />
+                   <Route 
+                     path="/explore/:citySlug" 
+                     element={<CityExplore />} 
                    />
                 </Routes>
               </AuthProvider>
