@@ -15,6 +15,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ContentSummary {
   generatedAt: string;
@@ -27,6 +28,7 @@ interface ContentSummary {
 
 export const ContentManagement: React.FC = () => {
   const [contentSummary, setContentSummary] = useState<ContentSummary | null>(null);
+  const [generatedContent, setGeneratedContent] = useState<any>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPreRendering, setIsPreRendering] = useState(false);
   const { toast } = useToast();
@@ -71,17 +73,23 @@ export const ContentManagement: React.FC = () => {
     });
 
     try {
-      // In a real implementation, this would call the script
-      // For now, we'll simulate the process
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      const { data, error } = await supabase.functions.invoke('generate-static-content');
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Store the generated content for pre-rendering
+      setGeneratedContent(data);
       
       toast({
         title: "Content Generation Complete",
-        description: "Successfully generated 20 pages with AI-powered content.",
+        description: `Successfully generated ${data.totalPages} pages with AI-powered content.`,
       });
       
       loadContentSummary();
     } catch (error) {
+      console.error('Content generation error:', error);
       toast({
         title: "Generation Failed",
         description: "There was an error generating content. Please check the console.",
@@ -93,6 +101,15 @@ export const ContentManagement: React.FC = () => {
   };
 
   const runPreRendering = async () => {
+    if (!generatedContent) {
+      toast({
+        title: "No Content to Pre-render",
+        description: "Please run content generation first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsPreRendering(true);
     toast({
       title: "Pre-rendering Started",
@@ -100,14 +117,20 @@ export const ContentManagement: React.FC = () => {
     });
 
     try {
-      // In a real implementation, this would call the script
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const { data, error } = await supabase.functions.invoke('generate-static-html', {
+        body: { contentData: generatedContent }
+      });
+      
+      if (error) {
+        throw error;
+      }
       
       toast({
         title: "Pre-rendering Complete",
-        description: "Successfully created static HTML files for all pages.",
+        description: `Successfully created ${data.totalFiles} static HTML files.`,
       });
     } catch (error) {
+      console.error('Pre-rendering error:', error);
       toast({
         title: "Pre-rendering Failed",
         description: "There was an error during pre-rendering. Please check the console.",
