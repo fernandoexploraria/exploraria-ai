@@ -90,7 +90,10 @@ serve(async (req) => {
 
       if (subscriber) {
         logStep('Returning existing subscriber status (under review)', subscriber);
-        return new Response(JSON.stringify(subscriber), {
+        return new Response(JSON.stringify({
+          ...subscriber,
+          under_review: true
+        }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
         });
@@ -111,7 +114,8 @@ serve(async (req) => {
           subscribed: true,
           subscription_tier: 'Premium',
           subscription_end: null,
-          cancel_at_period_end: false
+          cancel_at_period_end: false,
+          under_review: true
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
@@ -347,7 +351,8 @@ serve(async (req) => {
       subscribed: isActive,
       subscription_tier: subscriptionTier,
       subscription_end: subscriptionEnd,
-      cancel_at_period_end: cancelAtPeriodEnd
+      cancel_at_period_end: cancelAtPeriodEnd,
+      under_review: false
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

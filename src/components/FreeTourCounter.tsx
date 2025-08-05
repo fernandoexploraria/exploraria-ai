@@ -22,6 +22,7 @@ const FreeTourCounter: React.FC = () => {
   const isSubscribed = subscriptionData?.subscribed || false;
   const isCancelled = subscriptionData?.cancel_at_period_end || false;
   const subscriptionEnd = subscriptionData?.subscription_end;
+  const isUnderReview = subscriptionData?.under_review || false;
 
   // Wait for both loading states to complete to prevent flickering
   const isLoading = tourLoading || subLoading;
@@ -195,28 +196,32 @@ const FreeTourCounter: React.FC = () => {
               </>
             )}
 
-            {/* Manage Subscription Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left"
-              onClick={handleManageClick}
-            >
-              <CreditCard className="mr-1 h-3 w-3" />
-              Manage
-            </Button>
-            
-            <Button
-              variant="outline"
-              className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left"
-              onClick={handleManageClick}
-            >
-              <CreditCard className="mr-2 h-4 w-4" />
-              Manage Subscription
-            </Button>
+            {/* Manage Subscription Button - Only show if not under review */}
+            {!isUnderReview && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left"
+                  onClick={handleManageClick}
+                >
+                  <CreditCard className="mr-1 h-3 w-3" />
+                  Manage
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left"
+                  onClick={handleManageClick}
+                >
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Manage Subscription
+                </Button>
+              </>
+            )}
 
-            {/* Cancel Subscription Button - Only show if not already cancelled */}
-            {!isCancelled && (
+            {/* Cancel Subscription Button - Only show if not already cancelled and not under review */}
+            {!isCancelled && !isUnderReview && (
               <>
                 <Button
                   variant="outline"
