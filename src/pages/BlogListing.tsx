@@ -55,18 +55,8 @@ const FEATURED_POSTS: BlogPreview[] = [
 ];
 
 export const BlogListing: React.FC = () => {
-  // Debug layout
-  React.useEffect(() => {
-    console.log('BlogListing layout debug:', {
-      windowHeight: window.innerHeight,
-      documentHeight: document.documentElement.scrollHeight,
-      bodyHeight: document.body.scrollHeight,
-      bodyOverflow: getComputedStyle(document.body).overflow
-    });
-  }, []);
-  
   return (
-    <div className="flex flex-col min-h-screen overflow-hidden bg-gradient-to-br from-primary/5 to-secondary/5">
+    <div className="bg-gradient-to-br from-primary/5 to-secondary/5">
       {/* Hero Section */}
       <section className="relative bg-gradient-to-r from-primary to-primary-foreground text-white py-16">
         <div className="container mx-auto px-4">
@@ -80,9 +70,8 @@ export const BlogListing: React.FC = () => {
       </section>
 
       {/* Blog Posts Grid */}
-      <main className="flex-grow overflow-y-auto">
-        <div className="container mx-auto px-4 py-12">
-          <div className="max-w-6xl mx-auto">
+      <div className="container mx-auto px-4 py-12">
+        <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl font-bold mb-8">Latest Posts</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -126,9 +115,8 @@ export const BlogListing: React.FC = () => {
               </Card>
             ))}
         </div>
-          </div>
         </div>
-      </main>
+      </div>
       
       {/* Newsletter CTA */}
       <section className="bg-gradient-to-r from-primary/10 to-secondary/10 py-16">
