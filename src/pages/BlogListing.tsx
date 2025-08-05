@@ -56,7 +56,7 @@ const FEATURED_POSTS: BlogPreview[] = [
 
 export const BlogListing: React.FC = () => {
   return (
-    <div className="bg-gradient-to-br from-primary/5 to-secondary/5">
+    <div className="flex flex-col min-h-screen overflow-hidden bg-gradient-to-br from-primary/5 to-secondary/5">
       {/* Hero Section */}
       <section className="relative bg-gradient-to-r from-primary to-primary-foreground text-white py-16">
         <div className="container mx-auto px-4">
@@ -70,7 +70,7 @@ export const BlogListing: React.FC = () => {
       </section>
 
       {/* Blog Posts Grid */}
-      <div className="h-[calc(100vh-300px)] overflow-y-auto">
+      <main className="flex-grow overflow-y-auto">
         <div className="container mx-auto px-4 py-12">
           <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl font-bold mb-8">Latest Posts</h2>
@@ -118,7 +118,7 @@ export const BlogListing: React.FC = () => {
         </div>
           </div>
         </div>
-      </div>
+      </main>
       
       {/* Newsletter CTA */}
       <section className="bg-gradient-to-r from-primary/10 to-secondary/10 py-16">
