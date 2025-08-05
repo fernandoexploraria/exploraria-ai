@@ -1,9 +1,8 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { MapPin, Sparkles } from 'lucide-react';
 import { CityData } from '@/utils/cityExtraction';
 import { useAuth } from '@/components/AuthProvider';
-import { setPostAuthAction, setPostAuthLandmark } from '@/utils/authActions';
 
 interface CityTourCTAProps {
   cityData: CityData;
@@ -48,28 +47,40 @@ export const CityTourCTA: React.FC<CityTourCTAProps> = ({
     };
   };
 
-  const handleNavigationButtonClick = useCallback(() => {
-    const landmark = createLandmarkFromCity(cityData);
-    console.log('🎯 Navigation button clicked for landmark:', landmark.name);
+  const handleNavigationButtonClick = () => {
+    console.log('🎯 Navigation button clicked for city:', cityData.name);
     
-    if (user) {
-      // User is authenticated - proceed with existing flow
-      console.log('✅ User authenticated, opening intelligent tour directly');
-      onIntelligentTourOpen?.(landmark);
-    } else {
-      // User not authenticated - persist landmark and trigger auth
-      console.log('🚨 User not authenticated, persisting landmark and triggering auth');
-      setPostAuthLandmark(landmark);
-      setPostAuthAction('intelligent-tour');
-      
-      // Trigger auth dialog via parent component
-      if (onAuthDialogOpen) {
-        onAuthDialogOpen();
-      } else {
-        console.warn('⚠️ onAuthDialogOpen not provided to Map component');
-      }
+    // Track static page conversion
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'static_page_tour_generation', {
+        event_category: 'conversion',
+        event_label: cityData.name,
+        city: cityData.name,
+        source: 'city_landing_page',
+        cta_type: 'generate_tour_now'
+      });
     }
-  }, [user, onIntelligentTourOpen, onAuthDialogOpen, cityData]);
+
+    const cityAsLandmark = createLandmarkFromCity(cityData);
+
+    if (user) {
+      // User authenticated - direct call to prop (same as SVG navigation button)
+      console.log('✅ User authenticated, opening intelligent tour directly');
+      onIntelligentTourOpen?.(cityAsLandmark);
+    } else {
+      // User not authenticated - persist landmark and trigger auth (same as SVG navigation button)
+      console.log('🚨 User not authenticated, persisting landmark and triggering auth');
+      
+      // Store the city as landmark data for post-auth processing
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem('pendingTourLandmark', JSON.stringify(cityAsLandmark));
+        window.sessionStorage.setItem('pendingTourSource', 'static_page');
+      }
+      
+      // Direct call to auth dialog (same as SVG navigation button)
+      onAuthDialogOpen?.();
+    }
+  };
 
   const defaultButtonText = buttonText || `Generate Your ${cityData.name} Tour Now!`;
 
