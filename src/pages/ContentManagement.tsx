@@ -292,7 +292,7 @@ export const ContentManagement: React.FC = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
+                    <div className="max-h-80 overflow-y-auto space-y-3 pr-2">
                       {contentSummary.cities.map((city, index) => (
                         <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                           <div className="flex items-center gap-2">
