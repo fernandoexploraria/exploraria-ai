@@ -121,6 +121,14 @@ export const BlogPost: React.FC = () => {
       if (metaDescription) {
         metaDescription.setAttribute('content', blogPost.metaDescription);
       }
+      
+      // Debug layout
+      console.log('BlogPost layout debug:', {
+        windowHeight: window.innerHeight,
+        documentHeight: document.documentElement.scrollHeight,
+        bodyHeight: document.body.scrollHeight,
+        bodyOverflow: getComputedStyle(document.body).overflow
+      });
     }
   }, [blogPost]);
 

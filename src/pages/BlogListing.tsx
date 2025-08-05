@@ -55,6 +55,16 @@ const FEATURED_POSTS: BlogPreview[] = [
 ];
 
 export const BlogListing: React.FC = () => {
+  // Debug layout
+  React.useEffect(() => {
+    console.log('BlogListing layout debug:', {
+      windowHeight: window.innerHeight,
+      documentHeight: document.documentElement.scrollHeight,
+      bodyHeight: document.body.scrollHeight,
+      bodyOverflow: getComputedStyle(document.body).overflow
+    });
+  }, []);
+  
   return (
     <div className="flex flex-col min-h-screen overflow-hidden bg-gradient-to-br from-primary/5 to-secondary/5">
       {/* Hero Section */}
