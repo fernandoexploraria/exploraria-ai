@@ -56,7 +56,7 @@ const FEATURED_POSTS: BlogPreview[] = [
 
 export const BlogListing: React.FC = () => {
   return (
-    <div className="flex flex-col min-h-screen overflow-hidden bg-gradient-to-br from-primary/5 to-secondary/5">
+    <div className="absolute inset-0 flex flex-col overflow-hidden bg-gradient-to-br from-primary/5 to-secondary/5">
       {/* Hero Section */}
       <section className="relative bg-gradient-to-r from-primary to-primary-foreground text-white py-16">
         <div className="container mx-auto px-4">
