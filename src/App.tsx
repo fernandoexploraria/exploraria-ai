@@ -18,6 +18,8 @@ import ResetPassword from "./pages/ResetPassword";
 import { PaymentSuccess } from "./components/PaymentSuccess";
 import { PaymentFailure } from "./components/PaymentFailure";
 import { CityExplore } from "./pages/CityExplore";
+import { BlogListing } from "./pages/BlogListing";
+import { BlogPost } from "./pages/BlogPost";
 import { useState } from "react";
 
 const queryClient = new QueryClient();
@@ -105,6 +107,14 @@ const App = () => {
                    <Route 
                      path="/explore/:citySlug" 
                      element={<CityExplore />} 
+                   />
+                   <Route 
+                     path="/blog" 
+                     element={<BlogListing />} 
+                   />
+                   <Route 
+                     path="/blog/:blogSlug" 
+                     element={<BlogPost />} 
                    />
                 </Routes>
               </AuthProvider>
