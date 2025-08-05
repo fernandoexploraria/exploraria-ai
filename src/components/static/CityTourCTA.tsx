@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { MapPin, Sparkles } from 'lucide-react';
 import { CityData } from '@/utils/cityExtraction';
@@ -48,29 +48,28 @@ export const CityTourCTA: React.FC<CityTourCTAProps> = ({
     };
   };
 
-  const handleNavigationButtonClick = () => {
-    console.log('🎯 Navigation button clicked for city:', cityData.name);
+  const handleNavigationButtonClick = useCallback(() => {
+    const landmark = createLandmarkFromCity(cityData);
+    console.log('🎯 Navigation button clicked for landmark:', landmark.name);
     
-    const cityAsLandmark = createLandmarkFromCity(cityData);
-
     if (user) {
       // User is authenticated - proceed with existing flow
       console.log('✅ User authenticated, opening intelligent tour directly');
-      onIntelligentTourOpen?.(cityAsLandmark);
+      onIntelligentTourOpen?.(landmark);
     } else {
       // User not authenticated - persist landmark and trigger auth
       console.log('🚨 User not authenticated, persisting landmark and triggering auth');
-      setPostAuthLandmark(cityAsLandmark);
+      setPostAuthLandmark(landmark);
       setPostAuthAction('intelligent-tour');
       
       // Trigger auth dialog via parent component
       if (onAuthDialogOpen) {
         onAuthDialogOpen();
       } else {
-        console.warn('⚠️ onAuthDialogOpen not provided to CityTourCTA component');
+        console.warn('⚠️ onAuthDialogOpen not provided to Map component');
       }
     }
-  };
+  }, [user, onIntelligentTourOpen, onAuthDialogOpen, cityData]);
 
   const defaultButtonText = buttonText || `Generate Your ${cityData.name} Tour Now!`;
 
