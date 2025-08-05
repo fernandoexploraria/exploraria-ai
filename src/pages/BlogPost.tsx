@@ -130,7 +130,7 @@ export const BlogPost: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 to-secondary/5">
+      <div className="bg-gradient-to-br from-primary/5 to-secondary/5">
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-4xl mx-auto space-y-8">
             <Skeleton className="h-12 w-3/4" />
@@ -144,7 +144,7 @@ export const BlogPost: React.FC = () => {
 
   if (error || !blogPost) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 to-secondary/5">
+      <div className="bg-gradient-to-br from-primary/5 to-secondary/5">
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-3xl font-bold text-destructive mb-4">Blog Post Not Found</h1>
@@ -163,7 +163,7 @@ export const BlogPost: React.FC = () => {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(blogPost.schema) }}
       />
 
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 to-secondary/5">
+      <div className="bg-gradient-to-br from-primary/5 to-secondary/5">
         {/* Hero Section */}
         <section className="relative bg-gradient-to-r from-primary to-primary-foreground text-white py-16">
           <div className="container mx-auto px-4">
