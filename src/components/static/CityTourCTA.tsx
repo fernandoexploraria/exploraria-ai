@@ -2,6 +2,8 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { MapPin, Sparkles } from 'lucide-react';
 import { CityData } from '@/utils/cityExtraction';
+import { useAuth } from '@/components/AuthProvider';
+import { useNavigate } from 'react-router-dom';
 
 interface CityTourCTAProps {
   cityData: CityData;
@@ -22,10 +24,23 @@ export const CityTourCTA: React.FC<CityTourCTAProps> = ({
   onIntelligentTourOpen,
   onAuthDialogOpen
 }) => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const defaultButtonText = buttonText || `Generate Your ${cityData.name} Tour Now!`;
+
+  const handleClick = () => {
+    if (user) {
+      // User logged in: go to main page
+      navigate('/');
+    } else {
+      // User logged out: show auth dialog
+      onAuthDialogOpen?.();
+    }
+  };
 
   return (
     <Button 
+      onClick={handleClick}
       variant={variant}
       size={size}
       className={`gap-2 font-bold transition-all duration-300 hover:scale-110 hover:shadow-2xl active:scale-95 
