@@ -18,6 +18,20 @@ const Footer: React.FC = () => {
         >
           Privacy Policy
         </Link>
+        <span>•</span>
+        <Link 
+          to="/blog" 
+          className="hover:text-foreground transition-colors underline"
+        >
+          Travel Insights
+        </Link>
+        <span>•</span>
+        <Link 
+          to="/destinations" 
+          className="hover:text-foreground transition-colors underline"
+        >
+          Explore Cities
+        </Link>
       </div>
     </footer>
   );

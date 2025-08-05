@@ -21,6 +21,7 @@ import { CityExplore } from "./pages/CityExplore";
 import { BlogListing } from "./pages/BlogListing";
 import { BlogPost } from "./pages/BlogPost";
 import { ContentManagement } from "./pages/ContentManagement";
+import { Destinations } from "./pages/Destinations";
 import { useState } from "react";
 
 const queryClient = new QueryClient();
@@ -120,6 +121,10 @@ const App = () => {
                    <Route 
                      path="/cms" 
                      element={<ContentManagement />} 
+                   />
+                   <Route 
+                     path="/destinations" 
+                     element={<Destinations />} 
                    />
                 </Routes>
               </AuthProvider>
