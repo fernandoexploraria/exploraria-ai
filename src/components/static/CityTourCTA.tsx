@@ -5,6 +5,7 @@ import { CityData } from '@/utils/cityExtraction';
 import { useAuth } from '@/components/AuthProvider';
 import { useNavigate } from 'react-router-dom';
 import { setPostAuthAction } from '@/utils/authActions';
+import { toast } from '@/hooks/use-toast';
 
 interface CityTourCTAProps {
   cityData: CityData;
@@ -29,7 +30,41 @@ export const CityTourCTA: React.FC<CityTourCTAProps> = ({
   const navigate = useNavigate();
   const defaultButtonText = buttonText || `Generate Your ${cityData.name} Tour Now!`;
 
+  const createSyntheticLandmark = (cityData: CityData) => {
+    return {
+      id: `city-${cityData.slug}`,
+      name: cityData.name,
+      coordinates: cityData.coordinates,
+      place_id: `city-${cityData.slug}`,
+      description: `Explore the vibrant city of ${cityData.name}. Discover its iconic landmarks, rich culture, and unforgettable experiences.`,
+      photos: [],
+      rating: 4.5,
+      user_ratings_total: 1000,
+      types: ['locality', 'political'],
+      vicinity: cityData.name,
+      geometry: {
+        location: {
+          lat: cityData.coordinates[1],
+          lng: cityData.coordinates[0]
+        }
+      },
+      city_slug: cityData.slug,
+      created_at: new Date().toISOString(),
+      landmark_type: 'synthetic_city'
+    };
+  };
+
   const handleClick = () => {
+    // Create synthetic landmark for this city
+    const syntheticLandmark = createSyntheticLandmark(cityData);
+    
+    // Show the synthetic landmark in a toast for debugging
+    toast({
+      title: "Synthetic City Landmark Created",
+      description: `${syntheticLandmark.name}: ${JSON.stringify(syntheticLandmark, null, 2)}`,
+      duration: 5000,
+    });
+
     if (user) {
       // User logged in: go to main page
       navigate('/');
