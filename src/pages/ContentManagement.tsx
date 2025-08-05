@@ -44,7 +44,11 @@ export const ContentManagement: React.FC = () => {
         cityPages: 15,
         blogPosts: 5,
         totalPages: 20,
-        cities: ['Paris', 'London', 'New York', 'Rome', 'Mexico City', 'Sydney'],
+        cities: [
+          'Paris', 'London', 'New York', 'Rome', 'Mexico City', 'Sydney',
+          'Tokyo', 'Barcelona', 'Amsterdam', 'Berlin', 'Prague', 'Vienna',
+          'Budapest', 'Copenhagen', 'Stockholm'
+        ],
         blogTitles: [
           'Hidden Gems of Mexico City: Beyond the Tourist Trail',
           'AI-Powered Travel: The Future of City Exploration',
