@@ -157,8 +157,9 @@ export const CityExplore: React.FC = () => {
         </section>
 
         {/* Main Content */}
-        <div className="container mx-auto px-4 py-12">
-          <div className="max-w-4xl mx-auto space-y-12">
+        <div className="h-[calc(100vh-300px)] overflow-y-auto">
+          <div className="container mx-auto px-4 py-12">
+            <div className="max-w-4xl mx-auto space-y-12">
             
             {/* City Overview */}
             <section>
@@ -252,6 +253,7 @@ export const CityExplore: React.FC = () => {
               />
             </section>
 
+            </div>
           </div>
         </div>
       </div>
