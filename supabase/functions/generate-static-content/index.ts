@@ -25,7 +25,7 @@ const TOP_LANDMARKS = [
 ];
 
 const logStep = (step: string) => {
-  console.log(`[CONTENT-GEN] ${new Date().toISOString()} - ${step}`);
+  console.log(`[CONTENT-GEN-V2] ${new Date().toISOString()} - ${step}`);
 };
 
 const extractCitiesFromLandmarks = () => {
