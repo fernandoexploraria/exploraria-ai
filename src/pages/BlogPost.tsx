@@ -201,8 +201,9 @@ export const BlogPost: React.FC = () => {
         </section>
 
         {/* Content */}
-        <div className="container mx-auto px-4 py-12">
-          <div className="max-w-4xl mx-auto">
+        <div className="h-[calc(100vh-300px)] overflow-y-auto">
+          <div className="container mx-auto px-4 py-12">
+            <div className="max-w-4xl mx-auto">
             <Card className="mb-8">
               <CardContent className="p-8">
                 <div 
@@ -258,6 +259,7 @@ export const BlogPost: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
+            </div>
           </div>
         </div>
       </div>
