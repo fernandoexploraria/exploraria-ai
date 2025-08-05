@@ -1,8 +1,9 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { MapPin, Sparkles } from 'lucide-react';
-import { CityData, formatCityForTourGeneration } from '@/utils/cityExtraction';
+import { CityData } from '@/utils/cityExtraction';
 import { toast } from 'sonner';
+import { useAuth } from '@/components/AuthProvider';
 
 interface CityTourCTAProps {
   cityData: CityData;
@@ -19,7 +20,33 @@ export const CityTourCTA: React.FC<CityTourCTAProps> = ({
   className = '',
   buttonText
 }) => {
-  const handleGenerateTour = async () => {
+  const { user } = useAuth();
+
+  // Transform city data to landmark-compatible structure
+  const createLandmarkFromCity = (cityData: CityData) => {
+    return {
+      id: `city-${cityData.slug}`,
+      name: cityData.name,
+      coordinates: cityData.coordinates,
+      place_id: `city-${cityData.slug}`,
+      description: `Explore the vibrant city of ${cityData.name}`,
+      photos: [],
+      rating: 4.5,
+      user_ratings_total: 1000,
+      types: ['locality', 'political'],
+      vicinity: cityData.name,
+      geometry: {
+        location: {
+          lat: cityData.coordinates[1],
+          lng: cityData.coordinates[0]
+        }
+      }
+    };
+  };
+
+  const handleNavigationButtonClick = async () => {
+    console.log('🎯 Navigation button clicked for city:', cityData.name);
+    
     try {
       // Track static page conversion
       if (typeof window !== 'undefined' && (window as any).gtag) {
@@ -32,26 +59,52 @@ export const CityTourCTA: React.FC<CityTourCTAProps> = ({
         });
       }
 
-      // Format city data for existing tour generation system
-      const tourDestination = formatCityForTourGeneration(cityData);
-      
-      // Use the existing tour generation mechanism
-      // This will trigger the same flow as the landmark preview button
-      const event = new CustomEvent('generateTour', {
-        detail: {
-          destination: tourDestination.name,
-          coordinates: tourDestination.coordinates,
-          place_id: tourDestination.place_id,
-          source: 'static_page'
+      const cityAsLandmark = createLandmarkFromCity(cityData);
+
+      if (user) {
+        // User is authenticated - proceed with existing flow
+        console.log('✅ User authenticated, dispatching tour generation event');
+        
+        const event = new CustomEvent('generateTour', {
+          detail: {
+            destination: cityAsLandmark.name,
+            coordinates: cityAsLandmark.coordinates,
+            place_id: cityAsLandmark.place_id,
+            source: 'static_page',
+            landmark: cityAsLandmark // Include full landmark object
+          }
+        });
+        
+        window.dispatchEvent(event);
+        
+        toast.success(`Starting your ${cityData.name} tour generation!`, {
+          description: "You'll be guided through our AI tour creation process."
+        });
+      } else {
+        // User not authenticated - persist landmark and trigger auth
+        console.log('🚨 User not authenticated, persisting city data and triggering auth');
+        
+        // Store the city as landmark data for post-auth processing
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem('pendingTourLandmark', JSON.stringify(cityAsLandmark));
+          window.sessionStorage.setItem('pendingTourSource', 'static_page');
         }
-      });
-      
-      window.dispatchEvent(event);
-      
-      // Show user feedback
-      toast.success(`Starting your ${cityData.name} tour generation!`, {
-        description: "You'll be guided through our AI tour creation process."
-      });
+        
+        // Dispatch auth trigger event
+        const authEvent = new CustomEvent('triggerAuth', {
+          detail: {
+            action: 'generateTour',
+            landmark: cityAsLandmark,
+            source: 'static_page'
+          }
+        });
+        
+        window.dispatchEvent(authEvent);
+        
+        toast.info(`Please sign in to generate your ${cityData.name} tour`, {
+          description: "We'll start your tour creation right after you sign in."
+        });
+      }
 
     } catch (error) {
       console.error('Error triggering tour generation:', error);
@@ -63,7 +116,7 @@ export const CityTourCTA: React.FC<CityTourCTAProps> = ({
 
   return (
     <Button 
-      onClick={handleGenerateTour}
+      onClick={handleNavigationButtonClick}
       variant={variant}
       size={size}
       className={`gap-2 font-bold transition-all duration-300 hover:scale-110 hover:shadow-2xl active:scale-95 
