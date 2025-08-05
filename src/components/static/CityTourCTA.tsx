@@ -67,9 +67,10 @@ export const CityTourCTA: React.FC<CityTourCTAProps> = ({
       variant={variant}
       size={size}
       className={`gap-2 font-bold transition-all duration-300 hover:scale-110 hover:shadow-2xl active:scale-95 
-        bg-gradient-to-r from-primary to-primary/80 hover:from-primary-foreground hover:to-primary 
-        text-white border-2 border-primary/20 hover:border-primary-foreground/30
-        shadow-lg hover:shadow-primary/50 ring-2 ring-primary/20 hover:ring-primary/40
+        bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700
+        text-white border-2 border-blue-500 hover:border-purple-500
+        shadow-xl shadow-blue-500/25 hover:shadow-purple-500/50
+        ring-2 ring-blue-400/30 hover:ring-purple-400/50
         transform-gpu backdrop-blur-sm ${className}`}
     >
       <Sparkles className="h-4 w-4" />
