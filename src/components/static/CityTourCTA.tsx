@@ -4,7 +4,7 @@ import { MapPin, Sparkles } from 'lucide-react';
 import { CityData } from '@/utils/cityExtraction';
 import { useAuth } from '@/components/AuthProvider';
 import { useNavigate } from 'react-router-dom';
-import { setPostAuthAction } from '@/utils/authActions';
+import { setPostAuthAction, setPostAuthLandmark } from '@/utils/authActions';
 import { toast } from '@/hooks/use-toast';
 
 interface CityTourCTAProps {
@@ -69,7 +69,8 @@ export const CityTourCTA: React.FC<CityTourCTAProps> = ({
       // User logged in: go to main page
       navigate('/');
     } else {
-      // User logged out: show object first, then open auth dialog after delay
+      // User logged out: store synthetic landmark and show object first, then open auth dialog after delay
+      setPostAuthLandmark(syntheticLandmark);
       setTimeout(() => {
         setPostAuthAction('navigate-main');
         onAuthDialogOpen?.();
