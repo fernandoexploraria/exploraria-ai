@@ -328,7 +328,7 @@ export const ContentManagement: React.FC = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
+                    <div className="max-h-80 overflow-y-auto space-y-3 pr-2">
                       {contentSummary.blogTitles.map((title, index) => (
                         <div key={index} className="flex items-start justify-between p-3 bg-muted/50 rounded-lg">
                           <div className="flex-1">
