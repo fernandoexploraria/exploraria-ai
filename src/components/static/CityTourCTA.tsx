@@ -4,6 +4,7 @@ import { MapPin, Sparkles } from 'lucide-react';
 import { CityData } from '@/utils/cityExtraction';
 import { useAuth } from '@/components/AuthProvider';
 import { useNavigate } from 'react-router-dom';
+import { setPostAuthAction } from '@/utils/authActions';
 
 interface CityTourCTAProps {
   cityData: CityData;
@@ -33,7 +34,8 @@ export const CityTourCTA: React.FC<CityTourCTAProps> = ({
       // User logged in: go to main page
       navigate('/');
     } else {
-      // User logged out: show auth dialog
+      // User logged out: set post-auth action to navigate to main page
+      setPostAuthAction('navigate-main');
       onAuthDialogOpen?.();
     }
   };
