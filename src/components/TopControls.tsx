@@ -12,6 +12,7 @@ import { Landmark } from '@/data/landmarks';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useConnectionMonitor } from '@/hooks/useConnectionMonitor';
 import { useDemoMode } from '@/hooks/useDemoMode';
+import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import IntelligentTourDialog from './IntelligentTourDialog';
@@ -49,6 +50,8 @@ const TopControls: React.FC<TopControlsProps> = ({
   const {
     user: authUser
   } = useAuth();
+  const { subscriptionData } = useSubscription();
+  const isUnderReview = subscriptionData?.under_review || false;
   const isMobile = useIsMobile();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDebugDrawerOpen, setIsDebugDrawerOpen] = useState(false);
@@ -194,11 +197,14 @@ const TopControls: React.FC<TopControlsProps> = ({
                 <span className="hidden lg:inline">Smart Tour</span>
               </Button>
               
-              <Button variant="outline" size="sm" className="bg-gradient-to-r from-purple-400/80 to-pink-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 border-purple-300 hover:from-purple-300/80 hover:to-pink-300/80" onClick={handleExperiencesClick}>
-                <Compass className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
-                <span className="lg:hidden">Experiences</span>
-                <span className="hidden lg:inline">Experiences</span>
-              </Button>
+              {/* Experiences Button - Only show if not under review */}
+              {!isUnderReview && (
+                <Button variant="outline" size="sm" className="bg-gradient-to-r from-purple-400/80 to-pink-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 border-purple-300 hover:from-purple-300/80 hover:to-pink-300/80" onClick={handleExperiencesClick}>
+                  <Compass className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
+                  <span className="lg:hidden">Experiences</span>
+                  <span className="hidden lg:inline">Experiences</span>
+                </Button>
+              )}
               
               {/* Tour Guide Button - only appears when there's an active Smart Tour */}
               {smartTourLandmarks.length > 0 && <Button variant="outline" size="sm" className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2" onClick={onVoiceAssistantOpen}>
