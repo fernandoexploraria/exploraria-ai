@@ -75,6 +75,50 @@ serve(async (req) => {
     }
     logStep("User authenticated", { userId: user.id, email: user.email });
 
+    // Check if we're in under_review mode
+    const underReview = Deno.env.get('UNDER_REVIEW') === 'true';
+    
+    if (underReview) {
+      logStep('Under review mode - skipping Stripe verification', { underReview });
+      
+      // Just return current subscriber status without checking Stripe
+      const { data: subscriber } = await supabaseClient
+        .from('subscribers')
+        .select('subscribed, subscription_tier, subscription_end, stripe_cancel_at_period_end as cancel_at_period_end')
+        .eq('user_id', user.id)
+        .single();
+
+      if (subscriber) {
+        logStep('Returning existing subscriber status (under review)', subscriber);
+        return new Response(JSON.stringify(subscriber), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        });
+      } else {
+        // Create subscriber record if it doesn't exist
+        const newSubscriber = {
+          user_id: user.id,
+          email: user.email,
+          subscribed: true,
+          subscription_tier: 'Premium',
+          stripe_cancel_at_period_end: false
+        };
+        
+        await supabaseClient.from('subscribers').insert(newSubscriber);
+        
+        logStep('Created new subscriber (under review)', newSubscriber);
+        return new Response(JSON.stringify({
+          subscribed: true,
+          subscription_tier: 'Premium',
+          subscription_end: null,
+          cancel_at_period_end: false
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        });
+      }
+    }
+
     // Initialize variables with clear defaults
     let stripeCustomerId: string | null = null;
     let isActive = false;
