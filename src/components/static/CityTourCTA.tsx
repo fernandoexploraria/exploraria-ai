@@ -2,7 +2,6 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { MapPin, Sparkles } from 'lucide-react';
 import { CityData } from '@/utils/cityExtraction';
-import { toast } from 'sonner';
 import { useAuth } from '@/components/AuthProvider';
 
 interface CityTourCTAProps {
@@ -11,6 +10,8 @@ interface CityTourCTAProps {
   size?: 'sm' | 'default' | 'lg';
   className?: string;
   buttonText?: string;
+  onIntelligentTourOpen?: (landmark: any) => void;
+  onAuthDialogOpen?: () => void;
 }
 
 export const CityTourCTA: React.FC<CityTourCTAProps> = ({
@@ -18,7 +19,9 @@ export const CityTourCTA: React.FC<CityTourCTAProps> = ({
   variant = 'default',
   size = 'default',
   className = '',
-  buttonText
+  buttonText,
+  onIntelligentTourOpen,
+  onAuthDialogOpen
 }) => {
   const { user } = useAuth();
 
@@ -44,71 +47,38 @@ export const CityTourCTA: React.FC<CityTourCTAProps> = ({
     };
   };
 
-  const handleNavigationButtonClick = async () => {
+  const handleNavigationButtonClick = () => {
     console.log('🎯 Navigation button clicked for city:', cityData.name);
     
-    try {
-      // Track static page conversion
-      if (typeof window !== 'undefined' && (window as any).gtag) {
-        (window as any).gtag('event', 'static_page_tour_generation', {
-          event_category: 'conversion',
-          event_label: cityData.name,
-          city: cityData.name,
-          source: 'city_landing_page',
-          cta_type: 'generate_tour_now'
-        });
+    // Track static page conversion
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'static_page_tour_generation', {
+        event_category: 'conversion',
+        event_label: cityData.name,
+        city: cityData.name,
+        source: 'city_landing_page',
+        cta_type: 'generate_tour_now'
+      });
+    }
+
+    const cityAsLandmark = createLandmarkFromCity(cityData);
+
+    if (user) {
+      // User authenticated - direct call to prop (same as SVG navigation button)
+      console.log('✅ User authenticated, opening intelligent tour directly');
+      onIntelligentTourOpen?.(cityAsLandmark);
+    } else {
+      // User not authenticated - persist landmark and trigger auth (same as SVG navigation button)
+      console.log('🚨 User not authenticated, persisting landmark and triggering auth');
+      
+      // Store the city as landmark data for post-auth processing
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem('pendingTourLandmark', JSON.stringify(cityAsLandmark));
+        window.sessionStorage.setItem('pendingTourSource', 'static_page');
       }
-
-      const cityAsLandmark = createLandmarkFromCity(cityData);
-
-      if (user) {
-        // User is authenticated - proceed with existing flow
-        console.log('✅ User authenticated, dispatching tour generation event');
-        
-        const event = new CustomEvent('generateTour', {
-          detail: {
-            destination: cityAsLandmark.name,
-            coordinates: cityAsLandmark.coordinates,
-            place_id: cityAsLandmark.place_id,
-            source: 'static_page',
-            landmark: cityAsLandmark // Include full landmark object
-          }
-        });
-        
-        window.dispatchEvent(event);
-        
-        toast.success(`Starting your ${cityData.name} tour generation!`, {
-          description: "You'll be guided through our AI tour creation process."
-        });
-      } else {
-        // User not authenticated - persist landmark and trigger auth
-        console.log('🚨 User not authenticated, persisting city data and triggering auth');
-        
-        // Store the city as landmark data for post-auth processing
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem('pendingTourLandmark', JSON.stringify(cityAsLandmark));
-          window.sessionStorage.setItem('pendingTourSource', 'static_page');
-        }
-        
-        // Dispatch auth trigger event
-        const authEvent = new CustomEvent('triggerAuth', {
-          detail: {
-            action: 'generateTour',
-            landmark: cityAsLandmark,
-            source: 'static_page'
-          }
-        });
-        
-        window.dispatchEvent(authEvent);
-        
-        toast.info(`Please sign in to generate your ${cityData.name} tour`, {
-          description: "We'll start your tour creation right after you sign in."
-        });
-      }
-
-    } catch (error) {
-      console.error('Error triggering tour generation:', error);
-      toast.error("Something went wrong. Please try again.");
+      
+      // Direct call to auth dialog (same as SVG navigation button)
+      onAuthDialogOpen?.();
     }
   };
 
