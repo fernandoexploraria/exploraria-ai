@@ -62,16 +62,18 @@ export const CityTourCTA: React.FC<CityTourCTAProps> = ({
     toast({
       title: "Synthetic City Landmark Created",
       description: `${syntheticLandmark.name}: ${JSON.stringify(syntheticLandmark, null, 2)}`,
-      duration: 5000,
+      duration: 8000,
     });
 
     if (user) {
       // User logged in: go to main page
       navigate('/');
     } else {
-      // User logged out: set post-auth action to navigate to main page
-      setPostAuthAction('navigate-main');
-      onAuthDialogOpen?.();
+      // User logged out: show object first, then open auth dialog after delay
+      setTimeout(() => {
+        setPostAuthAction('navigate-main');
+        onAuthDialogOpen?.();
+      }, 2000); // 2 second delay to see the toast first
     }
   };
 
