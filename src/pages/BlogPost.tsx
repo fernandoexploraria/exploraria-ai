@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Navigate } from 'react-router-dom';
+import { useParams, Navigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock, User, Share2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import ShareButton from '@/components/ShareButton';
+import { PageNavigation } from '@/components/PageNavigation';
 
 interface BlogPost {
   slug: string;
@@ -164,6 +165,19 @@ export const BlogPost: React.FC = () => {
       />
 
       <div className="absolute inset-0 flex flex-col overflow-hidden bg-gradient-to-br from-primary/5 to-secondary/5">
+        {/* Navigation */}
+        <PageNavigation
+          breadcrumbs={[
+            { label: 'Home', href: '/' },
+            { label: 'Travel Blog', href: '/blog' },
+            { label: blogPost.title }
+          ]}
+          backLink={{
+            href: '/blog',
+            label: 'Back to Blog'
+          }}
+        />
+
         {/* Hero Section */}
         <section className="relative bg-gradient-to-r from-primary to-primary-foreground text-white py-16">
           <div className="container mx-auto px-4">
@@ -224,9 +238,9 @@ export const BlogPost: React.FC = () => {
                     Let our AI create a personalized tour featuring these hidden gems and more.
                   </p>
                   <Button size="lg" asChild>
-                    <a href={`/explore/${blogPost.cityContext.slug}`}>
+                    <Link to={`/explore/${blogPost.cityContext.slug}`}>
                       Generate Your {blogPost.cityContext.name} Tour
-                    </a>
+                    </Link>
                   </Button>
                 </CardContent>
               </Card>

@@ -1,8 +1,10 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Star, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PageNavigation } from '@/components/PageNavigation';
 
 // This would typically import from your city data
 const AVAILABLE_CITIES = [
@@ -37,6 +39,18 @@ export const Destinations: React.FC = () => {
 
   return (
     <div className="absolute inset-0 flex flex-col overflow-hidden bg-gradient-to-br from-primary/5 to-secondary/5">
+      {/* Navigation */}
+      <PageNavigation
+        breadcrumbs={[
+          { label: 'Home', href: '/' },
+          { label: 'Explore Cities' }
+        ]}
+        backLink={{
+          href: '/',
+          label: 'Back to Home'
+        }}
+      />
+
       {/* Hero Section */}
       <section className="relative bg-gradient-to-r from-primary to-primary-foreground text-white py-16">
         <div className="container mx-auto px-4">
@@ -80,9 +94,9 @@ export const Destinations: React.FC = () => {
                     </p>
                     
                     <Button asChild className="w-full">
-                      <a href={`/explore/${city.slug}`}>
+                      <Link to={`/explore/${city.slug}`}>
                         Explore {city.name}
-                      </a>
+                      </Link>
                     </Button>
                   </CardContent>
                 </Card>
@@ -97,9 +111,9 @@ export const Destinations: React.FC = () => {
                 local insights, and real-time guidance for the perfect travel experience.
               </p>
               <Button size="lg" asChild>
-                <a href="/blog">
+                <Link to="/blog">
                   Read Our Travel Insights
-                </a>
+                </Link>
               </Button>
             </section>
 

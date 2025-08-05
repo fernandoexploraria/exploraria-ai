@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Clock, Info, Star } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageNavigation } from '@/components/PageNavigation';
 
 interface CityContent {
   seoTitle: string;
@@ -136,6 +137,19 @@ export const CityExplore: React.FC = () => {
       />
 
       <div className="absolute inset-0 flex flex-col overflow-hidden bg-gradient-to-br from-primary/5 to-secondary/5">
+        {/* Navigation */}
+        <PageNavigation
+          breadcrumbs={[
+            { label: 'Home', href: '/' },
+            { label: 'Explore Cities', href: '/destinations' },
+            { label: cityData.name }
+          ]}
+          backLink={{
+            href: '/destinations',
+            label: 'Back to Cities'
+          }}
+        />
+
         {/* Hero Section */}
         <section className="relative bg-gradient-to-r from-primary to-primary-foreground text-white py-16">
           <div className="container mx-auto px-4">

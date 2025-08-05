@@ -1,8 +1,10 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PageNavigation } from '@/components/PageNavigation';
 
 interface BlogPreview {
   slug: string;
@@ -57,6 +59,18 @@ const FEATURED_POSTS: BlogPreview[] = [
 export const BlogListing: React.FC = () => {
   return (
     <div className="absolute inset-0 flex flex-col overflow-hidden bg-gradient-to-br from-primary/5 to-secondary/5">
+      {/* Navigation */}
+      <PageNavigation
+        breadcrumbs={[
+          { label: 'Home', href: '/' },
+          { label: 'Travel Blog' }
+        ]}
+        backLink={{
+          href: '/',
+          label: 'Back to Home'
+        }}
+      />
+
       {/* Hero Section */}
       <section className="relative bg-gradient-to-r from-primary to-primary-foreground text-white py-16">
         <div className="container mx-auto px-4">
@@ -107,10 +121,10 @@ export const BlogListing: React.FC = () => {
                   </p>
                   
                   <Button variant="outline" asChild className="w-full">
-                    <a href={`/blog/${post.slug}`} className="flex items-center justify-center gap-2">
+                    <Link to={`/blog/${post.slug}`} className="flex items-center justify-center gap-2">
                       Read More
                       <ArrowRight className="h-4 w-4" />
-                    </a>
+                    </Link>
                   </Button>
                 </CardContent>
               </Card>
