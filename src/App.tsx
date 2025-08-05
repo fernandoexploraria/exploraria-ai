@@ -20,6 +20,7 @@ import { PaymentFailure } from "./components/PaymentFailure";
 import { CityExplore } from "./pages/CityExplore";
 import { BlogListing } from "./pages/BlogListing";
 import { BlogPost } from "./pages/BlogPost";
+import { ContentManagement } from "./pages/ContentManagement";
 import { useState } from "react";
 
 const queryClient = new QueryClient();
@@ -115,6 +116,10 @@ const App = () => {
                    <Route 
                      path="/blog/:blogSlug" 
                      element={<BlogPost />} 
+                   />
+                   <Route 
+                     path="/cms" 
+                     element={<ContentManagement />} 
                    />
                 </Routes>
               </AuthProvider>
