@@ -179,10 +179,10 @@ export const BlogPost: React.FC = () => {
         />
 
         {/* Hero Section */}
-        <section className="relative bg-gradient-to-r from-primary to-primary-foreground text-white py-8">
+        <section className="relative bg-gradient-to-r from-primary to-primary-foreground text-white py-16">
           <div className="container mx-auto px-4">
-            <div className="max-w-4xl mx-auto space-y-4">
-              <div className="flex flex-wrap gap-2 mb-3">
+            <div className="max-w-4xl mx-auto space-y-6">
+              <div className="flex flex-wrap gap-2 mb-4">
                 {blogPost.tags.map((tag, index) => (
                   <Badge key={index} variant="secondary" className="bg-white/20 text-white">
                     {tag}
@@ -190,9 +190,9 @@ export const BlogPost: React.FC = () => {
                 ))}
               </div>
               
-              <h1 className="text-2xl md:text-4xl font-bold">{blogPost.title}</h1>
+              <h1 className="text-4xl md:text-5xl font-bold">{blogPost.title}</h1>
               
-              <p className="text-lg md:text-xl text-white/90 max-w-3xl">
+              <p className="text-xl text-white/90 max-w-3xl">
                 {blogPost.excerpt}
               </p>
               

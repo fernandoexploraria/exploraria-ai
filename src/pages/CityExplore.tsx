@@ -7,11 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { MapPin, Clock, Info, Star } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageNavigation } from '@/components/PageNavigation';
-import { useAuth } from '@/components/AuthProvider';
-import DialogManager from '@/components/DialogManager';
-import { useDialogStates } from '@/hooks/useDialogStates';
-import { performComprehensiveTourReset } from '@/utils/tourResetUtils';
-import { Landmark } from '@/data/landmarks';
 
 interface CityContent {
   seoTitle: string;
@@ -34,60 +29,6 @@ export const CityExplore: React.FC = () => {
   const [cityContent, setCityContent] = useState<CityContent | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // Auth and dialog state management (same as Index.tsx)
-  const { user } = useAuth();
-  const {
-    selectedLandmark,
-    setSelectedLandmark,
-    isInteractionHistoryOpen,
-    setIsInteractionHistoryOpen,
-    isAuthDialogOpen,
-    setIsAuthDialogOpen,
-    isNewTourAssistantOpen,
-    setIsNewTourAssistantOpen,
-    isIntelligentTourOpen,
-    setIsIntelligentTourOpen,
-    resetAllDialogStates,
-  } = useDialogStates();
-
-  // Handler functions (same as Index.tsx)
-  const handleAuthRequired = () => {
-    setIsAuthDialogOpen(true);
-  };
-
-  const handleIntelligentTourOpen = (landmark?: any) => {
-    console.log('🎯 Opening Intelligent Tour dialog from city page');
-    
-    // If a landmark is provided, store it for the dialog
-    if (landmark) {
-      (window as any).pendingLandmarkDestination = landmark;
-    }
-    
-    // Perform comprehensive reset before opening dialog
-    performComprehensiveTourReset(
-      {
-        setIsIntelligentTourOpen,
-        setIsNewTourAssistantOpen,
-        setIsInteractionHistoryOpen,
-        setSelectedLandmark,
-      },
-      {
-        setSmartTourLandmarks: () => {}, // No-op for city page
-        setVoiceTourData: () => {}, // No-op for city page
-      }
-    );
-    
-    // Open the dialog after reset
-    setIsIntelligentTourOpen(true);
-  };
-
-  const handleTourGenerated = (landmarks: Landmark[]) => {
-    console.log('🎯 Tour generated from city page, redirecting to main app with landmarks:', landmarks.length);
-    
-    // Redirect to main app with the generated tour
-    window.location.href = '/';
-  };
 
   useEffect(() => {
     if (!cityData) return;
@@ -223,8 +164,6 @@ export const CityExplore: React.FC = () => {
                   variant="secondary"
                   size="lg"
                   className="bg-white text-primary hover:bg-white/90"
-                  onIntelligentTourOpen={handleIntelligentTourOpen}
-                  onAuthDialogOpen={handleAuthRequired}
                 />
               </div>
             </div>
@@ -325,8 +264,6 @@ export const CityExplore: React.FC = () => {
                 cityData={cityData}
                 size="lg"
                 buttonText={`Start Your ${cityData.name} Adventure!`}
-                onIntelligentTourOpen={handleIntelligentTourOpen}
-                onAuthDialogOpen={handleAuthRequired}
               />
             </section>
 
@@ -334,19 +271,6 @@ export const CityExplore: React.FC = () => {
         </div>
         </main>
       </div>
-
-      {/* Dialog Manager - handles auth and tour dialogs */}
-      <DialogManager
-        isVoiceSearchOpen={isInteractionHistoryOpen}
-        onVoiceSearchOpenChange={setIsInteractionHistoryOpen}
-        isAuthDialogOpen={isAuthDialogOpen}
-        onAuthDialogOpenChange={setIsAuthDialogOpen}
-        onLocationSelect={() => {}} // No-op for city page
-        isIntelligentTourOpen={isIntelligentTourOpen}
-        onIntelligentTourOpenChange={setIsIntelligentTourOpen}
-        onTourGenerated={handleTourGenerated}
-        onAuthRequired={handleAuthRequired}
-      />
     </>
   );
 };
