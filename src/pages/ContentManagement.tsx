@@ -43,13 +43,12 @@ export const ContentManagement: React.FC = () => {
       // For now, we'll use placeholder data
       const summary: ContentSummary = {
         generatedAt: new Date().toISOString(),
-        cityPages: 15,
+        cityPages: 8,
         blogPosts: 5,
-        totalPages: 20,
+        totalPages: 13,
         cities: [
-          'Paris', 'London', 'New York', 'Rome', 'Mexico City', 'Sydney',
-          'Tokyo', 'Barcelona', 'Amsterdam', 'Berlin', 'Prague', 'Vienna',
-          'Budapest', 'Copenhagen', 'Stockholm'
+          'Paris', 'London', 'New York', 'Rome', 'Mexico City',
+          'Barcelona', 'Berlin', 'Toronto'
         ],
         blogTitles: [
           'Hidden Gems of Mexico City: Beyond the Tourist Trail',
@@ -243,7 +242,7 @@ export const ContentManagement: React.FC = () => {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <p className="text-sm text-muted-foreground">
-                        Creates AI-powered content for 15 priority cities and multiple blog posts with proper SEO metadata and structured data.
+                        Creates AI-powered content for 8 verified cities and multiple blog posts with proper SEO metadata and structured data.
                       </p>
                       <Button 
                         onClick={runContentGeneration} 

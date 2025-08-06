@@ -65,24 +65,15 @@ const extractCitiesFromLandmarks = () => {
 const getPhase1Cities = () => {
   const allCities = extractCitiesFromLandmarks();
   
-  // Prioritize cities for Phase 1 - all 15 cities
-  const priorityCities = ['Paris', 'London', 'New York', 'Rome', 'Mexico City', 'Sydney', 'Tokyo', 'Barcelona', 'Amsterdam', 'Berlin', 'Prague', 'Vienna', 'Budapest', 'Copenhagen', 'Stockholm'];
-  const selectedCities = [];
+  // Only verified working cities (8 cities that actually work)
+  const verifiedCityNames = [
+    'Paris', 'London', 'New York', 'Rome', 
+    'Barcelona', 'Berlin', 'Toronto', 'Mexico City'
+  ];
   
-  // Add priority cities first
-  priorityCities.forEach(cityName => {
-    const city = allCities.find(c => c.name === cityName);
-    if (city) selectedCities.push(city);
-  });
-  
-  // Add remaining cities up to 15
-  allCities.forEach(city => {
-    if (selectedCities.length < 15 && !selectedCities.find(c => c.name === city.name)) {
-      selectedCities.push(city);
-    }
-  });
-  
-  return selectedCities.slice(0, 15);
+  return allCities
+    .filter(city => verifiedCityNames.includes(city.name))
+    .sort((a, b) => b.landmarkCount - a.landmarkCount);
 };
 
 const generateCityContent = async (city: any) => {
