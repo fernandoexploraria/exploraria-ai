@@ -3,7 +3,6 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { PostAuthAction, getPostAuthAction, clearPostAuthAction, getPostAuthLandmark, clearPostAuthLandmark } from '@/utils/authActions';
-import { toast } from '@/hooks/use-toast';
 
 interface UserProfile {
   id: string;
@@ -267,23 +266,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
             
             // Handle navigate-main action
             if (pendingAction === 'navigate-main') {
-              const pendingLandmark = getPostAuthLandmark();
               console.log('🎯 Navigating to main page after auth');
-              
-              if (pendingLandmark) {
-                console.log('🎯 Showing synthetic landmark on main page:', pendingLandmark.name);
-                clearPostAuthLandmark();
-                
-                setTimeout(() => {
-                  // Show the synthetic landmark again after navigation
-                  toast({
-                    title: "Post-Auth: Synthetic City Landmark Retrieved",
-                    description: `${pendingLandmark.name}: ${JSON.stringify(pendingLandmark, null, 2)}`,
-                    duration: 8000,
-                  });
-                }, 1000); // Wait 1 second after navigation
-              }
-              
               setTimeout(() => {
                 window.location.href = '/';
               }, 500);
