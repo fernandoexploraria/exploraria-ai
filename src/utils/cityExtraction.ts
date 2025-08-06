@@ -49,36 +49,21 @@ export const extractCitiesFromLandmarks = (): CityData[] => {
 };
 
 /**
- * Gets the 15 selected cities for Phase 1 static pages
- * Prioritizes multi-landmark cities and includes Mexico City
+ * Gets the 8 verified working cities for Phase 1 static pages
+ * Only returns cities that have confirmed working slugs and data
  */
 export const getPhase1Cities = (): CityData[] => {
   const allCities = extractCitiesFromLandmarks();
   
-  // Tier 1: Multi-landmark cities (2+ landmarks)
-  const multiLandmarkCities = allCities.filter(city => city.landmarkCount >= 2);
+  // Only include cities that we've verified work properly
+  const verifiedCityNames = [
+    'Paris', 'London', 'New York', 'Rome', 
+    'Barcelona', 'Berlin', 'Toronto', 'Mexico City'
+  ];
   
-  // Tier 2: Strategic single-landmark cities
-  const strategicCities = allCities.filter(city => 
-    city.landmarkCount === 1 && [
-      'Mexico City', 'Sydney', 'Barcelona', 'Berlin', 
-      'Dubai', 'Toronto', 'Rio de Janeiro'
-    ].includes(city.name)
-  );
-  
-  // Combine and take top 15
-  const selectedCities = [...multiLandmarkCities, ...strategicCities].slice(0, 15);
-  
-  // Ensure Mexico City is included
-  if (!selectedCities.find(city => city.name === 'Mexico City')) {
-    const mexicoCity = allCities.find(city => city.name === 'Mexico City');
-    if (mexicoCity) {
-      selectedCities.pop(); // Remove last city to make room
-      selectedCities.push(mexicoCity);
-    }
-  }
-  
-  return selectedCities;
+  return allCities
+    .filter(city => verifiedCityNames.includes(city.name))
+    .sort((a, b) => b.landmarkCount - a.landmarkCount); // Sort by landmark count
 };
 
 /**
@@ -105,8 +90,6 @@ export const formatCityForTourGeneration = (city: CityData) => {
  * Gets featured cities for homepage/navigation
  */
 export const getFeaturedCities = (): CityData[] => {
-  const phase1Cities = getPhase1Cities();
-  
-  // Return top 8 cities (mix of multi-landmark + strategic)
-  return phase1Cities.slice(0, 8);
+  // Return all 8 verified cities
+  return getPhase1Cities();
 };

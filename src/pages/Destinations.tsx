@@ -5,37 +5,42 @@ import { Badge } from '@/components/ui/badge';
 import { MapPin, Star, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageNavigation } from '@/components/PageNavigation';
+import { getPhase1Cities } from '@/utils/cityExtraction';
 
-// This would typically import from your city data
-const AVAILABLE_CITIES = [
-  { name: 'Paris', slug: 'paris', landmarks: 8, description: 'The City of Light with iconic landmarks and romantic charm' },
-  { name: 'London', slug: 'london', landmarks: 6, description: 'Historic capital blending tradition with modern culture' },
-  { name: 'New York', slug: 'new-york', landmarks: 7, description: 'The bustling metropolis that never sleeps' },
-  { name: 'Rome', slug: 'rome', landmarks: 5, description: 'Ancient history meets modern Italian culture' },
-  { name: 'Mexico City', slug: 'mexico-city', landmarks: 4, description: 'Vibrant culture, art, and incredible cuisine' },
-  { name: 'Sydney', slug: 'sydney', landmarks: 4, description: 'Harbor city with stunning natural beauty' },
-  { name: 'Tokyo', slug: 'tokyo', landmarks: 6, description: 'Futuristic metropolis with traditional roots' },
-  { name: 'Barcelona', slug: 'barcelona', landmarks: 5, description: 'Mediterranean charm with unique architecture' },
-  { name: 'Amsterdam', slug: 'amsterdam', landmarks: 4, description: 'Canals, culture, and charming neighborhoods' },
-  { name: 'Berlin', slug: 'berlin', landmarks: 5, description: 'Historic city with vibrant arts scene' },
-  { name: 'Prague', slug: 'prague', landmarks: 4, description: 'Fairy-tale architecture and rich history' },
-  { name: 'Vienna', slug: 'vienna', landmarks: 4, description: 'Imperial elegance and classical music heritage' },
-  { name: 'Budapest', slug: 'budapest', landmarks: 4, description: 'Thermal baths and stunning Danube views' },
-  { name: 'Copenhagen', slug: 'copenhagen', landmarks: 3, description: 'Scandinavian design and sustainable living' },
-  { name: 'Stockholm', slug: 'stockholm', landmarks: 3, description: 'Nordic beauty across 14 islands' }
-];
+// City descriptions helper function
+const getDescriptionForCity = (cityName: string): string => {
+  const descriptions: Record<string, string> = {
+    'Paris': 'The City of Light with iconic landmarks and romantic charm',
+    'London': 'Historic capital blending tradition with modern culture',
+    'New York': 'The bustling metropolis that never sleeps',
+    'Rome': 'Ancient history meets modern Italian culture',
+    'Mexico City': 'Vibrant culture, art, and incredible cuisine',
+    'Barcelona': 'Mediterranean charm with unique architecture',
+    'Berlin': 'Historic city with vibrant arts scene',
+    'Toronto': 'Cosmopolitan city with diverse neighborhoods and culture'
+  };
+  return descriptions[cityName] || 'Amazing destination with unique attractions';
+};
 
 export const Destinations: React.FC = () => {
+  // Get verified working cities
+  const availableCities = getPhase1Cities().map(city => ({
+    name: city.name,
+    slug: city.slug,
+    landmarks: city.landmarkCount,
+    description: getDescriptionForCity(city.name)
+  }));
+
   React.useEffect(() => {
     document.title = 'Explore Cities - AI Travel Guide | Exploraria';
     
     const metaDescription = document.querySelector('meta[name="description"]');
     if (metaDescription) {
       metaDescription.setAttribute('content', 
-        'Discover amazing cities with AI-powered travel guides. Explore 15 destinations with personalized tours and local insights.'
+        `Discover amazing cities with AI-powered travel guides. Explore ${availableCities.length} verified destinations with personalized tours and local insights.`
       );
     }
-  }, []);
+  }, [availableCities.length]);
 
   return (
     <div className="absolute inset-0 flex flex-col overflow-hidden bg-gradient-to-br from-primary/5 to-secondary/5">
@@ -57,7 +62,7 @@ export const Destinations: React.FC = () => {
           <div className="max-w-4xl mx-auto text-center space-y-6">
             <h1 className="text-4xl md:text-6xl font-bold">Explore Cities with AI</h1>
             <p className="text-xl md:text-2xl text-white/90 max-w-2xl mx-auto">
-              Discover 15 amazing destinations with personalized AI-powered travel guides
+              Discover {availableCities.length} amazing destinations with personalized AI-powered travel guides
             </p>
           </div>
         </div>
@@ -69,7 +74,7 @@ export const Destinations: React.FC = () => {
             
             {/* Cities Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {AVAILABLE_CITIES.map((city) => (
+              {availableCities.map((city) => (
                 <Card key={city.slug} className="hover:shadow-lg transition-shadow h-full flex flex-col">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
