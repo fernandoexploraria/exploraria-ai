@@ -4,7 +4,7 @@ import { MapPin, Sparkles } from 'lucide-react';
 import { CityData } from '@/utils/cityExtraction';
 import { useAuth } from '@/components/AuthProvider';
 import { useNavigate } from 'react-router-dom';
-import { setPostAuthAction, setPostAuthLandmark } from '@/utils/authActions';
+import { setPostAuthAction } from '@/utils/authActions';
 import { toast } from '@/hooks/use-toast';
 
 interface CityTourCTAProps {
@@ -66,14 +66,12 @@ export const CityTourCTA: React.FC<CityTourCTAProps> = ({
     });
 
     if (user) {
-      // User logged in: store landmark and call IntelligentTourDialog directly
-      (window as any).pendingLandmarkDestination = syntheticLandmark;
-      onIntelligentTourOpen?.(syntheticLandmark);
+      // User logged in: go to main page
+      navigate('/');
     } else {
-      // User logged out: store landmark and set post-auth action to intelligent-tour
+      // User logged out: show object first, then open auth dialog after delay
       setTimeout(() => {
-        setPostAuthLandmark(syntheticLandmark);
-        setPostAuthAction('intelligent-tour');
+        setPostAuthAction('navigate-main');
         onAuthDialogOpen?.();
       }, 2000); // 2 second delay to see the toast first
     }
