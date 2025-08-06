@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/components/AuthProvider";
 import { TTSProvider } from "@/contexts/TTSContext";
 import { StripeProvider } from "@/contexts/StripeProvider";
@@ -125,6 +125,10 @@ const App = () => {
                    <Route 
                      path="/destinations" 
                      element={<Destinations />} 
+                   />
+                   <Route 
+                     path="*" 
+                     element={<Navigate to="/" replace />} 
                    />
                 </Routes>
               </AuthProvider>
