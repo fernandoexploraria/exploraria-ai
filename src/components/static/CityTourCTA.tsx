@@ -55,8 +55,14 @@ export const CityTourCTA: React.FC<CityTourCTAProps> = ({
   };
 
   const handleClick = () => {
-    // TODO: Implement simple CTA logic
-    console.log('CTA button clicked for', cityData.name);
+    if (user) {
+      // Scenario 2: User is logged in -> redirect to main
+      navigate('/');
+    } else {
+      // Scenario 1: User is logged out -> signup/in -> redirect to main
+      setPostAuthAction('navigate-main');
+      onAuthDialogOpen?.();
+    }
   };
 
   return (
