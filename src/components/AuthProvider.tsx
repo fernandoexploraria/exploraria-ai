@@ -264,6 +264,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
               }
             }
             
+            // Handle navigate-main action
+            if (pendingAction === 'navigate-main') {
+              console.log('🎯 Navigating to main page after auth');
+              setTimeout(() => {
+                window.location.href = '/';
+              }, 500);
+              return;
+            }
+            
             // For other actions or if no payment needed, proceed normally
             setTimeout(() => {
               if (onPostAuthAction) {

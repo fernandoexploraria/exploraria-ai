@@ -1,8 +1,11 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { MapPin, Sparkles } from 'lucide-react';
-import { CityData, formatCityForTourGeneration } from '@/utils/cityExtraction';
-import { toast } from 'sonner';
+import { CityData } from '@/utils/cityExtraction';
+import { useAuth } from '@/components/AuthProvider';
+import { useNavigate } from 'react-router-dom';
+import { setPostAuthAction } from '@/utils/authActions';
+import { toast } from '@/hooks/use-toast';
 
 interface CityTourCTAProps {
   cityData: CityData;
@@ -10,6 +13,8 @@ interface CityTourCTAProps {
   size?: 'sm' | 'default' | 'lg';
   className?: string;
   buttonText?: string;
+  onIntelligentTourOpen?: (landmark: any) => void;
+  onAuthDialogOpen?: () => void;
 }
 
 export const CityTourCTA: React.FC<CityTourCTAProps> = ({
@@ -17,53 +22,64 @@ export const CityTourCTA: React.FC<CityTourCTAProps> = ({
   variant = 'default',
   size = 'default',
   className = '',
-  buttonText
+  buttonText,
+  onIntelligentTourOpen,
+  onAuthDialogOpen
 }) => {
-  const handleGenerateTour = async () => {
-    try {
-      // Track static page conversion
-      if (typeof window !== 'undefined' && (window as any).gtag) {
-        (window as any).gtag('event', 'static_page_tour_generation', {
-          event_category: 'conversion',
-          event_label: cityData.name,
-          city: cityData.name,
-          source: 'city_landing_page',
-          cta_type: 'generate_tour_now'
-        });
-      }
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const defaultButtonText = buttonText || `Generate Your ${cityData.name} Tour Now!`;
 
-      // Format city data for existing tour generation system
-      const tourDestination = formatCityForTourGeneration(cityData);
-      
-      // Use the existing tour generation mechanism
-      // This will trigger the same flow as the landmark preview button
-      const event = new CustomEvent('generateTour', {
-        detail: {
-          destination: tourDestination.name,
-          coordinates: tourDestination.coordinates,
-          place_id: tourDestination.place_id,
-          source: 'static_page'
+  const createSyntheticLandmark = (cityData: CityData) => {
+    return {
+      id: `city-${cityData.slug}`,
+      name: cityData.name,
+      coordinates: cityData.coordinates,
+      place_id: `city-${cityData.slug}`,
+      description: `Explore the vibrant city of ${cityData.name}. Discover its iconic landmarks, rich culture, and unforgettable experiences.`,
+      photos: [],
+      rating: 4.5,
+      user_ratings_total: 1000,
+      types: ['locality', 'political'],
+      vicinity: cityData.name,
+      geometry: {
+        location: {
+          lat: cityData.coordinates[1],
+          lng: cityData.coordinates[0]
         }
-      });
-      
-      window.dispatchEvent(event);
-      
-      // Show user feedback
-      toast.success(`Starting your ${cityData.name} tour generation!`, {
-        description: "You'll be guided through our AI tour creation process."
-      });
+      },
+      city_slug: cityData.slug,
+      created_at: new Date().toISOString(),
+      landmark_type: 'synthetic_city'
+    };
+  };
 
-    } catch (error) {
-      console.error('Error triggering tour generation:', error);
-      toast.error("Something went wrong. Please try again.");
+  const handleClick = () => {
+    // Create synthetic landmark for this city
+    const syntheticLandmark = createSyntheticLandmark(cityData);
+    
+    // Show the synthetic landmark in a toast for debugging
+    toast({
+      title: "Synthetic City Landmark Created",
+      description: `${syntheticLandmark.name}: ${JSON.stringify(syntheticLandmark, null, 2)}`,
+      duration: 8000,
+    });
+
+    if (user) {
+      // User logged in: go to main page
+      navigate('/');
+    } else {
+      // User logged out: show object first, then open auth dialog after delay
+      setTimeout(() => {
+        setPostAuthAction('navigate-main');
+        onAuthDialogOpen?.();
+      }, 2000); // 2 second delay to see the toast first
     }
   };
 
-  const defaultButtonText = buttonText || `Generate Your ${cityData.name} Tour Now!`;
-
   return (
     <Button 
-      onClick={handleGenerateTour}
+      onClick={handleClick}
       variant={variant}
       size={size}
       className={`gap-2 font-bold transition-all duration-300 hover:scale-110 hover:shadow-2xl active:scale-95 
