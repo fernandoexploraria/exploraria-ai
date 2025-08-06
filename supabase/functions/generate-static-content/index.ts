@@ -5,23 +5,24 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Extended landmark data for all 15 priority cities
+// Only include landmarks for the 8 verified working cities
 const TOP_LANDMARKS = [
   { name: "Frida Kahlo Museum, Mexico City", coordinates: [-99.1625, 19.3547], description: "Historic blue house where renowned artist Frida Kahlo lived and worked", place_id: "ChIJOz-6AMT_0YURofTM9_ekAWI" },
   { name: "Eiffel Tower, Paris", coordinates: [2.2945, 48.8584], description: "Iconic iron lattice tower and symbol of Paris", place_id: "ChIJLU7jZClu5kcR4PcOOO6p3I0" },
+  { name: "Notre-Dame Cathedral, Paris", coordinates: [2.3499, 48.853], description: "Medieval Catholic cathedral on Île de la Cité", place_id: "ChIJATr1n-Fx5kcRjQb6q6cdQDY" },
+  { name: "Louvre Museum, Paris", coordinates: [2.3376, 48.8606], description: "World's largest art museum and historic monument", place_id: "ChIJD3uTd9hx5kcR1IQvGfr8dbk" },
   { name: "Times Square, New York", coordinates: [-73.9857, 40.758], description: "The crossroads of the world in Manhattan", place_id: "ChIJmQJIxlVYwokRLgeuocVOGVU" },
+  { name: "Statue of Liberty, New York", coordinates: [-74.0445, 40.6892], description: "Symbol of freedom and democracy", place_id: "ChIJPTacEpBQwokRKwIlDXelxkA" },
+  { name: "Empire State Building, New York", coordinates: [-73.9857, 40.7484], description: "Art Deco skyscraper in Midtown Manhattan", place_id: "ChIJaXQRs6lZwokRY6EFpJnhNNE" },
   { name: "Big Ben, London", coordinates: [-0.1246, 51.4994], description: "Famous clock tower at Westminster Palace", place_id: "ChIJ2dGMjMMEdkgRqVqkuXQkj7c" },
+  { name: "Tower Bridge, London", coordinates: [-0.0754, 51.5055], description: "Victorian Gothic bascule bridge over the Thames", place_id: "ChIJSdtli0MDdkgRLW9aCBpCeJ4" },
+  { name: "Buckingham Palace, London", coordinates: [-0.1419, 51.5014], description: "London residence of the British monarch", place_id: "ChIJtV5bzSAFdkgRpwLZFPWrJgo" },
+  { name: "Westminster Abbey, London", coordinates: [-0.1276, 51.4994], description: "Gothic abbey church and coronation site of British monarchs", place_id: "ChIJLzVDusQEdkgRelObBaL_jto" },
+  { name: "London Eye, London", coordinates: [-0.1196, 51.5033], description: "Giant observation wheel on the South Bank of Thames", place_id: "ChIJH2U9GscEdkgR7sArcZd_NnI" },
   { name: "Colosseum, Rome", coordinates: [12.4922, 41.8902], description: "Ancient Roman amphitheater", place_id: "ChIJrRMgU7ZhLxMRxAOFkC7I8Sg" },
-  { name: "Sydney Opera House, Sydney", coordinates: [151.2153, -33.8568], description: "Iconic performing arts venue with sail-like design", place_id: "ChIJ3S-JXmauEmsRUcIaWtf4MzE" },
-  { name: "Senso-ji Temple, Tokyo", coordinates: [139.7967, 35.7148], description: "Ancient Buddhist temple in Asakusa district", place_id: "ChIJ8T1GpMGOGGARDYGSgpooDWw" },
   { name: "Sagrada Familia, Barcelona", coordinates: [2.1734, 41.4036], description: "Unfinished basilica designed by Antoni Gaudí", place_id: "ChIJk_s92NyipBIRUMnDG8Kq2Js" },
-  { name: "Anne Frank House, Amsterdam", coordinates: [4.8840, 52.3752], description: "Historic house and museum dedicated to Anne Frank", place_id: "ChIJseaKxAx0WA6RSz-6Nzx6-Cg" },
   { name: "Brandenburg Gate, Berlin", coordinates: [13.3777, 52.5163], description: "Neoclassical monument and symbol of Berlin", place_id: "ChIJQVQd3s1RqEcRcDteqyLqHV8" },
-  { name: "Charles Bridge, Prague", coordinates: [14.4125, 50.0865], description: "Historic stone bridge connecting Old Town and Lesser Town", place_id: "ChIJrTwXk5SDdUcRMlxkbbq__ks" },
-  { name: "Schönbrunn Palace, Vienna", coordinates: [16.3120, 48.1848], description: "Imperial summer palace with baroque architecture", place_id: "ChIJO1ljBtfNbUcRRqbOiJzjl7c" },
-  { name: "Fisherman's Bastion, Budapest", coordinates: [19.0349, 47.5017], description: "Neo-Romanesque terrace with panoramic city views", place_id: "ChIJn2D_GEPybkcRDOdCvHGaRDk" },
-  { name: "Nyhavn, Copenhagen", coordinates: [12.5928, 55.6796], description: "Colorful historic waterfront district", place_id: "ChIJAcKVvv5TUkYRBZwGb0aNqHY" },
-  { name: "Gamla Stan, Stockholm", coordinates: [18.0722, 59.3251], description: "Historic old town with medieval architecture", place_id: "ChIJywtkGTK2X0YRZnVvyGzT17o" }
+  { name: "CN Tower, Toronto", coordinates: [-79.3871, 43.6426], description: "Communications tower and landmark of Toronto", place_id: "ChIJmzrzi9Y0K4gRgXUc3sTY7RU" }
 ];
 
 const logStep = (step: string) => {
