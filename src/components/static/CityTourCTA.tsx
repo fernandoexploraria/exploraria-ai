@@ -55,25 +55,8 @@ export const CityTourCTA: React.FC<CityTourCTAProps> = ({
   };
 
   const handleClick = () => {
-    // Create synthetic landmark for this city
-    const syntheticLandmark = createSyntheticLandmark(cityData);
-    
-    // Show the synthetic landmark in a toast for debugging
-    toast({
-      title: "Synthetic City Landmark Created",
-      description: `${syntheticLandmark.name}: ${JSON.stringify(syntheticLandmark, null, 2)}`,
-      duration: 8000,
-    });
-
-    if (user) {
-      // User logged in: go to main page
-      navigate('/');
-    } else {
-      // User logged out: persist synthetic landmark and open auth dialog
-      setPostAuthLandmark(syntheticLandmark);
-      setPostAuthAction('intelligent-tour');
-      onAuthDialogOpen?.();
-    }
+    // TODO: Implement simple CTA logic
+    console.log('CTA button clicked for', cityData.name);
   };
 
   return (
