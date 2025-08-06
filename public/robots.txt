@@ -20,6 +20,14 @@ Allow: /
 # Block access to internal admin pages
 User-agent: *
 Disallow: /cms
+Disallow: /account
+Disallow: /account/*
+Disallow: /curator-portal
+Disallow: /curator-portal/*
+Disallow: /elevenlabs-playground
+Disallow: /reset-password
+Disallow: /payment-success
+Disallow: /payment-failed
 
 # Allow crawling of all content pages
 Allow: /blog

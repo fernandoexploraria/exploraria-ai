@@ -115,10 +115,4 @@
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
-  <url>
-    <loc>https://lovable.exploraria.ai/account</loc>
-    <lastmod>2025-08-05</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
 </urlset>
