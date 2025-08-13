@@ -106,15 +106,24 @@ const TopControls: React.FC<TopControlsProps> = ({
       console.log('🍎 [Apple] Store plugin found, initializing...');
       console.log('🍎 [Apple] Product ID: LEXPS0001');
       
-      // Register the product
+      // Initialize store first before registering products
+      console.log('🍎 [Apple] Initializing store...');
+      await store.initialize();
+      
+      // Register the product AFTER initialization
       store.register({
         id: 'LEXPS0001',
-        type: store.AUTO_RENEWING_SUBSCRIPTION
+        type: store.PAID_SUBSCRIPTION
       });
       
       // Set up event handlers
       store.when('LEXPS0001').approved((product: any) => {
         console.log('🍎 [Apple] Product approved:', product);
+        product.verify();
+      });
+      
+      store.when('LEXPS0001').verified((product: any) => {
+        console.log('🍎 [Apple] Product verified:', product);
         // Finish the transaction
         product.finish();
         console.log('🍎 [Apple] Subscription successful!');
@@ -142,9 +151,8 @@ const TopControls: React.FC<TopControlsProps> = ({
         });
       });
       
-      // Initialize and refresh
-      console.log('🍎 [Apple] Initializing store...');
-      await store.initialize();
+      // Refresh to load products
+      console.log('🍎 [Apple] Refreshing store...');
       store.refresh();
       
       // Order the product
