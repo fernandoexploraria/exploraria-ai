@@ -20,6 +20,7 @@ import OnboardingCarousel from '@/components/OnboardingCarousel';
 import { performComprehensiveTourReset } from '@/utils/tourResetUtils';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { GeminiAnalysisHelper } from '@/components/GeminiAnalysisHelper';
 
 interface IndexProps {
   onRegisterPostAuthActions?: (actions: { onSmartTour?: () => void; onIntelligentTour?: () => void }) => void;
@@ -299,6 +300,11 @@ const Index: React.FC<IndexProps> = ({ onRegisterPostAuthActions, onVoiceAgentSt
       
       {/* Footer */}
       <Footer />
+      
+      {/* Temporary Gemini Analysis Helper */}
+      <div className="fixed bottom-4 right-4 z-40">
+        <GeminiAnalysisHelper />
+      </div>
       
       {/* Onboarding overlay */}
       {showOnboarding && (
