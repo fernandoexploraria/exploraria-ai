@@ -63,14 +63,15 @@ const TopControls: React.FC<TopControlsProps> = ({
       if (Capacitor.isNativePlatform()) {
         console.log('🍎 [Apple] Waiting for native platform to be ready...');
         
-        // Wait for deviceready event on native platforms
+        // Wait for the store plugin's JavaScript to be fully loaded
         await new Promise<void>((resolve) => {
           const checkStore = () => {
-            if (typeof (window as any).store !== 'undefined') {
-              console.log('🍎 [Apple] Store plugin detected, proceeding...');
+            if (typeof (window as any).store !== 'undefined' && 
+                typeof (window as any).store.initialize === 'function') {
+              console.log('🍎 [Apple] Store plugin with initialize method detected, proceeding...');
               resolve();
             } else {
-              console.log('🍎 [Apple] Store plugin not ready yet, waiting...');
+              console.log('🍎 [Apple] Store plugin or initialize method not ready yet, waiting...');
               setTimeout(checkStore, 100);
             }
           };
@@ -78,26 +79,23 @@ const TopControls: React.FC<TopControlsProps> = ({
           // Check immediately first
           checkStore();
           
-          // Also listen for deviceready as backup
-          document.addEventListener('deviceready', () => resolve(), { once: true });
-          
           // Fallback timeout
           setTimeout(() => {
-            console.warn('🍎 [Apple] Timeout waiting for store plugin');
+            console.warn('🍎 [Apple] Timeout waiting for store plugin with initialize method');
             resolve();
-          }, 5000);
+          }, 10000); // Increased timeout to 10 seconds
         });
       }
       
       console.log('🍎 [Apple] Checking for store plugin...');
       
-      // Check if cordova-plugin-purchase is available
+      // Check if cordova-plugin-purchase is available with its methods
       const store = (window as any).store;
-      if (!store) {
-        console.error('🍎 [Apple] Store plugin not available');
+      if (!store || typeof store.initialize !== 'function') {
+        console.error('🍎 [Apple] Store plugin not available or initialize method missing');
         toast({
           title: "Error",
-          description: "Apple Pay not available - store plugin missing",
+          description: "Apple Pay not available - store plugin or methods missing",
           variant: "destructive",
         });
         return;
@@ -106,15 +104,18 @@ const TopControls: React.FC<TopControlsProps> = ({
       console.log('🍎 [Apple] Store plugin found, initializing...');
       console.log('🍎 [Apple] Product ID: LEXPS0001');
       
-      // Initialize store first before registering products
-      console.log('🍎 [Apple] Initializing store...');
-      await store.initialize();
+      // Initialize store with options first
+      console.log('🍎 [Apple] Initializing store with options...');
+      store.initialize({
+        debug: true,
+        autoFinishTransactions: true
+      });
       
       // Register the product AFTER initialization
-      store.register({
+      store.register([{
         id: 'LEXPS0001',
         type: store.PAID_SUBSCRIPTION
-      });
+      }]);
       
       // Set up event handlers
       store.when('LEXPS0001').approved((product: any) => {
