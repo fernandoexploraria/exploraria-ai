@@ -7,21 +7,15 @@ import { useToast } from '@/hooks/use-toast';
 declare global {
   interface Window {
     CdvPurchase?: {
-      store: {
-        when: (product?: any) => {
-          approved: (callback: (product: any) => void) => void;
-          finished: (callback: (product: any) => void) => void;
-          error: (callback: (error: any) => void) => void;
-        };
-        ready: (callback: () => void) => void;
-        initialize: (platforms: any[]) => void;
-        register: (product: any) => void;
-        refresh: () => void;
-        order: (productId: string) => void;
-        get: (productId: string) => any;
+      store: any;
+      APPLE_APPSTORE?: any;
+      PAID_SUBSCRIPTION?: any;
+      ProductType?: {
+        PAID_SUBSCRIPTION: any;
       };
-      APPLE_APPSTORE: string;
-      PAID_SUBSCRIPTION: string;
+      Platform?: {
+        APPLE_APPSTORE: any;
+      };
     };
   }
 }
@@ -78,27 +72,31 @@ export const useApplePurchase = () => {
 
       console.log('🍎 Initializing Apple Purchase Plugin...');
 
-      // Initialize the store with platform constants
-      window.CdvPurchase.store.initialize([window.CdvPurchase.APPLE_APPSTORE]);
+      const { store } = window.CdvPurchase;
+
+      // Initialize the store
+      store.initialize([
+        window.CdvPurchase.Platform?.APPLE_APPSTORE || 'APPLE_APPSTORE'
+      ]);
 
       // Register the subscription product
-      window.CdvPurchase.store.register({
+      store.register({
         id: SUBSCRIPTION_PRODUCT_ID,
-        type: window.CdvPurchase.PAID_SUBSCRIPTION
+        type: window.CdvPurchase.ProductType?.PAID_SUBSCRIPTION || 'PAID_SUBSCRIPTION'
       });
 
-      // Set up event handlers - each event type separately
-      window.CdvPurchase.store.when().approved((product: any) => {
+      // Set up event handlers using a simpler approach
+      store.when('product').approved((product: any) => {
         console.log('🍎 Product approved:', product);
         handleTransactionApproved(product);
       });
 
-      window.CdvPurchase.store.when().finished((product: any) => {
+      store.when('product').finished((product: any) => {
         console.log('🍎 Product finished:', product);
         setState(prev => ({ ...prev, isProcessing: false }));
       });
 
-      window.CdvPurchase.store.when().error((error: any) => {
+      store.when('error').occurred((error: any) => {
         console.error('🍎 Purchase error:', error);
         setState(prev => ({ ...prev, isProcessing: false, error: error.message || 'Purchase failed' }));
         toast({
@@ -109,7 +107,7 @@ export const useApplePurchase = () => {
       });
 
       // Wait for store to be ready
-      window.CdvPurchase.store.ready(() => {
+      store.ready(() => {
         console.log('🍎 Store is ready');
         setState(prev => ({ 
           ...prev, 
@@ -120,7 +118,7 @@ export const useApplePurchase = () => {
       });
 
       // Refresh store to get latest product info
-      window.CdvPurchase.store.refresh();
+      store.refresh();
 
     } catch (error) {
       console.error('🍎 Failed to initialize purchase plugin:', error);
@@ -227,7 +225,7 @@ export const useApplePurchase = () => {
   };
 
   const refreshProducts = () => {
-    if (window.CdvPurchase && state.isAvailable) {
+    if (window.CdvPurchase?.store && state.isAvailable) {
       window.CdvPurchase.store.refresh();
     }
   };
