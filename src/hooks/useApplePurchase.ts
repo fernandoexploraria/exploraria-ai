@@ -85,7 +85,7 @@ export const useApplePurchase = () => {
         type: window.CdvPurchase.ProductType?.PAID_SUBSCRIPTION || 'PAID_SUBSCRIPTION'
       });
 
-      // Set up event handlers using a simpler approach
+      // Set up event handlers using the correct API
       store.when('product').approved((product: any) => {
         console.log('🍎 Product approved:', product);
         handleTransactionApproved(product);
@@ -96,7 +96,8 @@ export const useApplePurchase = () => {
         setState(prev => ({ ...prev, isProcessing: false }));
       });
 
-      store.when('error').occurred((error: any) => {
+      // Simple error handling approach
+      store.error((error: any) => {
         console.error('🍎 Purchase error:', error);
         setState(prev => ({ ...prev, isProcessing: false, error: error.message || 'Purchase failed' }));
         toast({
