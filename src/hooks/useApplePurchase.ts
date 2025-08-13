@@ -54,8 +54,16 @@ export const useApplePurchase = () => {
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
 
+      console.log('🍎 Starting Apple Purchase initialization...');
+      console.log('🍎 Platform info:', {
+        isNativePlatform: Capacitor.isNativePlatform(),
+        platform: Capacitor.getPlatform(),
+        isIOS: Capacitor.getPlatform() === 'ios'
+      });
+
       // Check if running on iOS native platform
       if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios') {
+        console.log('🍎 Platform check failed - not iOS native');
         setState(prev => ({ 
           ...prev, 
           isAvailable: false, 
