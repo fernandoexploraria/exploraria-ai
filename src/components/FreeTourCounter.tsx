@@ -6,6 +6,7 @@ import { useTourStats } from '@/hooks/useTourStats';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Capacitor } from '@capacitor/core';
 import { SubscriptionDialog } from '@/components/subscription/SubscriptionDialog';
+import { supabase } from '@/integrations/supabase/client';
 
 const FreeTourCounter: React.FC = () => {
   const { tourStats, isLoading: tourLoading } = useTourStats();
@@ -50,11 +51,14 @@ const FreeTourCounter: React.FC = () => {
     try {
       // Check if we should use Apple Pay (iOS + Apple payment processor)
       const isIOS = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
-      // TODO: Add payment processor check when secret is available
       
-      if (isIOS) {
-        // Use Apple Pay subscription
-        await createAppleSubscription('your_apple_subscription_product_id'); // Replace with your actual product ID
+      // Check payment processor preference via edge function
+      const { data: config } = await supabase.functions.invoke('get-stripe-config');
+      const useApplePay = isIOS && config?.paymentProcessor === 'APPLE';
+      
+      if (useApplePay) {
+        // Use Apple Pay subscription - Replace with your App Store Connect product ID
+        await createAppleSubscription('com.yourapp.monthly_subscription'); // Replace with your actual product ID
       } else if (useEmbeddedFlow) {
         // Use embedded Stripe subscription flow
         const { client_secret, subscription_id } = await createSubscriptionIntent();
