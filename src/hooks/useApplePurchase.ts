@@ -30,7 +30,7 @@ export interface ApplePurchaseState {
   isProcessing: boolean;
 }
 
-const SUBSCRIPTION_PRODUCT_ID = 'com.exploraria.premium_monthly'; // Replace with your actual product ID
+const SUBSCRIPTION_PRODUCT_ID = 'LEXPS0001';
 
 export const useApplePurchase = () => {
   const [state, setState] = useState<ApplePurchaseState>({
