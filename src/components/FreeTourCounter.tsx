@@ -58,7 +58,7 @@ const FreeTourCounter: React.FC = () => {
       
       if (useApplePay) {
         // Use Apple Pay subscription - Replace with your App Store Connect product ID
-        await createAppleSubscription('com.yourapp.monthly_subscription'); // Replace with your actual product ID
+        await createAppleSubscription('REPLACE_WITH_YOUR_PRODUCT_ID'); // e.g., 'com.yourcompany.exploraria.monthly'
       } else if (useEmbeddedFlow) {
         // Use embedded Stripe subscription flow
         const { client_secret, subscription_id } = await createSubscriptionIntent();
