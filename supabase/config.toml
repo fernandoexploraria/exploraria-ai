@@ -65,6 +65,9 @@ verify_jwt = true
 [functions.create-onboarding-link]
 verify_jwt = true
 
+[functions.verify-apple-receipt]
+verify_jwt = true
+
 [storage]
 enabled = true
 port = 54325
