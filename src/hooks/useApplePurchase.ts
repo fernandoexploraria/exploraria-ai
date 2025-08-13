@@ -42,6 +42,22 @@ export const useApplePurchase = () => {
 
   useEffect(() => {
     initializePurchasePlugin();
+    
+    // Cleanup function for event listeners
+    return () => {
+      if (window.CdvPurchase?.store) {
+        try {
+          // Remove event listeners if they exist
+          const store = window.CdvPurchase.store;
+          if (store.off) {
+            store.off('product', 'approved');
+            store.off('product', 'finished');
+          }
+        } catch (cleanupError) {
+          console.warn('🍎 Cleanup failed:', cleanupError);
+        }
+      }
+    };
   }, []);
 
   const initializePurchasePlugin = async () => {
@@ -85,24 +101,29 @@ export const useApplePurchase = () => {
         type: window.CdvPurchase.ProductType?.PAID_SUBSCRIPTION || 'PAID_SUBSCRIPTION'
       });
 
-      // Set up event handlers using the correct API
-      store.when('product').approved((product: any) => {
+      // Set up event handlers using store.on() instead of store.when()
+      const approvedListener = (product: any) => {
         console.log('🍎 Product approved:', product);
         handleTransactionApproved(product);
-      });
+      };
 
-      store.when('product').finished((product: any) => {
+      const finishedListener = (product: any) => {
         console.log('🍎 Product finished:', product);
         setState(prev => ({ ...prev, isProcessing: false }));
-      });
+      };
 
-      // Simple error handling approach
+      // Use store.on() for event listeners
+      store.on('product', 'approved', approvedListener);
+      store.on('product', 'finished', finishedListener);
+
+      // Error handling with proper error object handling
       store.error((error: any) => {
         console.error('🍎 Purchase error:', error);
-        setState(prev => ({ ...prev, isProcessing: false, error: error.message || 'Purchase failed' }));
+        const errorMessage = error instanceof Error ? error.message : (error?.message || 'Purchase failed');
+        setState(prev => ({ ...prev, isProcessing: false, error: errorMessage }));
         toast({
           title: "Purchase Error",
-          description: error.message || 'Failed to complete purchase',
+          description: errorMessage,
           variant: "destructive"
         });
       });
@@ -118,8 +139,12 @@ export const useApplePurchase = () => {
         }));
       });
 
-      // Refresh store to get latest product info
-      store.refresh();
+      // Refresh store to get latest product info with error handling
+      try {
+        store.refresh();
+      } catch (refreshError) {
+        console.warn('🍎 Store refresh failed:', refreshError);
+      }
 
     } catch (error) {
       console.error('🍎 Failed to initialize purchase plugin:', error);
@@ -227,7 +252,11 @@ export const useApplePurchase = () => {
 
   const refreshProducts = () => {
     if (window.CdvPurchase?.store && state.isAvailable) {
-      window.CdvPurchase.store.refresh();
+      try {
+        window.CdvPurchase.store.refresh();
+      } catch (refreshError) {
+        console.warn('🍎 Product refresh failed:', refreshError);
+      }
     }
   };
 
