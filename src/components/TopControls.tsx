@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube, MapPin, ToggleLeft, ToggleRight, Compass, Apple } from 'lucide-react';
+import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube, MapPin, ToggleLeft, ToggleRight, Compass } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerTrigger, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import SearchControl from '@/components/SearchControl';
 import FreeTourCounter from '@/components/FreeTourCounter';
@@ -51,133 +51,6 @@ const TopControls: React.FC<TopControlsProps> = ({
     user: authUser
   } = useAuth();
   const { subscriptionData } = useSubscription();
-  
-  // Apple Pay subscription handler
-  const handleApplePaySubscribe = async () => {
-    console.log('🍎 Apple Pay Subscribe clicked');
-    
-    try {
-      // Wait for Capacitor platform to be ready
-      const { Capacitor } = await import('@capacitor/core');
-      
-      if (Capacitor.isNativePlatform()) {
-        console.log('🍎 [Apple] Waiting for native platform to be ready...');
-        
-        // Wait for the store plugin's JavaScript to be fully loaded
-        await new Promise<void>((resolve) => {
-          const checkStore = () => {
-            if (typeof (window as any).store !== 'undefined' && 
-                typeof (window as any).store.initialize === 'function') {
-              console.log('🍎 [Apple] Store plugin with initialize method detected, proceeding...');
-              resolve();
-            } else {
-              console.log('🍎 [Apple] Store plugin or initialize method not ready yet, waiting...');
-              setTimeout(checkStore, 100);
-            }
-          };
-          
-          // Check immediately first
-          checkStore();
-          
-          // Fallback timeout
-          setTimeout(() => {
-            console.warn('🍎 [Apple] Timeout waiting for store plugin with initialize method');
-            resolve();
-          }, 10000); // Increased timeout to 10 seconds
-        });
-      }
-      
-      console.log('🍎 [Apple] Checking for store plugin...');
-      
-      // Check if cordova-plugin-purchase is available with its methods
-      const store = (window as any).store;
-      if (!store || typeof store.initialize !== 'function') {
-        console.error('🍎 [Apple] Store plugin not available or initialize method missing');
-        toast({
-          title: "Error",
-          description: "Apple Pay not available - store plugin or methods missing",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      console.log('🍎 [Apple] Store plugin found, initializing...');
-      console.log('🍎 [Apple] Product ID: LEXPS0001');
-      
-      // Initialize store with options first
-      console.log('🍎 [Apple] Initializing store with options...');
-      store.initialize({
-        debug: true,
-        autoFinishTransactions: true
-      });
-      
-      // Register the product AFTER initialization
-      store.register([{
-        id: 'LEXPS0001',
-        type: store.PAID_SUBSCRIPTION
-      }]);
-      
-      // Set up event handlers
-      store.when('LEXPS0001').approved((product: any) => {
-        console.log('🍎 [Apple] Product approved:', product);
-        product.verify();
-      });
-      
-      store.when('LEXPS0001').verified((product: any) => {
-        console.log('🍎 [Apple] Product verified:', product);
-        // Finish the transaction
-        product.finish();
-        console.log('🍎 [Apple] Subscription successful!');
-        toast({
-          title: "Success!",
-          description: "Apple Pay subscription activated successfully!",
-        });
-      });
-      
-      store.when('LEXPS0001').error((error: any) => {
-        console.error('🍎 [Apple] Product error:', error);
-        toast({
-          title: "Error",
-          description: `Apple Pay subscription failed: ${error.message}`,
-          variant: "destructive",
-        });
-      });
-      
-      store.error((error: any) => {
-        console.error('🍎 [Apple] Store error:', error);
-        toast({
-          title: "Error",
-          description: `Apple Pay error: ${error.message}`,
-          variant: "destructive",
-        });
-      });
-      
-      // Refresh to load products
-      console.log('🍎 [Apple] Refreshing store...');
-      store.refresh();
-      
-      // Order the product
-      console.log('🍎 [Apple] Ordering product...');
-      store.order('LEXPS0001');
-      
-    } catch (error) {
-      console.error('🍎 [Apple] Error in Apple Pay subscription:', error);
-      console.error('🍎 [Apple] Full error object:', JSON.stringify(error, null, 2));
-      console.error('🍎 [Apple] Error type:', typeof error);
-      console.error('🍎 [Apple] Error constructor:', error?.constructor?.name);
-      
-      const errorMessage = error instanceof Error ? error.message : 
-                          typeof error === 'string' ? error :
-                          error && typeof error === 'object' ? JSON.stringify(error) :
-                          'Unknown error occurred';
-      
-      toast({
-        title: "Apple Pay Error",
-        description: `Subscription failed: ${errorMessage}`,
-        variant: "destructive",
-      });
-    }
-  };
   
   const isMobile = useIsMobile();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -378,31 +251,6 @@ const TopControls: React.FC<TopControlsProps> = ({
                 </>}
               
               {user && <FreeTourCounter />}
-              
-              {/* Apple Pay Subscribe Button */}
-              {user && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left"
-                  onClick={handleApplePaySubscribe}
-                >
-                  <Apple className="mr-1 h-3 w-3" />
-                  Subscribe with Apple Pay
-                </Button>
-              )}
-              
-              {/* Desktop Apple Pay Button */}
-              {user && (
-                <Button
-                  variant="outline"
-                  className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left"
-                  onClick={handleApplePaySubscribe}
-                >
-                  <Apple className="mr-2 h-4 w-4" />
-                  Subscribe with Apple Pay
-                </Button>
-              )}
             </div>}
         </div>
       </div>

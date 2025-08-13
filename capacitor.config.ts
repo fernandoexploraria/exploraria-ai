@@ -22,9 +22,6 @@ const config: CapacitorConfig = {
   plugins: {
     SplashScreen: {
       launchShowDuration: 0
-    },
-    CordovaPurchase: {
-      BILLING_KEY: "your-app-specific-shared-secret"
     }
   }
 };
