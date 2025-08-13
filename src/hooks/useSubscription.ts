@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
+import { Capacitor } from '@capacitor/core';
 
 export interface SubscriptionData {
   subscribed: boolean;
@@ -115,6 +116,95 @@ export const useSubscription = () => {
     }
   };
 
+  const createAppleSubscription = async (productId: string) => {
+    if (!user || !session) {
+      throw new Error('User not authenticated');
+    }
+
+    // Check if we're on iOS
+    if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios') {
+      throw new Error('Apple Pay subscriptions are only available on iOS');
+    }
+
+    try {
+      // Use global store object from cordova-plugin-purchase
+      const store = (window as any).store;
+      
+      if (!store) {
+        throw new Error('Cordova store plugin not available');
+      }
+      
+      return new Promise((resolve, reject) => {
+        // Initialize the store
+        store.initialize();
+
+        // Register the product
+        store.register({
+          id: productId,
+          type: store.AUTO_RENEWING_SUBSCRIPTION,
+        });
+
+        // Handle purchase events
+        store.when(productId).approved((product: any) => {
+          console.log('Purchase approved:', product);
+          
+          // Validate the receipt with our backend
+          validateAppleReceipt(product)
+            .then(() => {
+              product.verify();
+              resolve(product);
+            })
+            .catch(reject);
+        });
+
+        store.when(productId).verified((product: any) => {
+          console.log('Purchase verified:', product);
+          product.finish();
+          checkSubscription(); // Refresh subscription status
+        });
+
+        store.when(productId).error((error: any) => {
+          console.error('Purchase error:', error);
+          reject(new Error(error.message || 'Purchase failed'));
+        });
+
+        // Start the purchase
+        store.order(productId);
+      });
+    } catch (err) {
+      console.error('Error creating Apple subscription:', err);
+      throw err;
+    }
+  };
+
+  const validateAppleReceipt = async (product: any) => {
+    if (!user || !session) {
+      throw new Error('User not authenticated');
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('apple-receipt-validation', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: {
+          receiptData: product.receipt,
+          transactionId: product.transactionId,
+          originalTransactionId: product.originalTransactionId,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      return data;
+    } catch (err) {
+      console.error('Error validating Apple receipt:', err);
+      throw err;
+    }
+  };
+
   const cancelSubscriptionAtPeriodEnd = async () => {
     if (!user || !session) {
       throw new Error('User not authenticated');
@@ -152,6 +242,7 @@ export const useSubscription = () => {
     checkSubscription,
     createCheckout,
     createSubscriptionIntent,
+    createAppleSubscription,
     openCustomerPortal,
     cancelSubscriptionAtPeriodEnd,
   };

@@ -14,6 +14,88 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CHECK-SUBSCRIPTION] ${step}${detailsStr}`);
 };
 
+async function handleAppleSubscriptionCheck(req: Request, logStep: Function): Promise<Response> {
+  const supabaseClient = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    { auth: { persistSession: false } }
+  );
+
+  // Authentication
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) {
+    logStep("ERROR: No authorization header provided");
+    return new Response(JSON.stringify({ error: "Authorization header required" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 401,
+    });
+  }
+
+  const token = authHeader.replace("Bearer ", "");
+  const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
+  if (userError || !userData.user) {
+    logStep("ERROR: Authentication failed", { error: userError?.message });
+    return new Response(JSON.stringify({ error: "Invalid authentication token" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 401,
+    });
+  }
+  
+  const user = userData.user;
+  if (!user?.email) {
+    logStep("ERROR: User email not available");
+    return new Response(JSON.stringify({ error: "User email not available" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 400,
+    });
+  }
+  logStep("User authenticated for Apple check", { userId: user.id, email: user.email });
+
+  // Get Apple subscription status from database
+  try {
+    const { data: subscriber } = await supabaseClient
+      .from("subscribers")
+      .select("subscribed, subscription_tier, subscription_end, apple_subscription_id")
+      .eq("email", user.email)
+      .single();
+
+    if (subscriber) {
+      // Check if subscription is still valid
+      const now = new Date();
+      const subscriptionEnd = subscriber.subscription_end ? new Date(subscriber.subscription_end) : null;
+      const isActive = subscriber.subscribed && (!subscriptionEnd || subscriptionEnd > now);
+
+      logStep("Apple subscription status", { 
+        isActive, 
+        subscriptionEnd: subscriber.subscription_end,
+        tier: subscriber.subscription_tier 
+      });
+
+      return new Response(JSON.stringify({
+        subscribed: isActive,
+        subscription_tier: subscriber.subscription_tier,
+        subscription_end: subscriber.subscription_end,
+        cancel_at_period_end: false // Apple handles this differently
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    } else {
+      logStep("No Apple subscription found");
+      return new Response(JSON.stringify({ subscribed: false }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+  } catch (error) {
+    logStep("ERROR: Failed to check Apple subscription", { error: error.message });
+    return new Response(JSON.stringify({ error: "Failed to check subscription status" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+    });
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response('ok', { 
@@ -25,17 +107,26 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    const stripeKey = Deno.env.get("STRIPE_PRIVATE_KEY_TEST");
-    if (!stripeKey) {
-      logStep("ERROR: STRIPE_PRIVATE_KEY_TEST is not set");
-      return new Response(JSON.stringify({ error: "Stripe configuration missing" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      });
-    }
-    logStep("Stripe key verified");
+    // Check payment processor configuration
+    const paymentProcessor = Deno.env.get("PAYMENT_PROCESSOR") || "STRIPE";
+    logStep("Payment processor", { processor: paymentProcessor });
 
-    // Use the service role key to perform writes (upsert) in Supabase
+    if (paymentProcessor === "APPLE") {
+      // Handle Apple subscription check
+      return await handleAppleSubscriptionCheck(req, logStep);
+    } else {
+      // Handle Stripe subscription check (existing logic)
+      const stripeKey = Deno.env.get("STRIPE_PRIVATE_KEY_TEST");
+      if (!stripeKey) {
+        logStep("ERROR: STRIPE_PRIVATE_KEY_TEST is not set");
+        return new Response(JSON.stringify({ error: "Stripe configuration missing" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 500,
+        });
+      }
+      logStep("Stripe key verified");
+
+      // Use the service role key to perform writes (upsert) in Supabase
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
@@ -309,6 +400,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
+    } // End of Stripe branch
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR in check-subscription", { message: errorMessage });

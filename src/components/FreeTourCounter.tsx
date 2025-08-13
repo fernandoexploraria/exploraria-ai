@@ -4,11 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Sparkles, Lock, CreditCard, X, AlertTriangle } from 'lucide-react';
 import { useTourStats } from '@/hooks/useTourStats';
 import { useSubscription } from '@/hooks/useSubscription';
+import { Capacitor } from '@capacitor/core';
 import { SubscriptionDialog } from '@/components/subscription/SubscriptionDialog';
 
 const FreeTourCounter: React.FC = () => {
   const { tourStats, isLoading: tourLoading } = useTourStats();
-  const { subscriptionData, isLoading: subLoading, createCheckout, createSubscriptionIntent, openCustomerPortal, checkSubscription, cancelSubscriptionAtPeriodEnd } = useSubscription();
+  const { subscriptionData, isLoading: subLoading, createCheckout, createSubscriptionIntent, createAppleSubscription, openCustomerPortal, checkSubscription, cancelSubscriptionAtPeriodEnd } = useSubscription();
   const [isHighlighted, setIsHighlighted] = useState(false);
   const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
   const [subscriptionClientSecret, setSubscriptionClientSecret] = useState<string | null>(null);
@@ -47,14 +48,21 @@ const FreeTourCounter: React.FC = () => {
 
   const handleSubscribeClick = async () => {
     try {
-      if (useEmbeddedFlow) {
-        // Use embedded subscription flow
+      // Check if we should use Apple Pay (iOS + Apple payment processor)
+      const isIOS = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
+      // TODO: Add payment processor check when secret is available
+      
+      if (isIOS) {
+        // Use Apple Pay subscription
+        await createAppleSubscription('your_apple_subscription_product_id'); // Replace with your actual product ID
+      } else if (useEmbeddedFlow) {
+        // Use embedded Stripe subscription flow
         const { client_secret, subscription_id } = await createSubscriptionIntent();
         setSubscriptionClientSecret(client_secret);
         setSubscriptionId(subscription_id);
         setSubscriptionDialogOpen(true);
       } else {
-        // Use hosted checkout flow (existing)
+        // Use hosted Stripe checkout flow
         await createCheckout();
       }
     } catch (error) {
