@@ -22,7 +22,7 @@ const FreeTourCounter: React.FC = () => {
   const isSubscribed = subscriptionData?.subscribed || false;
   const isCancelled = subscriptionData?.cancel_at_period_end || false;
   const subscriptionEnd = subscriptionData?.subscription_end;
-  const isUnderReview = subscriptionData?.under_review || false;
+  
 
   // Wait for both loading states to complete to prevent flickering
   const isLoading = tourLoading || subLoading;
@@ -196,8 +196,8 @@ const FreeTourCounter: React.FC = () => {
               </>
             )}
 
-            {/* Manage Subscription Button - Only show if not under review */}
-            {!isUnderReview && (
+            {/* Manage Subscription Button */}
+            {(
               <>
                 <Button
                   variant="outline"
@@ -220,8 +220,8 @@ const FreeTourCounter: React.FC = () => {
               </>
             )}
 
-            {/* Cancel Subscription Button - Only show if not already cancelled and not under review */}
-            {!isCancelled && !isUnderReview && (
+            {/* Cancel Subscription Button - Only show if not already cancelled */}
+            {!isCancelled && (
               <>
                 <Button
                   variant="outline"

@@ -8,7 +8,6 @@ export interface SubscriptionData {
   subscription_tier?: string | null;
   subscription_end?: string | null;
   cancel_at_period_end?: boolean;
-  under_review?: boolean;
 }
 
 export const useSubscription = () => {

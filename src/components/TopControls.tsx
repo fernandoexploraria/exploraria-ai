@@ -51,7 +51,7 @@ const TopControls: React.FC<TopControlsProps> = ({
     user: authUser
   } = useAuth();
   const { subscriptionData } = useSubscription();
-  const isUnderReview = subscriptionData?.under_review || false;
+  
   const isMobile = useIsMobile();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDebugDrawerOpen, setIsDebugDrawerOpen] = useState(false);
@@ -197,8 +197,8 @@ const TopControls: React.FC<TopControlsProps> = ({
                 <span className="hidden lg:inline">Smart Tour</span>
               </Button>
               
-              {/* Experiences Button - Only show if not under review */}
-              {!isUnderReview && (
+              {/* Experiences Button */}
+              {(
                 <Button variant="outline" size="sm" className="bg-gradient-to-r from-purple-400/80 to-pink-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 border-purple-300 hover:from-purple-300/80 hover:to-pink-300/80" onClick={handleExperiencesClick}>
                   <Compass className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
                   <span className="lg:hidden">Experiences</span>
