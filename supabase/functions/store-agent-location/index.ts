@@ -41,10 +41,11 @@ serve(async (req) => {
 
     console.log(`[STORE-AGENT-LOCATION] Storing location for conversation: ${conversation_id}`);
 
-    // Use anon key for public access
+    // Use service role key to bypass RLS for agent location storage
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { auth: { persistSession: false } }
     );
 
     // Insert or update agent location

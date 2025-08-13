@@ -53,10 +53,11 @@ serve(async (req) => {
 
     console.log(`[GET-PLACE-DIRECTIONS] Getting directions to place_id: ${place_id} for conversation: ${conversation_id}`);
 
-    // Get agent location from database using anon key (no auth required)
+    // Use service role key to bypass RLS for agent location access
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { auth: { persistSession: false } }
     );
 
     // Query agent location by conversation_id

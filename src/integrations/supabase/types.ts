@@ -22,7 +22,7 @@ export type Database = {
           latitude: number
           longitude: number
           updated_at: string
-          user_id: string | null
+          user_id: string
         }
         Insert: {
           accuracy?: number | null
@@ -31,7 +31,7 @@ export type Database = {
           latitude: number
           longitude: number
           updated_at?: string
-          user_id?: string | null
+          user_id: string
         }
         Update: {
           accuracy?: number | null
@@ -40,7 +40,7 @@ export type Database = {
           latitude?: number
           longitude?: number
           updated_at?: string
-          user_id?: string | null
+          user_id?: string
         }
         Relationships: []
       }
