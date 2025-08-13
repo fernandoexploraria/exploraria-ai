@@ -55,14 +55,51 @@ const TopControls: React.FC<TopControlsProps> = ({
   // Apple Pay subscription handler
   const handleApplePaySubscribe = async () => {
     console.log('🍎 Apple Pay Subscribe clicked');
-    console.log('🍎 [Apple] Checking for store plugin...');
     
     try {
+      // Wait for Capacitor platform to be ready
+      const { Capacitor } = await import('@capacitor/core');
+      
+      if (Capacitor.isNativePlatform()) {
+        console.log('🍎 [Apple] Waiting for native platform to be ready...');
+        
+        // Wait for deviceready event on native platforms
+        await new Promise<void>((resolve) => {
+          const checkStore = () => {
+            if (typeof (window as any).store !== 'undefined') {
+              console.log('🍎 [Apple] Store plugin detected, proceeding...');
+              resolve();
+            } else {
+              console.log('🍎 [Apple] Store plugin not ready yet, waiting...');
+              setTimeout(checkStore, 100);
+            }
+          };
+          
+          // Check immediately first
+          checkStore();
+          
+          // Also listen for deviceready as backup
+          document.addEventListener('deviceready', () => resolve(), { once: true });
+          
+          // Fallback timeout
+          setTimeout(() => {
+            console.warn('🍎 [Apple] Timeout waiting for store plugin');
+            resolve();
+          }, 5000);
+        });
+      }
+      
+      console.log('🍎 [Apple] Checking for store plugin...');
+      
       // Check if cordova-plugin-purchase is available
       const store = (window as any).store;
       if (!store) {
         console.error('🍎 [Apple] Store plugin not available');
-        alert('Apple Pay not available - store plugin missing');
+        toast({
+          title: "Error",
+          description: "Apple Pay not available - store plugin missing",
+          variant: "destructive",
+        });
         return;
       }
       
@@ -81,20 +118,32 @@ const TopControls: React.FC<TopControlsProps> = ({
         // Finish the transaction
         product.finish();
         console.log('🍎 [Apple] Subscription successful!');
-        alert('Apple Pay subscription successful!');
+        toast({
+          title: "Success!",
+          description: "Apple Pay subscription activated successfully!",
+        });
       });
       
       store.when('LEXPS0001').error((error: any) => {
         console.error('🍎 [Apple] Product error:', error);
-        alert('Apple Pay subscription failed: ' + error.message);
+        toast({
+          title: "Error",
+          description: `Apple Pay subscription failed: ${error.message}`,
+          variant: "destructive",
+        });
       });
       
       store.error((error: any) => {
         console.error('🍎 [Apple] Store error:', error);
-        alert('Apple Pay error: ' + error.message);
+        toast({
+          title: "Error",
+          description: `Apple Pay error: ${error.message}`,
+          variant: "destructive",
+        });
       });
       
       // Initialize and refresh
+      console.log('🍎 [Apple] Initializing store...');
       await store.initialize();
       store.refresh();
       
@@ -104,7 +153,11 @@ const TopControls: React.FC<TopControlsProps> = ({
       
     } catch (error) {
       console.error('🍎 [Apple] Error in Apple Pay subscription:', error);
-      alert('Apple Pay subscription failed: ' + (error as Error).message);
+      toast({
+        title: "Error",
+        description: `Apple Pay subscription failed: ${(error as Error).message}`,
+        variant: "destructive",
+      });
     }
   };
   
