@@ -361,6 +361,9 @@ export type Database = {
       payments: {
         Row: {
           amount: number
+          apple_original_transaction_id: string | null
+          apple_receipt_data: string | null
+          apple_transaction_id: string | null
           created_at: string
           currency: string
           id: string
@@ -381,6 +384,9 @@ export type Database = {
         }
         Insert: {
           amount: number
+          apple_original_transaction_id?: string | null
+          apple_receipt_data?: string | null
+          apple_transaction_id?: string | null
           created_at?: string
           currency?: string
           id?: string
@@ -401,6 +407,9 @@ export type Database = {
         }
         Update: {
           amount?: number
+          apple_original_transaction_id?: string | null
+          apple_receipt_data?: string | null
+          apple_transaction_id?: string | null
           created_at?: string
           currency?: string
           id?: string
@@ -632,6 +641,7 @@ export type Database = {
       }
       subscribers: {
         Row: {
+          apple_subscription_id: string | null
           created_at: string
           email: string
           id: string
@@ -646,6 +656,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          apple_subscription_id?: string | null
           created_at?: string
           email: string
           id?: string
@@ -660,6 +671,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          apple_subscription_id?: string | null
           created_at?: string
           email?: string
           id?: string
