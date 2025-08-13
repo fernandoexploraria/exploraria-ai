@@ -127,12 +127,22 @@ export const useSubscription = () => {
     }
 
     try {
+      console.log('🍎 [Apple] Checking for store plugin...');
+      
       // Use global store object from cordova-plugin-purchase
       const store = (window as any).store;
       
+      console.log('🍎 [Apple] Store availability:', { 
+        storeExists: !!store, 
+        windowStore: typeof (window as any).store,
+        storeKeys: store ? Object.keys(store) : 'N/A'
+      });
+      
       if (!store) {
-        throw new Error('Cordova store plugin not available');
+        throw new Error('Cordova store plugin not available. Make sure cordova-plugin-purchase is installed and the app is built for iOS.');
       }
+      
+      console.log('🍎 [Apple] Initializing store for product:', productId);
       
       return new Promise((resolve, reject) => {
         // Initialize the store
