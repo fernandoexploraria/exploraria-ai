@@ -51,15 +51,22 @@ const FreeTourCounter: React.FC = () => {
     try {
       // Check if we should use Apple Pay (iOS + Apple payment processor)
       const isIOS = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
+      console.log('🔍 Platform detection:', { isIOS, platform: Capacitor.getPlatform(), isNative: Capacitor.isNativePlatform() });
       
       // Check payment processor preference via edge function
-      const { data: config } = await supabase.functions.invoke('get-stripe-config');
+      const { data: config, error: configError } = await supabase.functions.invoke('get-stripe-config');
+      console.log('🔍 Payment config:', { config, configError });
+      
       const useApplePay = isIOS && config?.paymentProcessor === 'APPLE';
+      console.log('🔍 Payment method decision:', { useApplePay, paymentProcessor: config?.paymentProcessor });
       
       if (useApplePay) {
+        console.log('🍎 Using Apple Pay subscription');
         // Use Apple Pay subscription - Replace with your App Store Connect product ID
         await createAppleSubscription('LEXPS0001');
       } else if (useEmbeddedFlow) {
+        console.log('💳 Using embedded Stripe flow');
+        // Use embedded Stripe subscription flow
         // Use embedded Stripe subscription flow
         const { client_secret, subscription_id } = await createSubscriptionIntent();
         setSubscriptionClientSecret(client_secret);
