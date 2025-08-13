@@ -43,21 +43,7 @@ export const useApplePurchase = () => {
   useEffect(() => {
     initializePurchasePlugin();
     
-    // Cleanup function for event listeners
-    return () => {
-      if (window.CdvPurchase?.store) {
-        try {
-          // Remove event listeners if they exist
-          const store = window.CdvPurchase.store;
-          if (store.off) {
-            store.off('product', 'approved');
-            store.off('product', 'finished');
-          }
-        } catch (cleanupError) {
-          console.warn('🍎 Cleanup failed:', cleanupError);
-        }
-      }
-    };
+    // No cleanup needed for store.when() - it manages its own listeners
   }, []);
 
   const initializePurchasePlugin = async () => {
@@ -101,22 +87,18 @@ export const useApplePurchase = () => {
         type: window.CdvPurchase.ProductType?.PAID_SUBSCRIPTION || 'PAID_SUBSCRIPTION'
       });
 
-      // Set up event handlers using store.on() instead of store.when()
-      const approvedListener = (product: any) => {
+      // Set up event handlers using the correct cordova-plugin-purchase API
+      store.when().approved((product: any) => {
         console.log('🍎 Product approved:', product);
         handleTransactionApproved(product);
-      };
+      });
 
-      const finishedListener = (product: any) => {
+      store.when().finished((product: any) => {
         console.log('🍎 Product finished:', product);
         setState(prev => ({ ...prev, isProcessing: false }));
-      };
+      });
 
-      // Use store.on() for event listeners
-      store.on('product', 'approved', approvedListener);
-      store.on('product', 'finished', finishedListener);
-
-      // Error handling with proper error object handling
+      // Error handling
       store.error((error: any) => {
         console.error('🍎 Purchase error:', error);
         const errorMessage = error instanceof Error ? error.message : (error?.message || 'Purchase failed');
@@ -139,11 +121,11 @@ export const useApplePurchase = () => {
         }));
       });
 
-      // Refresh store to get latest product info with error handling
+      // Use store.update() instead of deprecated refresh()
       try {
-        store.refresh();
-      } catch (refreshError) {
-        console.warn('🍎 Store refresh failed:', refreshError);
+        await store.update();
+      } catch (updateError) {
+        console.warn('🍎 Store update failed:', updateError);
       }
 
     } catch (error) {
@@ -250,12 +232,12 @@ export const useApplePurchase = () => {
     }
   };
 
-  const refreshProducts = () => {
+  const refreshProducts = async () => {
     if (window.CdvPurchase?.store && state.isAvailable) {
       try {
-        window.CdvPurchase.store.refresh();
-      } catch (refreshError) {
-        console.warn('🍎 Product refresh failed:', refreshError);
+        await window.CdvPurchase.store.update();
+      } catch (updateError) {
+        console.warn('🍎 Product update failed:', updateError);
       }
     }
   };
