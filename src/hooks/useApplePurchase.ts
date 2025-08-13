@@ -25,6 +25,8 @@ export interface ApplePurchaseState {
   isLoading: boolean;
   error: string | null;
   isProcessing: boolean;
+  isProductReady: boolean;
+  product: any | null;
 }
 
 const SUBSCRIPTION_PRODUCT_ID = 'LEXPS0001';
@@ -35,6 +37,8 @@ export const useApplePurchase = () => {
     isLoading: true,
     error: null,
     isProcessing: false,
+    isProductReady: false,
+    product: null,
   });
 
   const { user, session } = useAuth();
@@ -85,6 +89,27 @@ export const useApplePurchase = () => {
       store.register({
         id: SUBSCRIPTION_PRODUCT_ID,
         type: window.CdvPurchase.ProductType?.PAID_SUBSCRIPTION || 'PAID_SUBSCRIPTION'
+      });
+
+      // CRITICAL: Listen for productUpdated event to know when products are ready
+      store.when().productUpdated((product: any) => {
+        console.log('🍎 Product updated:', product);
+        if (product.id === SUBSCRIPTION_PRODUCT_ID) {
+          console.log('🍎 Our product updated:', {
+            id: product.id,
+            state: product.state,
+            valid: product.valid,
+            canPurchase: product.canPurchase,
+            title: product.title,
+            price: product.price
+          });
+          
+          setState(prev => ({ 
+            ...prev, 
+            isProductReady: product.valid && product.canPurchase,
+            product: product 
+          }));
+        }
       });
 
       // Set up event handlers using the correct cordova-plugin-purchase API
@@ -220,6 +245,10 @@ export const useApplePurchase = () => {
     try {
       if (!state.isAvailable) {
         throw new Error('Apple purchases not available');
+      }
+
+      if (!state.isProductReady) {
+        throw new Error('Product not ready yet - please wait for App Store to load product details');
       }
 
       if (!user) {
