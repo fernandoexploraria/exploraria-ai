@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube, MapPin, ToggleLeft, ToggleRight, Compass } from 'lucide-react';
+import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube, MapPin, ToggleLeft, ToggleRight, Compass, Apple } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerTrigger, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import SearchControl from '@/components/SearchControl';
 import FreeTourCounter from '@/components/FreeTourCounter';
@@ -51,6 +51,62 @@ const TopControls: React.FC<TopControlsProps> = ({
     user: authUser
   } = useAuth();
   const { subscriptionData } = useSubscription();
+  
+  // Apple Pay subscription handler
+  const handleApplePaySubscribe = async () => {
+    console.log('🍎 Apple Pay Subscribe clicked');
+    console.log('🍎 [Apple] Checking for store plugin...');
+    
+    try {
+      // Check if cordova-plugin-purchase is available
+      const store = (window as any).store;
+      if (!store) {
+        console.error('🍎 [Apple] Store plugin not available');
+        alert('Apple Pay not available - store plugin missing');
+        return;
+      }
+      
+      console.log('🍎 [Apple] Store plugin found, initializing...');
+      console.log('🍎 [Apple] Product ID: LEXPS0001');
+      
+      // Register the product
+      store.register({
+        id: 'LEXPS0001',
+        type: store.AUTO_RENEWING_SUBSCRIPTION
+      });
+      
+      // Set up event handlers
+      store.when('LEXPS0001').approved((product: any) => {
+        console.log('🍎 [Apple] Product approved:', product);
+        // Finish the transaction
+        product.finish();
+        console.log('🍎 [Apple] Subscription successful!');
+        alert('Apple Pay subscription successful!');
+      });
+      
+      store.when('LEXPS0001').error((error: any) => {
+        console.error('🍎 [Apple] Product error:', error);
+        alert('Apple Pay subscription failed: ' + error.message);
+      });
+      
+      store.error((error: any) => {
+        console.error('🍎 [Apple] Store error:', error);
+        alert('Apple Pay error: ' + error.message);
+      });
+      
+      // Initialize and refresh
+      await store.initialize();
+      store.refresh();
+      
+      // Order the product
+      console.log('🍎 [Apple] Ordering product...');
+      store.order('LEXPS0001');
+      
+    } catch (error) {
+      console.error('🍎 [Apple] Error in Apple Pay subscription:', error);
+      alert('Apple Pay subscription failed: ' + (error as Error).message);
+    }
+  };
   
   const isMobile = useIsMobile();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -251,6 +307,31 @@ const TopControls: React.FC<TopControlsProps> = ({
                 </>}
               
               {user && <FreeTourCounter />}
+              
+              {/* Apple Pay Subscribe Button */}
+              {user && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left"
+                  onClick={handleApplePaySubscribe}
+                >
+                  <Apple className="mr-1 h-3 w-3" />
+                  Subscribe with Apple Pay
+                </Button>
+              )}
+              
+              {/* Desktop Apple Pay Button */}
+              {user && (
+                <Button
+                  variant="outline"
+                  className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left"
+                  onClick={handleApplePaySubscribe}
+                >
+                  <Apple className="mr-2 h-4 w-4" />
+                  Subscribe with Apple Pay
+                </Button>
+              )}
             </div>}
         </div>
       </div>
