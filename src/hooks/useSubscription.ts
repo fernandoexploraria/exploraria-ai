@@ -144,22 +144,25 @@ export const useSubscription = () => {
       
       console.log('🍎 [Apple] Initializing store for product:', productId);
       
+      // Check if store methods exist - if not, we're probably in web environment
+      const methodsAvailable = {
+        initialize: typeof store.initialize,
+        register: typeof store.register,
+        order: typeof store.order,
+        when: typeof store.when,
+        AUTO_RENEWING_SUBSCRIPTION: typeof store.AUTO_RENEWING_SUBSCRIPTION
+      };
+      
+      console.log('🍎 [Apple] Available store methods:', methodsAvailable);
+      
+      if (typeof store.initialize !== 'function') {
+        console.log('🍎 [Apple] Store methods not available - falling back to Stripe');
+        throw new Error('Apple Pay plugin not properly loaded - falling back to Stripe');
+      }
+      
       return new Promise((resolve, reject) => {
         try {
           console.log('🍎 [Apple] About to call store.initialize()...');
-          
-          // Check if store methods exist
-          console.log('🍎 [Apple] Available store methods:', {
-            initialize: typeof store.initialize,
-            register: typeof store.register,
-            order: typeof store.order,
-            when: typeof store.when,
-            AUTO_RENEWING_SUBSCRIPTION: typeof store.AUTO_RENEWING_SUBSCRIPTION
-          });
-          
-          if (typeof store.initialize !== 'function') {
-            throw new Error('Store initialize method not available');
-          }
           
           // Initialize the store
           store.initialize();

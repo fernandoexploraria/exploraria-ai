@@ -62,11 +62,28 @@ const FreeTourCounter: React.FC = () => {
       
       if (useApplePay) {
         console.log('🍎 Using Apple Pay subscription');
-        // Use Apple Pay subscription - Replace with your App Store Connect product ID
-        await createAppleSubscription('LEXPS0001');
+        try {
+          // Use Apple Pay subscription - Replace with your App Store Connect product ID
+          await createAppleSubscription('LEXPS0001');
+        } catch (appleError: any) {
+          // If Apple Pay fails due to plugin not being available, fall back to Stripe
+          if (appleError?.message?.includes('falling back to Stripe') || 
+              appleError?.message?.includes('plugin not properly loaded')) {
+            console.log('🍎 Apple Pay not available, falling back to Stripe');
+            if (useEmbeddedFlow) {
+              const { client_secret, subscription_id } = await createSubscriptionIntent();
+              setSubscriptionClientSecret(client_secret);
+              setSubscriptionId(subscription_id);
+              setSubscriptionDialogOpen(true);
+            } else {
+              await createCheckout();
+            }
+          } else {
+            throw appleError;
+          }
+        }
       } else if (useEmbeddedFlow) {
         console.log('💳 Using embedded Stripe flow');
-        // Use embedded Stripe subscription flow
         // Use embedded Stripe subscription flow
         const { client_secret, subscription_id } = await createSubscriptionIntent();
         setSubscriptionClientSecret(client_secret);
