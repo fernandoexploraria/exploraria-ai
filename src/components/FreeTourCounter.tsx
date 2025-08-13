@@ -4,13 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Sparkles, Lock, CreditCard, X, AlertTriangle } from 'lucide-react';
 import { useTourStats } from '@/hooks/useTourStats';
 import { useSubscription } from '@/hooks/useSubscription';
-import { Capacitor } from '@capacitor/core';
 import { SubscriptionDialog } from '@/components/subscription/SubscriptionDialog';
-import { supabase } from '@/integrations/supabase/client';
 
 const FreeTourCounter: React.FC = () => {
   const { tourStats, isLoading: tourLoading } = useTourStats();
-  const { subscriptionData, isLoading: subLoading, createCheckout, createSubscriptionIntent, createAppleSubscription, openCustomerPortal, checkSubscription, cancelSubscriptionAtPeriodEnd } = useSubscription();
+  const { subscriptionData, isLoading: subLoading, createCheckout, createSubscriptionIntent, openCustomerPortal, checkSubscription, cancelSubscriptionAtPeriodEnd } = useSubscription();
   const [isHighlighted, setIsHighlighted] = useState(false);
   const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
   const [subscriptionClientSecret, setSubscriptionClientSecret] = useState<string | null>(null);
@@ -49,31 +47,14 @@ const FreeTourCounter: React.FC = () => {
 
   const handleSubscribeClick = async () => {
     try {
-      // Check if we should use Apple Pay (iOS + Apple payment processor)
-      const isIOS = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
-      console.log('🔍 Platform detection:', { isIOS, platform: Capacitor.getPlatform(), isNative: Capacitor.isNativePlatform() });
-      
-      // Check payment processor preference via edge function
-      const { data: config, error: configError } = await supabase.functions.invoke('get-stripe-config');
-      console.log('🔍 Payment config:', { config, configError });
-      
-      const useApplePay = isIOS && config?.paymentProcessor === 'APPLE';
-      console.log('🔍 Payment method decision:', { useApplePay, paymentProcessor: config?.paymentProcessor });
-      
-      if (useApplePay) {
-        console.log('🍎 Using Apple Pay subscription');
-        // Use Apple Pay subscription - Replace with your App Store Connect product ID
-        await createAppleSubscription('LEXPS0001');
-      } else if (useEmbeddedFlow) {
-        console.log('💳 Using embedded Stripe flow');
-        // Use embedded Stripe subscription flow
-        // Use embedded Stripe subscription flow
+      if (useEmbeddedFlow) {
+        // Use embedded subscription flow
         const { client_secret, subscription_id } = await createSubscriptionIntent();
         setSubscriptionClientSecret(client_secret);
         setSubscriptionId(subscription_id);
         setSubscriptionDialogOpen(true);
       } else {
-        // Use hosted Stripe checkout flow
+        // Use hosted checkout flow (existing)
         await createCheckout();
       }
     } catch (error) {

@@ -12,7 +12,6 @@ serve(async (req) => {
 
   try {
     const publicKey = Deno.env.get("STRIPE_PUBLIC_KEY_TEST");
-    const paymentProcessor = Deno.env.get("PAYMENT_PROCESSOR") || "STRIPE";
     
     if (!publicKey) {
       return new Response(
@@ -25,10 +24,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ 
-        publicKey,
-        paymentProcessor 
-      }),
+      JSON.stringify({ publicKey }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
