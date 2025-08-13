@@ -145,44 +145,73 @@ export const useSubscription = () => {
       console.log('🍎 [Apple] Initializing store for product:', productId);
       
       return new Promise((resolve, reject) => {
-        // Initialize the store
-        store.initialize();
-
-        // Register the product
-        store.register({
-          id: productId,
-          type: store.AUTO_RENEWING_SUBSCRIPTION,
-        });
-
-        // Handle purchase events
-        store.when(productId).approved((product: any) => {
-          console.log('Purchase approved:', product);
+        try {
+          console.log('🍎 [Apple] About to call store.initialize()...');
           
-          // Validate the receipt with our backend
-          validateAppleReceipt(product)
-            .then(() => {
-              product.verify();
-              resolve(product);
-            })
-            .catch(reject);
-        });
+          // Check if store methods exist
+          console.log('🍎 [Apple] Available store methods:', {
+            initialize: typeof store.initialize,
+            register: typeof store.register,
+            order: typeof store.order,
+            when: typeof store.when,
+            AUTO_RENEWING_SUBSCRIPTION: typeof store.AUTO_RENEWING_SUBSCRIPTION
+          });
+          
+          if (typeof store.initialize !== 'function') {
+            throw new Error('Store initialize method not available');
+          }
+          
+          // Initialize the store
+          store.initialize();
+          console.log('🍎 [Apple] Store initialized successfully');
 
-        store.when(productId).verified((product: any) => {
-          console.log('Purchase verified:', product);
-          product.finish();
-          checkSubscription(); // Refresh subscription status
-        });
+          // Register the product
+          console.log('🍎 [Apple] Registering product:', productId);
+          store.register({
+            id: productId,
+            type: store.AUTO_RENEWING_SUBSCRIPTION,
+          });
+          console.log('🍎 [Apple] Product registered successfully');
 
-        store.when(productId).error((error: any) => {
-          console.error('Purchase error:', error);
-          reject(new Error(error.message || 'Purchase failed'));
-        });
+          // Handle purchase events
+          store.when(productId).approved((product: any) => {
+            console.log('🍎 [Apple] Purchase approved:', product);
+            
+            // Validate the receipt with our backend
+            validateAppleReceipt(product)
+              .then(() => {
+                product.verify();
+                resolve(product);
+              })
+              .catch((err) => {
+                console.error('🍎 [Apple] Receipt validation failed:', err);
+                reject(err);
+              });
+          });
 
-        // Start the purchase
-        store.order(productId);
+          store.when(productId).verified((product: any) => {
+            console.log('🍎 [Apple] Purchase verified:', product);
+            product.finish();
+            checkSubscription(); // Refresh subscription status
+          });
+
+          store.when(productId).error((error: any) => {
+            console.error('🍎 [Apple] Purchase error:', error);
+            reject(new Error(error.message || 'Purchase failed'));
+          });
+
+          // Start the purchase
+          console.log('🍎 [Apple] Starting purchase order...');
+          store.order(productId);
+          console.log('🍎 [Apple] Purchase order initiated');
+          
+        } catch (initError) {
+          console.error('🍎 [Apple] Error in store initialization:', initError);
+          reject(initError);
+        }
       });
     } catch (err) {
-      console.error('Error creating Apple subscription:', err);
+      console.error('🍎 [Apple] Error creating Apple subscription:', err);
       throw err;
     }
   };
