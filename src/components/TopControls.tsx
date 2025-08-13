@@ -232,22 +232,20 @@ const TopControls: React.FC<TopControlsProps> = ({
                 </Button>
               )}
               
-              {/* Apple Pay Subscribe Button - Only show on iOS when available and not subscribed */}
-              {isApplePayAvailable && !subscriptionData?.subscribed && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="bg-gradient-to-r from-gray-800/80 to-gray-900/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 border-gray-700 hover:from-gray-700/80 hover:to-gray-800/80 text-white" 
-                  onClick={handleApplePaySubscribe}
-                  disabled={isApplePayProcessing}
-                >
-                  <svg className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-                  </svg>
-                  <span className="lg:hidden">{isApplePayProcessing ? 'Processing...' : 'Apple Pay'}</span>
-                  <span className="hidden lg:inline">{isApplePayProcessing ? 'Processing...' : 'Subscribe with Apple Pay'}</span>
-                </Button>
-              )}
+              {/* Apple Pay Subscribe Button - Always visible for testing */}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="bg-gradient-to-r from-gray-800/80 to-gray-900/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 border-gray-700 hover:from-gray-700/80 hover:to-gray-800/80 text-white" 
+                onClick={handleApplePaySubscribe}
+                disabled={isApplePayProcessing}
+              >
+                <svg className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+                </svg>
+                <span className="lg:hidden">{isApplePayProcessing ? 'Processing...' : 'Apple Pay'}</span>
+                <span className="hidden lg:inline">{isApplePayProcessing ? 'Processing...' : 'Subscribe with Apple Pay'}</span>
+              </Button>
               
               {/* Tour Guide Button - only appears when there's an active Smart Tour */}
               {smartTourLandmarks.length > 0 && <Button variant="outline" size="sm" className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2" onClick={onVoiceAssistantOpen}>
