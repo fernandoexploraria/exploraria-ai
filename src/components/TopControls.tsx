@@ -153,9 +153,18 @@ const TopControls: React.FC<TopControlsProps> = ({
       
     } catch (error) {
       console.error('🍎 [Apple] Error in Apple Pay subscription:', error);
+      console.error('🍎 [Apple] Full error object:', JSON.stringify(error, null, 2));
+      console.error('🍎 [Apple] Error type:', typeof error);
+      console.error('🍎 [Apple] Error constructor:', error?.constructor?.name);
+      
+      const errorMessage = error instanceof Error ? error.message : 
+                          typeof error === 'string' ? error :
+                          error && typeof error === 'object' ? JSON.stringify(error) :
+                          'Unknown error occurred';
+      
       toast({
-        title: "Error",
-        description: `Apple Pay subscription failed: ${(error as Error).message}`,
+        title: "Apple Pay Error",
+        description: `Subscription failed: ${errorMessage}`,
         variant: "destructive",
       });
     }
