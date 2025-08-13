@@ -113,6 +113,26 @@ export const useApplePurchase = () => {
       // Wait for store to be ready
       store.ready(() => {
         console.log('🍎 Store is ready');
+        
+        // Debug: Log all available products
+        const products = window.CdvPurchase.store.products || [];
+        console.log('🍎 Available products:', products.map(p => ({
+          id: p.id,
+          title: p.title,
+          valid: p.valid,
+          canPurchase: p.canPurchase
+        })));
+        
+        // Check if our product is available
+        const ourProduct = window.CdvPurchase.store.get(SUBSCRIPTION_PRODUCT_ID);
+        console.log('🍎 Our product status:', {
+          productId: SUBSCRIPTION_PRODUCT_ID,
+          found: !!ourProduct,
+          valid: ourProduct?.valid,
+          canPurchase: ourProduct?.canPurchase,
+          title: ourProduct?.title
+        });
+        
         setState(prev => ({ 
           ...prev, 
           isAvailable: true, 
@@ -211,6 +231,29 @@ export const useApplePurchase = () => {
       }
 
       setState(prev => ({ ...prev, isProcessing: true, error: null }));
+      
+      // Debug: Check product availability before ordering
+      const product = window.CdvPurchase.store.get(SUBSCRIPTION_PRODUCT_ID);
+      console.log('🍎 Pre-purchase product check:', {
+        productId: SUBSCRIPTION_PRODUCT_ID,
+        found: !!product,
+        valid: product?.valid,
+        canPurchase: product?.canPurchase,
+        title: product?.title,
+        allProducts: window.CdvPurchase.store.products?.map(p => p.id) || []
+      });
+      
+      if (!product) {
+        throw new Error(`Product ${SUBSCRIPTION_PRODUCT_ID} not found in store`);
+      }
+      
+      if (!product.valid) {
+        throw new Error(`Product ${SUBSCRIPTION_PRODUCT_ID} is not valid`);
+      }
+      
+      if (!product.canPurchase) {
+        throw new Error(`Product ${SUBSCRIPTION_PRODUCT_ID} cannot be purchased`);
+      }
       
       console.log('🍎 Initiating purchase for:', SUBSCRIPTION_PRODUCT_ID);
       
