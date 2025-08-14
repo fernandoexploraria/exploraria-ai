@@ -94,12 +94,17 @@ export const useRevenueCat = () => {
 
     const configureRevenueCat = async () => {
       try {
+        console.log('🍎 RevenueCat: Starting configuration...');
+        
         // Get RevenueCat public API key from Supabase
         const { data, error } = await supabase.functions.invoke('get-revenuecat-config');
         
         if (error || !data?.publicApiKey) {
+          console.error('🍎 RevenueCat: Failed to get config:', error);
           throw new Error('Failed to get RevenueCat configuration');
         }
+        
+        console.log('🍎 RevenueCat: Got API key, configuring...');
         
         // Configure with public API key
         await window.Purchases.configure(data.publicApiKey);
@@ -109,9 +114,11 @@ export const useRevenueCat = () => {
         
         // Log in user if authenticated
         if (user?.id) {
+          console.log('🍎 RevenueCat: Logging in user:', user.id);
           await window.Purchases.logIn(user.id);
         }
         
+        console.log('🍎 RevenueCat: Configuration complete!');
         setIsInitialized(true);
         
         // Load products and customer info
@@ -127,13 +134,18 @@ export const useRevenueCat = () => {
   }, [user?.id]);
 
   const loadProducts = async () => {
-    if (!window.Purchases?.isConfigured()) return;
+    if (!window.Purchases?.isConfigured()) {
+      console.log('🍎 RevenueCat: Not configured, skipping product load');
+      return;
+    }
     
     try {
+      console.log('🍎 RevenueCat: Loading products:', PRODUCT_IDS);
       const products = await window.Purchases.getProducts(PRODUCT_IDS);
+      console.log('🍎 RevenueCat: Products loaded:', products);
       setProducts(products);
     } catch (err) {
-      console.error('Failed to load products:', err);
+      console.error('🍎 RevenueCat: Failed to load products:', err);
       setError(err instanceof Error ? err.message : 'Failed to load products');
     }
   };
