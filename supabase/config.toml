@@ -65,6 +65,9 @@ verify_jwt = true
 [functions.create-onboarding-link]
 verify_jwt = true
 
+[functions.revenuecat-webhook]
+verify_jwt = false
+
 [storage]
 enabled = true
 port = 54325
