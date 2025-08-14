@@ -59,13 +59,24 @@ export const useCordovaSubscription = () => {
       await initializeStore();
     };
 
-    // Add deviceready listener
-    document.addEventListener('deviceready', onDeviceReady, false);
-
-    // For testing in browser, call directly
-    if (!window.CdvPurchase) {
-      console.log('🍎 Cordova store not available (running in browser)');
-      return;
+    // Check if we're in a Cordova/Capacitor environment
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      // Document is already loaded, check for deviceready
+      if ((window as any).cordova || (window as any).Capacitor) {
+        document.addEventListener('deviceready', onDeviceReady, false);
+      } else if (window.CdvPurchase) {
+        // Running in browser with plugin available
+        onDeviceReady();
+      }
+    } else {
+      // Wait for document to load first
+      document.addEventListener('DOMContentLoaded', () => {
+        if ((window as any).cordova || (window as any).Capacitor) {
+          document.addEventListener('deviceready', onDeviceReady, false);
+        } else if (window.CdvPurchase) {
+          onDeviceReady();
+        }
+      });
     }
 
     // Cleanup listener
@@ -81,31 +92,25 @@ export const useCordovaSubscription = () => {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
       const store = window.CdvPurchase.store;
       
+      console.log('🍎 Starting Cordova store initialization...');
+      
       // Enable detailed logging
       store.verbosity = window.CdvPurchase.DEBUG;
 
-      // Register the LEXPS0001 product
+      // Step 1: Register the product FIRST
+      console.log('🍎 Step 1: Registering product LEXPS0001');
       store.register({
         id: 'LEXPS0001',
         type: window.CdvPurchase.ProductType.PAID_SUBSCRIPTION,
         platform: window.CdvPurchase.Platform.APPLE_APPSTORE,
       });
 
-      // Handle any existing transactions BEFORE setting up new handlers
-      const cleanupExistingTransactions = () => {
-        const existingProduct = store.get('LEXPS0001');
-        if (existingProduct && existingProduct.transaction) {
-          console.log('🍎 Cleaning up existing transaction before init:', existingProduct.transaction);
-          existingProduct.finish();
-        }
-      };
-
-      // Clean up immediately after registration
-      cleanupExistingTransactions();
-
-      // Set up event handlers
+      // Step 2: Set up ALL event handlers BEFORE calling store.ready()
+      console.log('🍎 Step 2: Setting up event handlers');
+      
       store.when('LEXPS0001').approved((product: any) => {
-        console.log('🍎 Product approved:', product);
+        console.log('🍎 Product approved (pending transaction will trigger this):', product);
+        // This will handle the existing PaymentTransactionStatePurchased
         product.verify();
       });
 
@@ -113,9 +118,12 @@ export const useCordovaSubscription = () => {
         console.log('🍎 Product verified:', product);
         try {
           await handleAppleReceipt(product);
+          console.log('🍎 Receipt processed successfully, finishing transaction');
           product.finish();
         } catch (err) {
-          console.error('🍎 Error in handleAppleReceipt or finishing:', err);
+          console.error('🍎 Error in handleAppleReceipt:', err);
+          // Still finish to prevent queue blockage
+          console.log('🍎 Finishing transaction despite error to clear queue');
           product.finish();
           setState(prev => ({ ...prev, error: 'Backend verification failed.' }));
         }
@@ -148,12 +156,10 @@ export const useCordovaSubscription = () => {
         }));
       });
 
-      // Initialize the store
+      // Step 3: Initialize the store - this will trigger pending transaction processing
+      console.log('🍎 Step 3: Initializing store (this will process pending transactions)');
       await store.ready();
-      console.log('🍎 Cordova store is ready.');
-
-      // Final cleanup after store is ready
-      cleanupExistingTransactions();
+      console.log('🍎 Cordova store is ready and pending transactions processed.');
 
       // Force an update to fetch product info
       await store.update();
