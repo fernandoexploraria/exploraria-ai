@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
+  // Allows to automatically instanciate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -361,17 +361,12 @@ export type Database = {
       payments: {
         Row: {
           amount: number
-          apple_original_transaction_id: string | null
-          apple_receipt_data: string | null
-          apple_transaction_id: string | null
           created_at: string
           currency: string
           id: string
           metadata: Json | null
-          payment_platform: string | null
           payment_type: string | null
           platform_fee_amount: number
-          product_id: string | null
           status: string
           stripe_charge_id: string | null
           stripe_customer_id: string | null
@@ -382,22 +377,16 @@ export type Database = {
           tour_guide_payout_amount: number
           tour_id: string | null
           tourist_user_id: string | null
-          transaction_date: string | null
           updated_at: string
         }
         Insert: {
           amount: number
-          apple_original_transaction_id?: string | null
-          apple_receipt_data?: string | null
-          apple_transaction_id?: string | null
           created_at?: string
           currency?: string
           id?: string
           metadata?: Json | null
-          payment_platform?: string | null
           payment_type?: string | null
           platform_fee_amount: number
-          product_id?: string | null
           status?: string
           stripe_charge_id?: string | null
           stripe_customer_id?: string | null
@@ -408,22 +397,16 @@ export type Database = {
           tour_guide_payout_amount: number
           tour_id?: string | null
           tourist_user_id?: string | null
-          transaction_date?: string | null
           updated_at?: string
         }
         Update: {
           amount?: number
-          apple_original_transaction_id?: string | null
-          apple_receipt_data?: string | null
-          apple_transaction_id?: string | null
           created_at?: string
           currency?: string
           id?: string
           metadata?: Json | null
-          payment_platform?: string | null
           payment_type?: string | null
           platform_fee_amount?: number
-          product_id?: string | null
           status?: string
           stripe_charge_id?: string | null
           stripe_customer_id?: string | null
@@ -434,7 +417,6 @@ export type Database = {
           tour_guide_payout_amount?: number
           tour_id?: string | null
           tourist_user_id?: string | null
-          transaction_date?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -650,64 +632,43 @@ export type Database = {
       }
       subscribers: {
         Row: {
-          apple_original_transaction_id: string | null
-          apple_receipt_data: string | null
-          apple_subscription_id: string | null
-          billing_issue: boolean | null
           created_at: string
           email: string
           id: string
-          latest_transaction_id: string | null
-          original_transaction_id: string | null
           stripe_cancel_at_period_end: boolean
           stripe_customer_id: string | null
           stripe_status: string | null
           stripe_subscription_id: string | null
           subscribed: boolean
           subscription_end: string | null
-          subscription_platform: string | null
           subscription_tier: string | null
           updated_at: string
           user_id: string | null
         }
         Insert: {
-          apple_original_transaction_id?: string | null
-          apple_receipt_data?: string | null
-          apple_subscription_id?: string | null
-          billing_issue?: boolean | null
           created_at?: string
           email: string
           id?: string
-          latest_transaction_id?: string | null
-          original_transaction_id?: string | null
           stripe_cancel_at_period_end?: boolean
           stripe_customer_id?: string | null
           stripe_status?: string | null
           stripe_subscription_id?: string | null
           subscribed?: boolean
           subscription_end?: string | null
-          subscription_platform?: string | null
           subscription_tier?: string | null
           updated_at?: string
           user_id?: string | null
         }
         Update: {
-          apple_original_transaction_id?: string | null
-          apple_receipt_data?: string | null
-          apple_subscription_id?: string | null
-          billing_issue?: boolean | null
           created_at?: string
           email?: string
           id?: string
-          latest_transaction_id?: string | null
-          original_transaction_id?: string | null
           stripe_cancel_at_period_end?: boolean
           stripe_customer_id?: string | null
           stripe_status?: string | null
           stripe_subscription_id?: string | null
           subscribed?: boolean
           subscription_end?: string | null
-          subscription_platform?: string | null
           subscription_tier?: string | null
           updated_at?: string
           user_id?: string | null
@@ -880,27 +841,27 @@ export type Database = {
       }
       search_interactions: {
         Args: {
-          match_count: number
-          match_threshold: number
           query_embedding: string
+          match_threshold: number
+          match_count: number
           user_id: string
         }
         Returns: {
-          agent_id: string
-          assistant_response: string
-          audio_url: string
-          conversation_duration: number
-          conversation_id: string
-          created_at: string
-          destination: string
-          full_transcript: Json
           id: string
-          interaction_type: string
+          destination: string
+          user_input: string
+          assistant_response: string
           is_favorite: boolean
+          created_at: string
+          interaction_type: string
           landmark_coordinates: unknown
           landmark_image_url: string
+          full_transcript: Json
+          conversation_id: string
+          conversation_duration: number
+          audio_url: string
+          agent_id: string
           similarity: number
-          user_input: string
         }[]
       }
       sparsevec_out: {
