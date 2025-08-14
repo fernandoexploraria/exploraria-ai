@@ -87,6 +87,10 @@ export const useRevenueCat = () => {
       const currentOffering = offerings.current;
       const packages = currentOffering?.availablePackages || null;
 
+      if (!currentOffering || !packages || packages.length === 0) {
+        console.warn('⚠️ No offerings or packages found. Make sure you have configured products in RevenueCat dashboard.');
+      }
+
       setState(prev => ({
         ...prev,
         isAvailable: true,
