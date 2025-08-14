@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Purchases, PurchasesOffering, PurchasesPackage } from '@revenuecat/purchases-capacitor';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
 
@@ -61,11 +62,16 @@ export const useRevenueCat = () => {
         return;
       }
 
-      // Initialize RevenueCat with your API key
-      // TODO: Replace with your actual RevenueCat API key
-      const apiKey = Capacitor.getPlatform() === 'ios' 
-        ? 'appl_YOUR_IOS_API_KEY_HERE' 
-        : 'goog_YOUR_ANDROID_API_KEY_HERE';
+      // Fetch RevenueCat API key from Supabase edge function
+      console.log('🔑 Fetching RevenueCat configuration...');
+      const { data: configData, error: configError } = await supabase.functions.invoke('get-revenuecat-config');
+      
+      if (configError || !configData?.publicKey) {
+        throw new Error(configError?.message || 'Failed to get RevenueCat configuration');
+      }
+
+      const apiKey = configData.publicKey;
+      console.log('✅ RevenueCat API key fetched successfully');
 
       await Purchases.configure({
         apiKey,
