@@ -77,9 +77,21 @@ serve(async (req) => {
       timestamp: new Date().toISOString()
     });
 
+    // DEBUG: Log signature details (without exposing full secret)
+    console.log('🔍 Webhook Signature Debug:', {
+      hasSignatureHeader: !!signature,
+      signatureStart: signature ? signature.substring(0, 20) + '...' : 'none',
+      hasWebhookSecret: !!REVENUECAT_WEBHOOK_SECRET,
+      secretStart: REVENUECAT_WEBHOOK_SECRET ? REVENUECAT_WEBHOOK_SECRET.substring(0, 10) + '...' : 'none',
+      payloadLength: rawBody.length
+    });
+
     // Verify webhook signature for security
-    if (!(await verifyWebhookSignature(rawBody, signature, REVENUECAT_WEBHOOK_SECRET))) {
-      console.error('Invalid webhook signature');
+    const isValidSignature = await verifyWebhookSignature(rawBody, signature, REVENUECAT_WEBHOOK_SECRET);
+    console.log('🔐 Signature verification result:', isValidSignature);
+    
+    if (!isValidSignature) {
+      console.error('❌ Invalid webhook signature - rejecting request');
       return new Response(JSON.stringify({ error: 'Invalid webhook signature' }), { 
         status: 403,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
