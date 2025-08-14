@@ -91,6 +91,18 @@ export const useCordovaSubscription = () => {
         platform: window.CdvPurchase.Platform.APPLE_APPSTORE,
       });
 
+      // Handle any existing transactions BEFORE setting up new handlers
+      const cleanupExistingTransactions = () => {
+        const existingProduct = store.get('LEXPS0001');
+        if (existingProduct && existingProduct.transaction) {
+          console.log('🍎 Cleaning up existing transaction before init:', existingProduct.transaction);
+          existingProduct.finish();
+        }
+      };
+
+      // Clean up immediately after registration
+      cleanupExistingTransactions();
+
       // Set up event handlers
       store.when('LEXPS0001').approved((product: any) => {
         console.log('🍎 Product approved:', product);
@@ -140,12 +152,8 @@ export const useCordovaSubscription = () => {
       await store.ready();
       console.log('🍎 Cordova store is ready.');
 
-      // Check for existing/pending transactions and clear them
-      const existingProduct = store.get('LEXPS0001');
-      if (existingProduct && existingProduct.transaction) {
-        console.log('🍎 Found existing transaction, finishing it:', existingProduct.transaction);
-        existingProduct.finish();
-      }
+      // Final cleanup after store is ready
+      cleanupExistingTransactions();
 
       // Force an update to fetch product info
       await store.update();
