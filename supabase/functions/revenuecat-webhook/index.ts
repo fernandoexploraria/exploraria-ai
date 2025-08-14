@@ -102,10 +102,6 @@ serve(async (req) => {
     const event = payload.event;
     const appUserID = event.app_user_id;
 
-    // FOR TESTING: Map all RevenueCat user IDs to a test user
-    const testUserID = '46afd39a-a113-4fae-a19a-d73936c3a796';
-    console.log(`🧪 TESTING MODE: Mapping RevenueCat user ${appUserID} to test user ${testUserID}`);
-
     if (!appUserID) {
       console.warn('RevenueCat webhook received for anonymous user. Skipping database update.');
       return new Response(JSON.stringify({ message: 'Anonymous user, no update needed' }), { 
@@ -128,8 +124,7 @@ serve(async (req) => {
       : new Date().toISOString();
 
     console.log('Updating subscriber status:', {
-      user_id: testUserID,
-      original_app_user_id: appUserID,
+      user_id: appUserID,
       is_subscribed: isPremiumActive,
       subscription_end: subscriptionEndDate
     });
@@ -137,7 +132,7 @@ serve(async (req) => {
     const { error: subscriberError } = await supabaseAdmin
       .from('subscribers')
       .upsert({
-        user_id: testUserID,
+        user_id: appUserID,
         email: event.subscriber_attributes?.email?.value || '',
         subscribed: isPremiumActive,
         subscription_tier: isPremiumActive ? 'premium' : null,
@@ -147,19 +142,19 @@ serve(async (req) => {
         billing_issue: event.type === 'BILLING_ISSUE',
         subscription_platform: 'revenuecat',
         updated_at: new Date().toISOString(),
-      });
+      }, { onConflict: 'user_id', ignoreDuplicates: false });
 
     if (subscriberError) {
       console.error('Error updating subscribers table:', subscriberError);
       throw new Error(`Failed to update subscriber status: ${subscriberError.message}`);
     }
 
-    console.log(`✅ Subscriber ${testUserID} (originally ${appUserID}) status updated: ${isPremiumActive ? 'active' : 'inactive'}`);
+    console.log(`✅ Subscriber ${appUserID} status updated: ${isPremiumActive ? 'active' : 'inactive'}`);
 
     // --- 2. Create payments record (individual transaction) ---
     if (event.transaction_id && ['INITIAL_PURCHASE', 'RENEWAL', 'REFUND'].includes(event.type)) {
       const paymentRecord = {
-        user_id: testUserID,
+        user_id: appUserID,
         apple_transaction_id: event.transaction_id,
         product_id: event.product_id || 'unknown',
         amount: event.price ? parseFloat(event.price) : 0,
@@ -201,8 +196,7 @@ serve(async (req) => {
       success: true, 
       message: 'Webhook processed successfully',
       event_type: event.type,
-      user_id: testUserID,
-      original_app_user_id: appUserID
+      user_id: appUserID
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
