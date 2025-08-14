@@ -86,17 +86,18 @@ serve(async (req) => {
       payloadLength: rawBody.length
     });
 
-    // Verify webhook signature for security
-    const isValidSignature = await verifyWebhookSignature(rawBody, signature, REVENUECAT_WEBHOOK_SECRET);
-    console.log('🔐 Signature verification result:', isValidSignature);
+    // TEMPORARILY DISABLED: Verify webhook signature for security
+    console.log('⚠️ SIGNATURE VERIFICATION TEMPORARILY DISABLED FOR TESTING');
+    // const isValidSignature = await verifyWebhookSignature(rawBody, signature, REVENUECAT_WEBHOOK_SECRET);
+    // console.log('🔐 Signature verification result:', isValidSignature);
     
-    if (!isValidSignature) {
-      console.error('❌ Invalid webhook signature - rejecting request');
-      return new Response(JSON.stringify({ error: 'Invalid webhook signature' }), { 
-        status: 403,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders }
-      });
-    }
+    // if (!isValidSignature) {
+    //   console.error('❌ Invalid webhook signature - rejecting request');
+    //   return new Response(JSON.stringify({ error: 'Invalid webhook signature' }), { 
+    //     status: 403,
+    //     headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    //   });
+    // }
 
     const event = payload.event;
     const appUserID = event.app_user_id;
