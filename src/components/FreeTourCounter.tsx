@@ -5,10 +5,12 @@ import { Sparkles, Lock, CreditCard, X, AlertTriangle } from 'lucide-react';
 import { useTourStats } from '@/hooks/useTourStats';
 import { useSubscription } from '@/hooks/useSubscription';
 import { SubscriptionDialog } from '@/components/subscription/SubscriptionDialog';
+import { useCordovaSubscription } from '@/hooks/useCordovaSubscription';
 
 const FreeTourCounter: React.FC = () => {
   const { tourStats, isLoading: tourLoading } = useTourStats();
   const { subscriptionData, isLoading: subLoading, createCheckout, createSubscriptionIntent, openCustomerPortal, checkSubscription, cancelSubscriptionAtPeriodEnd } = useSubscription();
+  const { isLoading: cordovaLoading, isCordovaAvailable, purchaseSubscription } = useCordovaSubscription();
   const [isHighlighted, setIsHighlighted] = useState(false);
   const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
   const [subscriptionClientSecret, setSubscriptionClientSecret] = useState<string | null>(null);
@@ -38,12 +40,19 @@ const FreeTourCounter: React.FC = () => {
       }, 8000);
     };
 
+    const handleSubscriptionUpdated = () => {
+      // Refresh subscription data when Apple purchase completes
+      checkSubscription();
+    };
+
     window.addEventListener('subscription-limit-reached', handleSubscriptionLimitReached);
+    window.addEventListener('subscription-updated', handleSubscriptionUpdated);
     
     return () => {
       window.removeEventListener('subscription-limit-reached', handleSubscriptionLimitReached);
+      window.removeEventListener('subscription-updated', handleSubscriptionUpdated);
     };
-  }, []);
+  }, [checkSubscription]);
 
   const handleSubscribeClick = async () => {
     try {
@@ -168,6 +177,30 @@ const FreeTourCounter: React.FC = () => {
               <CreditCard className="mr-2 h-4 w-4" />
               Subscribe for $9.99/month
             </Button>
+
+            {/* Subscribe with Apple Buttons */}
+            {isCordovaAvailable && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left"
+                  onClick={purchaseSubscription}
+                  disabled={cordovaLoading}
+                >
+                  🍎 Subscribe with Apple
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left"
+                  onClick={purchaseSubscription}
+                  disabled={cordovaLoading}
+                >
+                  🍎 Subscribe with Apple - $9.99/month
+                </Button>
+              </>
+            )}
           </>
         )}
 

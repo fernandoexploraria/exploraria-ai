@@ -75,8 +75,39 @@ serve(async (req) => {
     }
     logStep("User authenticated", { userId: user.id, email: user.email });
 
+    // Check existing subscriber record for platform information
+    let existingSubscriber;
+    try {
+      const { data } = await supabaseClient
+        .from("subscribers")
+        .select("*")
+        .eq("email", user.email)
+        .single();
+      existingSubscriber = data;
+      logStep("Found existing subscriber record", { 
+        platform: existingSubscriber?.subscription_platform,
+        subscribed: existingSubscriber?.subscribed 
+      });
+    } catch (dbError: any) {
+      logStep("No existing subscriber record found");
+    }
 
-    // Initialize variables with clear defaults
+    // If user has Apple subscription, return that data directly
+    if (existingSubscriber?.subscription_platform === 'apple' && existingSubscriber?.subscribed) {
+      logStep("Returning active Apple subscription data");
+      return new Response(JSON.stringify({
+        subscribed: true,
+        subscription_tier: existingSubscriber.subscription_tier,
+        subscription_end: existingSubscriber.subscription_end,
+        cancel_at_period_end: false, // Apple doesn't use this concept
+        platform: 'apple'
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
+    // Initialize variables with clear defaults for Stripe processing
     let stripeCustomerId: string | null = null;
     let isActive = false;
     let subscriptionTier: string | null = null;
