@@ -16,6 +16,9 @@ export interface RevenueCatState {
   isSubscribed: boolean;
 }
 
+// RevenueCat Configuration Constants
+const PREMIUM_ENTITLEMENT_ID = 'premium';
+
 export const useRevenueCat = () => {
   const [state, setState] = useState<RevenueCatState>({
     isAvailable: false,
@@ -34,7 +37,7 @@ export const useRevenueCat = () => {
   const checkSubscriptionStatus = useCallback(async () => {
     try {
       const { customerInfo } = await Purchases.getCustomerInfo();
-      const isSubscribed = customerInfo.entitlements.active['premium'] !== undefined;
+      const isSubscribed = customerInfo.entitlements.active[PREMIUM_ENTITLEMENT_ID] !== undefined;
       
       setState(prev => ({ ...prev, isSubscribed }));
       
@@ -125,7 +128,7 @@ export const useRevenueCat = () => {
       console.log('✅ Purchase completed:', customerInfo);
 
       // Check if the user now has the premium entitlement
-      const isSubscribed = customerInfo.entitlements.active['premium'] !== undefined;
+      const isSubscribed = customerInfo.entitlements.active[PREMIUM_ENTITLEMENT_ID] !== undefined;
       
       setState(prev => ({ ...prev, isSubscribed, isProcessing: false }));
 
@@ -164,7 +167,7 @@ export const useRevenueCat = () => {
       console.log('🔄 Restoring purchases...');
       
       const { customerInfo } = await Purchases.restorePurchases();
-      const isSubscribed = customerInfo.entitlements.active['premium'] !== undefined;
+      const isSubscribed = customerInfo.entitlements.active[PREMIUM_ENTITLEMENT_ID] !== undefined;
       
       setState(prev => ({ ...prev, isSubscribed, isProcessing: false }));
 
