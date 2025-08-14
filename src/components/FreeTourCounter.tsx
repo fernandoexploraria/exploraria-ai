@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Lock, CreditCard, X, AlertTriangle } from 'lucide-react';
+import { Sparkles, Lock, CreditCard, X, AlertTriangle, Apple } from 'lucide-react';
 import { useTourStats } from '@/hooks/useTourStats';
 import { useSubscription } from '@/hooks/useSubscription';
 import { SubscriptionDialog } from '@/components/subscription/SubscriptionDialog';
@@ -188,7 +188,8 @@ const FreeTourCounter: React.FC = () => {
                   onClick={purchaseSubscription}
                   disabled={cordovaLoading}
                 >
-                  🍎 Subscribe with Apple
+                  <Apple className="mr-2 h-4 w-4" />
+                  Subscribe
                 </Button>
                 
                 <Button
@@ -197,7 +198,8 @@ const FreeTourCounter: React.FC = () => {
                   onClick={purchaseSubscription}
                   disabled={cordovaLoading}
                 >
-                  🍎 Subscribe with Apple - $9.99/month
+                  <Apple className="mr-2 h-4 w-4" />
+                  Subscribe
                 </Button>
               </>
             )}
