@@ -96,22 +96,32 @@ const FreeTourCounter: React.FC = () => {
   };
 
   const handleAppleSubscribe = async () => {
+    console.log('🍎 Apple Subscribe clicked:', {
+      isInitialized,
+      rcLoading,
+      productsLength: products.length,
+      error: rcError
+    });
+
     if (!isInitialized) {
+      console.error('🍎 RevenueCat not initialized yet');
       alert('RevenueCat not initialized yet. Please try again.');
       return;
     }
 
     if (products.length === 0) {
+      console.error('🍎 No products available');
       alert('No products available. Please try again later.');
       return;
     }
 
     try {
       const product = products[0]; // Use first available product
+      console.log('🍎 Attempting purchase of product:', product);
       await purchaseProduct(product.identifier);
       alert('Purchase successful! Your subscription is now active.');
     } catch (error) {
-      console.error('Apple subscription error:', error);
+      console.error('🍎 Apple subscription error:', error);
       alert('Purchase failed. Please try again.');
     }
   };

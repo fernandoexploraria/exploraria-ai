@@ -73,21 +73,32 @@ export const useRevenueCat = () => {
 
   // Initialize RevenueCat
   useEffect(() => {
+    console.log('🍎 RevenueCat useEffect triggered, user:', user?.id);
+    
     const initializeRevenueCat = async () => {
       try {
+        console.log('🍎 Starting RevenueCat initialization...');
+        
         // Load RevenueCat SDK
         if (!window.Purchases) {
+          console.log('🍎 Loading RevenueCat SDK script...');
           const script = document.createElement('script');
           script.src = 'https://cdn.jsdelivr.net/npm/@revenuecat/purchases-js@latest/dist/purchases.min.js';
           script.onload = async () => {
+            console.log('🍎 RevenueCat SDK script loaded, configuring...');
             await configureRevenueCat();
+          };
+          script.onerror = (error) => {
+            console.error('🍎 Failed to load RevenueCat SDK script:', error);
+            setError('Failed to load RevenueCat SDK');
           };
           document.head.appendChild(script);
         } else {
+          console.log('🍎 RevenueCat SDK already loaded, configuring...');
           await configureRevenueCat();
         }
       } catch (err) {
-        console.error('Failed to initialize RevenueCat:', err);
+        console.error('🍎 Failed to initialize RevenueCat:', err);
         setError(err instanceof Error ? err.message : 'Failed to initialize RevenueCat');
       }
     };
