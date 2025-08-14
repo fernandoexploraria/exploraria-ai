@@ -20,6 +20,7 @@ interface SubscriptionDialogProps {
   clientSecret: string | null;
   subscriptionId: string | null;
   onSubscriptionSuccess: () => void;
+  paymentPlatform?: 'stripe' | 'apple';
 }
 
 export const SubscriptionDialog: React.FC<SubscriptionDialogProps> = ({
@@ -28,6 +29,7 @@ export const SubscriptionDialog: React.FC<SubscriptionDialogProps> = ({
   clientSecret,
   subscriptionId,
   onSubscriptionSuccess,
+  paymentPlatform = 'stripe',
 }) => {
   const [stripe, setStripe] = useState<any>(null);
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -93,7 +95,10 @@ export const SubscriptionDialog: React.FC<SubscriptionDialogProps> = ({
 
   const handleSubscriptionSuccess = () => {
     setPaymentStatus('success');
-    setStatusMessage("Subscription activated! You now have unlimited access to Smart Tours.");
+    const successMessage = paymentPlatform === 'apple' 
+      ? "Apple subscription activated! You now have unlimited access to Smart Tours."
+      : "Subscription activated! You now have unlimited access to Smart Tours.";
+    setStatusMessage(successMessage);
     
     // Wait a moment to show success message, then trigger refresh
     setTimeout(() => {

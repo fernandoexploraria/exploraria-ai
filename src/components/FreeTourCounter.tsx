@@ -4,11 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Sparkles, Lock, CreditCard, X, AlertTriangle } from 'lucide-react';
 import { useTourStats } from '@/hooks/useTourStats';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useCordovaSubscription } from '@/hooks/useCordovaSubscription';
 import { SubscriptionDialog } from '@/components/subscription/SubscriptionDialog';
 
 const FreeTourCounter: React.FC = () => {
   const { tourStats, isLoading: tourLoading } = useTourStats();
   const { subscriptionData, isLoading: subLoading, createCheckout, createSubscriptionIntent, openCustomerPortal, checkSubscription, cancelSubscriptionAtPeriodEnd } = useSubscription();
+  const { purchaseSubscription, isLoading: appleLoading, error: appleError, isAvailable: appleAvailable } = useCordovaSubscription();
   const [isHighlighted, setIsHighlighted] = useState(false);
   const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
   const [subscriptionClientSecret, setSubscriptionClientSecret] = useState<string | null>(null);
@@ -59,6 +61,16 @@ const FreeTourCounter: React.FC = () => {
       }
     } catch (error) {
       console.error('Error creating subscription:', error);
+    }
+  };
+
+  const handleAppleSubscribeClick = async () => {
+    try {
+      await purchaseSubscription();
+      // Refresh subscription data after successful purchase
+      await checkSubscription();
+    } catch (error) {
+      console.error('Error with Apple subscription:', error);
     }
   };
 
@@ -158,6 +170,20 @@ const FreeTourCounter: React.FC = () => {
               Subscribe
             </Button>
             
+            {/* Apple Subscribe Button - Mobile */}
+            {appleAvailable && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left"
+                onClick={handleAppleSubscribeClick}
+                disabled={appleLoading}
+              >
+                <CreditCard className="mr-1 h-3 w-3" />
+                {appleLoading ? 'Processing...' : 'Subscribe with Apple'}
+              </Button>
+            )}
+            
             <Button
               variant="outline"
               className={`bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left transition-all duration-500 ${
@@ -168,6 +194,19 @@ const FreeTourCounter: React.FC = () => {
               <CreditCard className="mr-2 h-4 w-4" />
               Subscribe for $9.99/month
             </Button>
+
+            {/* Apple Subscribe Button - Desktop */}
+            {appleAvailable && (
+              <Button
+                variant="outline"
+                className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left"
+                onClick={handleAppleSubscribeClick}
+                disabled={appleLoading}
+              >
+                <CreditCard className="mr-2 h-4 w-4" />
+                {appleLoading ? 'Processing...' : 'Subscribe with Apple ($9.99/month)'}
+              </Button>
+            )}
           </>
         )}
 
