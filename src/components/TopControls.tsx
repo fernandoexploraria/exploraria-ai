@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube, MapPin, ToggleLeft, ToggleRight, Compass, CreditCard } from 'lucide-react';
+import { Sparkles, Search, ChevronDown, ChevronUp, Menu, List, TestTube, MapPin, ToggleLeft, ToggleRight, Compass } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerTrigger, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import SearchControl from '@/components/SearchControl';
 import FreeTourCounter from '@/components/FreeTourCounter';
@@ -162,7 +162,6 @@ const TopControls: React.FC<TopControlsProps> = ({
     });
   };
 
-
   // Detect if running in native app
   const isNativeApp = Capacitor.isNativePlatform();
 
@@ -198,7 +197,6 @@ const TopControls: React.FC<TopControlsProps> = ({
                 <span className="hidden lg:inline">Smart Tour</span>
               </Button>
               
-
               {/* Experiences Button */}
               {(
                 <Button variant="outline" size="sm" className="bg-gradient-to-r from-purple-400/80 to-pink-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 border-purple-300 hover:from-purple-300/80 hover:to-pink-300/80" onClick={handleExperiencesClick}>

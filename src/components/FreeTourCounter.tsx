@@ -1,27 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
-import { Capacitor } from '@capacitor/core';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Lock, CreditCard, X, AlertTriangle } from 'lucide-react';
 import { useTourStats } from '@/hooks/useTourStats';
 import { useSubscription } from '@/hooks/useSubscription';
-import { useRevenueCat } from '@/hooks/useRevenueCat';
-import { useAuth } from '@/components/AuthProvider';
-import { useToast } from '@/hooks/use-toast';
 import { SubscriptionDialog } from '@/components/subscription/SubscriptionDialog';
 
 const FreeTourCounter: React.FC = () => {
   const { tourStats, isLoading: tourLoading } = useTourStats();
   const { subscriptionData, isLoading: subLoading, createCheckout, createSubscriptionIntent, openCustomerPortal, checkSubscription, cancelSubscriptionAtPeriodEnd } = useSubscription();
-  const { 
-    isAvailable: isRevenueCatAvailable, 
-    isLoading: isRevenueCatLoading, 
-    isProcessing: isRevenueCatProcessing,
-    packages: revenueCatPackages,
-    purchasePackage 
-  } = useRevenueCat();
-  const { user: authUser } = useAuth();
-  const { toast } = useToast();
   const [isHighlighted, setIsHighlighted] = useState(false);
   const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
   const [subscriptionClientSecret, setSubscriptionClientSecret] = useState<string | null>(null);
@@ -36,9 +23,6 @@ const FreeTourCounter: React.FC = () => {
   const isCancelled = subscriptionData?.cancel_at_period_end || false;
   const subscriptionEnd = subscriptionData?.subscription_end;
   
-  
-  // Detect iOS Capacitor for RevenueCat availability
-  const isIOSCapacitor = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
 
   // Wait for both loading states to complete to prevent flickering
   const isLoading = tourLoading || subLoading;
@@ -75,48 +59,6 @@ const FreeTourCounter: React.FC = () => {
       }
     } catch (error) {
       console.error('Error creating subscription:', error);
-    }
-  };
-
-  const handleRevenueCatSubscribeClick = async () => {
-    console.log('💳 RevenueCat Subscribe button clicked');
-    
-    if (!isRevenueCatAvailable) {
-      toast({
-        title: "Subscription Not Available",
-        description: "RevenueCat subscriptions are only available on iOS devices",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!authUser) {
-      console.log('🚨 User not authenticated for RevenueCat subscription');
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to subscribe",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!revenueCatPackages || revenueCatPackages.length === 0) {
-      toast({
-        title: "No Packages Available",
-        description: "No subscription packages are currently available",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      // Use the first available package
-      const packageToPurchase = revenueCatPackages[0];
-      console.log('💳 Purchasing RevenueCat package:', packageToPurchase.identifier);
-      
-      await purchasePackage(packageToPurchase);
-    } catch (error) {
-      console.error('💳 RevenueCat Subscribe error:', error);
     }
   };
 
@@ -226,36 +168,6 @@ const FreeTourCounter: React.FC = () => {
               <CreditCard className="mr-2 h-4 w-4" />
               Subscribe for $9.99/month
             </Button>
-
-            {/* RevenueCat Subscribe Button - Only show on iOS Capacitor */}
-            {isIOSCapacitor && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={`bg-gradient-to-r from-green-400/80 to-blue-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left transition-all duration-500 border-green-300 hover:from-green-300/80 hover:to-blue-300/80 ${
-                    isHighlighted ? 'ring-2 ring-primary animate-pulse bg-primary/10' : ''
-                  }`}
-                  onClick={handleRevenueCatSubscribeClick}
-                  disabled={isRevenueCatLoading || isRevenueCatProcessing}
-                >
-                  <CreditCard className="mr-1 h-3 w-3" />
-                  {isRevenueCatProcessing ? 'Processing...' : 'Subscribe with Apple'}
-                </Button>
-                
-                <Button
-                  variant="outline"
-                  className={`bg-gradient-to-r from-green-400/80 to-blue-400/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left transition-all duration-500 border-green-300 hover:from-green-300/80 hover:to-blue-300/80 ${
-                    isHighlighted ? 'ring-2 ring-primary animate-pulse bg-primary/10' : ''
-                  }`}
-                  onClick={handleRevenueCatSubscribeClick}
-                  disabled={isRevenueCatLoading || isRevenueCatProcessing}
-                >
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  {isRevenueCatProcessing ? 'Processing...' : 'Subscribe with Apple'}
-                </Button>
-              </>
-            )}
           </>
         )}
 
