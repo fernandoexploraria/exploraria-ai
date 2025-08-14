@@ -154,7 +154,7 @@ serve(async (req) => {
     // --- 2. Create payments record (individual transaction) ---
     if (event.transaction_id && ['INITIAL_PURCHASE', 'RENEWAL', 'REFUND'].includes(event.type)) {
       const paymentRecord = {
-        user_id: appUserID,
+        tourist_user_id: appUserID,
         apple_transaction_id: event.transaction_id,
         product_id: event.product_id || 'unknown',
         amount: event.price ? parseFloat(event.price) : 0,
