@@ -1,28 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Lock, CreditCard, X, AlertTriangle, Apple } from 'lucide-react';
+import { Sparkles, Lock, CreditCard, X, AlertTriangle } from 'lucide-react';
 import { useTourStats } from '@/hooks/useTourStats';
 import { useSubscription } from '@/hooks/useSubscription';
-import { useRevenueCat } from '@/hooks/useRevenueCat';
 import { SubscriptionDialog } from '@/components/subscription/SubscriptionDialog';
 
 const FreeTourCounter: React.FC = () => {
   const { tourStats, isLoading: tourLoading } = useTourStats();
   const { subscriptionData, isLoading: subLoading, createCheckout, createSubscriptionIntent, openCustomerPortal, checkSubscription, cancelSubscriptionAtPeriodEnd } = useSubscription();
-  const { isInitialized, isLoading: rcLoading, products, purchaseProduct, hasActiveSubscription, error: rcError } = useRevenueCat();
-
-  // Debug RevenueCat state
-  useEffect(() => {
-    console.log('🍎 FreeTourCounter state:', {
-      isInitialized,
-      rcLoading,
-      productsCount: products.length,
-      hasActiveSubscription,
-      error: rcError,
-      buttonDisabled: !isInitialized || rcLoading
-    });
-  }, [isInitialized, rcLoading, products.length, hasActiveSubscription, rcError]);
   const [isHighlighted, setIsHighlighted] = useState(false);
   const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
   const [subscriptionClientSecret, setSubscriptionClientSecret] = useState<string | null>(null);
@@ -107,37 +93,6 @@ const FreeTourCounter: React.FC = () => {
     }
   };
 
-  const handleAppleSubscribe = async () => {
-    console.log('🍎 Apple Subscribe clicked:', {
-      isInitialized,
-      rcLoading,
-      productsLength: products.length,
-      error: rcError
-    });
-
-    if (!isInitialized) {
-      console.error('🍎 RevenueCat not initialized yet');
-      alert('RevenueCat not initialized yet. Please try again.');
-      return;
-    }
-
-    if (products.length === 0) {
-      console.error('🍎 No products available');
-      alert('No products available. Please try again later.');
-      return;
-    }
-
-    try {
-      const product = products[0]; // Use first available product
-      console.log('🍎 Attempting purchase of product:', product);
-      await purchaseProduct(product.identifier);
-      alert('Purchase successful! Your subscription is now active.');
-    } catch (error) {
-      console.error('🍎 Apple subscription error:', error);
-      alert('Purchase failed. Please try again.');
-    }
-  };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
   };
@@ -212,28 +167,6 @@ const FreeTourCounter: React.FC = () => {
             >
               <CreditCard className="mr-2 h-4 w-4" />
               Subscribe for $9.99/month
-            </Button>
-
-            {/* Subscribe with Apple Buttons */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left"
-              onClick={handleAppleSubscribe}
-              disabled={!isInitialized || rcLoading}
-            >
-              <Apple className="mr-1 h-3 w-3" />
-              Subscribe with Apple
-            </Button>
-            
-            <Button
-              variant="outline"
-              className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left"
-              onClick={handleAppleSubscribe}
-              disabled={!isInitialized || rcLoading}
-            >
-              <Apple className="mr-2 h-4 w-4" />
-              Subscribe with Apple - $9.99/month
             </Button>
           </>
         )}
