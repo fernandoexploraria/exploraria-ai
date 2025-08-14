@@ -13,7 +13,6 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useConnectionMonitor } from '@/hooks/useConnectionMonitor';
 import { useDemoMode } from '@/hooks/useDemoMode';
 import { useSubscription } from '@/hooks/useSubscription';
-import { useRevenueCat } from '@/hooks/useRevenueCat';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import IntelligentTourDialog from './IntelligentTourDialog';
@@ -52,14 +51,6 @@ const TopControls: React.FC<TopControlsProps> = ({
     user: authUser
   } = useAuth();
   const { subscriptionData } = useSubscription();
-  const { 
-    isAvailable: isRevenueCatAvailable, 
-    isLoading: isRevenueCatLoading, 
-    isProcessing: isRevenueCatProcessing,
-    packages: revenueCatPackages,
-    purchasePackage,
-    error: revenueCatError 
-  } = useRevenueCat();
   
   const isMobile = useIsMobile();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -171,43 +162,6 @@ const TopControls: React.FC<TopControlsProps> = ({
     });
   };
 
-  const handleSubscribeClick = async () => {
-    console.log('💳 Subscribe button clicked');
-    
-    if (!isRevenueCatAvailable) {
-      toast({
-        title: "Subscription Not Available",
-        description: "Subscriptions are only available on mobile devices",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!authUser) {
-      console.log('🚨 User not authenticated, opening auth dialog');
-      setIsAuthDialogOpen(true);
-      return;
-    }
-
-    if (!revenueCatPackages || revenueCatPackages.length === 0) {
-      toast({
-        title: "No Packages Available",
-        description: "No subscription packages are currently available",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      // Use the first available package (you might want to show a selection dialog)
-      const packageToPurchase = revenueCatPackages[0];
-      console.log('💳 Purchasing package:', packageToPurchase.identifier);
-      
-      await purchasePackage(packageToPurchase);
-    } catch (error) {
-      console.error('💳 Subscribe error:', error);
-    }
-  };
 
   // Detect if running in native app
   const isNativeApp = Capacitor.isNativePlatform();
@@ -244,22 +198,6 @@ const TopControls: React.FC<TopControlsProps> = ({
                 <span className="hidden lg:inline">Smart Tour</span>
               </Button>
               
-              {/* Subscribe Button */}
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="bg-gradient-to-r from-green-400/80 to-blue-400/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:h-10 lg:text-sm lg:px-4 lg:py-2 border-green-300 hover:from-green-300/80 hover:to-blue-300/80" 
-                onClick={handleSubscribeClick}
-                disabled={isRevenueCatLoading || isRevenueCatProcessing}
-              >
-                <CreditCard className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
-                <span className="lg:hidden">
-                  {isRevenueCatProcessing ? 'Processing...' : 'Subscribe with Apple'}
-                </span>
-                <span className="hidden lg:inline">
-                  {isRevenueCatProcessing ? 'Processing...' : 'Subscribe with Apple'}
-                </span>
-              </Button>
 
               {/* Experiences Button */}
               {(
