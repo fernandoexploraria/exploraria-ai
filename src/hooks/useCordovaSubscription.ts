@@ -140,6 +140,13 @@ export const useCordovaSubscription = () => {
       await store.ready();
       console.log('🍎 Cordova store is ready.');
 
+      // Check for existing/pending transactions and clear them
+      const existingProduct = store.get('LEXPS0001');
+      if (existingProduct && existingProduct.transaction) {
+        console.log('🍎 Found existing transaction, finishing it:', existingProduct.transaction);
+        existingProduct.finish();
+      }
+
       // Force an update to fetch product info
       await store.update();
 
