@@ -254,10 +254,10 @@ const TopControls: React.FC<TopControlsProps> = ({
               >
                 <CreditCard className="mr-1 h-3 w-3 lg:mr-2 lg:h-4 lg:w-4" />
                 <span className="lg:hidden">
-                  {isRevenueCatProcessing ? 'Processing...' : 'Subscribe'}
+                  {isRevenueCatProcessing ? 'Processing...' : 'Subscribe with Apple'}
                 </span>
                 <span className="hidden lg:inline">
-                  {isRevenueCatProcessing ? 'Processing...' : 'Subscribe'}
+                  {isRevenueCatProcessing ? 'Processing...' : 'Subscribe with Apple'}
                 </span>
               </Button>
 
