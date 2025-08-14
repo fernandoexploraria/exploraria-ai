@@ -211,14 +211,14 @@ serve(async (req) => {
     logStep("Found Stripe customer", { customerId: stripeCustomerId });
 
     // Get existing subscriber record to check for canceled status
-    let existingSubscriber;
+    let existingStripeRecord;
     try {
       const { data } = await supabaseClient
         .from("subscribers")
         .select("stripe_status, subscription_end")
         .eq("email", user.email)
         .single();
-      existingSubscriber = data;
+      existingStripeRecord = data;
     } catch (dbError: any) {
       logStep("Could not fetch existing subscriber record", { error: dbError.message });
     }
@@ -240,9 +240,9 @@ serve(async (req) => {
       stripeStatus = "error_fetching";
       
       // Preserve existing canceled status if available
-      if (existingSubscriber?.stripe_status === 'canceled') {
+      if (existingStripeRecord?.stripe_status === 'canceled') {
         stripeStatus = 'canceled';
-        subscriptionEnd = existingSubscriber.subscription_end;
+        subscriptionEnd = existingStripeRecord.subscription_end;
         logStep("Preserving canceled status from existing record due to API failure");
       }
       
@@ -311,9 +311,9 @@ serve(async (req) => {
     } else {
       logStep("No subscription found - checking for existing canceled status");
       // If no subscription found but existing record has canceled status, preserve it
-      if (existingSubscriber?.stripe_status === 'canceled') {
+      if (existingStripeRecord?.stripe_status === 'canceled') {
         stripeStatus = 'canceled';
-        subscriptionEnd = existingSubscriber.subscription_end;
+        subscriptionEnd = existingStripeRecord.subscription_end;
         logStep("Preserving canceled status from webhook", { stripeStatus, subscriptionEnd });
       }
     }
