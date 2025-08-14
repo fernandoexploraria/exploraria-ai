@@ -76,30 +76,46 @@ export const useRevenueCat = () => {
     console.log('🍎 RevenueCat useEffect triggered, user:', user?.id);
     
     const initializeRevenueCat = async () => {
+      setIsLoading(true);
+      setError(null);
+      
       try {
         console.log('🍎 Starting RevenueCat initialization...');
         
         // Load RevenueCat SDK
         if (!window.Purchases) {
           console.log('🍎 Loading RevenueCat SDK script...');
-          const script = document.createElement('script');
-          script.src = 'https://cdn.jsdelivr.net/npm/@revenuecat/purchases-js@latest/dist/purchases.min.js';
-          script.onload = async () => {
-            console.log('🍎 RevenueCat SDK script loaded, configuring...');
-            await configureRevenueCat();
-          };
-          script.onerror = (error) => {
-            console.error('🍎 Failed to load RevenueCat SDK script:', error);
-            setError('Failed to load RevenueCat SDK');
-          };
-          document.head.appendChild(script);
+          
+          // Create and load script
+          await new Promise<void>((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/@revenuecat/purchases-js@latest/dist/purchases.min.js';
+            
+            script.onload = () => {
+              console.log('🍎 RevenueCat SDK script loaded successfully');
+              resolve();
+            };
+            
+            script.onerror = (error) => {
+              console.error('🍎 Failed to load RevenueCat SDK script:', error);
+              reject(new Error('Failed to load RevenueCat SDK script'));
+            };
+            
+            document.head.appendChild(script);
+          });
         } else {
-          console.log('🍎 RevenueCat SDK already loaded, configuring...');
-          await configureRevenueCat();
+          console.log('🍎 RevenueCat SDK already loaded');
         }
+
+        // Configure RevenueCat
+        await configureRevenueCat();
+        
       } catch (err) {
         console.error('🍎 Failed to initialize RevenueCat:', err);
         setError(err instanceof Error ? err.message : 'Failed to initialize RevenueCat');
+        setIsInitialized(false);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -107,15 +123,26 @@ export const useRevenueCat = () => {
       try {
         console.log('🍎 RevenueCat: Starting configuration...');
         
-        // Get RevenueCat public API key from Supabase
-        const { data, error } = await supabase.functions.invoke('get-revenuecat-config');
-        
-        if (error || !data?.publicApiKey) {
-          console.error('🍎 RevenueCat: Failed to get config:', error);
-          throw new Error('Failed to get RevenueCat configuration');
+        // Ensure Purchases is available
+        if (!window.Purchases) {
+          throw new Error('RevenueCat SDK not loaded');
         }
         
-        console.log('🍎 RevenueCat: Got API key, configuring...');
+        // Get RevenueCat public API key from Supabase
+        console.log('🍎 RevenueCat: Fetching config from Supabase...');
+        const { data, error } = await supabase.functions.invoke('get-revenuecat-config');
+        
+        if (error) {
+          console.error('🍎 RevenueCat: Supabase error:', error);
+          throw new Error(`Failed to get RevenueCat config: ${error.message}`);
+        }
+        
+        if (!data?.publicApiKey) {
+          console.error('🍎 RevenueCat: No public API key in response:', data);
+          throw new Error('No RevenueCat public API key found');
+        }
+        
+        console.log('🍎 RevenueCat: Got API key, configuring SDK...');
         
         // Configure with public API key
         await window.Purchases.configure(data.publicApiKey);
@@ -123,10 +150,13 @@ export const useRevenueCat = () => {
         // Set log level for debugging
         window.Purchases.setLogLevel('DEBUG');
         
+        console.log('🍎 RevenueCat: SDK configured successfully');
+        
         // Log in user if authenticated
         if (user?.id) {
           console.log('🍎 RevenueCat: Logging in user:', user.id);
           await window.Purchases.logIn(user.id);
+          console.log('🍎 RevenueCat: User logged in successfully');
         }
         
         console.log('🍎 RevenueCat: Configuration complete!');
@@ -135,13 +165,23 @@ export const useRevenueCat = () => {
         // Load products and customer info
         await loadProducts();
         await loadCustomerInfo();
+        
       } catch (err) {
-        console.error('Failed to configure RevenueCat:', err);
+        console.error('🍎 Failed to configure RevenueCat:', err);
         setError(err instanceof Error ? err.message : 'Failed to configure RevenueCat');
+        setIsInitialized(false);
+        throw err; // Re-throw to be caught by outer try-catch
       }
     };
 
-    initializeRevenueCat();
+    // Only initialize if we have a user
+    if (user?.id) {
+      initializeRevenueCat();
+    } else {
+      console.log('🍎 No user available, skipping RevenueCat initialization');
+      setIsLoading(false);
+      setIsInitialized(false);
+    }
   }, [user?.id]);
 
   const loadProducts = async () => {

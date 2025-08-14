@@ -11,6 +11,18 @@ const FreeTourCounter: React.FC = () => {
   const { tourStats, isLoading: tourLoading } = useTourStats();
   const { subscriptionData, isLoading: subLoading, createCheckout, createSubscriptionIntent, openCustomerPortal, checkSubscription, cancelSubscriptionAtPeriodEnd } = useSubscription();
   const { isInitialized, isLoading: rcLoading, products, purchaseProduct, hasActiveSubscription, error: rcError } = useRevenueCat();
+
+  // Debug RevenueCat state
+  useEffect(() => {
+    console.log('🍎 FreeTourCounter state:', {
+      isInitialized,
+      rcLoading,
+      productsCount: products.length,
+      hasActiveSubscription,
+      error: rcError,
+      buttonDisabled: !isInitialized || rcLoading
+    });
+  }, [isInitialized, rcLoading, products.length, hasActiveSubscription, rcError]);
   const [isHighlighted, setIsHighlighted] = useState(false);
   const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
   const [subscriptionClientSecret, setSubscriptionClientSecret] = useState<string | null>(null);
