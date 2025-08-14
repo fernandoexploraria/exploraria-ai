@@ -94,8 +94,15 @@ export const useRevenueCat = () => {
 
     const configureRevenueCat = async () => {
       try {
-        // Configure with public API key (you'll need to set this)
-        await window.Purchases.configure('YOUR_REVENUECAT_PUBLIC_API_KEY');
+        // Get RevenueCat public API key from Supabase
+        const { data, error } = await supabase.functions.invoke('get-revenuecat-config');
+        
+        if (error || !data?.publicApiKey) {
+          throw new Error('Failed to get RevenueCat configuration');
+        }
+        
+        // Configure with public API key
+        await window.Purchases.configure(data.publicApiKey);
         
         // Set log level for debugging
         window.Purchases.setLogLevel('DEBUG');
