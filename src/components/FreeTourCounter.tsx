@@ -1,14 +1,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Lock, CreditCard, X, AlertTriangle } from 'lucide-react';
+import { Sparkles, Lock, CreditCard, X, AlertTriangle, Apple } from 'lucide-react';
 import { useTourStats } from '@/hooks/useTourStats';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useRevenueCat } from '@/hooks/useRevenueCat';
 import { SubscriptionDialog } from '@/components/subscription/SubscriptionDialog';
 
 const FreeTourCounter: React.FC = () => {
   const { tourStats, isLoading: tourLoading } = useTourStats();
   const { subscriptionData, isLoading: subLoading, createCheckout, createSubscriptionIntent, openCustomerPortal, checkSubscription, cancelSubscriptionAtPeriodEnd } = useSubscription();
+  const rcState = useRevenueCat();
   const [isHighlighted, setIsHighlighted] = useState(false);
   const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
   const [subscriptionClientSecret, setSubscriptionClientSecret] = useState<string | null>(null);
@@ -26,6 +28,18 @@ const FreeTourCounter: React.FC = () => {
 
   // Wait for both loading states to complete to prevent flickering
   const isLoading = tourLoading || subLoading;
+
+  // Debug logging for RevenueCat state
+  useEffect(() => {
+    console.log('🍎 FreeTourCounter: RevenueCat state:', {
+      isInitialized: rcState.isInitialized,
+      isLoading: rcState.isLoading,
+      isProcessing: rcState.isProcessing,
+      isAvailable: rcState.isAvailable,
+      isPremiumActive: rcState.isPremiumActive,
+      error: rcState.error,
+    });
+  }, [rcState.isInitialized, rcState.isLoading, rcState.isProcessing, rcState.isAvailable, rcState.isPremiumActive, rcState.error]);
 
   // Listen for subscription limit reached event
   useEffect(() => {
@@ -93,6 +107,37 @@ const FreeTourCounter: React.FC = () => {
     }
   };
 
+  const handleAppleSubscribeClick = async () => {
+    console.log('🍎 Apple Subscribe clicked:', {
+      isInitialized: rcState.isInitialized,
+      isLoading: rcState.isLoading,
+      isProcessing: rcState.isProcessing,
+      currentOffering: rcState.currentOffering,
+      error: rcState.error,
+    });
+
+    if (!rcState.isInitialized) {
+      alert('Subscription system not initialized yet. Please wait a moment.');
+      return;
+    }
+    if (rcState.isLoading || rcState.isProcessing) {
+      console.log('🍎 Already loading or processing.');
+      return;
+    }
+    if (!rcState.currentOffering || !rcState.currentOffering.availablePackages?.find((p: any) => p.identifier === 'monthly')) {
+      alert('Subscription options not available. Please try again later.');
+      return;
+    }
+
+    try {
+      await rcState.purchaseSubscription();
+      // The hook handles success feedback via toast
+      await checkSubscription(); // Refresh overall subscription status
+    } catch (error) {
+      console.error('🍎 Apple subscription error in component:', error);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
   };
@@ -157,6 +202,22 @@ const FreeTourCounter: React.FC = () => {
               <CreditCard className="mr-1 h-3 w-3" />
               Subscribe
             </Button>
+
+            {/* Apple Subscribe Button - Mobile */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left mt-1"
+              onClick={handleAppleSubscribeClick}
+              disabled={rcState.isLoading || rcState.isProcessing || !rcState.isInitialized || !rcState.isAvailable}
+            >
+              {rcState.isProcessing ? (
+                <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              ) : (
+                <Apple className="mr-1 h-3 w-3" />
+              )}
+              Subscribe with Apple
+            </Button>
             
             <Button
               variant="outline"
@@ -167,6 +228,24 @@ const FreeTourCounter: React.FC = () => {
             >
               <CreditCard className="mr-2 h-4 w-4" />
               Subscribe for $9.99/month
+            </Button>
+
+            {/* Apple Subscribe Button - Desktop */}
+            <Button
+              variant="outline"
+              className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left mt-2"
+              onClick={handleAppleSubscribeClick}
+              disabled={rcState.isLoading || rcState.isProcessing || !rcState.isInitialized || !rcState.isAvailable}
+            >
+              {rcState.isProcessing ? (
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              ) : (
+                <Apple className="mr-2 h-4 w-4" />
+              )}
+              Subscribe with Apple
+              {rcState.currentOffering?.availablePackages?.find((p: any) => p.identifier === 'monthly')?.product?.priceString ? (
+                ` (${rcState.currentOffering.availablePackages.find((p: any) => p.identifier === 'monthly').product.priceString})`
+              ) : ''}
             </Button>
           </>
         )}
