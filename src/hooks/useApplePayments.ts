@@ -424,13 +424,18 @@ export const useApplePayments = () => {
         console.log('🍎 Found offer:', defaultOffer);
         
         // Check if this is a promotional offer that requires server-side signing
-        // Promotional offers typically require a signature, introductory offers don't
-        const isPromotionalOffer = defaultOffer.offerType === 'Promotional' || 
-                                   defaultOffer.offerType === 'promotional' ||
-                                   // If we can't determine type, try signing anyway since we're getting the error
-                                   true;
+        // The issue is that even "Default" offers can require signing in some cases
+        // Let's check if this is actually a promotional offer first
+        console.log('🍎 Analyzing offer type:', defaultOffer.offerType);
         
-        if (isPromotionalOffer && user && session) {
+        // Only try to sign if this is NOT a standard default offer 
+        // If the offer ID is "$", it's the standard price, not a promotional offer
+        const isActualPromotionalOffer = defaultOffer.offerType === 'Promotional' || 
+                                        defaultOffer.offerType === 'promotional' ||
+                                        // Explicitly exclude "$" offers as they are standard pricing
+                                        (defaultOffer.id !== '$' && defaultOffer.id !== 'default' && defaultOffer.offerType !== 'Default');
+        
+        if (isActualPromotionalOffer && user && session) {
           console.log('🍎 Detected promotional offer, requesting server signature...');
           
           try {
@@ -438,7 +443,7 @@ export const useApplePayments = () => {
             const { data: signedDiscountData, error: signatureError } = await supabase.functions.invoke('generate-apple-offer-signature', {
               body: {
                 productIdentifier: product.id,
-                offerIdentifier: defaultOffer.id || defaultOffer.identifier || 'default',
+                offerIdentifier: defaultOffer.id || 'default-offer',
                 subscriptionGroupIdentifier: product.group || undefined,
                 applicationUsername: user.id
               },
@@ -474,7 +479,8 @@ export const useApplePayments = () => {
             console.log('🍎 Falling back to order without signature...');
           }
         } else {
-          console.log('🍎 Ordering with introductory offer (no signature required)');
+          console.log('🍎 Standard default offer detected (offerType: Default, id: $) - no signature needed');
+          // For standard default offers, don't include any additionalData
         }
       } else {
         console.log('🍎 Ordering without specific offer (no offers found)');

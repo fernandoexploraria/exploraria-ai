@@ -127,12 +127,14 @@ serve(async (req) => {
     const nonce = generateUUID();
     const timestamp = Date.now(); // Milliseconds since epoch
 
-    // Extract bundle ID from product identifier (remove the product suffix)
-    const bundleId = productIdentifier.substring(0, productIdentifier.lastIndexOf('.'));
+    // Extract bundle ID from product identifier
+    // For product "LEXPS0002", we need the actual bundle ID from your app
+    // This should match your app's bundle identifier in Xcode
+    const bundleId = "app.lovable.1349ca1f6be14b1d987344f9d88cdaf0"; // Your actual bundle ID
 
     // Construct the payload for the signature
     const payload = {
-      iss: ISSUER_ID,
+      iss: ISSUER_ID, // This should be your App Store Connect Issuer ID, not the private key
       iat: Math.floor(timestamp / 1000), // Timestamp in seconds
       nonce: nonce,
       bid: bundleId,
