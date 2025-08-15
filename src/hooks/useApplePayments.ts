@@ -101,22 +101,56 @@ export const useApplePayments = () => {
 
       // Set up event handlers
       console.log('🍎 Setting up event handlers...');
-      store.when(PRODUCT_ID).approved((product: any) => {
-        console.log('🍎 Product approved:', product);
-        handlePurchaseApproved(product);
+      
+      // Set up global approved handler to catch any approved transactions
+      store.when().approved((transaction: any) => {
+        console.log('🍎 Transaction approved (global):', {
+          transactionId: transaction.transactionId,
+          products: transaction.products,
+          platform: transaction.platform,
+          state: transaction.state
+        });
+        
+        // Check if this is for our current product
+        const hasOurProduct = transaction.products?.some((p: any) => p.id === PRODUCT_ID);
+        if (hasOurProduct) {
+          console.log('🍎 Transaction contains our product, processing...');
+          handlePurchaseApproved(transaction);
+        } else {
+          console.log('🍎 Transaction for different product, finishing transaction...');
+          // Finish old transactions for different products
+          if (transaction.finish) {
+            transaction.finish();
+            console.log('🍎 Finished old transaction:', transaction.transactionId);
+          }
+        }
       });
 
-      store.when(PRODUCT_ID).verified((product: any) => {
-        console.log('🍎 Product verified:', product);
-        handlePurchaseVerified(product);
+      store.when().verified((transaction: any) => {
+        console.log('🍎 Transaction verified (global):', {
+          transactionId: transaction.transactionId,
+          products: transaction.products
+        });
+        
+        const hasOurProduct = transaction.products?.some((p: any) => p.id === PRODUCT_ID);
+        if (hasOurProduct) {
+          handlePurchaseVerified(transaction);
+        }
       });
 
-      console.log('🍎 Product-specific handlers set up');
+      console.log('🍎 Global transaction handlers set up');
 
       // Global error handler for all store errors including cancellations
       console.log('🍎 Setting up global error handler...');
       store.error((error: any) => {
         console.error('🍎 Global Store Error:', error);
+        console.error('🍎 Error details:', {
+          message: error?.message,
+          code: error?.code,
+          type: typeof error,
+          keys: Object.keys(error || {})
+        });
+        
         updateState({ isLoading: false, isProcessing: false });
 
         let errorMessage = error.message || 'Store error occurred';
@@ -220,15 +254,44 @@ export const useApplePayments = () => {
     return product.owned || false;
   };
 
-  const handlePurchaseApproved = async (product: any) => {
-    console.log('🍎 Handling approved purchase:', product);
+  const handlePurchaseApproved = async (transaction: any) => {
+    console.log('🍎 Handling approved purchase:', transaction);
     
     try {
+      // Access receipt data from the store's receipts
+      const store = window.CdvPurchase?.store;
+      if (!store) {
+        throw new Error('Store not available');
+      }
+      
+      console.log('🍎 Checking for receipt data in store...');
+      const receipts = store.receipts || [];
+      console.log('🍎 Available receipts:', receipts.length);
+      
+      // Find the iOS receipt
+      const iOSReceipt = receipts.find((r: any) => r.platform === 'ios-appstore');
+      if (!iOSReceipt) {
+        throw new Error('iOS receipt not found');
+      }
+      
+      console.log('🍎 Found iOS receipt:', {
+        platform: iOSReceipt.platform,
+        hasNativeData: !!iOSReceipt.nativeData,
+        hasAppStoreReceipt: !!iOSReceipt.nativeData?.appStoreReceipt
+      });
+      
+      if (!iOSReceipt.nativeData?.appStoreReceipt) {
+        throw new Error('AppStore receipt data not available');
+      }
+      
       // Validate receipt with Apple
-      await validateReceipt(product.transaction.appStoreReceipt);
+      await validateReceipt(iOSReceipt.nativeData.appStoreReceipt);
       
       // Finish the transaction
-      product.finish();
+      if (transaction.finish) {
+        transaction.finish();
+        console.log('🍎 Transaction finished successfully');
+      }
       
       updateState({ 
         isProcessing: false, 
@@ -239,6 +302,11 @@ export const useApplePayments = () => {
       
     } catch (error: any) {
       console.error('🍎 Receipt validation error:', error);
+      console.error('🍎 Receipt validation error details:', {
+        message: error?.message,
+        type: typeof error,
+        keys: Object.keys(error || {})
+      });
       updateState({ isProcessing: false, error: error.message });
       toast.error('Receipt validation failed');
     }
