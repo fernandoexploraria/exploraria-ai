@@ -136,7 +136,11 @@ export const useApplePayments = () => {
         updateState({ error: errorMessage });
       });
 
-      console.log('🍎 All event handlers set up, calling store.ready()...');
+      console.log('🍎 All event handlers set up, calling store.initialize()...');
+
+      // CRITICAL: Initialize store to start App Store connection
+      await store.initialize();
+      console.log('🍎 Store.initialize() completed, now calling store.ready()...');
 
       // Initialize store - call ready directly, don't wrap in Promise
       store.ready(() => {
