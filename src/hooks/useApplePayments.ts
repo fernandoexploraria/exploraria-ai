@@ -413,9 +413,9 @@ export const useApplePayments = () => {
       console.log('🍎 Starting purchase for:', product);
       toast.loading('Processing purchase...');
       
-      // Use the product ID for ordering - the plugin expects just the ID
-      console.log('🍎 Calling store.order with product ID...');
-      store.order(product.id);
+      // Use the product object instead of just the ID
+      console.log('🍎 Calling store.order with product object...');
+      store.order(product);
       
     } catch (error: any) {
       console.error('🍎 Purchase error:', error);
