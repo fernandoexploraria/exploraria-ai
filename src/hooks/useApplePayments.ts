@@ -185,22 +185,38 @@ export const useApplePayments = () => {
         
         const products = store.products || [];
         console.log('🍎 Available products after ready:', products.length);
+        console.log('🍎 Raw products array:', JSON.stringify(products, null, 2));
         
-        if (products.length > 0) {
-          products.forEach((product: any, index: number) => {
-            console.log(`🍎 Product ${index}:`, {
-              id: product.id,
-              valid: product.valid,
-              canPurchase: product.canPurchase,
-              owned: product.owned,
-              state: product.state,
-              price: product.price
-            });
+        // Check specifically for LEXPS0002
+        const ourProduct = products.find((p: any) => p.id === PRODUCT_ID);
+        console.log('🍎 Our product (LEXPS0002) found:', !!ourProduct);
+        
+        if (ourProduct) {
+          console.log('🍎 LEXPS0002 details:', {
+            id: ourProduct.id,
+            valid: ourProduct.valid,
+            canPurchase: ourProduct.canPurchase,
+            owned: ourProduct.owned,
+            state: ourProduct.state,
+            price: ourProduct.price,
+            available: ourProduct.available
           });
         } else {
-          console.log('🍎 No products found after store ready, will check again after refresh');
+          console.log('🍎 LEXPS0002 not found in products array!');
+          console.log('🍎 Available product IDs:', products.map((p: any) => p.id));
         }
-
+        
+        const isPremium = checkPremiumStatus(products);
+        console.log('🍎 Premium status calculated:', isPremium);
+        
+        console.log('🍎 Setting final state:', {
+          isInitialized: true,
+          isLoading: false,
+          isAvailable: true,
+          products: products.length,
+          isPremiumActive: isPremium
+        });
+        
         updateState({ 
           isInitialized: true, 
           isLoading: false, 

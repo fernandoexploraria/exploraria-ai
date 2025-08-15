@@ -15,6 +15,15 @@ const FreeTourCounter: React.FC = () => {
   const { tourStats, isLoading: tourLoading } = useTourStats();
   const applePayments = useApplePayments();
   
+  console.log('🎯 FreeTourCounter Apple Payments state:', {
+    isAvailable: applePayments.isAvailable,
+    isLoading: applePayments.isLoading,
+    isInitialized: applePayments.isInitialized,
+    products: applePayments.products?.length || 0,
+    isPremiumActive: applePayments.isPremiumActive,
+    buttonShouldShow: applePayments.isAvailable && !applePayments.isLoading
+  });
+  
   const { subscriptionData, isLoading: subLoading, createCheckout, createSubscriptionIntent, openCustomerPortal, checkSubscription, cancelSubscriptionAtPeriodEnd } = useSubscription();
   const [isHighlighted, setIsHighlighted] = useState(false);
   const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
