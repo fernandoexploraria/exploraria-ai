@@ -170,26 +170,38 @@ export const useApplePayments = () => {
   const validateReceipt = async (receiptData: string) => {
     console.log('🍎 Validating receipt...');
     
-    // For now, just log the receipt - you can implement server-side validation later
-    console.log('🍎 Receipt data:', receiptData);
-    
-    // TODO: Send receipt to your backend for validation with Apple's servers
-    // This would typically involve calling your edge function that validates with Apple
-    
-    return true; // Simplified for now
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      
+      const { data, error } = await supabase.functions.invoke('validate-apple-receipt', {
+        body: { receiptData, sandbox: true }
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (!data.valid) {
+        throw new Error(data.error || 'Receipt validation failed');
+      }
+
+      console.log('🍎 Receipt validation successful:', data);
+      return data;
+      
+    } catch (error: any) {
+      console.error('🍎 Receipt validation error:', error);
+      throw error;
+    }
   };
 
   const updateSubscriptionInSupabase = async (product: any) => {
     try {
-      console.log('🍎 Updating subscription in Supabase...');
-      
-      // TODO: Call your edge function to update subscription status
-      // This would update the subscribers table with Apple subscription data
-      
-      console.log('🍎 Subscription updated in Supabase');
+      console.log('🍎 Subscription already updated via receipt validation');
+      // The validateReceipt function already updates the subscribers table
+      // No additional action needed here
       
     } catch (error) {
-      console.error('🍎 Error updating subscription in Supabase:', error);
+      console.error('🍎 Error in updateSubscriptionInSupabase:', error);
     }
   };
 
