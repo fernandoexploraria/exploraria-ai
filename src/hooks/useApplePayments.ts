@@ -37,7 +37,7 @@ interface ApplePaymentsState {
   isAvailable: boolean;
 }
 
-const PRODUCT_ID = 'LEXPS0001'; // Your Apple subscription product ID
+const PRODUCT_ID = 'LEXPS0002'; // Your Apple subscription product ID
 
 export const useApplePayments = () => {
   const [state, setState] = useState<ApplePaymentsState>({
