@@ -102,10 +102,6 @@ export const useApplePayments = () => {
         handlePurchaseVerified(product);
       });
 
-      store.when(PRODUCT_ID).owned((product: any) => {
-        console.log('🍎 Product owned:', product);
-        updateState({ isPremiumActive: true });
-      });
 
       store.when(PRODUCT_ID).cancelled((product: any) => {
         console.log('🍎 Purchase cancelled:', product);
@@ -141,8 +137,19 @@ export const useApplePayments = () => {
         });
       });
 
-      // Refresh store
+      // Refresh store to process any pending transactions
       store.refresh();
+
+      // After refresh, check if there are pending transactions that should be processed
+      setTimeout(() => {
+        const updatedProducts = store.products || [];
+        const isPremium = checkPremiumStatus(updatedProducts);
+        console.log('🍎 Post-refresh status check:', { isPremium, productsCount: updatedProducts.length });
+        
+        if (isPremium !== state.isPremiumActive) {
+          updateState({ isPremiumActive: isPremium, products: updatedProducts });
+        }
+      }, 1000);
 
     } catch (error: any) {
       console.error('🍎 Store initialization error:', error);
@@ -159,8 +166,15 @@ export const useApplePayments = () => {
     const product = products.find(p => p.id === PRODUCT_ID);
     if (!product) return false;
     
-    // Check if user owns the subscription
-    return product.owned && product.state === 'approved';
+    // Check if user owns the subscription via the owned property
+    console.log('🍎 Checking premium status for product:', {
+      id: product.id,
+      owned: product.owned,
+      state: product.state,
+      valid: product.valid
+    });
+    
+    return product.owned || false;
   };
 
   const handlePurchaseApproved = async (product: any) => {
