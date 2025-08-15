@@ -130,11 +130,6 @@ export const useApplePayments = () => {
         updateState({ error: errorMessage });
       });
 
-      store.when(PRODUCT_ID).error((error: any) => {
-        console.error('🍎 Product-specific error:', error);
-        updateState({ isProcessing: false, error: error.message });
-        toast.error(`Purchase error: ${error.message}`);
-      });
 
       // Initialize store
       await new Promise((resolve, reject) => {
