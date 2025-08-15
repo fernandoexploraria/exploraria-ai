@@ -71,6 +71,9 @@ verify_jwt = false
 [functions.get-revenuecat-config]
 verify_jwt = false
 
+[functions.generate-apple-offer-signature]
+verify_jwt = true
+
 [storage]
 enabled = true
 port = 54325

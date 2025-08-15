@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/components/AuthProvider';
 
 declare global {
   interface Window {
@@ -40,6 +42,7 @@ interface ApplePaymentsState {
 const PRODUCT_ID = 'LEXPS0002'; // Your Apple subscription product ID
 
 export const useApplePayments = () => {
+  const { user, session } = useAuth();
   const [state, setState] = useState<ApplePaymentsState>({
     isInitialized: false,
     isLoading: true,
@@ -413,33 +416,71 @@ export const useApplePayments = () => {
       console.log('🍎 Starting purchase for:', product);
       toast.loading('Processing purchase...');
       
-      // CRITICAL FIX: Include proper Apple discount structure
       let orderOptions: any = {};
       
       // Check if the product has offers (introductory or promotional offers)
       if (product.offers && product.offers.length > 0) {
         const defaultOffer = product.offers[0];
+        console.log('🍎 Found offer:', defaultOffer);
         
-        // Format the additionalData as Apple expects it
-        orderOptions = {
-          additionalData: {
-            appStore: {
-              discount: {
-                identifier: defaultOffer.id || '',
-                keyIdentifier: defaultOffer.id || '',
-                nonce: Date.now().toString(), // Simple nonce
-                signature: '', // Leave empty for now
-                timestamp: Date.now()
-              }
+        // Check if this is a promotional offer that requires server-side signing
+        // Promotional offers typically require a signature, introductory offers don't
+        const isPromotionalOffer = defaultOffer.offerType === 'Promotional' || 
+                                   defaultOffer.offerType === 'promotional' ||
+                                   // If we can't determine type, try signing anyway since we're getting the error
+                                   true;
+        
+        if (isPromotionalOffer && user && session) {
+          console.log('🍎 Detected promotional offer, requesting server signature...');
+          
+          try {
+            // Call Supabase Edge Function to get the signed discount data
+            const { data: signedDiscountData, error: signatureError } = await supabase.functions.invoke('generate-apple-offer-signature', {
+              body: {
+                productIdentifier: product.id,
+                offerIdentifier: defaultOffer.id || defaultOffer.identifier || 'default',
+                subscriptionGroupIdentifier: product.group || undefined,
+                applicationUsername: user.id
+              },
+              headers: {
+                Authorization: `Bearer ${session.access_token}`,
+              },
+            });
+            
+            if (signatureError || !signedDiscountData) {
+              console.error('🍎 Failed to get Apple offer signature:', signatureError);
+              throw new Error(`Failed to get Apple offer signature: ${signatureError?.message || 'Unknown error'}`);
             }
+            
+            // Populate additionalData.appStore.discount with the signed data
+            orderOptions = {
+              additionalData: {
+                appStore: {
+                  discount: {
+                    identifier: signedDiscountData.identifier,
+                    keyIdentifier: signedDiscountData.keyIdentifier,
+                    nonce: signedDiscountData.nonce,
+                    signature: signedDiscountData.signature,
+                    timestamp: signedDiscountData.timestamp,
+                  }
+                }
+              }
+            };
+            console.log('🍎 Ordering with signed promotional offer:', orderOptions);
+            
+          } catch (signatureError) {
+            console.error('🍎 Error getting signature:', signatureError);
+            // Fall back to ordering without the signature - might still work for introductory offers
+            console.log('🍎 Falling back to order without signature...');
           }
-        };
-        console.log('🍎 Ordering with Apple discount structure:', orderOptions);
+        } else {
+          console.log('🍎 Ordering with introductory offer (no signature required)');
+        }
       } else {
         console.log('🍎 Ordering without specific offer (no offers found)');
       }
       
-      console.log('🍎 Calling store.order with product and additionalData...');
+      console.log('🍎 Calling store.order with product and options...');
       store.order(product, orderOptions);
       
     } catch (error: any) {
