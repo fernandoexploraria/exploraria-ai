@@ -36,8 +36,13 @@ export const useApplePayments = () => {
   };
 
   const initializeStore = async () => {
+    console.log('🍎 Checking platform and store availability...');
+    console.log('🍎 Platform:', Capacitor.getPlatform());
+    console.log('🍎 Is native platform:', Capacitor.isNativePlatform());
+    console.log('🍎 Store available:', !!window.store);
+    
     if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios') {
-      console.log('Apple payments only available on iOS');
+      console.log('🍎 Apple payments only available on iOS, setting as unavailable');
       updateState({ 
         isLoading: false, 
         isAvailable: false,
@@ -47,13 +52,20 @@ export const useApplePayments = () => {
     }
 
     try {
-      const { store } = window;
-      
-      if (!store) {
-        throw new Error('Cordova store plugin not available');
+      // Check if the store plugin is available
+      if (typeof window.store === 'undefined') {
+        console.log('🍎 Cordova store plugin not found. Run "npx cap sync" to sync plugins.');
+        updateState({ 
+          isLoading: false, 
+          isAvailable: false,
+          error: 'Store plugin not found. Please sync Capacitor plugins.' 
+        });
+        return;
       }
 
-      console.log('🍎 Initializing Apple Store...');
+      const { store } = window;
+      console.log('🍎 Store object found, initializing...');
+      console.log('🍎 Store methods available:', Object.keys(store));
 
       // Configure the store
       store.verbosity = store.DEBUG;
