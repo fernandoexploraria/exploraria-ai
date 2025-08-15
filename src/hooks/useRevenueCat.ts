@@ -145,17 +145,21 @@ export const useRevenueCat = () => {
       console.log('🔍 Current offering:', state.currentOffering);
       console.log('🔍 Available packages:', state.currentOffering.availablePackages);
 
-      // Use the direct monthly property from the offering (this is the correct approach)
-      const pkg = state.currentOffering.monthly;
-
-      console.log('🔍 Using monthly package directly:', pkg);
+      // CRITICAL FIX: Use offerings to get the package properly
+      const offerings = await Purchases.getOfferings();
+      if (!offerings.current) throw new Error('No current offering available');
       
-      if (!pkg) throw new Error('Monthly subscription package not found.');
+      // Get the package using the correct identifier from the availablePackages
+      const monthlyPackage = offerings.current.availablePackages.find(pkg => pkg.identifier === '$rc_monthly');
+      
+      console.log('🔍 Using fresh package from offerings:', monthlyPackage);
+      
+      if (!monthlyPackage) throw new Error('Monthly subscription package not found.');
       if (!user) throw new Error('Please log in to purchase a subscription.');
 
       setState(prev => ({ ...prev, isProcessing: true, error: null }));
 
-      const { customerInfo } = await Purchases.purchasePackage(pkg);
+      const { customerInfo } = await Purchases.purchasePackage({ aPackage: monthlyPackage });
       handleCustomerInfoUpdate(customerInfo);
 
     } catch (e: any) {
