@@ -478,21 +478,22 @@ export const useApplePayments = () => {
           throw new Error(`Failed to get Apple offer signature: ${signatureError?.message || 'Unknown error'}`);
         }
         
-        // Construct the `orderOptions` with both the `offer` object and the `additionalData.appStore.discount`
-        const orderOptions = {
-          offer: targetOffer, // Pass the entire offer object
-          additionalData: {
-            appStore: {
-              discount: {
-                identifier: signedDiscountData.identifier, // This should be LEXPP0002
-                keyIdentifier: signedDiscountData.keyIdentifier,
-                nonce: signedDiscountData.nonce,
-                signature: signedDiscountData.signature,
-                timestamp: signedDiscountData.timestamp,
+          // Construct the `orderOptions` with both the `offer` object and the `additionalData.appStore.discount`
+          const orderOptions = {
+            offer: targetOffer, // Pass the entire offer object
+            additionalData: {
+              appStore: {
+                discount: {
+                  id: signedDiscountData.identifier, // CRITICAL: Plugin expects both id and identifier
+                  identifier: signedDiscountData.identifier, // This should be LEXPP0002
+                  keyIdentifier: signedDiscountData.keyIdentifier,
+                  nonce: signedDiscountData.nonce,
+                  signature: signedDiscountData.signature,
+                  timestamp: signedDiscountData.timestamp,
+                }
               }
             }
-          }
-        };
+          };
         console.log('🍎 Ordering with signed promotional offer:', orderOptions);
         
         console.log('🍎 Calling store.order with targetOffer directly and additionalData...');
