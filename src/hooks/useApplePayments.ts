@@ -181,50 +181,56 @@ export const useApplePayments = () => {
         try {
           console.log('🍎 Store ready callback triggered - starting processing');
           
-          // Refresh store to get latest product info
-          console.log('🍎 Calling store.refresh()...');
-          store.refresh();
+          // Use store.update() instead of refresh() as per the error message
+          console.log('🍎 Calling store.update()...');
+          store.update();
           
-          console.log('🍎 Getting products array...');
-          const products = store.products || [];
-          console.log('🍎 Available products after ready:', products.length);
-          
-          // Check specifically for LEXPS0002
-          console.log('🍎 Looking for LEXPS0002...');
-          const ourProduct = products.find((p: any) => p.id === PRODUCT_ID);
-          console.log('🍎 Our product (LEXPS0002) found:', !!ourProduct);
-          
-          if (ourProduct) {
-            console.log('🍎 LEXPS0002 details:', {
-              id: ourProduct.id,
-              valid: ourProduct.valid,
-              canPurchase: ourProduct.canPurchase,
-              owned: ourProduct.owned,
-              state: ourProduct.state,
-              price: ourProduct.price,
-              available: ourProduct.available
+          // Small delay to let update complete
+          setTimeout(() => {
+            console.log('🍎 Getting products array after update...');
+            const products = store.products || [];
+            console.log('🍎 Available products after ready:', products.length);
+            
+            // Check specifically for LEXPS0002
+            console.log('🍎 Looking for LEXPS0002...');
+            const ourProduct = products.find((p: any) => p.id === PRODUCT_ID);
+            console.log('🍎 Our product (LEXPS0002) found:', !!ourProduct);
+            
+            if (ourProduct) {
+              console.log('🍎 LEXPS0002 details:', {
+                id: ourProduct.id,
+                valid: ourProduct.valid,
+                canPurchase: ourProduct.canPurchase,
+                owned: ourProduct.owned,
+                state: ourProduct.state,
+                price: ourProduct.price,
+                available: ourProduct.available
+              });
+            } else {
+              console.log('🍎 LEXPS0002 not found in products array!');
+              console.log('🍎 Available product IDs:', products.map((p: any) => p.id));
+            }
+            
+            console.log('🍎 Calculating premium status...');
+            const isPremium = checkPremiumStatus(products);
+            console.log('🍎 Premium status calculated:', isPremium);
+            
+            console.log('🍎 Updating state with final values...');
+            const newState = { 
+              isInitialized: true, 
+              isLoading: false, 
+              isAvailable: true,
+              products: products,
+              isPremiumActive: isPremium
+            };
+            
+            console.log('🍎 About to call updateState with:', {
+              ...newState,
+              productsCount: newState.products.length
             });
-          } else {
-            console.log('🍎 LEXPS0002 not found in products array!');
-            console.log('🍎 Available product IDs:', products.map((p: any) => p.id));
-          }
-          
-          console.log('🍎 Calculating premium status...');
-          const isPremium = checkPremiumStatus(products);
-          console.log('🍎 Premium status calculated:', isPremium);
-          
-          console.log('🍎 Updating state with final values...');
-          const newState = { 
-            isInitialized: true, 
-            isLoading: false, 
-            isAvailable: true,
-            products: products,
-            isPremiumActive: isPremium
-          };
-          
-          console.log('🍎 About to call updateState with:', newState);
-          updateState(newState);
-          console.log('🍎 State update completed successfully');
+            updateState(newState);
+            console.log('🍎 State update completed successfully');
+          }, 500);
           
         } catch (error: any) {
           console.error('🍎 Error in store.ready() callback:', error);
@@ -249,19 +255,7 @@ export const useApplePayments = () => {
       console.log('🍎 Calling store.ready()...');
       store.ready();
 
-      // Refresh store to process any pending transactions
-      store.refresh();
-
-      // After refresh, check if there are pending transactions that should be processed
-      setTimeout(() => {
-        const updatedProducts = store.products || [];
-        const isPremium = checkPremiumStatus(updatedProducts);
-        console.log('🍎 Post-refresh status check:', { isPremium, productsCount: updatedProducts.length });
-        
-        if (isPremium !== state.isPremiumActive) {
-          updateState({ isPremiumActive: isPremium, products: updatedProducts });
-        }
-      }, 1000);
+      // Don't call refresh here - let the ready callback handle it
 
     } catch (error: any) {
       console.error('🍎 Store initialization error:', error);
