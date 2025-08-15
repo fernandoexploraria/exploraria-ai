@@ -418,75 +418,62 @@ export const useApplePayments = () => {
       
       let orderOptions: any = {};
       
-      // Check if the product has offers (introductory or promotional offers)
-      if (product.offers && product.offers.length > 0) {
-        const defaultOffer = product.offers[0];
-        console.log('🍎 Found offer:', defaultOffer);
+      // CRITICAL FIX: The plugin expects promotional offer data even for "Default" offers
+      // We need to use the ACTUAL promotional offer identifier from App Store Connect
+      // not the "$" ID that comes from the plugin
+      
+      // Replace this with your actual promotional offer reference name from App Store Connect
+      // Go to App Store Connect > Your App > Features > In-App Purchases > LEXPS0002 > Promotional Offers
+      const ACTUAL_PROMOTIONAL_OFFER_IDENTIFIER = 'default_promo'; // UPDATE THIS WITH YOUR ACTUAL OFFER ID
+      
+      if (user && session) {
+        console.log('🍎 Plugin requires promotional offer signature, requesting from backend...');
         
-        // Check if this is a promotional offer that requires server-side signing
-        // The issue is that even "Default" offers can require signing in some cases
-        // Let's check if this is actually a promotional offer first
-        console.log('🍎 Analyzing offer type:', defaultOffer.offerType);
-        
-        // Only try to sign if this is NOT a standard default offer 
-        // If the offer ID is "$", it's the standard price, not a promotional offer
-        const isActualPromotionalOffer = defaultOffer.offerType === 'Promotional' || 
-                                        defaultOffer.offerType === 'promotional' ||
-                                        // Explicitly exclude "$" offers as they are standard pricing
-                                        (defaultOffer.id !== '$' && defaultOffer.id !== 'default' && defaultOffer.offerType !== 'Default');
-        
-        if (isActualPromotionalOffer && user && session) {
-          console.log('🍎 Detected promotional offer, requesting server signature...');
+        try {
+          // Call Supabase Edge Function to get the signed discount data
+          const { data: signedDiscountData, error: signatureError } = await supabase.functions.invoke('generate-apple-offer-signature', {
+            body: {
+              productIdentifier: product.id,
+              // Use the ACTUAL promotional offer identifier from App Store Connect, NOT "$"
+              offerIdentifier: ACTUAL_PROMOTIONAL_OFFER_IDENTIFIER,
+              subscriptionGroupIdentifier: product.group || '21754941', // Use product group or fallback
+              applicationUsername: user.id
+            },
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          });
           
-          try {
-            // Call Supabase Edge Function to get the signed discount data
-            const { data: signedDiscountData, error: signatureError } = await supabase.functions.invoke('generate-apple-offer-signature', {
-              body: {
-                productIdentifier: product.id,
-                offerIdentifier: defaultOffer.id || 'default-offer',
-                subscriptionGroupIdentifier: product.group || undefined,
-                applicationUsername: user.id
-              },
-              headers: {
-                Authorization: `Bearer ${session.access_token}`,
-              },
-            });
-            
-            if (signatureError || !signedDiscountData) {
-              console.error('🍎 Failed to get Apple offer signature:', signatureError);
-              throw new Error(`Failed to get Apple offer signature: ${signatureError?.message || 'Unknown error'}`);
-            }
-            
-            // Populate additionalData.appStore.discount with the signed data
-            orderOptions = {
-              additionalData: {
-                appStore: {
-                  discount: {
-                    identifier: signedDiscountData.identifier,
-                    keyIdentifier: signedDiscountData.keyIdentifier,
-                    nonce: signedDiscountData.nonce,
-                    signature: signedDiscountData.signature,
-                    timestamp: signedDiscountData.timestamp,
-                  }
+          if (signatureError || !signedDiscountData) {
+            console.error('🍎 Failed to get Apple offer signature:', signatureError);
+            throw new Error(`Failed to get Apple offer signature: ${signatureError?.message || 'Unknown error'}`);
+          }
+          
+          // Construct the additionalData.appStore.discount object with the signed data
+          orderOptions = {
+            additionalData: {
+              appStore: {
+                discount: {
+                  identifier: signedDiscountData.identifier, // Should match ACTUAL_PROMOTIONAL_OFFER_IDENTIFIER
+                  keyIdentifier: signedDiscountData.keyIdentifier,
+                  nonce: signedDiscountData.nonce,
+                  signature: signedDiscountData.signature,
+                  timestamp: signedDiscountData.timestamp,
                 }
               }
-            };
-            console.log('🍎 Ordering with signed promotional offer:', orderOptions);
-            
-          } catch (signatureError) {
-            console.error('🍎 Error getting signature:', signatureError);
-            // Fall back to ordering without the signature - might still work for introductory offers
-            console.log('🍎 Falling back to order without signature...');
-          }
-        } else {
-          console.log('🍎 Standard default offer detected (offerType: Default, id: $) - no signature needed');
-          // For standard default offers, don't include any additionalData
+            }
+          };
+          console.log('🍎 Ordering with signed promotional offer structure:', orderOptions);
+          
+        } catch (signatureError) {
+          console.error('🍎 Error getting signature:', signatureError);
+          throw signatureError; // Don't fall back, this is required
         }
       } else {
-        console.log('🍎 Ordering without specific offer (no offers found)');
+        throw new Error('User authentication required for promotional offers');
       }
       
-      console.log('🍎 Calling store.order with product and options...');
+      console.log('🍎 Calling store.order with product and signed options...');
       store.order(product, orderOptions);
       
     } catch (error: any) {
