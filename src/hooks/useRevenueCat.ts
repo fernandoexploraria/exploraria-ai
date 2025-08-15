@@ -121,23 +121,26 @@ export const useRevenueCat = () => {
       const { customerInfo: initialCustomerInfo } = await Purchases.getCustomerInfo();
       handleCustomerInfoUpdate(initialCustomerInfo);
 
-      
+      console.log('✅ RevenueCat configuration completed successfully');
+      setState(prev => ({ ...prev, isInitialized: true }));
 
     } catch (e: any) {
-      // Handle errors silently in production
+      console.error('❌ RevenueCat configuration failed:', e);
       setState(prev => ({
         ...prev,
         isAvailable: false,
+        isLoading: false,
         error: e.message || 'Failed to initialize subscription system.',
       }));
     } finally {
-      setState(prev => ({ ...prev, isLoading: false, isInitialized: true })); // Ensure isInitialized is set
+      setState(prev => ({ ...prev, isLoading: false }));
     }
   }, [user, handleCustomerInfoUpdate]);
 
   // Purchase subscription
   const purchaseSubscription = useCallback(async () => {
     try {
+      console.log('💳 Starting purchase subscription process...');
       if (!state.isAvailable) throw new Error('Subscription system not available.');
       if (!state.currentOffering) throw new Error('No current offering found to purchase from.');
 
@@ -207,10 +210,13 @@ export const useRevenueCat = () => {
   }, [state.isAvailable, user, toast, handleCustomerInfoUpdate]);
 
   useEffect(() => {
+    console.log('🔄 Starting RevenueCat configuration...');
     configureRevenueCat();
 
     return () => {
-      // Note: RevenueCat Capacitor plugin handles cleanup automatically
+      console.log('🧹 Cleaning up RevenueCat listeners...');
+      // Note: RevenueCat Capacitor plugin handles cleanup automatically on unmount
+      // Manual cleanup may not be necessary but we log for debugging
     };
   }, [configureRevenueCat]);
 
