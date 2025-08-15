@@ -29,8 +29,7 @@ serve(async (req) => {
     console.log('[REVENUECAT-WEBHOOK] Received webhook (UNVERIFIED):', JSON.stringify(payload, null, 2));
 
     const event = payload.event;
-    const subscriberInfo = event.purchaser_info;
-    const appUserID = subscriberInfo.original_app_user_id;
+    const appUserID = event.original_app_user_id || event.app_user_id;
 
     if (!appUserID) {
       console.warn('[REVENUECAT-WEBHOOK] Received for anonymous user or missing app_user_id. Skipping database update.');
@@ -38,23 +37,23 @@ serve(async (req) => {
     }
 
     // --- 1. Update `subscribers` table (current subscription status) ---
-    const premiumEntitlement = subscriberInfo.entitlements[PREMIUM_ENTITLEMENT_ID];
-    const isPremiumActive = premiumEntitlement?.active || false;
-    const subscriptionTier = isPremiumActive ? PREMIUM_ENTITLEMENT_ID : null;
-    const subscriptionEndDate = premiumEntitlement?.expires_date ? new Date(premiumEntitlement.expires_date).toISOString() : null;
-    const originalPurchaseDate = subscriberInfo.original_purchase_date ? new Date(subscriberInfo.original_purchase_date).toISOString() : null;
-    const originalTransactionId = subscriberInfo.original_app_user_id;
+    // Determine if this is a subscription event (for TEST events, we'll mark as active)
+    const isSubscriptionActive = event.type === 'TEST' || 
+                                event.type === 'INITIAL_PURCHASE' || 
+                                event.type === 'RENEWAL';
+    const subscriptionEndDate = event.expiration_at_ms ? new Date(event.expiration_at_ms).toISOString() : null;
+    const originalTransactionId = event.original_transaction_id || event.transaction_id;
 
     const { error: subscriberError } = await supabaseAdmin
       .from('subscribers')
       .upsert({
         user_id: appUserID,
-        subscribed: isPremiumActive,
-        subscription_tier: subscriptionTier,
+        subscribed: isSubscriptionActive,
+        subscription_tier: isSubscriptionActive ? PREMIUM_ENTITLEMENT_ID : null,
         subscription_end: subscriptionEndDate,
         original_transaction_id: originalTransactionId,
-        latest_transaction_id: subscriberInfo.latest_purchase_receipt || null,
-        billing_issue: subscriberInfo.first_seen_date === subscriberInfo.last_seen_date && !isPremiumActive,
+        latest_transaction_id: event.transaction_id,
+        billing_issue: false,
         subscription_platform: 'revenuecat',
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id', ignoreDuplicates: false });
@@ -63,21 +62,20 @@ serve(async (req) => {
       console.error('[REVENUECAT-WEBHOOK] Error updating subscribers table:', subscriberError);
       throw new Error(`Failed to update subscriber status: ${subscriberError.message}`);
     }
-    console.log(`[REVENUECAT-WEBHOOK] Subscriber ${appUserID} status updated: ${isPremiumActive ? 'active' : 'inactive'}`);
+    console.log(`[REVENUECAT-WEBHOOK] Subscriber ${appUserID} status updated: ${isSubscriptionActive ? 'active' : 'inactive'}`);
 
     // --- 2. Create `payments` records (individual transactions) ---
-    const transaction = event.transaction;
-
-    if (transaction) {
+    // For RevenueCat webhooks, transaction data is in the event object itself
+    if (event.transaction_id && event.purchased_at_ms) {
       const paymentRecord = {
         tourist_user_id: appUserID,
-        apple_transaction_id: transaction.id,
-        product_id: transaction.product_id,
-        amount: transaction.price,
-        currency: transaction.currency,
-        transaction_date: new Date(transaction.purchased_at_ms).toISOString(),
+        apple_transaction_id: event.transaction_id,
+        product_id: event.product_id,
+        amount: event.price || 0,
+        currency: event.currency || 'USD',
+        transaction_date: new Date(event.purchased_at_ms).toISOString(),
         payment_type: event.type,
-        status: transaction.type === 'REFUND' ? 'REFUNDED' : 'COMPLETED',
+        status: event.type === 'CANCELLATION' ? 'REFUNDED' : 'COMPLETED',
         payment_platform: 'revenuecat',
       };
 
