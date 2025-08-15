@@ -178,52 +178,71 @@ export const useApplePayments = () => {
 
       // Initialize store - call ready directly, don't wrap in Promise
       store.ready(() => {
-        console.log('🍎 Store ready callback triggered');
-        
-        // Refresh store to get latest product info
-        store.refresh();
-        
-        const products = store.products || [];
-        console.log('🍎 Available products after ready:', products.length);
-        console.log('🍎 Raw products array:', JSON.stringify(products, null, 2));
-        
-        // Check specifically for LEXPS0002
-        const ourProduct = products.find((p: any) => p.id === PRODUCT_ID);
-        console.log('🍎 Our product (LEXPS0002) found:', !!ourProduct);
-        
-        if (ourProduct) {
-          console.log('🍎 LEXPS0002 details:', {
-            id: ourProduct.id,
-            valid: ourProduct.valid,
-            canPurchase: ourProduct.canPurchase,
-            owned: ourProduct.owned,
-            state: ourProduct.state,
-            price: ourProduct.price,
-            available: ourProduct.available
+        try {
+          console.log('🍎 Store ready callback triggered - starting processing');
+          
+          // Refresh store to get latest product info
+          console.log('🍎 Calling store.refresh()...');
+          store.refresh();
+          
+          console.log('🍎 Getting products array...');
+          const products = store.products || [];
+          console.log('🍎 Available products after ready:', products.length);
+          
+          // Check specifically for LEXPS0002
+          console.log('🍎 Looking for LEXPS0002...');
+          const ourProduct = products.find((p: any) => p.id === PRODUCT_ID);
+          console.log('🍎 Our product (LEXPS0002) found:', !!ourProduct);
+          
+          if (ourProduct) {
+            console.log('🍎 LEXPS0002 details:', {
+              id: ourProduct.id,
+              valid: ourProduct.valid,
+              canPurchase: ourProduct.canPurchase,
+              owned: ourProduct.owned,
+              state: ourProduct.state,
+              price: ourProduct.price,
+              available: ourProduct.available
+            });
+          } else {
+            console.log('🍎 LEXPS0002 not found in products array!');
+            console.log('🍎 Available product IDs:', products.map((p: any) => p.id));
+          }
+          
+          console.log('🍎 Calculating premium status...');
+          const isPremium = checkPremiumStatus(products);
+          console.log('🍎 Premium status calculated:', isPremium);
+          
+          console.log('🍎 Updating state with final values...');
+          const newState = { 
+            isInitialized: true, 
+            isLoading: false, 
+            isAvailable: true,
+            products: products,
+            isPremiumActive: isPremium
+          };
+          
+          console.log('🍎 About to call updateState with:', newState);
+          updateState(newState);
+          console.log('🍎 State update completed successfully');
+          
+        } catch (error: any) {
+          console.error('🍎 Error in store.ready() callback:', error);
+          console.error('🍎 Error details:', {
+            message: error?.message,
+            stack: error?.stack,
+            type: typeof error,
+            keys: Object.keys(error || {})
           });
-        } else {
-          console.log('🍎 LEXPS0002 not found in products array!');
-          console.log('🍎 Available product IDs:', products.map((p: any) => p.id));
+          
+          // Set error state but still mark as available so user can try
+          updateState({
+            isInitialized: true,
+            isLoading: false,
+            isAvailable: true,
+            error: `Store ready error: ${error?.message || 'Unknown error'}`
+          });
         }
-        
-        const isPremium = checkPremiumStatus(products);
-        console.log('🍎 Premium status calculated:', isPremium);
-        
-        console.log('🍎 Setting final state:', {
-          isInitialized: true,
-          isLoading: false,
-          isAvailable: true,
-          products: products.length,
-          isPremiumActive: isPremium
-        });
-        
-        updateState({ 
-          isInitialized: true, 
-          isLoading: false, 
-          isAvailable: true,
-          products: products,
-          isPremiumActive: checkPremiumStatus(products)
-        });
       });
 
       // Call store.ready() to start initialization
