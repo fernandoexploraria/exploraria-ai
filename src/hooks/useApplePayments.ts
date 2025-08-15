@@ -495,8 +495,9 @@ export const useApplePayments = () => {
         };
         console.log('🍎 Ordering with signed promotional offer:', orderOptions);
         
-        console.log('🍎 Calling store.order with product and signed options...');
-        store.order(product, orderOptions);
+        console.log('🍎 Calling store.order with targetOffer directly and additionalData...');
+        // Try calling order with the offer object directly instead of in options
+        store.order(targetOffer, orderOptions.additionalData);
         
       } catch (signatureError) {
         console.error('🍎 Error getting signature:', signatureError);
