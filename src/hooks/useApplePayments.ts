@@ -399,6 +399,7 @@ export const useApplePayments = () => {
       if (!store) {
         throw new Error('Store not available');
       }
+      
       const product = store.products.find((p: any) => p.id === PRODUCT_ID);
       
       if (!product) {
@@ -412,8 +413,9 @@ export const useApplePayments = () => {
       console.log('🍎 Starting purchase for:', product);
       toast.loading('Processing purchase...');
       
-      // Trigger purchase
-      store.order(PRODUCT_ID);
+      // Use the product object instead of just the ID
+      console.log('🍎 Calling store.order with product object...');
+      store.order(product);
       
     } catch (error: any) {
       console.error('🍎 Purchase error:', error);
