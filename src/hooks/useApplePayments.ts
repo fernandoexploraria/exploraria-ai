@@ -18,6 +18,11 @@ declare global {
         GOOGLE_PLAY: string;
         TEST: string;
       };
+      ERROR_CODES?: {
+        PAYMENT_CANCELLED: number;
+        INVALID_PARAMETER: number;
+      };
+      DEBUG: number;
     };
   }
 }
@@ -103,15 +108,30 @@ export const useApplePayments = () => {
       });
 
 
-      // Global listeners for cancelled transactions
-      store.when().cancelled((product: any) => {
-        console.log('🍎 Purchase cancelled:', product);
-        updateState({ isProcessing: false });
-        toast.error('Purchase cancelled');
+      // Global error handler for all store errors including cancellations
+      store.error((error: any) => {
+        console.error('🍎 Global Store Error:', error);
+        updateState({ isLoading: false, isProcessing: false });
+
+        let errorMessage = error.message || 'Store error occurred';
+        
+        // Check if it's a cancellation error
+        if (error.code && window.CdvPurchase?.ERROR_CODES?.PAYMENT_CANCELLED && 
+            error.code === window.CdvPurchase.ERROR_CODES.PAYMENT_CANCELLED) {
+          errorMessage = 'Purchase cancelled by user';
+          toast.error('Purchase cancelled');
+        } else if (errorMessage.toLowerCase().includes('cancel')) {
+          errorMessage = 'Purchase cancelled by user';
+          toast.error('Purchase cancelled');
+        } else {
+          toast.error(`Store error: ${errorMessage}`);
+        }
+        
+        updateState({ error: errorMessage });
       });
 
       store.when(PRODUCT_ID).error((error: any) => {
-        console.error('🍎 Purchase error:', error);
+        console.error('🍎 Product-specific error:', error);
         updateState({ isProcessing: false, error: error.message });
         toast.error(`Purchase error: ${error.message}`);
       });
@@ -131,11 +151,7 @@ export const useApplePayments = () => {
           resolve(true);
         });
 
-        store.error((error: any) => {
-          console.error('🍎 Store error:', error);
-          updateState({ error: error.message, isLoading: false });
-          reject(error);
-        });
+        // Note: Global error handler above will catch store errors
       });
 
       // Refresh store to process any pending transactions
