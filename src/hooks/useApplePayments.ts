@@ -414,73 +414,94 @@ export const useApplePayments = () => {
         throw new Error('Product cannot be purchased');
       }
 
-      console.log('🍎 Starting purchase for:', product);
+      console.log('🍎 Starting purchase for product:', {
+        id: product.id,
+        title: product.title,
+        canPurchase: product.canPurchase,
+        offersCount: product.offers?.length || 0
+      });
+
+      // Debug: Log all available offers to understand what we're working with
+      console.log('🍎 ALL AVAILABLE OFFERS FOR THIS PRODUCT:');
+      product.offers?.forEach((offer: any, index: number) => {
+        console.log(`🍎 Offer ${index}:`, {
+          id: offer.id,
+          offerType: offer.offerType,
+          className: offer.className,
+          productId: offer.productId,
+          pricingPhases: offer.pricingPhases
+        });
+      });
+      
       toast.loading('Processing purchase...');
       
-      let orderOptions: any = {};
-      
-      // CRITICAL FIX: Target the specific Promotional Offer and get its signature
-      // Find the specific promotional offer object within the product's offers array.
-      // The plugin populates product.offers with all available offers (introductory, promotional).
+      // Check if we have a promotional offer with our target identifier
       const targetOffer = product.offers?.find((offer: any) => offer.id === PROMOTIONAL_OFFER_IDENTIFIER);
+      console.log(`🍎 Looking for promotional offer '${PROMOTIONAL_OFFER_IDENTIFIER}':`, !!targetOffer);
+      
+      // Check if we have any offers that are NOT the default "$" offer
+      const nonDefaultOffers = product.offers?.filter((offer: any) => offer.id !== '$');
+      console.log('🍎 Non-default offers found:', nonDefaultOffers?.length || 0);
 
       if (!targetOffer) {
-        // This means the promotional offer isn't being loaded by the plugin.
-        // This is a critical debugging point if you get this error.
-        throw new Error(`Promotional offer '${PROMOTIONAL_OFFER_IDENTIFIER}' not found for product ${PRODUCT_ID}. Ensure it's configured and propagated.`);
+        console.log(`🍎 Promotional offer '${PROMOTIONAL_OFFER_IDENTIFIER}' not found. Attempting standard purchase...`);
+        
+        // Try standard purchase without promotional offer data
+        console.log('🍎 Calling store.order() with just the product (no promotional offer)...');
+        store.order(product);
+        return;
       }
 
-      console.log('🍎 Detected specific promotional offer, requesting server signature...');
+      // If we reach here, we found the promotional offer
+      console.log('🍎 Found promotional offer, requesting server signature...');
       
-      if (user && session) {
-        try {
-          // Call Supabase Edge Function to get the signed discount data
-          const { data: signedDiscountData, error: signatureError } = await supabase.functions.invoke('generate-apple-offer-signature', {
-            body: {
-              productIdentifier: product.id,
-              offerIdentifier: targetOffer.id, // Use the ID from the found offer object (should be LEXPP0002)
-              subscriptionGroupIdentifier: product.group || '21754941', // Use product group or fallback
-              applicationUsername: user.id
-            },
-            headers: {
-              Authorization: `Bearer ${session.access_token}`,
-            },
-          });
-          
-          if (signatureError || !signedDiscountData) {
-            console.error('🍎 Failed to get Apple offer signature:', signatureError);
-            throw new Error(`Failed to get Apple offer signature: ${signatureError?.message || 'Unknown error'}`);
-          }
-          
-          // Construct the `orderOptions` with both the `offer` object and the `additionalData.appStore.discount`
-          // The `offer` parameter tells the plugin *which* offer to use.
-          // The `additionalData.appStore.discount` provides the *signed data* for that offer.
-          orderOptions = {
-            offer: targetOffer, // Pass the entire offer object
-            additionalData: {
-              appStore: {
-                discount: {
-                  identifier: signedDiscountData.identifier, // This should be LEXPP0002
-                  keyIdentifier: signedDiscountData.keyIdentifier,
-                  nonce: signedDiscountData.nonce,
-                  signature: signedDiscountData.signature,
-                  timestamp: signedDiscountData.timestamp,
-                }
-              }
-            }
-          };
-          console.log('🍎 Ordering with signed promotional offer:', orderOptions);
-          
-        } catch (signatureError) {
-          console.error('🍎 Error getting signature:', signatureError);
-          throw signatureError; // Don't fall back, this is required
-        }
-      } else {
+      if (!user || !session) {
         throw new Error('User authentication required for promotional offers');
       }
-      
-      console.log('🍎 Calling store.order with product and signed options...');
-      store.order(product, orderOptions);
+
+      try {
+        // Call Supabase Edge Function to get the signed discount data
+        const { data: signedDiscountData, error: signatureError } = await supabase.functions.invoke('generate-apple-offer-signature', {
+          body: {
+            productIdentifier: product.id,
+            offerIdentifier: targetOffer.id, // Use the ID from the found offer object (should be LEXPP0002)
+            subscriptionGroupIdentifier: product.group || '21754941', // Use product group or fallback
+            applicationUsername: user.id
+          },
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+        
+        if (signatureError || !signedDiscountData) {
+          console.error('🍎 Failed to get Apple offer signature:', signatureError);
+          throw new Error(`Failed to get Apple offer signature: ${signatureError?.message || 'Unknown error'}`);
+        }
+        
+        // Construct the `orderOptions` with both the `offer` object and the `additionalData.appStore.discount`
+        const orderOptions = {
+          offer: targetOffer, // Pass the entire offer object
+          additionalData: {
+            appStore: {
+              discount: {
+                identifier: signedDiscountData.identifier, // This should be LEXPP0002
+                keyIdentifier: signedDiscountData.keyIdentifier,
+                nonce: signedDiscountData.nonce,
+                signature: signedDiscountData.signature,
+                timestamp: signedDiscountData.timestamp,
+              }
+            }
+          }
+        };
+        console.log('🍎 Ordering with signed promotional offer:', orderOptions);
+        
+        console.log('🍎 Calling store.order with product and signed options...');
+        store.order(product, orderOptions);
+        
+      } catch (signatureError) {
+        console.error('🍎 Error getting signature:', signatureError);
+        throw signatureError;
+      }
       
     } catch (error: any) {
       console.error('🍎 Purchase error:', error);
