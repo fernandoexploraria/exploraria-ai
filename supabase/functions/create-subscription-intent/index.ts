@@ -142,6 +142,7 @@ serve(async (req) => {
       stripe_customer_id: customerId,
       payment_type: "subscription", // NEW: Dedicated field
       stripe_subscription_id: subscription.id, // NEW: Dedicated field
+      payment_platform: "stripe", // Set platform immediately at creation
       metadata: {
         price_id: priceId
       }
