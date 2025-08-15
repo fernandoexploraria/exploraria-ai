@@ -36,18 +36,26 @@ export const useSubscription = () => {
 
       let subscriptionData = null;
 
-      if (existingSubscriber?.subscription_platform === 'revenuecat') {
-        // Check RevenueCat subscription
-        const { data, error } = await supabase.functions.invoke('check-revenuecat-subscription', {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        });
-
-        if (error) {
-          throw error;
+      if (existingSubscriber?.subscription_platform === 'apple') {
+        // TODO: Check Apple subscription status
+        // const { data, error } = await supabase.functions.invoke('check-apple-subscription', {
+        //   headers: {
+        //     Authorization: `Bearer ${session.access_token}`,
+        //   },
+        // });
+        
+        // For now, just read from local database
+        const { data: localData, error: localError } = await supabase
+          .from('subscribers')
+          .select('subscribed, subscription_tier, subscription_end, subscription_platform')
+          .eq('user_id', user.id)
+          .eq('subscription_platform', 'apple')
+          .single();
+          
+        if (localError && localError.code !== 'PGRST116') {
+          throw localError;
         }
-        subscriptionData = data;
+        subscriptionData = localData || { subscribed: false, subscription_platform: 'apple' };
       } else {
         // Check Stripe subscription (default or explicit stripe platform)
         const { data, error } = await supabase.functions.invoke('check-subscription', {
