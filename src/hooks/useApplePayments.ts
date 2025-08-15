@@ -413,21 +413,33 @@ export const useApplePayments = () => {
       console.log('🍎 Starting purchase for:', product);
       toast.loading('Processing purchase...');
       
-      // CRITICAL FIX: Include offer information if available
+      // CRITICAL FIX: Include proper Apple discount structure
       let orderOptions: any = {};
       
       // Check if the product has offers (introductory or promotional offers)
       if (product.offers && product.offers.length > 0) {
         const defaultOffer = product.offers[0];
+        
+        // Format the additionalData as Apple expects it
         orderOptions = {
-          offer: defaultOffer
+          additionalData: {
+            appStore: {
+              discount: {
+                identifier: defaultOffer.id || '',
+                keyIdentifier: defaultOffer.id || '',
+                nonce: Date.now().toString(), // Simple nonce
+                signature: '', // Leave empty for now
+                timestamp: Date.now()
+              }
+            }
+          }
         };
-        console.log('🍎 Ordering with offer:', defaultOffer);
+        console.log('🍎 Ordering with Apple discount structure:', orderOptions);
       } else {
         console.log('🍎 Ordering without specific offer (no offers found)');
       }
       
-      console.log('🍎 Calling store.order with product and options...');
+      console.log('🍎 Calling store.order with product and additionalData...');
       store.order(product, orderOptions);
       
     } catch (error: any) {
