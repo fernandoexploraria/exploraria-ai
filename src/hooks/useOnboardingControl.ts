@@ -7,17 +7,10 @@ export const useOnboardingControl = () => {
     // Check if onboarding has been completed
     const onboardingCompleted = localStorage.getItem('onboarding-completed');
     
-    console.log('🎯 Onboarding check:', {
-      onboardingCompleted,
-      localStorage: Object.keys(localStorage)
-    });
-    
     // Show onboarding if it hasn't been completed yet
     if (!onboardingCompleted) {
-      console.log('🎯 Showing onboarding - not completed yet');
       setShowOnboarding(true);
     } else {
-      console.log('🎯 Skipping onboarding - already completed');
       setShowOnboarding(false);
     }
     
@@ -26,19 +19,16 @@ export const useOnboardingControl = () => {
   }, []);
 
   const completeOnboarding = () => {
-    console.log('🎯 Onboarding completed');
     setShowOnboarding(false);
     localStorage.setItem('onboarding-completed', 'true');
   };
 
   const skipOnboarding = () => {
-    console.log('🎯 Onboarding skipped');
     setShowOnboarding(false);
     localStorage.setItem('onboarding-completed', 'true');
   };
 
   const showOnboardingManually = () => {
-    console.log('🎯 Showing onboarding manually (help button)');
     setShowOnboarding(true);
   };
 

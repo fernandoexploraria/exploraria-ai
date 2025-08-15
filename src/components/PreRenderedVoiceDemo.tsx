@@ -236,7 +236,6 @@ export const PreRenderedVoiceDemo = ({ onComplete }: PreRenderedVoiceDemoProps) 
       for (let i = 0; i < step.lines.length; i++) {
         // Check if we should continue (step hasn't changed)
         if (currentStepRef.current !== currentStep) {
-          console.log('🛑 Step changed during playback, stopping');
           break;
         }
         
@@ -347,7 +346,6 @@ export const PreRenderedVoiceDemo = ({ onComplete }: PreRenderedVoiceDemoProps) 
   }, []);
 
   const stopDemo = useCallback(() => {
-    console.log('🛑 Stopping demo');
     cleanupAllAudio();
     onComplete();
   }, [cleanupAllAudio, onComplete]);

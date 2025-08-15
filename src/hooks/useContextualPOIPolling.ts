@@ -62,11 +62,6 @@ export const useContextualPOIPolling = ({
     updateReason: ContextualPOIUpdate['updateReason']
   ): Promise<ContextualPOIUpdate | null> => {
     try {
-      console.log(`🔍 Fetching contextual POIs (${updateReason}):`, {
-        location: `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`,
-        radius,
-        maxResults
-      });
 
 
       const { data, error } = await supabase.functions.invoke('contextual-poi-updates', {
@@ -257,7 +252,7 @@ export const useContextualPOIPolling = ({
         };
       }
     } else {
-      console.log('🛑 Stopping contextual POI polling');
+      
       setIsPolling(false);
       if (pollIntervalRef.current) {
         clearTimeout(pollIntervalRef.current);

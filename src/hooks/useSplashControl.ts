@@ -15,16 +15,13 @@ export const useSplashControl = () => {
     // 1. First time visitor (no localStorage entry), OR
     // 2. New browser session (no sessionStorage entry)
     if (!hasVisitedBefore || !splashShownThisSession) {
-      console.log('🎬 Showing splash screen - first visit or new session');
       setShowSplash(true);
     } else {
-      console.log('🎬 Skipping splash screen - already shown this session');
       setShowSplash(false);
     }
   }, []);
 
   const dismissSplash = () => {
-    console.log('🎬 Splash screen dismissed');
     setShowSplash(false);
     
     // Mark as visited and session splash shown only when user actually dismisses
@@ -33,7 +30,6 @@ export const useSplashControl = () => {
   };
 
   const showSplashManually = () => {
-    console.log('🎬 Showing splash screen manually');
     setShowSplash(true);
   };
 

@@ -74,16 +74,13 @@ export const useProximityNotifications = () => {
       globalProximityManager.instanceId = instanceId;
       globalProximityManager.setActiveCards = setActiveCards;
       setIsActiveInstance(true);
-      console.log(`🎯 Proximity notifications instance ${instanceId} activated as singleton`);
     } else if (globalProximityManager.instanceId === instanceId) {
       // This instance already owns the singleton
       globalProximityManager.setActiveCards = setActiveCards;
       setIsActiveInstance(true);
-      console.log(`🎯 Proximity notifications instance ${instanceId} confirmed as active singleton`);
     } else {
       // Another instance is already active
       setIsActiveInstance(false);
-      console.log(`🚫 Proximity notifications instance ${instanceId} blocked - singleton already active (${globalProximityManager.instanceId})`);
     }
 
     // Cleanup on unmount
@@ -93,7 +90,6 @@ export const useProximityNotifications = () => {
         globalProximityManager.instanceId = null;
         globalProximityManager.activeCards = {};
         globalProximityManager.setActiveCards = null;
-        console.log(`🎯 Proximity notifications instance ${instanceId} deactivated singleton`);
       }
     };
   }, []);

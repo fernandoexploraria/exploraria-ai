@@ -45,7 +45,6 @@ export const useTourStats = () => {
     setError(null);
     
     try {
-      console.log('📥 Tour Stats: Loading for user:', user.id);
       const { data, error } = await supabase
         .from('user_tour_stats')
         .select('*')
@@ -75,7 +74,7 @@ export const useTourStats = () => {
           throw insertError;
         }
         
-        console.log('✅ Tour Stats: Initial stats created:', newStats);
+        
         if (isMountedRef.current) {
           setTourStats(newStats as TourStats);
         }
@@ -116,7 +115,7 @@ export const useTourStats = () => {
 
     // Create new subscription with unique channel name
     const channelName = `tour-stats-${user.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    console.log('📡 Tour Stats: Creating subscription for user:', user.id);
+    
     
     const channel = supabase.channel(channelName);
     
@@ -158,15 +157,12 @@ export const useTourStats = () => {
 
     // Subscribe to the channel
     channel.subscribe((status) => {
-      console.log('📡 Tour Stats: Subscription status:', status);
       if (status === 'SUBSCRIBED') {
-        console.log('✅ Tour Stats: Real-time subscription successful');
+        // Handle successful subscription
       } else if (status === 'CHANNEL_ERROR') {
-        console.error('❌ Tour Stats: Channel subscription error - falling back to manual refresh');
         // Don't break the app, just log the error
         // The initial data was already loaded above
       } else if (status === 'TIMED_OUT') {
-        console.error('⏰ Tour Stats: Channel subscription timed out - falling back to manual refresh');
         // Don't break the app, just log the error
         // The initial data was already loaded above
       } else if (status === 'CLOSED') {

@@ -87,14 +87,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   
   // 🐛 DEBUG: Log proximity card state changes
   useEffect(() => {
-    console.log(`🏗️ MainLayout instance ${instanceIdRef.current} mounted`);
-    console.log(`🎯 Proximity notifications active instance: ${isActiveInstance}`);
-    console.log(`🎙️ Voice agent state: ${voiceAgentDebugState}`);
-    console.log(`🏪 [MainLayout] Active cards state:`, activeCards);
-    console.log(`🏪 [MainLayout] Active cards count:`, Object.keys(activeCards).length);
-    
     return () => {
-      console.log(`🏗️ MainLayout instance ${instanceIdRef.current} unmounted`);
+      // Cleanup on unmount
     };
   }, [isActiveInstance, voiceAgentDebugState, activeCards]);
   
@@ -229,7 +223,6 @@ const MemoizedProximityCard = React.memo<{
 
   // Phase 1: Optimize useMemo Dependencies - Memoize activeCards entries
   const activeCardsEntries = useMemo(() => {
-    console.log(`🏪 [MainLayout] Computing activeCardsEntries:`, Object.entries(activeCards));
     return Object.entries(activeCards);
   }, [activeCards]);
 
@@ -252,9 +245,6 @@ const MemoizedProximityCard = React.memo<{
 
   // Phase 2: Extract Card Rendering Logic with memoization (userLocation separated)
   const renderedCards = useMemo(() => {
-    console.log(`🏪 [MainLayout] Rendering cards - activeCardsEntries:`, activeCardsEntries);
-    console.log(`🏪 [MainLayout] Will render ${activeCardsEntries.length} cards`);
-    
     return activeCardsEntries.map(([landmarkId, tourLandmark], index) => (
       <MemoizedProximityCard
         key={landmarkId}

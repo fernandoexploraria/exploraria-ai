@@ -55,21 +55,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
   // Track browser sessions using localStorage + sessionStorage
   const trackUserSession = async (userId: string) => {
     try {
-      console.log('🔄 Tracking user session for:', userId);
-      
       // Check if this is a new browser session
       const currentSessionId = sessionStorage.getItem('current_session_id');
       const storedSessionId = localStorage.getItem('last_session_id');
-      
-      console.log('📊 Session IDs:', { currentSessionId, storedSessionId });
       
       if (!currentSessionId || currentSessionId !== storedSessionId) {
         // This is a new browser session
         const newSessionId = `session_${Date.now()}`;
         sessionStorage.setItem('current_session_id', newSessionId);
         localStorage.setItem('last_session_id', newSessionId);
-        
-        console.log('✨ New browser session detected, updating database');
         
         // Get current profile data
         const { data: currentProfile, error: fetchError } = await supabase
@@ -93,15 +87,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
           .eq('id', userId);
 
         if (error) {
-          console.error('Error updating session count:', error);
-        } else {
-          console.log('✅ Session count updated to:', (currentProfile?.session_count || 0) + 1);
+          // Handle error silently
         }
-      } else {
-        console.log('🔄 Same browser session, no database update needed');
       }
     } catch (error) {
-      console.error('Error in session tracking:', error);
+      // Handle error silently
     }
   };
 

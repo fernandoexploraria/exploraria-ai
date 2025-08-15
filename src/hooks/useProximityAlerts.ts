@@ -46,7 +46,6 @@ const RECONNECTION_ATTEMPT_INTERVAL = 120000; // 2 minutes
 const CIRCUIT_BREAKER_THRESHOLD = 3; // Switch to polling after 3 consecutive failures
 
 const notifySubscribers = (settings: ProximitySettings | null) => {
-  console.log('📢 Notifying all subscribers with settings:', settings);
   globalProximityState.settings = settings;
   globalProximityState.connectionStatus.lastDataUpdate = Date.now();
   globalProximityState.subscribers.forEach(callback => callback(settings));
@@ -142,7 +141,6 @@ const startPollingFallback = async (userId: string) => {
 
 // Phase 2: Stop polling fallback
 const stopPollingFallback = () => {
-  console.log('🛑 Stopping polling fallback');
   
   if (globalProximityState.pollingInterval) {
     clearInterval(globalProximityState.pollingInterval);
@@ -219,12 +217,10 @@ const reconnectWithBackoff = (userId: string, loadProximitySettingsFunc: () => P
 
 // Phase 1: Extract subscription creation logic (enhanced in Phase 2)
 const createProximitySettingsSubscription = (userId: string, loadProximitySettingsFunc: () => Promise<void>) => {
-  console.log('📡 Creating new proximity settings subscription for user:', userId);
   updateConnectionStatus('connecting');
   
   // Clean up existing channel first
   if (globalProximityState.channel) {
-    console.log('🧹 Cleaning up existing proximity settings channel before creating new one');
     supabase.removeChannel(globalProximityState.channel);
     globalProximityState.channel = null;
     globalProximityState.isSubscribed = false;
@@ -332,7 +328,6 @@ export const useProximityAlerts = () => {
     // Add this component as a subscriber
     const updateSettings = (settings: ProximitySettings | null) => {
       if (isMountedRef.current) {
-        console.log('🔄 Component received settings update:', settings);
         setProximitySettings(settings);
       }
     };
@@ -412,7 +407,6 @@ export const useProximityAlerts = () => {
     setIsLoading(true);
     
     try {
-      console.log('📥 Loading proximity settings for user:', user.id);
       const { data, error } = await supabase
         .from('proximity_settings')
         .select('*')
@@ -420,7 +414,6 @@ export const useProximityAlerts = () => {
         .maybeSingle();
 
       if (error) {
-        console.error('❌ Error loading proximity settings:', error);
         return;
       }
 
@@ -435,10 +428,8 @@ export const useProximityAlerts = () => {
           created_at: data.created_at,
           updated_at: data.updated_at,
         };
-        console.log('📥 Loaded proximity settings:', settings);
         notifySubscribers(settings);
       } else {
-        console.log('📭 No proximity settings found for user');
         notifySubscribers(null);
       }
     } catch (error) {

@@ -391,12 +391,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
   }, []);
 
   useEffect(() => {
-    console.log('🗺️ [Map] MAP INITIALIZATION useEffect triggered with token:', mapboxToken ? 'TOKEN_PRESENT' : 'TOKEN_EMPTY');
-    console.log('🗺️ [Map] Current map state:', map.current ? 'EXISTS' : 'NULL');
-    console.log('🗺️ [Map] Container state:', mapContainer.current ? 'EXISTS' : 'NULL');
-    
     if (!mapboxToken) {
-      console.log('🗺️ [Map] No mapbox token, skipping map initialization');
       return;
     }
     
@@ -786,19 +781,11 @@ const MapComponent: React.FC<MapProps> = React.memo(({
       return;
     }
 
-    console.log('🔄 Proximity settings changed:', proximitySettings);
     
     const timeSinceLastLocationEvent = Date.now() - lastLocationEventTime.current;
     const isRecentLocationEvent = timeSinceLastLocationEvent < 2000;
     
-    console.log('🔄 Timing check:', {
-      timeSinceLastLocationEvent,
-      isRecentLocationEvent,
-      userInitiated: userInitiatedLocationRequest.current
-    });
-    
     if (userInitiatedLocationRequest.current && isRecentLocationEvent) {
-      console.log('🔄 Skipping proximity sync - recent user-initiated request in progress');
       setTimeout(() => {
         userInitiatedLocationRequest.current = false;
         console.log('🔄 Reset user-initiated flag');
@@ -1722,7 +1709,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
         map.current.removeSource(sourceId);
       }
       
-      console.log('🧹 Optimal route removed from map');
+      
     }
   }, [routeGeoJSON]);
 

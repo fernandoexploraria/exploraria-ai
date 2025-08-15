@@ -151,7 +151,6 @@ const EnhancedStreetViewModal: React.FC<EnhancedStreetViewModalProps> = ({
 
   // Reset viewpoint when landmark changes
   useEffect(() => {
-    console.log(`🔄 Landmark changed, resetting viewpoint from ${currentViewpoint} to 0`);
     setCurrentViewpoint(0);
   }, [currentIndex]);
 

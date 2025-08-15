@@ -180,14 +180,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
 
   // Debug contextual POI polling
   useEffect(() => {
-    console.log('🔍 Contextual POI polling state:', {
-      isSessionActive,
-      conversationStatus: conversation?.status,
-      isPolling,
-      lastUpdateTimestamp: lastUpdate?.timestamp,
-      poiCount: lastUpdate?.pois?.length || 0,
-      error: poiError
-    });
+    // Monitor POI polling state
   }, [isSessionActive, conversation?.status, isPolling, lastUpdate, poiError]);
 
   // Notify parent of session state changes
