@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Sparkles, Lock, CreditCard, X, AlertTriangle, Apple } from 'lucide-react';
 import { useTourStats } from '@/hooks/useTourStats';
 import { useSubscription } from '@/hooks/useSubscription';
-import { useRevenueCat } from '@/hooks/useRevenueCat';
+
 import { SubscriptionDialog } from '@/components/subscription/SubscriptionDialog';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,7 +13,7 @@ const FreeTourCounter: React.FC = () => {
   const { user } = useAuth();
   const { tourStats, isLoading: tourLoading } = useTourStats();
   const { subscriptionData, isLoading: subLoading, createCheckout, createSubscriptionIntent, openCustomerPortal, checkSubscription, cancelSubscriptionAtPeriodEnd } = useSubscription();
-  const rcState = useRevenueCat();
+  
   const [isHighlighted, setIsHighlighted] = useState(false);
   const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
   const [subscriptionClientSecret, setSubscriptionClientSecret] = useState<string | null>(null);
@@ -117,17 +117,8 @@ const FreeTourCounter: React.FC = () => {
   };
 
   const handleAppleSubscribeClick = async () => {
-    try {
-      // The hook will handle all the checks and find the correct package
-      await rcState.purchaseSubscription();
-      
-      // Refresh your app's main subscription status after a successful purchase
-      await checkSubscription();
-    } catch (error) {
-      // The useRevenueCat hook handles the toast notifications, so this is for
-      // any unexpected errors that might not have been caught there
-      console.error('Apple subscription error in component:', error);
-    }
+    // TODO: Replace with Cordova implementation
+    console.log('Apple subscription placeholder - to be replaced with Cordova');
   };
 
   const formatDate = (dateString: string) => {
@@ -195,20 +186,16 @@ const FreeTourCounter: React.FC = () => {
               Subscribe
             </Button>
 
-            {/* Apple Subscribe Button - Mobile */}
+            {/* Apple Subscribe Button - Mobile - Placeholder */}
             <Button
               variant="outline"
               size="sm"
               className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left mt-1"
               onClick={handleAppleSubscribeClick}
-              disabled={!rcState.isAvailable || rcState.isProcessing}
+              disabled={true}
             >
-              {rcState.isProcessing ? (
-                <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              ) : (
-                <Apple className="mr-1 h-3 w-3" />
-              )}
-              Subscribe with Apple
+              <Apple className="mr-1 h-3 w-3" />
+              Subscribe with Apple (Coming Soon)
             </Button>
             
             <Button
@@ -222,22 +209,15 @@ const FreeTourCounter: React.FC = () => {
               Subscribe for $9.99/month
             </Button>
 
-            {/* Apple Subscribe Button - Desktop */}
+            {/* Apple Subscribe Button - Desktop - Placeholder */}
             <Button
               variant="outline"
               className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left mt-2"
               onClick={handleAppleSubscribeClick}
-              disabled={!rcState.isAvailable || rcState.isProcessing}
+              disabled={true}
             >
-              {rcState.isProcessing ? (
-                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              ) : (
-                <Apple className="mr-2 h-4 w-4" />
-              )}
-              Subscribe with Apple
-              {rcState.currentOffering?.availablePackages?.find((p: any) => p.identifier === 'monthly')?.product?.priceString ? (
-                ` (${rcState.currentOffering.availablePackages.find((p: any) => p.identifier === 'monthly').product.priceString})`
-              ) : ''}
+              <Apple className="mr-2 h-4 w-4" />
+              Subscribe with Apple (Coming Soon)
             </Button>
           </>
         )}
