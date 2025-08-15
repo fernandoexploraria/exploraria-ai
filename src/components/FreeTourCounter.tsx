@@ -6,8 +6,11 @@ import { useTourStats } from '@/hooks/useTourStats';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useRevenueCat } from '@/hooks/useRevenueCat';
 import { SubscriptionDialog } from '@/components/subscription/SubscriptionDialog';
+import { useAuth } from '@/components/AuthProvider';
+import { supabase } from '@/integrations/supabase/client';
 
 const FreeTourCounter: React.FC = () => {
+  const { user } = useAuth();
   const { tourStats, isLoading: tourLoading } = useTourStats();
   const { subscriptionData, isLoading: subLoading, createCheckout, createSubscriptionIntent, openCustomerPortal, checkSubscription, cancelSubscriptionAtPeriodEnd } = useSubscription();
   const rcState = useRevenueCat();
@@ -49,6 +52,23 @@ const FreeTourCounter: React.FC = () => {
 
   const handleSubscribeClick = async () => {
     try {
+      // Mark user as Stripe platform user before checkout
+      if (user?.email) {
+        const { error } = await supabase
+          .from('subscribers')
+          .upsert({
+            email: user.email,
+            user_id: user.id,
+            subscription_platform: 'stripe',
+            subscribed: false,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'email' });
+        
+        if (error) {
+          console.error('Error setting subscription platform:', error);
+        }
+      }
+
       if (useEmbeddedFlow) {
         // Use embedded subscription flow
         const { client_secret, subscription_id } = await createSubscriptionIntent();

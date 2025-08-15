@@ -380,6 +380,7 @@ serve(async (req) => {
               subscription_end: subscriptionEnd,
               stripe_cancel_at_period_end: false,
               stripe_status: subscription.status,
+              subscription_platform: 'stripe',
               updated_at: new Date().toISOString(),
             }, { onConflict: 'email' });
 
@@ -425,6 +426,7 @@ serve(async (req) => {
               subscription_end: subscriptionEnd,
               stripe_cancel_at_period_end: cancelAtPeriodEnd,
               stripe_status: subscription.status,
+              subscription_platform: 'stripe',
               updated_at: new Date().toISOString(),
             }, { onConflict: 'email' });
 
@@ -464,6 +466,7 @@ serve(async (req) => {
               subscription_end: null,
               stripe_cancel_at_period_end: false,
               stripe_status: "canceled",
+              subscription_platform: 'stripe',
               updated_at: new Date().toISOString(),
             }, { onConflict: 'email' });
 
@@ -506,6 +509,7 @@ serve(async (req) => {
                 subscription_tier: subscriptionTier,
                 subscription_end: subscriptionEnd,
                 stripe_cancel_at_period_end: subscription.cancel_at_period_end || false,
+                subscription_platform: 'stripe',
                 updated_at: new Date().toISOString(),
               }, { onConflict: 'email' });
 

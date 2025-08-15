@@ -75,6 +75,36 @@ serve(async (req) => {
     }
     logStep("User authenticated", { userId: user.id, email: user.email });
 
+    // Check if user has Stripe subscription platform - only process Stripe users
+    const { data: existingUser } = await supabaseClient
+      .from("subscribers")
+      .select("subscription_platform")
+      .eq("email", user.email)
+      .single();
+
+    if (existingUser && existingUser.subscription_platform !== 'stripe') {
+      logStep("User has non-Stripe subscription platform, skipping", { 
+        platform: existingUser.subscription_platform 
+      });
+      return new Response(JSON.stringify({ 
+        error: "This function only processes Stripe subscriptions" 
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+
+    if (!existingUser) {
+      logStep("No existing subscriber record found, skipping Stripe check");
+      return new Response(JSON.stringify({ 
+        subscribed: false,
+        message: "No subscription platform set for user"
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
 
     // Initialize variables with clear defaults
     let stripeCustomerId: string | null = null;
@@ -118,6 +148,7 @@ serve(async (req) => {
             subscription_end: existingSubscriber.subscription_end,
             stripe_status: "error_fetching",
             stripe_cancel_at_period_end: existingSubscriber.stripe_cancel_at_period_end,
+            subscription_platform: 'stripe',
             updated_at: new Date().toISOString(),
           }, { onConflict: 'email' });
           
@@ -146,6 +177,7 @@ serve(async (req) => {
         subscription_end: null,
         stripe_status: "error_fetching",
         stripe_cancel_at_period_end: false,
+        subscription_platform: 'stripe',
         updated_at: new Date().toISOString(),
       }, { onConflict: 'email' });
       
@@ -168,6 +200,7 @@ serve(async (req) => {
         subscription_tier: null,
         subscription_end: null,
         stripe_status: null,
+        subscription_platform: 'stripe',
         updated_at: new Date().toISOString(),
       }, { onConflict: 'email' });
       return new Response(JSON.stringify({ subscribed: false }), {
@@ -224,6 +257,7 @@ serve(async (req) => {
         subscription_end: subscriptionEnd,
         stripe_status: stripeStatus,
         stripe_cancel_at_period_end: false,
+        subscription_platform: 'stripe',
         updated_at: new Date().toISOString(),
       }, { onConflict: 'email' });
 
@@ -296,6 +330,7 @@ serve(async (req) => {
       subscription_end: subscriptionEnd,
       stripe_status: stripeStatus,
       stripe_cancel_at_period_end: cancelAtPeriodEnd,
+      subscription_platform: 'stripe',
       updated_at: new Date().toISOString(),
     }, { onConflict: 'email' });
 
