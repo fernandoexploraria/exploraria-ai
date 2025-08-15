@@ -75,30 +75,43 @@ serve(async (req) => {
     }
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    // Check if user has Stripe subscription platform - only process Stripe users
+    // Check subscription platform and handle accordingly
     const { data: existingUser } = await supabaseClient
       .from("subscribers")
-      .select("subscription_platform")
+      .select("subscription_platform, subscribed, subscription_tier, subscription_end")
       .eq("email", user.email)
       .single();
 
-    if (existingUser && existingUser.subscription_platform !== 'stripe') {
-      logStep("User has non-Stripe subscription platform, skipping", { 
+    // Branch 1: Handle Stripe platform users
+    if (existingUser && existingUser.subscription_platform === 'stripe') {
+      logStep("User has Stripe subscription platform, proceeding with Stripe logic");
+      // Continue with existing Stripe logic below...
+    }
+    // Branch 2: Handle Apple platform users 
+    else if (existingUser && existingUser.subscription_platform === 'apple') {
+      logStep("User has Apple subscription platform", { 
         platform: existingUser.subscription_platform 
       });
-      return new Response(JSON.stringify({ 
-        error: "This function only processes Stripe subscriptions" 
+      // TODO: Implement Apple subscription checking logic
+      // For now, return current database state
+      return new Response(JSON.stringify({
+        subscribed: existingUser.subscribed || false,
+        subscription_tier: existingUser.subscription_tier,
+        subscription_end: existingUser.subscription_end,
+        subscription_platform: 'apple'
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400,
+        status: 200,
       });
     }
-
-    if (!existingUser) {
-      logStep("No existing subscriber record found, skipping Stripe check");
-      return new Response(JSON.stringify({ 
+    // Branch 3: Handle null platform users (no subscription platform set)
+    else {
+      logStep("User has no subscription platform set", { 
+        platform: existingUser?.subscription_platform || null 
+      });
+      return new Response(JSON.stringify({
         subscribed: false,
-        message: "No subscription platform set for user"
+        subscription_platform: null
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
