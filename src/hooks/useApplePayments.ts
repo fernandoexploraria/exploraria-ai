@@ -87,16 +87,20 @@ export const useApplePayments = () => {
       }
 
       // Configure the store
+      console.log('🍎 Setting store verbosity...');
       store.verbosity = store.DEBUG;
 
       // Register product
+      console.log('🍎 Registering product...');
       store.register({
         id: PRODUCT_ID,
         type: window.CdvPurchase.ProductType.PAID_SUBSCRIPTION,
         platform: window.CdvPurchase.Platform.APPLE_APPSTORE,
       });
+      console.log('🍎 Product registered successfully');
 
       // Set up event handlers
+      console.log('🍎 Setting up event handlers...');
       store.when(PRODUCT_ID).approved((product: any) => {
         console.log('🍎 Product approved:', product);
         handlePurchaseApproved(product);
@@ -107,8 +111,10 @@ export const useApplePayments = () => {
         handlePurchaseVerified(product);
       });
 
+      console.log('🍎 Product-specific handlers set up');
 
       // Global error handler for all store errors including cancellations
+      console.log('🍎 Setting up global error handler...');
       store.error((error: any) => {
         console.error('🍎 Global Store Error:', error);
         updateState({ isLoading: false, isProcessing: false });
@@ -130,12 +136,29 @@ export const useApplePayments = () => {
         updateState({ error: errorMessage });
       });
 
+      console.log('🍎 All event handlers set up, calling store.ready()...');
 
       // Initialize store
       await new Promise((resolve, reject) => {
         store.ready(() => {
-          console.log('🍎 Store ready');
+          console.log('🍎 Store ready callback triggered');
           const products = store.products || [];
+          console.log('🍎 Available products:', products.length);
+          
+          if (products.length > 0) {
+            products.forEach((product: any, index: number) => {
+              console.log(`🍎 Product ${index}:`, {
+                id: product.id,
+                valid: product.valid,
+                canPurchase: product.canPurchase,
+                owned: product.owned,
+                state: product.state
+              });
+            });
+          } else {
+            console.log('🍎 No products found after store ready');
+          }
+
           updateState({ 
             isInitialized: true, 
             isLoading: false, 
@@ -146,7 +169,11 @@ export const useApplePayments = () => {
           resolve(true);
         });
 
-        // Note: Global error handler above will catch store errors
+        // Set a timeout to reject if store.ready never fires
+        setTimeout(() => {
+          console.error('🍎 Store ready timeout - store.ready() never called back');
+          reject(new Error('Store ready timeout'));
+        }, 10000);
       });
 
       // Refresh store to process any pending transactions
