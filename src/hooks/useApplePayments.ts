@@ -103,7 +103,8 @@ export const useApplePayments = () => {
       });
 
 
-      store.when(PRODUCT_ID).cancelled((product: any) => {
+      // Global listeners for cancelled transactions
+      store.when().cancelled((product: any) => {
         console.log('🍎 Purchase cancelled:', product);
         updateState({ isProcessing: false });
         toast.error('Purchase cancelled');
