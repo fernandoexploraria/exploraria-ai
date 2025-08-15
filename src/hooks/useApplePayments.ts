@@ -138,43 +138,43 @@ export const useApplePayments = () => {
 
       console.log('🍎 All event handlers set up, calling store.ready()...');
 
-      // Initialize store
-      await new Promise((resolve, reject) => {
-        store.ready(() => {
-          console.log('🍎 Store ready callback triggered');
-          const products = store.products || [];
-          console.log('🍎 Available products:', products.length);
-          
-          if (products.length > 0) {
-            products.forEach((product: any, index: number) => {
-              console.log(`🍎 Product ${index}:`, {
-                id: product.id,
-                valid: product.valid,
-                canPurchase: product.canPurchase,
-                owned: product.owned,
-                state: product.state
-              });
+      // Initialize store - call ready directly, don't wrap in Promise
+      store.ready(() => {
+        console.log('🍎 Store ready callback triggered');
+        
+        // Refresh store to get latest product info
+        store.refresh();
+        
+        const products = store.products || [];
+        console.log('🍎 Available products after ready:', products.length);
+        
+        if (products.length > 0) {
+          products.forEach((product: any, index: number) => {
+            console.log(`🍎 Product ${index}:`, {
+              id: product.id,
+              valid: product.valid,
+              canPurchase: product.canPurchase,
+              owned: product.owned,
+              state: product.state,
+              price: product.price
             });
-          } else {
-            console.log('🍎 No products found after store ready');
-          }
-
-          updateState({ 
-            isInitialized: true, 
-            isLoading: false, 
-            isAvailable: true,
-            products: products,
-            isPremiumActive: checkPremiumStatus(products)
           });
-          resolve(true);
-        });
+        } else {
+          console.log('🍎 No products found after store ready, will check again after refresh');
+        }
 
-        // Set a timeout to reject if store.ready never fires
-        setTimeout(() => {
-          console.error('🍎 Store ready timeout - store.ready() never called back');
-          reject(new Error('Store ready timeout'));
-        }, 10000);
+        updateState({ 
+          isInitialized: true, 
+          isLoading: false, 
+          isAvailable: true,
+          products: products,
+          isPremiumActive: checkPremiumStatus(products)
+        });
       });
+
+      // Call store.ready() to start initialization
+      console.log('🍎 Calling store.ready()...');
+      store.ready();
 
       // Refresh store to process any pending transactions
       store.refresh();
