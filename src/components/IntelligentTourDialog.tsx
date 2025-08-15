@@ -137,12 +137,11 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
         resetMarkerState();
       }
       
-      console.log('🎯 Enhanced cleanup completed');
+      
     }
   }, [open, resetMarkerState]);
 
   const resetDialog = () => {
-    console.log('🔄 Resetting IntelligentTourDialog state');
     const newState = resetIntelligentTourDialogState();
     setCurrentStep(newState.currentStep);
     setSearchQuery(newState.searchQuery);
@@ -787,7 +786,6 @@ You will receive occasional, non-interrupting system updates about **new** nearb
       startMarkerLoading();
 
       // Ensure complete cleanup before adding new landmarks
-      console.log('🧹 Final cleanup verification before adding new landmarks');
       clearTourMarkers();
       
       // Wait for cleanup to complete

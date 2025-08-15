@@ -27,8 +27,6 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   const { stop } = useTTSContext();
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   
-  console.log('InteractionCarousel render - open:', open);
-  console.log('Drawer should be visible:', open);
   
   const {
     searchQuery,

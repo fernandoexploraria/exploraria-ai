@@ -78,9 +78,8 @@ export const useLocationTracking = (): LocationTrackingHook => {
       const isInBackground = document.hidden;
       setLocationState(prev => ({ ...prev, isInBackground }));
       
-      if (!isInBackground && locationState.isTracking) {
+    if (!isInBackground && locationState.isTracking) {
         // When coming back to foreground, trigger immediate location update
-        console.log('📱 App back in foreground, requesting immediate location update');
         requestLocationUpdate();
       }
     };
@@ -120,16 +119,6 @@ export const useLocationTracking = (): LocationTrackingHook => {
     const movementState = detectMovement(locationHistoryRef.current.slice(0, -1), newLocationHistory);
 
     pollCountRef.current += 1;
-    console.log(`📍 Location poll #${pollCountRef.current}:`, {
-      lat: newLocation.latitude.toFixed(6),
-      lng: newLocation.longitude.toFixed(6),
-      accuracy: newLocation.accuracy ? `${Math.round(newLocation.accuracy)}m` : 'unknown',
-      isMoving: movementState.isMoving,
-      speed: `${movementState.averageSpeed.toFixed(1)} m/s`,
-      significant: isSignificant,
-      nearbyCount: nearbyLandmarks.length,
-      time: new Date().toLocaleTimeString()
-    });
 
     // Only update state if location change is significant or we're moving
     if (isSignificant || movementState.isMoving) {
@@ -137,11 +126,6 @@ export const useLocationTracking = (): LocationTrackingHook => {
       setUserLocation(newLocation);
       lastSignificantLocationRef.current = newLocation;
       
-      console.log(`✅ Location updated (moved ${lastSignificant ? 
-        Math.round(isSignificantLocationChange(lastSignificant, newLocationHistory, 0) ? 
-          calculateDistance(lastSignificant.latitude, lastSignificant.longitude, newLocation.latitude, newLocation.longitude) : 0) : 0}m)`);
-    } else {
-      console.log(`🔄 Location unchanged (within ${LOCATION_CHANGE_THRESHOLD}m threshold)`);
     }
 
     // Trigger enhanced Street View multi-viewpoint pre-loading for nearby landmarks when location changes significantly
@@ -159,8 +143,6 @@ export const useLocationTracking = (): LocationTrackingHook => {
     };
 
     if (isSignificant && nearbyLandmarks.length > 0 && shouldPreloadStreetView()) {
-      console.log(`🔄 Triggering enhanced Street View multi-viewpoint pre-loading for ${nearbyLandmarks.length} nearby landmarks (within ${proximitySettings?.outer_distance || 250}m outer zone)`);
-      
       // Convert TourLandmark to Landmark format for preloadForProximity
       const landmarksToPreload = nearbyLandmarks.map(nearbyLandmark => ({
         id: nearbyLandmark.landmark.id || nearbyLandmark.landmark.placeId,
@@ -206,7 +188,6 @@ export const useLocationTracking = (): LocationTrackingHook => {
 
     // Update polling interval if it changed significantly
     if (Math.abs(finalInterval - locationState.pollInterval) > 2000) {
-      console.log(`⏱️ Adapting poll interval: ${locationState.pollInterval}ms → ${finalInterval}ms`);
       scheduleNextPoll(finalInterval);
     }
   }, [setUserLocation, nearbyLandmarks.length, locationState.isInBackground, locationState.pollInterval, preloadForProximity, nearbyLandmarks, proximitySettings?.outer_distance]);
@@ -231,8 +212,6 @@ export const useLocationTracking = (): LocationTrackingHook => {
       const backoffMultiplier = Math.min(Math.pow(1.5, consecutiveFailures), 4);
       const adaptiveInterval = Math.min(prev.pollInterval * backoffMultiplier, 60000);
       
-      console.error(`❌ Location poll #${pollCountRef.current + 1} error (${consecutiveFailures} consecutive):`, errorMessage);
-      console.log(`⏱️ Backing off to ${adaptiveInterval}ms interval`);
       
       return {
         ...prev,
@@ -244,10 +223,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
   }, []);
 
   const requestCurrentLocation = useCallback(async (): Promise<UserLocation | null> => {
-    console.log('📱 Requesting current location...');
-    
     if (!navigator.geolocation) {
-      console.error('❌ Geolocation not supported');
       return null;
     }
 
@@ -260,7 +236,6 @@ export const useLocationTracking = (): LocationTrackingHook => {
 
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          console.log('✅ Current location obtained');
           handleLocationUpdate(position);
           resolve({
             latitude: position.coords.latitude,
@@ -270,7 +245,6 @@ export const useLocationTracking = (): LocationTrackingHook => {
           });
         },
         (error) => {
-          console.error('❌ Failed to get current location:', error);
           handleLocationError(error);
           resolve(null);
         },
@@ -280,7 +254,6 @@ export const useLocationTracking = (): LocationTrackingHook => {
   }, [handleLocationUpdate, handleLocationError, locationState.movementState, nearbyLandmarks.length]);
 
   const forceLocationUpdate = useCallback(async (): Promise<void> => {
-    console.log('🔄 Forcing location update...');
     await requestCurrentLocation();
   }, [requestCurrentLocation]);
 
@@ -294,21 +267,11 @@ export const useLocationTracking = (): LocationTrackingHook => {
   }, [locationState.pollInterval]);
 
   const requestLocationUpdate = useCallback(() => {
-    const pollNumber = pollCountRef.current + 1;
-    console.log(`🔄 Starting adaptive location poll #${pollNumber} at ${new Date().toLocaleTimeString()}`);
-    
     const options = getOptimalLocationOptions(
       locationState.movementState,
       nearbyLandmarks.length,
       locationState.consecutiveFailures
     );
-
-    console.log(`⚙️ Using options:`, {
-      enableHighAccuracy: options.enableHighAccuracy,
-      timeout: `${options.timeout}ms`,
-      maximumAge: `${options.maximumAge}ms`,
-      interval: `${locationState.pollInterval}ms`
-    });
     
     navigator.geolocation.getCurrentPosition(
       handleLocationUpdate,
@@ -321,10 +284,7 @@ export const useLocationTracking = (): LocationTrackingHook => {
   }, [handleLocationUpdate, handleLocationError, locationState, nearbyLandmarks.length, scheduleNextPoll]);
 
   const startTracking = useCallback(async (): Promise<void> => {
-    console.log(`🚀 Starting optimized location tracking with enhanced Street View...`);
-    
     if (!navigator.geolocation) {
-      console.error('❌ Geolocation not supported');
       return;
     }
 
@@ -337,7 +297,6 @@ export const useLocationTracking = (): LocationTrackingHook => {
     try {
       await requestCurrentLocation();
     } catch (error) {
-      console.error('❌ Initial location request failed:', error);
       return;
     }
 
@@ -350,13 +309,9 @@ export const useLocationTracking = (): LocationTrackingHook => {
 
     // Start adaptive polling
     scheduleNextPoll(BASE_POLLING_INTERVAL);
-
-    console.log(`✅ Optimized location tracking with enhanced Street View started`);
   }, [requestCurrentLocation, scheduleNextPoll]);
 
   const stopTracking = useCallback(() => {
-    console.log('🛑 Stopping location tracking...');
-    
     if (pollIntervalRef.current !== null) {
       clearTimeout(pollIntervalRef.current);
       pollIntervalRef.current = null;
@@ -372,17 +327,13 @@ export const useLocationTracking = (): LocationTrackingHook => {
       isTracking: false,
       consecutiveFailures: 0
     }));
-
-    console.log('✅ Location tracking stopped');
   }, []);
 
   // Auto-start tracking when proximity settings exist
   useEffect(() => {
     if (proximitySettings && !locationState.isTracking) {
-      console.log('🔄 Auto-starting location tracking (proximity settings available)');
       startTracking();
     } else if (!proximitySettings && locationState.isTracking) {
-      console.log('🔄 Auto-stopping location tracking (no proximity settings)');
       stopTracking();
     }
   }, [proximitySettings, locationState.isTracking, startTracking, stopTracking]);

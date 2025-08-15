@@ -61,12 +61,11 @@ export const performComprehensiveTourReset = (
     });
   }
   
-  console.log('🧹 Comprehensive tour reset completed');
+  
 };
 
 // Reset function specifically for dialog internal states
 export const resetIntelligentTourDialogState = () => {
-  console.log('🔄 Resetting IntelligentTourDialog internal state');
   return {
     currentStep: 1,
     searchQuery: '',

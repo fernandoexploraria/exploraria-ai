@@ -61,16 +61,6 @@ const MapComponent: React.FC<MapProps> = React.memo(({
   onIntelligentTourOpen,
   onAuthDialogOpen
 }) => {
-  // 🔥 ADD COMPONENT RENDER DEBUGGING
-  const renderCountRef = useRef(0);
-  renderCountRef.current += 1;
-  
-  console.log('🗺️ [Map] Component render #', renderCountRef.current, {
-    tokenPresent: !!mapboxToken,
-    landmarksCount: landmarks.length,
-    plannedLandmarksCount: plannedLandmarks.length,
-    selectedLandmark: selectedLandmark?.name || 'none'
-  });
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const imageCache = useRef<{ [key: string]: string }>({});
@@ -479,7 +469,6 @@ const MapComponent: React.FC<MapProps> = React.memo(({
       });
 
       if (user) {
-        console.log('🗺️ [Map] Adding GeolocateControl for authenticated user');
         
         const geoControl = new mapboxgl.GeolocateControl({
           positionOptions: {
@@ -500,57 +489,26 @@ const MapComponent: React.FC<MapProps> = React.memo(({
         const controlElement = geoControl._container;
         if (controlElement) {
           controlElement.addEventListener('click', () => {
-            const currentState = (geoControl as any)._watchState;
-            console.log('🌍 GeolocateControl: Button clicked, current state:', currentState);
             userInitiatedLocationRequest.current = true;
             lastLocationEventTime.current = Date.now();
-            console.log('🌍 GeolocateControl: Marked as user-initiated request');
           });
         }
         
         geoControl.on('geolocate', (e) => {
-          const currentState = (geoControl as any)._watchState;
-          console.log('🌍 GeolocateControl: Location found', { 
-            coordinates: [e.coords.longitude, e.coords.latitude],
-            state: currentState,
-            userInitiated: userInitiatedLocationRequest.current
-          });
-          
           setUserLocation([e.coords.longitude, e.coords.latitude]);
-          
           lastLocationEventTime.current = Date.now();
-          
-          if (!isUpdatingFromProximitySettings.current) {
-            console.log('🌍 GeolocateControl: Enabling proximity (user initiated location)');
-            // updateProximityEnabled(true);
-          }
         });
         
         geoControl.on('trackuserlocationstart', () => {
-          console.log('🌍 GeolocateControl: Started tracking user location (ACTIVE state)');
           lastLocationEventTime.current = Date.now();
-          
-          if (!isUpdatingFromProximitySettings.current) {
-            console.log('🌍 GeolocateControl: Enabling proximity (tracking started)');
-            // updateProximityEnabled(true);
-          }
         });
         
         geoControl.on('trackuserlocationend', () => {
-          console.log('🌍 GeolocateControl: Stopped tracking user location (PASSIVE/INACTIVE state)');
-          if (!isUpdatingFromProximitySettings.current) {
-            console.log('🌍 GeolocateControl: Disabling proximity (tracking ended)');
-            // updateProximityEnabled(false);
-          }
+          // Handle tracking end
         });
         
         geoControl.on('error', (e) => {
-          console.error('🌍 GeolocateControl: Error occurred', e);
           userInitiatedLocationRequest.current = false;
-          if (!isUpdatingFromProximitySettings.current) {
-            console.log('🌍 GeolocateControl: Disabling proximity (error occurred)');
-            // updateProximityEnabled(false);
-          }
         });
         
         map.current.addControl(geoControl, 'bottom-right');
@@ -871,16 +829,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
       const isTransitioning = currentWatchState === 'WAITING_ACTIVE' || currentWatchState === 'BACKGROUND';
       const shouldBeTracking = true; // Always track when proximitySettings exists
       
-      console.log('🔄 GeolocateControl sync check:', {
-        isCurrentlyTracking,
-        isTransitioning,
-        shouldBeTracking,
-        watchState: currentWatchState,
-        willInterfere: isTransitioning && shouldBeTracking
-      });
-      
       if (isTransitioning) {
-        console.log('🔄 Control is transitioning, avoiding interference');
         setTimeout(() => {
           isUpdatingFromProximitySettings.current = false;
         }, 500);
@@ -892,30 +841,19 @@ const MapComponent: React.FC<MapProps> = React.memo(({
           const finalWatchState = (geolocateControl.current as any)._watchState;
           const finalIsTracking = finalWatchState === 'ACTIVE_LOCK';
           
-          console.log('🔄 Final state check before sync:', {
-            finalWatchState,
-            finalIsTracking,
-            shouldBeTracking
-          });
-          
           if (shouldBeTracking && !finalIsTracking && !isTransitioning) {
-            console.log('🔄 Starting GeolocateControl tracking (proximity enabled)');
             geolocateControl.current?.trigger();
           } else if (!shouldBeTracking && finalIsTracking) {
-            console.log('🔄 Stopping GeolocateControl tracking (proximity disabled)');
             geolocateControl.current?.trigger();
-          } else {
-            console.log('🔄 No sync needed - states already match');
           }
         } catch (error) {
-          console.error('🔄 Error during delayed sync:', error);
+          // Handle sync error silently
         } finally {
           isUpdatingFromProximitySettings.current = false;
         }
       }, isRecentLocationEvent ? 1000 : 200);
       
     } catch (error) {
-      console.error('🔄 Error syncing GeolocateControl with proximity settings:', error);
       isUpdatingFromProximitySettings.current = false;
     }
   }, [proximitySettings]);
@@ -1670,7 +1608,6 @@ const MapComponent: React.FC<MapProps> = React.memo(({
   }, []);
 
   React.useEffect(() => {
-    console.log('Setting up global map functions');
     (window as any).navigateToMapCoordinates = navigateToCoordinates;
     (window as any).stopCurrentAudio = stopCurrentAudio;
     (window as any).showRouteOnMap = showRouteOnMap;
@@ -1684,8 +1621,6 @@ const MapComponent: React.FC<MapProps> = React.memo(({
     };
 
     (window as any).handleStreetViewOpen = async (landmarkId: string) => {
-      console.log('🔍 handleStreetViewOpen called with landmark ID:', landmarkId);
-      
       let targetLandmark: Landmark | null = null;
       
       // Access landmarks directly from props since they're dynamic
@@ -1717,23 +1652,16 @@ const MapComponent: React.FC<MapProps> = React.memo(({
         }
       }
       
-      console.log('🎯 Found landmark:', targetLandmark?.name);
-      
       if (targetLandmark) {
-        console.log(`🔍 Opening Street View modal for ${targetLandmark.name} from layer click`);
         try {
           await openStreetViewModal([targetLandmark], targetLandmark);
-          console.log('✅ openStreetViewModal call completed');
         } catch (error) {
-          console.error('❌ Error calling openStreetViewModal:', error);
+          // Handle error silently
         }
-      } else {
-        console.error('❌ Landmark not found for ID:', landmarkId);
       }
     };
 
     return () => {
-      console.log('Cleaning up global map functions');
       delete (window as any).navigateToMapCoordinates;
       delete (window as any).handleInteractionListen;
       delete (window as any).stopCurrentAudio;
@@ -1879,7 +1807,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
         map.current.removeSource(sourceId);
       }
       
-      console.log('🧹 Transit route removed from map');
+      
     }
   }, [transitRouteGeoJSON]);
 
@@ -1887,9 +1815,6 @@ const MapComponent: React.FC<MapProps> = React.memo(({
   useEffect(() => {
     if (!map.current) return;
 
-    console.log('🎯 Updating route markers, optimizedLandmarks count:', optimizedLandmarks.length);
-    console.log('🎯 Route type:', isLocationBasedRoute ? 'location-based' : 'centroid-based');
-    console.log('🎯 User location:', userLocation);
 
     // Create GeoJSON features for the numbered markers
     let features: any[] = [];
@@ -1949,9 +1874,6 @@ const MapComponent: React.FC<MapProps> = React.memo(({
     const source = map.current.getSource(ROUTE_MARKERS_SOURCE_ID) as mapboxgl.GeoJSONSource;
     if (source) {
       source.setData(geojsonData);
-      console.log('🎯 Route markers updated:', features.length, 'markers');
-      console.log('🎯 Marker 1 location:', features[0]?.geometry.coordinates);
-      console.log('🎯 Marker 1 name:', features[0]?.properties.name);
       
       // Start pulsing animation for marker 1 if it exists
       if (features.length > 0 && features[0].properties.number === '1') {

@@ -68,17 +68,15 @@ const updateConnectionStatus = (status: ConnectionStatus['status'], resetFailure
     globalProximityState.connectionStatus.isPollingActive = true;
   }
   
-  console.log(`🔗 Connection status updated to: ${status}`, globalProximityState.connectionStatus);
+  
 };
 
 // Phase 2: Polling fallback mechanism
 const startPollingFallback = async (userId: string) => {
-  console.log('🔄 Starting polling fallback for proximity settings');
   updateConnectionStatus('polling');
   
   const pollData = async () => {
     try {
-      console.log('📊 Polling proximity settings...');
       const { data, error } = await supabase
         .from('proximity_settings')
         .select('*')
@@ -86,7 +84,6 @@ const startPollingFallback = async (userId: string) => {
         .maybeSingle();
 
       if (error) {
-        console.error('❌ Polling error:', error);
         return;
       }
 

@@ -28,8 +28,6 @@ export const useConnectionMonitor = () => {
   const performHealthCheck = () => {
     const now = Date.now();
     const issues: string[] = [];
-    
-    console.log('🏥 Connection Health Check:', { tourStatus, proximityStatus });
 
     // Basic connection checks for tour stats
     if (tourStatus.status === 'disconnected') {
@@ -66,7 +64,6 @@ export const useConnectionMonitor = () => {
       );
       
       if (criticalIssues.length > 0) {
-        console.log('🔄 Connection Health: Reconnecting services', criticalIssues);
         toast({
           title: "Reconnecting...",
           description: "Getting you back up to speed",
@@ -76,13 +73,11 @@ export const useConnectionMonitor = () => {
       }
     }
 
-    console.log('🏥 Connection Health Result:', { isHealthy, issues: issues.length });
+    
   };
 
   // Start background monitoring
   useEffect(() => {
-    console.log('🏥 Starting connection health monitoring');
-    
     // Initial health check
     performHealthCheck();
     
@@ -94,7 +89,6 @@ export const useConnectionMonitor = () => {
         clearInterval(healthCheckIntervalRef.current);
         healthCheckIntervalRef.current = null;
       }
-      console.log('🏥 Stopped connection health monitoring');
     };
   }, []);
 

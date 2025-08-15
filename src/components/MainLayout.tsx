@@ -173,17 +173,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
   // Handle session state change from NewTourAssistant
   const handleSessionStateChange = (isActive: boolean, state: AssistantState) => {
-    console.log('🎙️ Voice agent session state changed:', { isActive, state });
-    console.log('🗺️ [DEBUG] Voice agent state change - checking if this affects map');
-    
     // 🔥 UPDATE DEBUG STATE
     setVoiceAgentDebugState(`${isActive ? 'active' : 'inactive'}-${state}`);
     
     setIsSessionActive(isActive);
     setAssistantState(state);
     onVoiceAgentStateChange?.(isActive);
-    
-    console.log('🗺️ [DEBUG] Voice agent state change completed - map should NOT reset');
   };
 
   // Handle FAB click - reopen the tour assistant dialog
