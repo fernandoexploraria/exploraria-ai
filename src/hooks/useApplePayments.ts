@@ -4,7 +4,9 @@ import { toast } from 'sonner';
 
 declare global {
   interface Window {
-    store?: any;
+    CdvPurchase?: {
+      store: any;
+    };
   }
 }
 
@@ -36,36 +38,36 @@ export const useApplePayments = () => {
   };
 
   const initializeStore = async () => {
-    console.log('🍎 Checking platform and store availability...');
-    console.log('🍎 Platform:', Capacitor.getPlatform());
-    console.log('🍎 Is native platform:', Capacitor.isNativePlatform());
-    console.log('🍎 Store available:', !!window.store);
+    console.log('🍎 Initializing store after deviceready...');
     
-    if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios') {
-      console.log('🍎 Apple payments only available on iOS, setting as unavailable');
-      updateState({ 
-        isLoading: false, 
-        isAvailable: false,
-        error: 'Apple payments only available on iOS' 
-      });
-      return;
-    }
-
     try {
-      // Check if the store plugin is available
-      if (typeof window.store === 'undefined') {
-        console.log('🍎 Cordova store plugin not found. Run "npx cap sync" to sync plugins.');
+      // Check if the CdvPurchase plugin is available
+      if (!window.CdvPurchase || !window.CdvPurchase.store) {
+        console.log('🍎 CdvPurchase.store not found. Plugin may not be properly installed.');
         updateState({ 
           isLoading: false, 
           isAvailable: false,
-          error: 'Store plugin not found. Please sync Capacitor plugins.' 
+          error: 'CdvPurchase store not available. Please ensure plugin is properly installed.' 
         });
         return;
       }
 
-      const { store } = window;
-      console.log('🍎 Store object found, initializing...');
+      const store = window.CdvPurchase.store;
+      console.log('🍎 Store object found, checking methods...');
       console.log('🍎 Store methods available:', Object.keys(store));
+      console.log('🍎 Ready method:', typeof store.ready);
+      console.log('🍎 Register method:', typeof store.register);
+
+      // Verify essential methods exist
+      if (typeof store.ready !== 'function' || typeof store.register !== 'function') {
+        console.error('🍎 Essential store methods not available');
+        updateState({ 
+          isLoading: false, 
+          isAvailable: false,
+          error: 'Store methods not available. Plugin may not be fully initialized.' 
+        });
+        return;
+      }
 
       // Configure the store
       store.verbosity = store.DEBUG;
@@ -226,7 +228,10 @@ export const useApplePayments = () => {
     try {
       updateState({ isProcessing: true, error: null });
       
-      const { store } = window;
+      const store = window.CdvPurchase?.store;
+      if (!store) {
+        throw new Error('Store not available');
+      }
       const product = store.products.find((p: any) => p.id === PRODUCT_ID);
       
       if (!product) {
@@ -260,7 +265,10 @@ export const useApplePayments = () => {
       updateState({ isProcessing: true, error: null });
       console.log('🍎 Restoring purchases...');
       
-      const { store } = window;
+      const store = window.CdvPurchase?.store;
+      if (!store) {
+        throw new Error('Store not available');
+      }
       
       await new Promise((resolve) => {
         store.refresh();
@@ -290,7 +298,38 @@ export const useApplePayments = () => {
   };
 
   useEffect(() => {
-    initializeStore();
+    console.log('🍎 Checking platform and store availability...');
+    console.log('🍎 Platform:', Capacitor.getPlatform());
+    console.log('🍎 Is native platform:', Capacitor.isNativePlatform());
+    
+    if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios') {
+      console.log('🍎 Apple payments only available on iOS, setting as unavailable');
+      updateState({ 
+        isLoading: false, 
+        isAvailable: false,
+        error: 'Apple payments only available on iOS' 
+      });
+      return;
+    }
+
+    const onDeviceReady = async () => {
+      console.log('🍎 Device ready event fired, initializing store...');
+      await initializeStore();
+    };
+
+    // Check if device is already ready
+    if (document.readyState === 'complete') {
+      console.log('🍎 Document already ready, checking for deviceready...');
+      // Give a small delay to ensure Cordova is fully loaded
+      setTimeout(onDeviceReady, 100);
+    } else {
+      console.log('🍎 Adding deviceready event listener...');
+      document.addEventListener('deviceready', onDeviceReady, false);
+    }
+
+    return () => {
+      document.removeEventListener('deviceready', onDeviceReady, false);
+    };
   }, []);
 
   return {
