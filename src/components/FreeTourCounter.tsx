@@ -96,24 +96,16 @@ const FreeTourCounter: React.FC = () => {
   };
 
   const handleAppleSubscribeClick = async () => {
-    if (!rcState.isInitialized) {
-      alert('Subscription system not initialized yet. Please wait a moment.');
-      return;
-    }
-    if (rcState.isLoading || rcState.isProcessing) {
-      return;
-    }
-    if (!rcState.currentOffering || !rcState.currentOffering.availablePackages?.find((p: any) => p.identifier === 'monthly')) {
-      alert('Subscription options not available. Please try again later.');
-      return;
-    }
-
     try {
+      // The hook will handle all the checks and find the correct package
       await rcState.purchaseSubscription();
-      // The hook handles success feedback via toast
-      await checkSubscription(); // Refresh overall subscription status
+      
+      // Refresh your app's main subscription status after a successful purchase
+      await checkSubscription();
     } catch (error) {
-      // Error already handled by the hook
+      // The useRevenueCat hook handles the toast notifications, so this is for
+      // any unexpected errors that might not have been caught there
+      console.error('Apple subscription error in component:', error);
     }
   };
 
@@ -188,7 +180,7 @@ const FreeTourCounter: React.FC = () => {
               size="sm"
               className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left mt-1"
               onClick={handleAppleSubscribeClick}
-              disabled={rcState.isLoading || rcState.isProcessing || !rcState.isInitialized || !rcState.isAvailable}
+              disabled={!rcState.isAvailable || rcState.isProcessing}
             >
               {rcState.isProcessing ? (
                 <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -214,7 +206,7 @@ const FreeTourCounter: React.FC = () => {
               variant="outline"
               className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left mt-2"
               onClick={handleAppleSubscribeClick}
-              disabled={rcState.isLoading || rcState.isProcessing || !rcState.isInitialized || !rcState.isAvailable}
+              disabled={!rcState.isAvailable || rcState.isProcessing}
             >
               {rcState.isProcessing ? (
                 <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />

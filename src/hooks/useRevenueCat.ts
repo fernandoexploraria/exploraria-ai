@@ -80,8 +80,8 @@ export const useRevenueCat = () => {
         throw new Error('Failed to get RevenueCat public API key from backend.');
       }
 
-      // Set log level for production
-      Purchases.setLogLevel({ level: LOG_LEVEL.ERROR });
+      // Set debug logs for better troubleshooting
+      Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
 
       // Configure RevenueCat with user ID
       const appUserID = user?.id;
@@ -108,13 +108,12 @@ export const useRevenueCat = () => {
           ...prev,
           currentOffering: offerings.current,
           isAvailable: true,
-          isInitialized: true,
         }));
       } else {
         setState(prev => ({
           ...prev,
           isAvailable: false,
-          error: 'No active offerings found. Please check your RevenueCat dashboard configuration.',
+          error: 'No active offerings found. Check RevenueCat dashboard configuration.',
         }));
       }
 
@@ -132,7 +131,7 @@ export const useRevenueCat = () => {
         error: e.message || 'Failed to initialize subscription system.',
       }));
     } finally {
-      setState(prev => ({ ...prev, isLoading: false }));
+      setState(prev => ({ ...prev, isLoading: false, isInitialized: true })); // Ensure isInitialized is set
     }
   }, [user, handleCustomerInfoUpdate]);
 
@@ -141,7 +140,9 @@ export const useRevenueCat = () => {
     try {
       if (!state.isAvailable) throw new Error('Subscription system not available.');
       if (!state.currentOffering) throw new Error('No current offering found to purchase from.');
-      const pkg = state.currentOffering.availablePackages.find((p: any) => p.identifier === PACKAGE_IDENTIFIER);
+
+      // CRITICAL FIX: Use getPackage() method, not find() on availablePackages
+      const pkg = state.currentOffering.getPackage(PACKAGE_IDENTIFIER);
       if (!pkg) throw new Error('Subscription package not found.');
       if (!user) throw new Error('Please log in to purchase a subscription.');
 
