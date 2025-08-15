@@ -20,20 +20,12 @@ export const useNearbyLandmarks = ({
 }: UseNearbyLandmarksProps): NearbyLandmark[] => {
   return useMemo(() => {
     if (!userLocation) {
-      console.log('🎯 No nearby landmarks: missing user location');
       return [];
     }
 
     if (TOUR_LANDMARKS.length === 0) {
-      console.log('🎯 No nearby landmarks: TOUR_LANDMARKS array is empty');
       return [];
     }
-
-    console.log('🎯 Processing tour landmarks for proximity detection:', {
-      totalTourLandmarks: TOUR_LANDMARKS.length,
-      userLocation: { lat: userLocation.latitude, lng: userLocation.longitude },
-      notificationDistance
-    });
 
     // Filter tour landmarks within notification distance
     const nearbyTourLandmarks = filterLandmarksWithinRadius(

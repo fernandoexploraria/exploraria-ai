@@ -25,21 +25,9 @@ const FreeTourCounter: React.FC = () => {
   const isCancelled = subscriptionData?.cancel_at_period_end || false;
   const subscriptionEnd = subscriptionData?.subscription_end;
   
-
+  
   // Wait for both loading states to complete to prevent flickering
   const isLoading = tourLoading || subLoading;
-
-  // Debug logging for RevenueCat state
-  useEffect(() => {
-    console.log('🍎 FreeTourCounter: RevenueCat state:', {
-      isInitialized: rcState.isInitialized,
-      isLoading: rcState.isLoading,
-      isProcessing: rcState.isProcessing,
-      isAvailable: rcState.isAvailable,
-      isPremiumActive: rcState.isPremiumActive,
-      error: rcState.error,
-    });
-  }, [rcState.isInitialized, rcState.isLoading, rcState.isProcessing, rcState.isAvailable, rcState.isPremiumActive, rcState.error]);
 
   // Listen for subscription limit reached event
   useEffect(() => {

@@ -89,11 +89,6 @@ export const TravelExpertUpgrade: React.FC<TravelExpertUpgradeProps> = ({
         const daysSinceSignup = currentProfile?.first_login_at ? (Date.now() - new Date(currentProfile.first_login_at).getTime()) / (1000 * 60 * 60 * 24) : 0;
         const sessionCount = currentProfile?.session_count || 0;
         const wasDismissed = currentProfile?.upgrade_card_dismissed_at;
-        console.log('📊 Card visibility check:', {
-          daysSinceSignup,
-          sessionCount,
-          wasDismissed: !!wasDismissed
-        });
 
         // Show full card if: within first 7 days OR first 3 sessions AND not dismissed
         const shouldShow = !wasDismissed && (daysSinceSignup <= 7 || sessionCount <= 3);

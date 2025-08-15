@@ -57,11 +57,9 @@ export const useTourStats = () => {
         throw error;
       }
 
-      console.log('📥 Tour Stats: Loaded data:', data);
       
       // If no stats found, create initial record
       if (!data) {
-        console.log('📝 Tour Stats: No stats found, creating initial record');
         const { data: newStats, error: insertError } = await supabase
           .from('user_tour_stats')
           .insert({

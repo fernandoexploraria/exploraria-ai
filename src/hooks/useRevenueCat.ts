@@ -40,7 +40,6 @@ export const useRevenueCat = () => {
 
   // Customer info update handler
   const handleCustomerInfoUpdate = useCallback((customerInfo: CustomerInfo) => {
-    console.log('🍎 RevenueCat Customer Info Updated:', customerInfo);
     const hasPremium = customerInfo.entitlements.active[PREMIUM_ENTITLEMENT_ID] !== undefined;
 
     setState(prev => ({
@@ -61,12 +60,10 @@ export const useRevenueCat = () => {
 
   // RevenueCat configuration
   const configureRevenueCat = useCallback(async () => {
-    console.log('🍎 Starting RevenueCat configuration...');
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     // Check if running on native iOS platform
     if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios') {
-      console.warn('🍎 RevenueCat for iOS is only available on native iOS devices. Subscription functionality will be limited.');
       setState(prev => ({
         ...prev,
         isAvailable: false,
@@ -83,14 +80,11 @@ export const useRevenueCat = () => {
         throw new Error('Failed to get RevenueCat public API key from backend.');
       }
 
-      console.log('🍎 Got API key, configuring RevenueCat...');
-
       // Set debug logs for development
       Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
 
       // Configure RevenueCat with user ID
       const appUserID = user?.id;
-      console.log('🍎 Configuring RevenueCat with appUserID:', appUserID);
 
       if (appUserID) {
         await Purchases.configure({
@@ -129,10 +123,10 @@ export const useRevenueCat = () => {
       const { customerInfo: initialCustomerInfo } = await Purchases.getCustomerInfo();
       handleCustomerInfoUpdate(initialCustomerInfo);
 
-      console.log('🍎 RevenueCat configuration complete!');
+      
 
     } catch (e: any) {
-      console.error('🍎 Failed to initialize RevenueCat:', e);
+      // Handle errors silently in production
       setState(prev => ({
         ...prev,
         isAvailable: false,
@@ -210,11 +204,9 @@ export const useRevenueCat = () => {
   }, [state.isAvailable, user, toast, handleCustomerInfoUpdate]);
 
   useEffect(() => {
-    console.log('🍎 useRevenueCat useEffect triggered, user:', user?.id);
     configureRevenueCat();
 
     return () => {
-      console.log('🍎 Cleaning up RevenueCat listeners');
       // Note: RevenueCat Capacitor plugin handles cleanup automatically
     };
   }, [configureRevenueCat]);

@@ -320,14 +320,12 @@ const MapComponent: React.FC<MapProps> = React.memo(({
   }, [landmarks, tourLandmarks]);
 
   useEffect(() => {
-    console.log('🔄 Syncing tour landmarks state:', TOUR_LANDMARKS.length);
     setTourLandmarks([...TOUR_LANDMARKS]);
   }, [TOUR_LANDMARKS.length]);
 
   useEffect(() => {
     const interval = setInterval(() => {
       if (TOUR_LANDMARKS.length !== tourLandmarks.length) {
-        console.log('🔄 Detected tour landmarks change via polling:', TOUR_LANDMARKS.length);
         setTourLandmarks([...TOUR_LANDMARKS]);
       }
     }, 1000);
@@ -464,7 +462,6 @@ const MapComponent: React.FC<MapProps> = React.memo(({
             zoom: currentZoom,
             center: [currentCenter.lng, currentCenter.lat]
           };
-          console.log('🗺️ [Map] State updated:', mapStateRef.current);
         }
       });
 
@@ -529,12 +526,10 @@ const MapComponent: React.FC<MapProps> = React.memo(({
       }
 
       map.current.on('style.load', () => {
-        console.log('🗺️ [Map] Map style loaded, adding fog...');
         map.current?.setFog({});
       });
 
       map.current.on('load', () => {
-        console.log('🗺️ [Layers] Map loaded, initializing all GeoJSON layers...');
         
         if (!map.current) return;
         
@@ -549,13 +544,6 @@ const MapComponent: React.FC<MapProps> = React.memo(({
           
           // Detect dramatic zoom changes that indicate a reset to globe view
           if (Math.abs(currentZoom - lastZoom) > 10) {
-            console.warn('🚨 [Map] DRAMATIC ZOOM CHANGE DETECTED:', {
-              from: lastZoom,
-              to: currentZoom,
-              centerFrom: [lastCenter.lng, lastCenter.lat],
-              centerTo: [currentCenter.lng, currentCenter.lat],
-              stackTrace: new Error().stack
-            });
             
             // Check if this looks like a reset to globe view
             if (currentZoom < 3 && lastZoom > 10) {
@@ -672,7 +660,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
           }
         });
         
-        console.log('🗺️ [Layers] All GeoJSON layers initialized including route markers');
+        
         
         const addLayerClickHandler = (layerId: string, layerType: 'tour' | 'top' | 'base') => {
           map.current!.on('click', layerId, (e) => {
@@ -681,11 +669,8 @@ const MapComponent: React.FC<MapProps> = React.memo(({
             const feature = e.features?.[0];
             if (!feature?.properties) return;
             
-            console.log(`🗺️ [${layerType.toUpperCase()} Layer] Clicked:`, feature.properties.name);
-            
             const landmark = findLandmarkByFeatureProperties(feature.properties, layerType);
             if (!landmark) {
-              console.warn(`🗺️ [${layerType.toUpperCase()} Layer] Could not find landmark`);
               return;
             }
             
