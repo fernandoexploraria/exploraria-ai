@@ -119,7 +119,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email);
+        // console.log('Auth state changed:', event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -140,7 +140,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onPostAuth
         
         // Handle post-auth actions for successful sign-ins
         if (event === 'SIGNED_IN' && session?.user) {
-          console.log('Sign in detected, checking for pending actions');
+          // console.log('Sign in detected, checking for pending actions');
           const pendingAction = getPostAuthAction();
           
           if (pendingAction !== 'none') {

@@ -56,7 +56,7 @@ const InteractionCarousel: React.FC<InteractionCarouselProps> = ({
   // Stop audio when carousel is closed
   useEffect(() => {
     if (!open) {
-      console.log('Interaction carousel closed - stopping audio');
+      // console.log('Interaction carousel closed - stopping audio');
       stop();
     }
   }, [open, stop]);

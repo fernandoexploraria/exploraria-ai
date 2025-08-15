@@ -180,7 +180,7 @@ const attemptRealTimeReconnection = (userId: string) => {
 const reconnectWithBackoff = (userId: string, loadProximitySettingsFunc: () => Promise<void>) => {
   // Phase 2: Check if we should switch to polling instead
   if (globalProximityState.connectionStatus.consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD) {
-    console.log(`🚨 Circuit breaker triggered (${globalProximityState.connectionStatus.consecutiveFailures} failures), switching to polling fallback`);
+    // console.log(`🚨 Circuit breaker triggered (${globalProximityState.connectionStatus.consecutiveFailures} failures), switching to polling fallback`);
     startPollingFallback(userId);
     return;
   }
@@ -265,7 +265,7 @@ const createProximitySettingsSubscription = (userId: string, loadProximitySettin
 
   // Subscribe to the channel
   channel.subscribe((status) => {
-    console.log('📡 Proximity settings subscription status:', status);
+    // console.log('📡 Proximity settings subscription status:', status);
     if (status === 'SUBSCRIBED') {
       globalProximityState.isSubscribed = true;
       // Phase 1: Reset retry count on successful connection

@@ -81,7 +81,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   // Enhanced reset and cleanup when dialog opens using utility
   React.useEffect(() => {
     if (open) {
-      console.log('🎯 IntelligentTourDialog opened - performing enhanced cleanup');
+      // console.log('🎯 IntelligentTourDialog opened - performing enhanced cleanup');
       
       // Clear existing tour markers immediately
       clearTourMarkers();
@@ -157,7 +157,7 @@ const IntelligentTourDialog: React.FC<IntelligentTourDialogProps> = ({
   };
 
   const handleClose = () => {
-    console.log('🎯 IntelligentTourDialog closing - performing cleanup');
+    // console.log('🎯 IntelligentTourDialog closing - performing cleanup');
     // Clear tour markers when dialog closes without completing
     if (currentStep < 5) {
       clearTourMarkers();

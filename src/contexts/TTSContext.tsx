@@ -173,7 +173,7 @@ export const TTSProvider: React.FC<TTSProviderProps> = ({ children, isVoiceAgent
   };
 
   const stop = () => {
-    console.log('Stop called - cleaning up all audio sources');
+    // console.log('Stop called - cleaning up all audio sources');
     
     // Stop HTML5 audio
     if (audioRef.current) {
@@ -184,7 +184,7 @@ export const TTSProvider: React.FC<TTSProviderProps> = ({ children, isVoiceAgent
     
     // Stop speech synthesis
     if ('speechSynthesis' in window) {
-      console.log('Cancelling speech synthesis');
+      // console.log('Cancelling speech synthesis');
       speechSynthesis.cancel();
     }
     

@@ -220,7 +220,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
   const updateTourLandmarksLayer = useCallback(() => {
     if (!map.current) return;
     
-    console.log('🗺️ [Tour Layer] Updating tour landmarks GeoJSON layer with', tourLandmarks.length, 'landmarks');
+    // console.log('🗺️ [Tour Layer] Updating tour landmarks GeoJSON layer with', tourLandmarks.length, 'landmarks');
     
     const features = tourLandmarks.map((landmark, index) => ({
       type: 'Feature' as const,
@@ -243,14 +243,14 @@ const MapComponent: React.FC<MapProps> = React.memo(({
     const source = map.current.getSource(TOUR_LANDMARKS_SOURCE_ID) as mapboxgl.GeoJSONSource;
     if (source) {
       source.setData(geojsonData);
-      console.log('🗺️ [Tour Layer] Updated with', features.length, 'features');
+      // console.log('🗺️ [Tour Layer] Updated with', features.length, 'features');
     }
   }, [tourLandmarks]);
 
   const updateTopLandmarksLayer = useCallback(() => {
     if (!map.current) return;
     
-    console.log('🗺️ [Top Layer] Updating top landmarks GeoJSON layer with', TOP_LANDMARKS.length, 'landmarks');
+    // console.log('🗺️ [Top Layer] Updating top landmarks GeoJSON layer with', TOP_LANDMARKS.length, 'landmarks');
     
     const features = TOP_LANDMARKS.map((landmark, index) => ({
       type: 'Feature' as const,
@@ -273,14 +273,14 @@ const MapComponent: React.FC<MapProps> = React.memo(({
     const source = map.current.getSource(TOP_LANDMARKS_SOURCE_ID) as mapboxgl.GeoJSONSource;
     if (source) {
       source.setData(geojsonData);
-      console.log('🗺️ [Top Layer] Updated with', features.length, 'features');
+      // console.log('🗺️ [Top Layer] Updated with', features.length, 'features');
     }
   }, []);
 
   const updateBaseLandmarksLayer = useCallback(() => {
     if (!map.current) return;
     
-    console.log('🗺️ [Base Layer] Updating base landmarks GeoJSON layer with', landmarks.length, 'landmarks');
+    // console.log('🗺️ [Base Layer] Updating base landmarks GeoJSON layer with', landmarks.length, 'landmarks');
     
     // Filter out tour landmarks from base landmarks to avoid duplicates
     const baseLandmarksOnly = landmarks.filter(landmark => {
@@ -292,7 +292,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
       );
     });
     
-    console.log('🗺️ [Base Layer] Filtered out duplicates, showing', baseLandmarksOnly.length, 'unique base landmarks');
+    // console.log('🗺️ [Base Layer] Filtered out duplicates, showing', baseLandmarksOnly.length, 'unique base landmarks');
     
     const features = baseLandmarksOnly.map((landmark) => ({
       type: 'Feature' as const,
@@ -315,7 +315,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
     const source = map.current.getSource(BASE_LANDMARKS_SOURCE_ID) as mapboxgl.GeoJSONSource;
     if (source) {
       source.setData(geojsonData);
-      console.log('🗺️ [Base Layer] Updated with', features.length, 'features');
+      // console.log('🗺️ [Base Layer] Updated with', features.length, 'features');
     }
   }, [landmarks, tourLandmarks]);
 
@@ -428,7 +428,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
       return;
     }
 
-    console.log('🗺️ [Map] Starting map initialization...');
+    // console.log('🗺️ [Map] Starting map initialization...');
     
     try {
       mapboxgl.accessToken = mapboxToken;
@@ -436,7 +436,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
       const initialZoom = mapStateRef.current?.zoom || 1.5;
       const initialCenter = mapStateRef.current?.center || [0, 20];
       
-      console.log('🗺️ [Map] Creating map with state:', { zoom: initialZoom, center: initialCenter });
+      // console.log('🗺️ [Map] Creating map with state:', { zoom: initialZoom, center: initialCenter });
       
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
@@ -446,7 +446,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
         center: initialCenter,
       });
 
-      console.log('🗺️ [Map] Map instance created successfully');
+      // console.log('🗺️ [Map] Map instance created successfully');
       
       // 🔥 ADD MAP STATE TRACKING
       map.current.on('moveend', () => {
@@ -753,7 +753,7 @@ const MapComponent: React.FC<MapProps> = React.memo(({
       });
 
       return () => {
-        console.log('🗺️ [Map] Cleanup function called');
+        // console.log('🗺️ [Map] Cleanup function called');
         stopCurrentAudio();
         geolocateControl.current = null;
         map.current?.remove();

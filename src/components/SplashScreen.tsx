@@ -26,7 +26,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
       img.onload = () => {
         setImageLoaded(true);
         setImageError(false);
-        console.log('Splash background image loaded successfully from Supabase Storage');
+        // console.log('Splash background image loaded successfully from Supabase Storage');
       };
       img.onerror = () => {
         console.warn('Failed to load splash background image from Supabase Storage, using gradient fallback');

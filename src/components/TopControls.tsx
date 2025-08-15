@@ -118,12 +118,12 @@ const TopControls: React.FC<TopControlsProps> = ({
     }
   };
   const handleSmartTourClick = () => {
-    console.log('🎯 Smart Tour clicked from TopControls, user:', authUser?.id);
+    // console.log('🎯 Smart Tour clicked from TopControls, user:', authUser?.id);
     if (!authUser) {
       console.log('🚨 User not authenticated, opening auth dialog with smart-tour action');
       setIsAuthDialogOpen(true);
     } else {
-      console.log('✅ User authenticated, opening smart tour dialog');
+      // console.log('✅ User authenticated, opening smart tour dialog');
       // Note: Reset logic is now handled by onIntelligentTourOpen from parent
       onIntelligentTourOpen();
     }

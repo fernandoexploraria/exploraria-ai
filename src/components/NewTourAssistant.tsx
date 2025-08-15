@@ -250,7 +250,7 @@ const NewTourAssistant: React.FC<NewTourAssistantProps> = ({
 
   // Update state based on conversation status
   useEffect(() => {
-    console.log('Conversation status changed:', conversation.status, 'isSpeaking:', conversation.isSpeaking);
+    // console.log('Conversation status changed:', conversation.status, 'isSpeaking:', conversation.isSpeaking);
     
     if (conversation.status === 'connected') {
       if (conversation.isSpeaking) {

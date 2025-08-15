@@ -26,14 +26,14 @@ export const TOUR_LANDMARKS: TourLandmark[] = [];
 
 // Enhanced function to clear tour landmarks - now only handles GeoJSON layer cleanup
 export const clearTourMarkers = () => {
-  console.log('🧹 Enhanced clearing of tour landmarks...');
+  // console.log('🧹 Enhanced clearing of tour landmarks...');
   
   // Clear the landmarks array
   const landmarksCleared = TOUR_LANDMARKS.length;
   TOUR_LANDMARKS.length = 0;
   
-  console.log(`🧹 Enhanced cleanup completed: ${landmarksCleared} landmarks cleared from array`);
-  console.log('🧹 Note: Tour landmarks are now handled by GeoJSON layer, no individual markers to clean');
+  // console.log(`🧹 Enhanced cleanup completed: ${landmarksCleared} landmarks cleared from array`);
+  // console.log('🧹 Note: Tour landmarks are now handled by GeoJSON layer, no individual markers to clean');
 };
 
 // Enhanced function to clear and set new tour landmarks
