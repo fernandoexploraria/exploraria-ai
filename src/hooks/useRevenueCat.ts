@@ -141,9 +141,9 @@ export const useRevenueCat = () => {
       if (!state.isAvailable) throw new Error('Subscription system not available.');
       if (!state.currentOffering) throw new Error('No current offering found to purchase from.');
 
-      // CRITICAL FIX: Use getPackage() method, not find() on availablePackages
-      const pkg = state.currentOffering.getPackage(PACKAGE_IDENTIFIER);
-      if (!pkg) throw new Error('Subscription package not found.');
+      // CORRECT FIX: Use availablePackages array to find the package
+      const pkg = state.currentOffering.availablePackages?.find((p: any) => p.identifier === '$rc_monthly');
+      if (!pkg) throw new Error('Monthly subscription package not found.');
       if (!user) throw new Error('Please log in to purchase a subscription.');
 
       setState(prev => ({ ...prev, isProcessing: true, error: null }));
