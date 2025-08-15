@@ -40,6 +40,7 @@ interface ApplePaymentsState {
 }
 
 const PRODUCT_ID = 'LEXPS0002'; // Your Apple subscription product ID
+const PROMOTIONAL_OFFER_IDENTIFIER = 'LEXPP0002'; // Promotional offer reference name from App Store Connect
 
 export const useApplePayments = () => {
   const { user, session } = useAuth();
@@ -418,24 +419,26 @@ export const useApplePayments = () => {
       
       let orderOptions: any = {};
       
-      // CRITICAL FIX: The plugin expects promotional offer data even for "Default" offers
-      // We need to use the ACTUAL promotional offer identifier from App Store Connect
-      // not the "$" ID that comes from the plugin
-      
-      // Replace this with your actual promotional offer reference name from App Store Connect
-      // Go to App Store Connect > Your App > Features > In-App Purchases > LEXPS0002 > Promotional Offers
-      const ACTUAL_PROMOTIONAL_OFFER_IDENTIFIER = 'default_promo'; // UPDATE THIS WITH YOUR ACTUAL OFFER ID
+      // CRITICAL FIX: Target the specific Promotional Offer and get its signature
+      // Find the specific promotional offer object within the product's offers array.
+      // The plugin populates product.offers with all available offers (introductory, promotional).
+      const targetOffer = product.offers?.find((offer: any) => offer.id === PROMOTIONAL_OFFER_IDENTIFIER);
+
+      if (!targetOffer) {
+        // This means the promotional offer isn't being loaded by the plugin.
+        // This is a critical debugging point if you get this error.
+        throw new Error(`Promotional offer '${PROMOTIONAL_OFFER_IDENTIFIER}' not found for product ${PRODUCT_ID}. Ensure it's configured and propagated.`);
+      }
+
+      console.log('🍎 Detected specific promotional offer, requesting server signature...');
       
       if (user && session) {
-        console.log('🍎 Plugin requires promotional offer signature, requesting from backend...');
-        
         try {
           // Call Supabase Edge Function to get the signed discount data
           const { data: signedDiscountData, error: signatureError } = await supabase.functions.invoke('generate-apple-offer-signature', {
             body: {
               productIdentifier: product.id,
-              // Use the ACTUAL promotional offer identifier from App Store Connect, NOT "$"
-              offerIdentifier: ACTUAL_PROMOTIONAL_OFFER_IDENTIFIER,
+              offerIdentifier: targetOffer.id, // Use the ID from the found offer object (should be LEXPP0002)
               subscriptionGroupIdentifier: product.group || '21754941', // Use product group or fallback
               applicationUsername: user.id
             },
@@ -449,12 +452,15 @@ export const useApplePayments = () => {
             throw new Error(`Failed to get Apple offer signature: ${signatureError?.message || 'Unknown error'}`);
           }
           
-          // Construct the additionalData.appStore.discount object with the signed data
+          // Construct the `orderOptions` with both the `offer` object and the `additionalData.appStore.discount`
+          // The `offer` parameter tells the plugin *which* offer to use.
+          // The `additionalData.appStore.discount` provides the *signed data* for that offer.
           orderOptions = {
+            offer: targetOffer, // Pass the entire offer object
             additionalData: {
               appStore: {
                 discount: {
-                  identifier: signedDiscountData.identifier, // Should match ACTUAL_PROMOTIONAL_OFFER_IDENTIFIER
+                  identifier: signedDiscountData.identifier, // This should be LEXPP0002
                   keyIdentifier: signedDiscountData.keyIdentifier,
                   nonce: signedDiscountData.nonce,
                   signature: signedDiscountData.signature,
@@ -463,7 +469,7 @@ export const useApplePayments = () => {
               }
             }
           };
-          console.log('🍎 Ordering with signed promotional offer structure:', orderOptions);
+          console.log('🍎 Ordering with signed promotional offer:', orderOptions);
           
         } catch (signatureError) {
           console.error('🍎 Error getting signature:', signatureError);
