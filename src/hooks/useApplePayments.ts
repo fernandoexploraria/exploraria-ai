@@ -413,9 +413,22 @@ export const useApplePayments = () => {
       console.log('🍎 Starting purchase for:', product);
       toast.loading('Processing purchase...');
       
-      // Use the product object instead of just the ID
-      console.log('🍎 Calling store.order with product object...');
-      store.order(product);
+      // CRITICAL FIX: Include offer information if available
+      let orderOptions: any = {};
+      
+      // Check if the product has offers (introductory or promotional offers)
+      if (product.offers && product.offers.length > 0) {
+        const defaultOffer = product.offers[0];
+        orderOptions = {
+          offer: defaultOffer
+        };
+        console.log('🍎 Ordering with offer:', defaultOffer);
+      } else {
+        console.log('🍎 Ordering without specific offer (no offers found)');
+      }
+      
+      console.log('🍎 Calling store.order with product and options...');
+      store.order(product, orderOptions);
       
     } catch (error: any) {
       console.error('🍎 Purchase error:', error);
