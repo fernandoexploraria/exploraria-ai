@@ -8,6 +8,7 @@ export interface SubscriptionData {
   subscription_tier?: string | null;
   subscription_end?: string | null;
   cancel_at_period_end?: boolean;
+  subscription_platform?: string | null;
 }
 
 export const useSubscription = () => {
@@ -25,17 +26,43 @@ export const useSubscription = () => {
 
     try {
       setIsLoading(true);
-      const { data, error } = await supabase.functions.invoke('check-subscription', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
+      
+      // First, check what subscription platform this user has (if any)
+      const { data: existingSubscriber } = await supabase
+        .from('subscribers')
+        .select('subscription_platform')
+        .eq('user_id', user.id)
+        .single();
 
-      if (error) {
-        throw error;
+      let subscriptionData = null;
+
+      if (existingSubscriber?.subscription_platform === 'revenuecat') {
+        // Check RevenueCat subscription
+        const { data, error } = await supabase.functions.invoke('check-revenuecat-subscription', {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+
+        if (error) {
+          throw error;
+        }
+        subscriptionData = data;
+      } else {
+        // Check Stripe subscription (default or explicit stripe platform)
+        const { data, error } = await supabase.functions.invoke('check-subscription', {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+
+        if (error) {
+          throw error;
+        }
+        subscriptionData = data;
       }
 
-      setSubscriptionData(data);
+      setSubscriptionData(subscriptionData);
     } catch (err) {
       console.error('Error checking subscription:', err);
       setError(err instanceof Error ? err.message : 'Failed to check subscription');

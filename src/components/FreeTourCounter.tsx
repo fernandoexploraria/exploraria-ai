@@ -27,6 +27,7 @@ const FreeTourCounter: React.FC = () => {
   const isSubscribed = subscriptionData?.subscribed || false;
   const isCancelled = subscriptionData?.cancel_at_period_end || false;
   const subscriptionEnd = subscriptionData?.subscription_end;
+  const subscriptionPlatform = subscriptionData?.subscription_platform;
   
   
   // Wait for both loading states to complete to prevent flickering
@@ -266,9 +267,10 @@ const FreeTourCounter: React.FC = () => {
               </>
             )}
 
-            {/* Manage Subscription Button */}
-            {(
+            {/* Platform-specific subscription management */}
+            {subscriptionPlatform === 'stripe' ? (
               <>
+                {/* Stripe Subscription Management */}
                 <Button
                   variant="outline"
                   size="sm"
@@ -287,29 +289,73 @@ const FreeTourCounter: React.FC = () => {
                   <CreditCard className="mr-2 h-4 w-4" />
                   Manage Subscription
                 </Button>
-              </>
-            )}
 
-            {/* Cancel Subscription Button - Only show if not already cancelled */}
-            {!isCancelled && (
+                {/* Cancel Subscription Button - Only show if not already cancelled */}
+                {!isCancelled && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left text-red-600 hover:text-red-700"
+                      onClick={handleCancelClick}
+                    >
+                      <X className="mr-1 h-3 w-3" />
+                      Cancel
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left text-red-600 hover:text-red-700"
+                      onClick={handleCancelClick}
+                    >
+                      <X className="mr-2 h-4 w-4" />
+                      Cancel Subscription
+                    </Button>
+                  </>
+                )}
+              </>
+            ) : subscriptionPlatform === 'revenuecat' ? (
               <>
+                {/* RevenueCat/Apple Subscription Management */}
                 <Button
                   variant="outline"
                   size="sm"
-                  className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left text-red-600 hover:text-red-700"
-                  onClick={handleCancelClick}
+                  className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left text-muted-foreground"
+                  disabled
                 >
-                  <X className="mr-1 h-3 w-3" />
-                  Cancel
+                  <Apple className="mr-1 h-3 w-3" />
+                  Manage via App Store
                 </Button>
                 
                 <Button
                   variant="outline"
-                  className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left text-red-600 hover:text-red-700"
-                  onClick={handleCancelClick}
+                  className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left text-muted-foreground"
+                  disabled
                 >
-                  <X className="mr-2 h-4 w-4" />
-                  Cancel Subscription
+                  <Apple className="mr-2 h-4 w-4" />
+                  Manage subscription in iOS Settings → Subscriptions
+                </Button>
+              </>
+            ) : (
+              <>
+                {/* Fallback for unknown or legacy subscriptions */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left"
+                  onClick={handleManageClick}
+                >
+                  <CreditCard className="mr-1 h-3 w-3" />
+                  Manage
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left"
+                  onClick={handleManageClick}
+                >
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Manage Subscription
                 </Button>
               </>
             )}

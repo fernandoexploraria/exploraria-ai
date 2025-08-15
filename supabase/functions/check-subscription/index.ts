@@ -339,7 +339,8 @@ serve(async (req) => {
       subscribed: isActive,
       subscription_tier: subscriptionTier,
       subscription_end: subscriptionEnd,
-      cancel_at_period_end: cancelAtPeriodEnd
+      cancel_at_period_end: cancelAtPeriodEnd,
+      subscription_platform: 'stripe'
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

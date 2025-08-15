@@ -116,10 +116,23 @@ serve(async (req) => {
         }), { status: 200 });
     }
 
+    // Get user email from auth to satisfy the not-null constraint
+    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(appUserID);
+    const userEmail = authUser?.user?.email;
+
+    if (!userEmail) {
+      console.warn(`[REVENUECAT-WEBHOOK] No email found for user ${appUserID}. Skipping database update.`);
+      return new Response(JSON.stringify({ 
+        message: 'User email not found, no update performed',
+        user_id: appUserID 
+      }), { status: 200 });
+    }
+
     const { error: subscriberError } = await supabaseAdmin
       .from('subscribers')
       .upsert({
         user_id: appUserID,
+        email: userEmail,
         subscribed: isSubscribed,
         subscription_tier: isSubscribed ? PREMIUM_ENTITLEMENT_ID : null,
         subscription_end: subscriptionEndDate,
@@ -128,7 +141,7 @@ serve(async (req) => {
         billing_issue: billingIssue,
         subscription_platform: 'revenuecat',
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id', ignoreDuplicates: false });
+      }, { onConflict: 'email', ignoreDuplicates: false });
 
     if (subscriberError) {
       console.error('[REVENUECAT-WEBHOOK] Error updating subscribers table:', subscriberError);
