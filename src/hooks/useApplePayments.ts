@@ -6,6 +6,18 @@ declare global {
   interface Window {
     CdvPurchase?: {
       store: any;
+      ProductType: {
+        PAID_SUBSCRIPTION: string;
+        NON_CONSUMABLE: string;
+        CONSUMABLE: string;
+        FREE_SUBSCRIPTION: string;
+        NON_RENEWING_SUBSCRIPTION: string;
+      };
+      Platform: {
+        APPLE_APPSTORE: string;
+        GOOGLE_PLAY: string;
+        TEST: string;
+      };
     };
   }
 }
@@ -75,7 +87,8 @@ export const useApplePayments = () => {
       // Register product
       store.register({
         id: PRODUCT_ID,
-        type: store.PAID_SUBSCRIPTION,
+        type: window.CdvPurchase.ProductType.PAID_SUBSCRIPTION,
+        platform: window.CdvPurchase.Platform.APPLE_APPSTORE,
       });
 
       // Set up event handlers
