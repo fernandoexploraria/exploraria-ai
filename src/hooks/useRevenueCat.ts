@@ -80,8 +80,8 @@ export const useRevenueCat = () => {
         throw new Error('Failed to get RevenueCat public API key from backend.');
       }
 
-      // Set debug logs for development
-      Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
+      // Set log level for production
+      Purchases.setLogLevel({ level: LOG_LEVEL.ERROR });
 
       // Configure RevenueCat with user ID
       const appUserID = user?.id;
@@ -102,7 +102,6 @@ export const useRevenueCat = () => {
 
       // Fetch offerings
       const offerings = await Purchases.getOfferings();
-      console.log('🍎 Fetched Offerings:', offerings);
 
       if (offerings.current) {
         setState(prev => ({
@@ -140,8 +139,6 @@ export const useRevenueCat = () => {
   // Purchase subscription
   const purchaseSubscription = useCallback(async () => {
     try {
-      console.log('🍎 Starting purchase process...');
-      
       if (!state.isAvailable) throw new Error('Subscription system not available.');
       if (!state.currentOffering) throw new Error('No current offering found to purchase from.');
       const pkg = state.currentOffering.availablePackages.find((p: any) => p.identifier === PACKAGE_IDENTIFIER);
@@ -149,14 +146,11 @@ export const useRevenueCat = () => {
       if (!user) throw new Error('Please log in to purchase a subscription.');
 
       setState(prev => ({ ...prev, isProcessing: true, error: null }));
-      console.log('🍎 Initiating purchase for package:', pkg.identifier);
 
       const { customerInfo } = await Purchases.purchasePackage(pkg);
-      console.log('🍎 Purchase completed for package:', pkg.identifier);
       handleCustomerInfoUpdate(customerInfo);
 
     } catch (e: any) {
-      console.error('🍎 Purchase failed:', e);
       if (e.code === 1) { // PURCHASE_CANCELED error code
         toast({ title: "Purchase Canceled", description: "You cancelled the purchase process.", variant: "default" });
       } else {
@@ -179,10 +173,8 @@ export const useRevenueCat = () => {
       if (!user) throw new Error('Please log in to restore purchases.');
 
       setState(prev => ({ ...prev, isProcessing: true, error: null }));
-      console.log('🍎 Restoring purchases...');
 
       const { customerInfo } = await Purchases.restorePurchases();
-      console.log('🍎 Purchases restored. Customer Info:', customerInfo);
       handleCustomerInfoUpdate(customerInfo);
 
       if (customerInfo.entitlements.active && customerInfo.entitlements.active[PREMIUM_ENTITLEMENT_ID]) {
@@ -191,7 +183,6 @@ export const useRevenueCat = () => {
         toast({ title: "No Active Purchases", description: "No active subscriptions found to restore.", variant: "default" });
       }
     } catch (e: any) {
-      console.error('🍎 Restore failed:', e);
       toast({
         title: "Restore Error",
         description: e.message || 'Failed to restore purchases.',

@@ -96,20 +96,11 @@ const FreeTourCounter: React.FC = () => {
   };
 
   const handleAppleSubscribeClick = async () => {
-    console.log('🍎 Apple Subscribe clicked:', {
-      isInitialized: rcState.isInitialized,
-      isLoading: rcState.isLoading,
-      isProcessing: rcState.isProcessing,
-      currentOffering: rcState.currentOffering,
-      error: rcState.error,
-    });
-
     if (!rcState.isInitialized) {
       alert('Subscription system not initialized yet. Please wait a moment.');
       return;
     }
     if (rcState.isLoading || rcState.isProcessing) {
-      console.log('🍎 Already loading or processing.');
       return;
     }
     if (!rcState.currentOffering || !rcState.currentOffering.availablePackages?.find((p: any) => p.identifier === 'monthly')) {
@@ -122,7 +113,7 @@ const FreeTourCounter: React.FC = () => {
       // The hook handles success feedback via toast
       await checkSubscription(); // Refresh overall subscription status
     } catch (error) {
-      console.error('🍎 Apple subscription error in component:', error);
+      // Error already handled by the hook
     }
   };
 

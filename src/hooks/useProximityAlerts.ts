@@ -381,7 +381,7 @@ export const useProximityAlerts = () => {
       createProximitySettingsSubscription(user.id, loadProximitySettings);
     } else if (globalProximityState.isSubscribed && globalProximityState.currentUserId === user.id) {
       // If subscription already exists for this user, just load data
-      console.log('📡 Subscription already exists for current user, loading data');
+      
       if (!globalProximityState.settings) {
         loadProximitySettings();
       }
