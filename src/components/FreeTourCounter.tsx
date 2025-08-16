@@ -237,7 +237,7 @@ const FreeTourCounter: React.FC = () => {
                   ) : (
                     <CreditCard className="mr-1 h-3 w-3" />
                   )}
-                  Subscribe
+                  Subscribe for $9.99/month
                 </Button>
                 
                 <Button
