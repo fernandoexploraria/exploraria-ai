@@ -5,6 +5,7 @@ import { Sparkles, Lock, CreditCard, X, AlertTriangle, Apple } from 'lucide-reac
 import { useApplePayments } from '@/hooks/useApplePayments';
 import { useTourStats } from '@/hooks/useTourStats';
 import { useSubscription } from '@/hooks/useSubscription';
+import { usePaymentProcessor } from '@/hooks/usePaymentProcessor';
 
 import { SubscriptionDialog } from '@/components/subscription/SubscriptionDialog';
 import { useAuth } from '@/components/AuthProvider';
@@ -14,7 +15,9 @@ const FreeTourCounter: React.FC = () => {
   const { user } = useAuth();
   const { tourStats, isLoading: tourLoading } = useTourStats();
   const applePayments = useApplePayments();
+  const { processor: paymentProcessor, isLoading: processorLoading } = usePaymentProcessor();
   
+  console.log('🎯 FreeTourCounter Payment Processor:', paymentProcessor);
   console.log('🎯 FreeTourCounter Apple Payments state:', {
     isAvailable: applePayments.isAvailable,
     isLoading: applePayments.isLoading,
@@ -41,8 +44,8 @@ const FreeTourCounter: React.FC = () => {
   const subscriptionPlatform = subscriptionData?.subscription_platform;
   
   
-  // Wait for both loading states to complete to prevent flickering
-  const isLoading = tourLoading || subLoading;
+  // Wait for all loading states to complete to prevent flickering
+  const isLoading = tourLoading || subLoading || processorLoading;
 
   // Listen for subscription limit reached event
   useEffect(() => {
@@ -189,60 +192,96 @@ const FreeTourCounter: React.FC = () => {
               )}
             </Button>
 
-            {/* Subscribe Buttons */}
-            <Button
-              variant="outline"
-              size="sm"
-              className={`bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left transition-all duration-500 ${
-                isHighlighted ? 'ring-2 ring-primary animate-pulse bg-primary/10' : ''
-              }`}
-              onClick={handleSubscribeClick}
-            >
-              <CreditCard className="mr-1 h-3 w-3" />
-              Subscribe
-            </Button>
-
-            {/* Apple Subscribe Button - Mobile */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left mt-1"
-              onClick={handleAppleSubscribeClick}
-              disabled={!applePayments.isAvailable || applePayments.isProcessing}
-            >
-              {applePayments.isProcessing ? (
-                <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              ) : (
-                <Apple className="mr-1 h-3 w-3" />
-              )}
-              Subscribe with Apple
-            </Button>
-            
-            <Button
-              variant="outline"
-              className={`bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left transition-all duration-500 ${
-                isHighlighted ? 'ring-2 ring-primary animate-pulse bg-primary/10' : ''
-              }`}
-              onClick={handleSubscribeClick}
-            >
-              <CreditCard className="mr-2 h-4 w-4" />
-              Subscribe for $9.99/month
-            </Button>
-
-            {/* Apple Subscribe Button - Desktop */}
-            <Button
-              variant="outline"
-              className="bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left mt-2"
-              onClick={handleAppleSubscribeClick}
-              disabled={!applePayments.isAvailable || applePayments.isProcessing}
-            >
-              {applePayments.isProcessing ? (
-                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              ) : (
-                <Apple className="mr-2 h-4 w-4" />
-              )}
-              Subscribe with Apple
-            </Button>
+            {/* Subscribe Buttons - Conditional based on payment processor */}
+            {paymentProcessor === 'stripe' ? (
+              <>
+                {/* Stripe Subscribe Buttons */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left transition-all duration-500 ${
+                    isHighlighted ? 'ring-2 ring-primary animate-pulse bg-primary/10' : ''
+                  }`}
+                  onClick={handleSubscribeClick}
+                >
+                  <CreditCard className="mr-1 h-3 w-3" />
+                  Subscribe
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  className={`bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left transition-all duration-500 ${
+                    isHighlighted ? 'ring-2 ring-primary animate-pulse bg-primary/10' : ''
+                  }`}
+                  onClick={handleSubscribeClick}
+                >
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Subscribe for $9.99/month
+                </Button>
+              </>
+            ) : paymentProcessor === 'apple' ? (
+              <>
+                {/* Apple Subscribe Buttons */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left transition-all duration-500 ${
+                    isHighlighted ? 'ring-2 ring-primary animate-pulse bg-primary/10' : ''
+                  }`}
+                  onClick={handleAppleSubscribeClick}
+                  disabled={!applePayments.isAvailable || applePayments.isProcessing}
+                >
+                  {applePayments.isProcessing ? (
+                    <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : (
+                    <Apple className="mr-1 h-3 w-3" />
+                  )}
+                  Subscribe with Apple
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  className={`bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left transition-all duration-500 ${
+                    isHighlighted ? 'ring-2 ring-primary animate-pulse bg-primary/10' : ''
+                  }`}
+                  onClick={handleAppleSubscribeClick}
+                  disabled={!applePayments.isAvailable || applePayments.isProcessing}
+                >
+                  {applePayments.isProcessing ? (
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : (
+                    <Apple className="mr-2 h-4 w-4" />
+                  )}
+                  Subscribe with Apple
+                </Button>
+              </>
+            ) : (
+              <>
+                {/* Fallback - show both options if processor is unknown */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left transition-all duration-500 ${
+                    isHighlighted ? 'ring-2 ring-primary animate-pulse bg-primary/10' : ''
+                  }`}
+                  onClick={handleSubscribeClick}
+                >
+                  <CreditCard className="mr-1 h-3 w-3" />
+                  Subscribe
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  className={`bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left transition-all duration-500 ${
+                    isHighlighted ? 'ring-2 ring-primary animate-pulse bg-primary/10' : ''
+                  }`}
+                  onClick={handleSubscribeClick}
+                >
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Subscribe for $9.99/month
+                </Button>
+              </>
+            )}
           </>
         )}
 
