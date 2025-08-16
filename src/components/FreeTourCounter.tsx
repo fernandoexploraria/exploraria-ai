@@ -262,7 +262,7 @@ const FreeTourCounter: React.FC = () => {
                     asChild
                     variant="ghost"
                     size="sm"
-                    className="text-xs px-2 py-1 h-6 text-muted-foreground hover:text-foreground lg:hidden"
+                    className="text-xs px-2 py-1 h-6 text-foreground/80 hover:text-foreground bg-background/40 hover:bg-background/60 lg:hidden"
                   >
                     <Link to="/terms-of-use">
                       <FileText className="mr-1 h-3 w-3" />
@@ -274,7 +274,7 @@ const FreeTourCounter: React.FC = () => {
                     asChild
                     variant="ghost"
                     size="sm"
-                    className="text-xs px-2 py-1 h-6 text-muted-foreground hover:text-foreground lg:hidden"
+                    className="text-xs px-2 py-1 h-6 text-foreground/80 hover:text-foreground bg-background/40 hover:bg-background/60 lg:hidden"
                   >
                     <Link to="/account-privacy-policy">
                       <Shield className="mr-1 h-3 w-3" />
@@ -287,7 +287,7 @@ const FreeTourCounter: React.FC = () => {
                   <Button
                     asChild
                     variant="ghost"
-                    className="text-sm px-3 py-2 h-8 text-muted-foreground hover:text-foreground"
+                    className="text-sm px-3 py-2 h-8 text-foreground/80 hover:text-foreground bg-background/40 hover:bg-background/60"
                   >
                     <Link to="/terms-of-use">
                       <FileText className="mr-2 h-4 w-4" />
@@ -298,7 +298,7 @@ const FreeTourCounter: React.FC = () => {
                   <Button
                     asChild
                     variant="ghost"
-                    className="text-sm px-3 py-2 h-8 text-muted-foreground hover:text-foreground"
+                    className="text-sm px-3 py-2 h-8 text-foreground/80 hover:text-foreground bg-background/40 hover:bg-background/60"
                   >
                     <Link to="/account-privacy-policy">
                       <Shield className="mr-2 h-4 w-4" />
