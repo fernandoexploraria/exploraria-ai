@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, Shield, FileText, LogOut, Trash2, Lock } from 'lucide-react';
+import { ArrowLeft, User, Shield, FileText, LogOut, Trash2, Lock, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/components/AuthProvider';
 import { PersonalInfoDialog } from '@/components/PersonalInfoDialog';
 import { PasswordManagementDialog } from '@/components/PasswordManagementDialog';
+import { usePaymentProcessor } from '@/hooks/usePaymentProcessor';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,7 +23,9 @@ import { toast } from 'sonner';
 const Account: React.FC = () => {
   const navigate = useNavigate();
   const { signOut } = useAuth();
+  const { processor } = usePaymentProcessor();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isRecoveringPurchases, setIsRecoveringPurchases] = useState(false);
   const [showFinalConfirmation, setShowFinalConfirmation] = useState(false);
   const [showPersonalInfoDialog, setShowPersonalInfoDialog] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
@@ -61,6 +64,36 @@ const Account: React.FC = () => {
     } finally {
       setIsDeleting(false);
       setShowFinalConfirmation(false);
+    }
+  };
+
+  const handleRecoverPurchases = async () => {
+    try {
+      setIsRecoveringPurchases(true);
+      
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) {
+        toast.error('User not authenticated');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('subscribers')
+        .update({ subscribed: true, updated_at: new Date().toISOString() })
+        .eq('user_id', user.user.id);
+
+      if (error) {
+        console.error('Error recovering purchases:', error);
+        toast.error('Failed to recover purchases. Please try again.');
+        return;
+      }
+
+      toast.success('Purchases recovered successfully!');
+    } catch (error) {
+      console.error('Error recovering purchases:', error);
+      toast.error('Failed to recover purchases. Please try again.');
+    } finally {
+      setIsRecoveringPurchases(false);
     }
   };
 
@@ -132,7 +165,20 @@ const Account: React.FC = () => {
             </Button>
             
             {/* Separator and Delete Account Section */}
-            <div className="border-t pt-6 mt-6">
+            <div className="border-t pt-6 mt-6 space-y-4">
+              {/* Recover Purchases Button - only show for Apple */}
+              {processor === 'apple' && (
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start gap-3 h-12"
+                  onClick={handleRecoverPurchases}
+                  disabled={isRecoveringPurchases}
+                >
+                  <RefreshCw className={`w-5 h-5 ${isRecoveringPurchases ? 'animate-spin' : ''}`} />
+                  {isRecoveringPurchases ? 'Recovering...' : 'Recover Purchases'}
+                </Button>
+              )}
+              
               <AlertDialog open={showFinalConfirmation} onOpenChange={setShowFinalConfirmation}>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
