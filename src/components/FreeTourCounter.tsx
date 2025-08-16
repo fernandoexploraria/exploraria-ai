@@ -225,8 +225,8 @@ const FreeTourCounter: React.FC = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  className={`bg-background/80 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left transition-all duration-500 ${
-                    isHighlighted ? 'ring-2 ring-primary animate-pulse bg-primary/10' : ''
+                  className={`bg-green-500/10 border-green-500/20 text-green-700 hover:bg-green-500/20 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left transition-all duration-500 ${
+                    isHighlighted ? 'ring-2 ring-green-500 animate-pulse bg-green-500/20' : ''
                   }`}
                   onClick={handleAppleSubscribeClick}
                   disabled={!applePayments.isAvailable || applePayments.isProcessing}
@@ -234,15 +234,15 @@ const FreeTourCounter: React.FC = () => {
                   {applePayments.isProcessing ? (
                     <div className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
                   ) : (
-                    <Apple className="mr-1 h-3 w-3" />
+                    <CreditCard className="mr-1 h-3 w-3" />
                   )}
-                  Subscribe with Apple
+                  Subscribe
                 </Button>
                 
                 <Button
                   variant="outline"
-                  className={`bg-background/80 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left transition-all duration-500 ${
-                    isHighlighted ? 'ring-2 ring-primary animate-pulse bg-primary/10' : ''
+                  className={`bg-green-500/10 border-green-500/20 text-green-700 hover:bg-green-500/20 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left transition-all duration-500 ${
+                    isHighlighted ? 'ring-2 ring-green-500 animate-pulse bg-green-500/20' : ''
                   }`}
                   onClick={handleAppleSubscribeClick}
                   disabled={!applePayments.isAvailable || applePayments.isProcessing}
@@ -250,9 +250,9 @@ const FreeTourCounter: React.FC = () => {
                   {applePayments.isProcessing ? (
                     <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                   ) : (
-                    <Apple className="mr-2 h-4 w-4" />
+                    <CreditCard className="mr-2 h-4 w-4" />
                   )}
-                  Subscribe with Apple
+                  Subscribe for $9.99/month
                 </Button>
               </>
             ) : (
