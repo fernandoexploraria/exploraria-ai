@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Lock, CreditCard, X, AlertTriangle, Apple } from 'lucide-react';
+import { Sparkles, Lock, CreditCard, X, AlertTriangle, Apple, FileText, Shield } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useApplePayments } from '@/hooks/useApplePayments';
 import { useTourStats } from '@/hooks/useTourStats';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -254,6 +255,57 @@ const FreeTourCounter: React.FC = () => {
                   )}
                   Subscribe for $9.99/month
                 </Button>
+                
+                {/* Terms of Use and Privacy Policy Links - Apple only */}
+                <div className="flex gap-2">
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs px-2 py-1 h-6 text-muted-foreground hover:text-foreground lg:hidden"
+                  >
+                    <Link to="/terms-of-use">
+                      <FileText className="mr-1 h-3 w-3" />
+                      Terms of Use
+                    </Link>
+                  </Button>
+                  
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs px-2 py-1 h-6 text-muted-foreground hover:text-foreground lg:hidden"
+                  >
+                    <Link to="/account-privacy-policy">
+                      <Shield className="mr-1 h-3 w-3" />
+                      Privacy Policy
+                    </Link>
+                  </Button>
+                </div>
+                
+                <div className="hidden lg:flex gap-2">
+                  <Button
+                    asChild
+                    variant="ghost"
+                    className="text-sm px-3 py-2 h-8 text-muted-foreground hover:text-foreground"
+                  >
+                    <Link to="/terms-of-use">
+                      <FileText className="mr-2 h-4 w-4" />
+                      Terms of Use
+                    </Link>
+                  </Button>
+                  
+                  <Button
+                    asChild
+                    variant="ghost"
+                    className="text-sm px-3 py-2 h-8 text-muted-foreground hover:text-foreground"
+                  >
+                    <Link to="/account-privacy-policy">
+                      <Shield className="mr-2 h-4 w-4" />
+                      Privacy Policy
+                    </Link>
+                  </Button>
+                </div>
               </>
             ) : (
               <>
