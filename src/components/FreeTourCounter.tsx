@@ -226,8 +226,8 @@ const FreeTourCounter: React.FC = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  className={`bg-green-500/10 border-green-500/20 text-green-700 hover:bg-green-500/20 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left transition-all duration-500 ${
-                    isHighlighted ? 'ring-2 ring-green-500 animate-pulse bg-green-500/20' : ''
+                  className={`bg-green-500/20 border-green-500/40 text-green-700 hover:bg-green-500/30 backdrop-blur-sm shadow-lg text-xs px-2 py-1 h-8 justify-start w-full lg:hidden text-left transition-all duration-500 ${
+                    isHighlighted ? 'ring-2 ring-green-500 animate-pulse bg-green-500/40' : ''
                   }`}
                   onClick={handleAppleSubscribeClick}
                   disabled={!applePayments.isAvailable || applePayments.isProcessing}
@@ -242,8 +242,8 @@ const FreeTourCounter: React.FC = () => {
                 
                 <Button
                   variant="outline"
-                  className={`bg-green-500/10 border-green-500/20 text-green-700 hover:bg-green-500/20 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left transition-all duration-500 ${
-                    isHighlighted ? 'ring-2 ring-green-500 animate-pulse bg-green-500/20' : ''
+                  className={`bg-green-500/20 border-green-500/40 text-green-700 hover:bg-green-500/30 backdrop-blur-sm shadow-lg hidden lg:flex justify-start text-left transition-all duration-500 ${
+                    isHighlighted ? 'ring-2 ring-green-500 animate-pulse bg-green-500/40' : ''
                   }`}
                   onClick={handleAppleSubscribeClick}
                   disabled={!applePayments.isAvailable || applePayments.isProcessing}
